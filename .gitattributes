@@ -1,0 +1,7 @@
+# O repositorio guarda LF. `gradlew` roda no CI Linux: com CRLF o shell recusa o interpretador.
+* text=auto eol=lf
+
+# Scripts do Windows precisam de CRLF.
+*.bat text eol=crlf
+
+*.jar binary

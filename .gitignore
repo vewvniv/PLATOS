@@ -1,0 +1,25 @@
+# Build
+build/
+out/
+.gradle/
+.kotlin/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Segredos e ambiente local
+.env
+.env.local
+*.pem
+*.key
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+
+# SO
+.DS_Store
+Thumbs.db
