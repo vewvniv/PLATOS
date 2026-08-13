@@ -1,0 +1,28 @@
+# Ver plans/basic.yaml para o significado dos campos.
+#
+# §3.4: o Pro e o professor com varias turmas. Mesma correcao objetiva ilimitada, quota maior de
+# geracao por IA, e a correcao discursiva por IA — que o Basic nao inclui.
+
+plan: pro
+display_name: Pro
+
+entitlements:
+  manual_authoring:
+    enabled: true
+    unlimited: true
+
+  omr_grading:
+    enabled: true
+    unlimited: true
+
+  ai_exam_generation:
+    enabled: true
+    unlimited: false
+    period_quota: 100
+    credit_type: ai_exam_generation
+
+  ai_essay_grading:
+    enabled: true
+    unlimited: false
+    period_quota: 600
+    credit_type: ai_essay_grading

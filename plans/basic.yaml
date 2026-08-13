@@ -1,0 +1,32 @@
+# D40: entitlements sao arquivo versionado no Git, nao linhas no banco — mesma disciplina dos
+# prompts. Mudar quota e mudar codigo, com revisao e historico, nao UPDATE em producao.
+#
+# §3.4: o Basic vende o fim do Word e a correcao rapida, nao a IA. A correcao objetiva e ilimitada
+# porque roda no dispositivo e custa zero marginal; a IA generativa e o gancho de conversao.
+#
+# unlimited: true  -> direito habilitado sem teto (nao consome ledger)
+# unlimited: false -> period_quota e o teto do periodo, somado ao saldo de credit_type no ledger
+
+plan: basic
+display_name: Basic
+
+entitlements:
+  manual_authoring:
+    enabled: true
+    unlimited: true
+
+  omr_grading:
+    enabled: true
+    unlimited: true
+
+  ai_exam_generation:
+    enabled: true
+    unlimited: false
+    period_quota: 20
+    credit_type: ai_exam_generation
+
+  ai_essay_grading:
+    enabled: false
+    unlimited: false
+    period_quota: 0
+    credit_type: ai_essay_grading
