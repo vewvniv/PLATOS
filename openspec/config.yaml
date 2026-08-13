@@ -1,0 +1,41 @@
+schema: spec-driven
+
+context: |
+  Projeto: Plataforma de Avaliação Educacional com IA.
+  Fonte arquitetural única: docs/architecture/ARQUITETURA-FINAL-v3.md.
+  Stack: Kotlin/Ktor 3, jOOQ, PostgreSQL/Supabase, KMP, Android/CameraX/OpenCV/ZXing-C++/Room/WorkManager,
+  React/TypeScript/Vite/TanStack Query.
+  Invariantes: I1 BNCC obrigatória por questão; I2 assessment_fact append-only por habilidade;
+  I3 artefatos de IA carregam prompt_version + model_id + params_hash.
+  Domínio é chaveado por organization_id; membership é N:N; assinatura pertence à organização.
+  ExamPackage publicado é imutável. LayoutMap é a fonte geométrica; PDF é projeção.
+  Offline: pull de referência imutável + push append-only. Correção objetiva local é definitiva sem discursivas.
+  Revisão humana vence resultados automáticos.
+  AI Gateway centraliza schema, prompt version, caching, custo e observabilidade.
+  Não adicionar infraestrutura descartada pela arquitetura sem ADR.
+  Prefira mudanças pequenas, verticais e verificáveis.
+
+rules:
+  proposal:
+    - Mantenha o escopo pequeno e explícito.
+    - Cite as specs/ADRs/fonte arquitetural relevantes em vez de reexplicar a arquitetura.
+    - Liste explicitamente o que NÃO será alterado.
+    - Não aceite mudança arquitetural implícita.
+  specs:
+    - Descreva comportamento observável, não implementação.
+    - Use SHALL para requisitos normativos.
+    - Use cenários Given/When/Then.
+    - Não replique o texto integral da arquitetura; descreva apenas a capacidade alterada.
+    - Inclua casos de erro, offline e idempotência quando forem relevantes.
+  design:
+    - Declare arquivos/módulos afetados.
+    - Separe contrato, domínio, infraestrutura e UI.
+    - Identifique impacto em KMP e consumidores quando aplicável.
+    - Explique compatibilidade, migração e reversibilidade.
+    - Não introduza nova tecnologia sem justificar custo operacional.
+    - Para IA, descreva cache, schema validation, versionamento e observabilidade.
+  tasks:
+    - Ordene por dependências reais.
+    - Cada tarefa deve ser pequena, verificável e marcar claramente seu resultado esperado.
+    - Coloque testes junto ou imediatamente após a mudança que eles verificam.
+    - Inclua uma tarefa final de verificação.
