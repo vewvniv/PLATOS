@@ -1,6 +1,10 @@
-# Build
-build/
-out/
+# Saidas do Gradle. Ancorado de proposito: o padrao solto `build/` casa qualquer diretorio com
+# esse nome em qualquer profundidade, inclusive o pacote buildSrc/src/main/kotlin/com/platos/build,
+# e silenciosamente deixa codigo-fonte de fora do repositorio.
+/build/
+/buildSrc/build/
+/apps/*/build/
+/out/
 .gradle/
 .kotlin/
 !gradle/wrapper/gradle-wrapper.jar
