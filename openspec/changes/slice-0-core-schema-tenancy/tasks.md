@@ -55,8 +55,8 @@
 
 ## 9. CI
 
-- [ ] 9.1 Criar `.github/workflows/ci.yml` rodando build, codegen jOOQ e a suíte completa com Testcontainers. Resultado: pipeline verde em push e em pull request.
-  - Arquivo existe e foi ajustado para JDK 21 (jOOQ 3.20 exige class file 65). Continua aberta porque o projeto ainda não é repositório git: o pipeline nunca executou, então "verde em push e em PR" não foi observado.
+- [x] 9.1 Criar `.github/workflows/ci.yml` rodando build, codegen jOOQ e a suíte completa com Testcontainers. Resultado: pipeline verde em push e em pull request.
+  - Verde em push: run 31744829416. Dois defeitos que só um runner limpo revela apareceram no caminho — `gradlew` sem bit de execução no índice, e `GenerateJooqTask.kt` engolido pelo padrão `build/` do `.gitignore`, que casava o pacote `com/platos/build`.
 
 ## 10. Verificação final
 
