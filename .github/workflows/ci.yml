@@ -119,6 +119,19 @@ jobs:
           name: pdf-web
           path: build/parity
 
+      # O runner chega com ~4 GB livres e o emulador exige 7,4 GB so para a particao de dados,
+      # entao ele morre no arranque e o `adb` fica dez minutos procurando um dispositivo que nunca
+      # existiu. Nada do que e removido aqui participa deste build.
+      - name: Liberar espaco em disco
+        run: |
+          df -h / | tail -1
+          sudo rm -rf /usr/local/lib/android/sdk/ndk \
+                      /usr/share/dotnet \
+                      /usr/share/swift \
+                      /opt/ghc \
+                      /usr/local/share/powershell
+          df -h / | tail -1
+
       - name: Habilitar KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
@@ -135,6 +148,8 @@ jobs:
           target: aosp_atd
           arch: x86_64
           profile: pixel_6
+          # O padrao pede 7,4 GB; o teste escreve um PDF de ~146 KB.
+          disk-size: 4096M
           disable-animations: true
           script: ./gradlew :apps:android:connectedDebugAndroidTest
 
