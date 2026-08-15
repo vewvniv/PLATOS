@@ -22,13 +22,15 @@ android {
     }
 
     sourceSets {
-        getByName("main").kotlin.srcDir("src/main/kotlin")
-        getByName("test").kotlin.srcDir("src/test/kotlin")
-        getByName("androidTest").kotlin.srcDir("src/androidTest/kotlin")
+        getByName("main").kotlin.directories.add("src/main/kotlin")
+        getByName("test").kotlin.directories.add("src/test/kotlin")
+        getByName("androidTest").kotlin.directories.add("src/androidTest/kotlin")
         // A fixture, o golden e a fonte sao lidos de onde estao versionados, sem copia paralela.
-        getByName("androidTest").assets.srcDir(rootProject.layout.projectDirectory.dir("fixtures"))
-        getByName("androidTest").assets.srcDir(
-            rootProject.layout.projectDirectory.dir("packages/domain/fonts"),
+        getByName("androidTest").assets.directories.add(
+            rootProject.layout.projectDirectory.dir("fixtures").asFile.path,
+        )
+        getByName("androidTest").assets.directories.add(
+            rootProject.layout.projectDirectory.dir("packages/domain/fonts").asFile.path,
         )
     }
 }

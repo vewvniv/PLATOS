@@ -36,7 +36,7 @@ kotlin {
 
     jvm()
 
-    androidLibrary {
+    android {
         namespace = "com.platos.domain"
         compileSdk = 35
         minSdk = 26
@@ -47,7 +47,7 @@ kotlin {
         }
     }
 
-    js(IR) {
+    js {
         nodejs()
         binaries.library()
     }

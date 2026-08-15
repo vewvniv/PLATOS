@@ -59,3 +59,10 @@
   | Avisos de depreciação do build | 3 | **0** |
 
   `docs/cobertura-fatia-1.md` continua válido: nenhum cenário mudou de verificação, porque nenhum comportamento mudou. Os elementos medidos que atingem o máximo — `r0-m1` na paridade, `marcador 2: borda superior` e `bolha r0-bq01-C` na fidelidade — são inclusive os mesmos de antes, não só a magnitude.
+
+- [x] 6.2 Conferir a contagem de depreciações em máquina limpa, e não sobre cache local. Resultado: contagem confiável.
+  - **A primeira contagem de "zero" estava errada, e o CI a desmentiu.** Rodar `./gradlew build --warning-mode all` localmente não recompila os scripts `.gradle.kts`, cujo cache é global e sobrevive até a `--rerun-tasks`. Os avisos do Kotlin sobre a própria DSL do build só aparecem em máquina limpa — e apareceram, no runner:
+    - `androidLibrary {}` está deprecado no KGP 2.4 em favor de `android {}`. Ou seja, a migração que o AGP 9 recomendou já nasceu superada pelo Kotlin 2.4.
+    - `js(IR)` está deprecado: IR é o único compilador, e a seleção sai da DSL. Removido em Kotlin 2.6.
+    - `srcDir(Any)` nos source sets do AGP 9 dá lugar a `directories`.
+  - Os três foram corrigidos. A lição fica registrada porque vale para toda auditoria futura: **contagem de aviso feita sobre cache mede o cache, não o projeto.**
