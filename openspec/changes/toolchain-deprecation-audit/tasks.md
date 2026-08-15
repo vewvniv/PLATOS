@@ -33,14 +33,29 @@
 ## 4. Ações do GitHub
 
 - [x] 4.1 Subir as majors em bloco (D-A.4): checkout v7, setup-java v5, setup-node v7, upload-artifact v7, download-artifact v8, gradle/actions v6. Resultado: pipeline verde e sem aviso de Node 20 depreciado.
-- [ ] 4.2 Confirmar que o job de paridade continua colhendo o PDF do Android pelo `additionalTestOutputDir` e que o passo de liberar disco segue necessário. Resultado: job `paridade` verde no PR.
+- [x] 4.2 Confirmar que o job de paridade continua colhendo o PDF do Android pelo `additionalTestOutputDir` e que o passo de liberar disco segue necessário. Resultado: job `paridade` verde no PR.
 
 ## 5. Decisões adiadas
 
-- [ ] 5.1 Avaliar Kotlin 2.2 → 2.4 depois de Gradle e AGP estabilizarem. Resultado: decisão registrada — atualizar agora ou fixar prazo.
-- [ ] 5.2 Avaliar o front (React 19, Vite 8, vitest 4) como bloco separado. Resultado: decisão registrada.
-- [ ] 5.3 Avaliar TypeScript 7 isoladamente, por ser reescrita de compilador. Resultado: decisão registrada.
+- [x] 5.1 Avaliar Kotlin 2.2 → 2.4 depois de Gradle e AGP estabilizarem. Resultado: decisão registrada — atualizar agora ou fixar prazo.
+  - **Atualizado para 2.4.10.** A avaliação virou execução porque o único aviso que sobrou depois do AGP 9 — `archives configuration has been deprecated`, que falha no Gradle 10 — vinha do próprio plugin Gradle do Kotlin, em `KotlinTargetArtifact`. Com 2.4.10 a contagem de depreciações do build vai a **zero**.
+  - Custou só regravar o lock do Yarn. Todos os números da tarefa 2.1 permanecem: paridade 0,041 mm, fidelidade 0,039 e 0,017 mm, suíte 98/94/94/6/69, golden byte a byte intacto.
+- [x] 5.2 Avaliar o front (React 19, Vite 8, vitest 4) como bloco separado. Resultado: decisão registrada.
+  - **Adiado, sem prazo fixado.** Nada ali está deprecado e nenhum pacote emite aviso. `apps/web` é casca fina — um renderizador e uma tela de upload sem navegação, estado ou rede —, então a defasagem não acumula risco como aconteceria numa aplicação de verdade. Reavaliar quando a fatia 6 trouxer autoria e o front deixar de ser casca.
+- [x] 5.3 Avaliar TypeScript 7 isoladamente, por ser reescrita de compilador. Resultado: decisão registrada.
+  - **Adiado.** É porte nativo do compilador, não incremento de versão, e o benefício aqui seria velocidade de checagem num projeto com três arquivos de fonte. Risco sem retorno neste momento. Vale reabrir junto de 5.2.
 
 ## 6. Verificação final
 
-- [ ] 6.1 Rodar a suíte completa e confirmar que nenhum número mudou em relação à tarefa 2.1, e que `docs/cobertura-fatia-1.md` continua válido. Resultado: atualização de toolchain sem efeito observável, que é o único desfecho aceitável.
+- [x] 6.1 Rodar a suíte completa e confirmar que nenhum número mudou em relação à tarefa 2.1, e que `docs/cobertura-fatia-1.md` continua válido. Resultado: atualização de toolchain sem efeito observável, que é o único desfecho aceitável.
+
+  | Medida | Base (2.1) | Depois de Gradle 9.7 · AGP 9.3.1 · Kotlin 2.4.10 |
+  |---|---|---|
+  | Paridade web × Android | 0,041 mm | **0,041 mm** |
+  | Fidelidade do documento web | 0,039 mm | **0,039 mm** |
+  | Fidelidade do documento Android | 0,017 mm | **0,017 mm** |
+  | Suíte | 98 · 94 · 94 · 6 · 69 | **idêntica** |
+  | Golden do `LayoutMap` | inalterado | **byte a byte intacto** |
+  | Avisos de depreciação do build | 3 | **0** |
+
+  `docs/cobertura-fatia-1.md` continua válido: nenhum cenário mudou de verificação, porque nenhum comportamento mudou. Os elementos medidos que atingem o máximo — `r0-m1` na paridade, `marcador 2: borda superior` e `bolha r0-bq01-C` na fidelidade — são inclusive os mesmos de antes, não só a magnitude.
