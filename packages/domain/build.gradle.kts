@@ -4,7 +4,7 @@ import com.platos.build.EmbedFontTask
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.kmp.library)
 }
 
 // D36 + D-1.1: o TTF versionado vira codigo comum, para que os tres alvos leiam os mesmos bytes
@@ -36,7 +36,10 @@ kotlin {
 
     jvm()
 
-    androidTarget {
+    androidLibrary {
+        namespace = "com.platos.domain"
+        compileSdk = 35
+        minSdk = 26
         compilations.configureEach {
             compileTaskProvider.configure {
                 compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
@@ -80,20 +83,6 @@ tasks.withType<Test>().configureEach {
     // Ferramenta de conferencia do QR: a JVM dos testes e forkada, entao o -D da linha de comando
     // precisa ser repassado explicitamente.
     providers.systemProperty("platos.qr.dump").orNull?.let { systemProperty("platos.qr.dump", it) }
-}
-
-android {
-    namespace = "com.platos.domain"
-    compileSdk = 35
-
-    defaultConfig {
-        minSdk = 26
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
 }
 
 // Regravacao do golden: `./gradlew :packages:domain:jvmTest -Dplatos.golden.write=true`.

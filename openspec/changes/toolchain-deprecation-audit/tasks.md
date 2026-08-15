@@ -23,10 +23,12 @@
 
 ## 3. Gradle e AGP
 
-- [ ] 3.1 Subir o wrapper do Gradle de 8.14 para 9.x e o AGP de 8.10.1 para 9.x no mesmo commit (D-A.2). Resultado: `./gradlew build` verde e os três avisos de `is-` property desaparecidos.
-- [ ] 3.2 Rodar a tríade de validação (D-A.3): build nos três alvos, fidelidade a 0,05 mm e paridade a 0,3 mm. Resultado: mesmos números da tarefa 2.1.
-- [ ] 3.3 Rodar o teste instrumentado no emulador. Resultado: dois testes verdes e PDF do Android gerado.
-- [ ] 3.4 Se o AGP 9 não fechar, reverter e registrar o motivo aqui. Resultado: decisão documentada; ficar no AGP 8.10 é aceitável enquanto os avisos forem informativos.
+- [x] 3.1 Subir o wrapper do Gradle de 8.14 para 9.x e o AGP de 8.10.1 para 9.x no mesmo commit (D-A.2). Resultado: `./gradlew build` verde e os três avisos de `is-` property desaparecidos.
+- [x] 3.2 Rodar a tríade de validação (D-A.3): build nos três alvos, fidelidade a 0,05 mm e paridade a 0,3 mm. Resultado: mesmos números da tarefa 2.1.
+- [x] 3.3 Rodar o teste instrumentado no emulador. Resultado: dois testes verdes e PDF do Android gerado.
+- [x] 3.4 Se o AGP 9 não fechar, reverter e registrar o motivo aqui. Resultado: decisão documentada; ficar no AGP 8.10 é aceitável enquanto os avisos forem informativos.
+  - Não foi preciso reverter, mas o caminho até fechar teve três paradas que valem registro. AGP 9 traz Kotlin embutido e registra ele próprio a extensão `kotlin`, então `org.jetbrains.kotlin.android` aplicado à mão passou a colidir e saiu de `apps/android`. Em seguida, AGP 9 recusa `com.android.library` junto de `kotlin.multiplatform`, e a saída recomendada pelo próprio AGP é o plugin `com.android.kotlin.multiplatform.library`, com `androidLibrary {}` dentro do bloco `kotlin` no lugar do `android {}` de topo. Por fim, o lock do Yarn do alvo JS precisou ser regravado.
+  - Também foi testado Gradle 9.7 com AGP 8.13.2, para evitar a migração de DSL: falha ao criar serviço interno do AGP. A matriz não fecha por esse lado, então Gradle 9 exige mesmo AGP 9.
 
 ## 4. Ações do GitHub
 
