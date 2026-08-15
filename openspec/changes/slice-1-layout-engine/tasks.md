@@ -62,8 +62,18 @@
 - [x] 9.1 Implementar o teste de paridade de cálculo JVM × JS sobre a fixture, comparando o JSON do `LayoutMap` byte a byte (D-1.6). Resultado: roda sem emulador e sem navegador, no build principal.
 - [x] 9.2 Implementar a extração de centroides de marcadores e bolhas a partir de PDF rasterizado a 600 dpi, com o **mesmo** rasterizador para os dois documentos (D-1.7). Resultado: a extração é determinística sobre o mesmo PDF.
 - [x] 9.3 Implementar a comparação de centroides com tolerância de 0,3 mm e a asserção de estrutura — número de páginas, de regiões e de bolhas por região. Resultado: cobre "Centroides dentro da tolerância" e "Estrutura idêntica das páginas".
-- [ ] 9.4 Adicionar ao `.github/workflows/ci.yml` o job separado de paridade com emulador Android de API level fixado, mais Node para o lado web. Resultado: pipeline verde em push e em pull request, com o job de paridade reportando a folga real medida.
-  - Workflow escrito: job `web` (testes, build e PDF da fixture) e job `paridade` (emulador `aosp_atd` API 34 com KVM, `adb pull` do PDF, comparação). **Falta rodar** — nada foi enviado ao GitHub ainda, então "pipeline verde" e "folga real medida" continuam sem evidência.
+- [x] 9.4 Adicionar ao `.github/workflows/ci.yml` o job separado de paridade com emulador Android de API level fixado, mais Node para o lado web. Resultado: pipeline verde em push e em pull request, com o job de paridade reportando a folga real medida.
+  - Verde no PR #2, run 31898992338: `build`, `web` e `paridade`. O gatilho de `push` cobre `main` e roda no merge.
+  - Números medidos no runner, **idênticos aos obtidos localmente** — o que é a evidência mais forte de determinismo que a fatia produziu:
+
+    | Verificação | Resultado no CI |
+    |---|---|
+    | Paridade web × Android | 116 de 116 elementos, maior divergência **0,041 mm** em `r0-m1`, folga 0,259 mm |
+    | Fidelidade do documento web | 32 verificações, maior desvio 0,039 mm |
+    | Fidelidade do documento Android | 32 verificações, maior desvio 0,017 mm |
+    | Teste instrumentado | 2 testes em `emulator-5554 — 14` |
+
+  - A primeira execução falhou, e por um motivo que não era do código: o runner chega com ~4 GB livres e o emulador exige 7,4 GB para a partição de dados, então ele abortou no arranque. O modo como isso se manifesta engana — o processo do emulador morreu, o passo não, e o `adb` passou dez minutos emitindo `device 'emulator-5554' not found`; a causa real aparece uma única vez, no começo do log. Corrigido liberando espaço no runner (de 14 GB para 30 GB livres) e pedindo partição de 4 GB.
 - [x] 9.5 Verificar o cenário "Divergência barra a integração" introduzindo deliberadamente um deslocamento acima da tolerância em um renderizador, confirmando que o job falha e aponta o elemento e a distância; reverter em seguida. Resultado: a asserção é comprovadamente capaz de falhar.
   - Deslocamento de 400 µm em `x` aplicado só às bolhas dentro do renderizador Android, PDF regerado no emulador: o comparador saiu com código 1 e acusou 103 elementos entre 0,383 mm e 0,401 mm — coerente com os 400 µm injetados. Os quatro marcadores ArUco **não** foram acusados, que é o esperado, já que o deslocamento só atingiu círculos: a detecção é dirigida ao elemento, não um alarme geral.
   - Revertido em seguida; a comparação voltou a 0,041 mm e código 0.
