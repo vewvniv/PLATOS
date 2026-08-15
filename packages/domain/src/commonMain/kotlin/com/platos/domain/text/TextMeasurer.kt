@@ -57,7 +57,7 @@ class TextMeasurer(private val font: FontProgram) {
         if (text.isEmpty()) return Um.ZERO
         var units = 0L
         var previousGlyph = -1
-        for (codePoint in text.codePoints()) {
+        for (codePoint in codePointsOf(text)) {
             val glyph = font.glyphOf(codePoint)
             if (previousGlyph >= 0) {
                 units += font.kerningBetween(previousGlyph, glyph)
@@ -121,14 +121,30 @@ class TextMeasurer(private val font: FontProgram) {
         return Um(rounded.toInt())
     }
 
-    private fun String.codePoints(): List<Int> {
+    /**
+     * Decompoe [text] em code points.
+     *
+     * Funcao membro, e nao extensao de `String`, de proposito. Como extensao chamada `codePoints`
+     * ela era sombreada em JVM e Android por `java.lang.String.codePoints(): IntStream` — o Kotlin
+     * aceita `IntStream` no `for` porque `iterator()` serve de operador, entao compilava e passava
+     * com um aviso, e so o alvo JS usava esta implementacao.
+     *
+     * As duas concordavam, inclusive em surrogate solto e par invertido, o que foi verificado
+     * antes da correcao. Mas eram duas implementacoes para a operacao que decide quantos code
+     * points um texto tem, dentro da medicao que D-1.1 exige ser identica entre alvos: a garantia
+     * vinha de concordancia, e nao de existir um caminho so.
+     */
+    private fun codePointsOf(text: String): List<Int> {
         val points = mutableListOf<Int>()
         var index = 0
-        while (index < length) {
-            val char = this[index]
-            if (char.isHighSurrogate() && index + 1 < length && this[index + 1].isLowSurrogate()) {
+        while (index < text.length) {
+            val char = text[index]
+            val forma = char.isHighSurrogate() &&
+                index + 1 < text.length &&
+                text[index + 1].isLowSurrogate()
+            if (forma) {
                 val high = char.code - 0xD800
-                val low = this[index + 1].code - 0xDC00
+                val low = text[index + 1].code - 0xDC00
                 points += 0x10000 + (high shl 10) + low
                 index += 2
             } else {

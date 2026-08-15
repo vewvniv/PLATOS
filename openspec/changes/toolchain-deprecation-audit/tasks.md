@@ -1,12 +1,25 @@
 ## 1. Defeito de sombreamento (antes de qualquer atualização)
 
-- [ ] 1.1 Renomear a extensão `String.codePoints()` de `TextMeasurer` para um nome que nada sombreie, eliminando o aviso do compilador (D-A.1). Resultado: `./gradlew build` sem o aviso `This extension is shadowed by a member`.
-- [ ] 1.2 Testar a medição de texto com surrogate solto e com par de surrogates bem formado, afirmando o mesmo resultado nos três alvos. Resultado: o caminho único de contagem de code points fica coberto por teste, e não apenas pelo corpus da fixture.
-- [ ] 1.3 Confirmar que o golden do `LayoutMap` não mudou. Resultado: `GoldenLayoutTest` verde nos três alvos sem regravar o golden — se ele mudar, a extensão sombreada estava produzindo geometria diferente e isso vira achado próprio.
+- [x] 1.1 Renomear a extensão `String.codePoints()` de `TextMeasurer` para um nome que nada sombreie, eliminando o aviso do compilador (D-A.1). Resultado: `./gradlew build` sem o aviso `This extension is shadowed by a member`.
+- [x] 1.2 Testar a medição de texto com surrogate solto e com par de surrogates bem formado, afirmando o mesmo resultado nos três alvos. Resultado: o caminho único de contagem de code points fica coberto por teste, e não apenas pelo corpus da fixture.
+  - `CodePointMeasurementTest`, 5 testes nos três alvos: par bem formado contando como um único code point, surrogate alto solto, surrogate baixo solto, par invertido e code point fora do BMP caindo em `.notdef`.
+  - **O teste foi escrito e executado antes da correção, de propósito, e o resultado mudou o diagnóstico:** as duas implementações concordavam em todos os casos, inclusive nos de surrogate. O sombreamento era risco latente, não defeito ativo — nenhuma folha já impressa está errada por causa dele.
+  - As três falhas que apareceram nessa primeira execução eram do próprio teste: eu assumi que duas larguras medidas em separado somam a largura do texto inteiro, o que é falso porque a conversão arredonda uma vez sobre o total. A diferença era de 1 µm (`4290` contra `4289`) — exatamente o mesmo engano que já estava documentado em `TextMeasurerTest` e que eu repeti.
+- [x] 1.3 Confirmar que o golden do `LayoutMap` não mudou. Resultado: `GoldenLayoutTest` verde nos três alvos sem regravar o golden — se ele mudar, a extensão sombreada estava produzindo geometria diferente e isso vira achado próprio.
 
 ## 2. Base de comparação
 
-- [ ] 2.1 Registrar os números de referência antes de atualizar qualquer coisa: desvio máximo da fidelidade nos dois PDFs e maior divergência da paridade. Resultado: valores anotados nesta tarefa, para comparar depois de cada passo.
+- [x] 2.1 Registrar os números de referência antes de atualizar qualquer coisa: desvio máximo da fidelidade nos dois PDFs e maior divergência da paridade. Resultado: valores anotados nesta tarefa, para comparar depois de cada passo.
+
+  | Medida | Valor de referência | Tolerância |
+  |---|---|---|
+  | Paridade web × Android | **0,041 mm** em `r0-m1`, 116 de 116 elementos | 0,3 mm |
+  | Fidelidade do documento web | **0,039 mm** em `marcador 2: borda superior`, 32 verificações | 0,05 mm |
+  | Fidelidade do documento Android | **0,017 mm** em `bolha r0-bq01-C: diametro externo`, 32 verificações | 0,05 mm |
+  | Suíte | 98 JVM · 94 JS · 94 Android debug · 6 `apps/android` · 69 `apps/api` · 7 web | 0 falhas |
+  | Golden do `LayoutMap` | inalterado | byte a byte |
+
+  Os três primeiros valores já foram reproduzidos em quatro execuções independentes — local e três no CI, em máquinas e sistemas diferentes — sempre na mesma terceira casa. É contra eles que Gradle e AGP serão julgados: qualquer desvio é regressão, não ajuste.
 
 ## 3. Gradle e AGP
 
