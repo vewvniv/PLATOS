@@ -66,3 +66,4 @@
     - `js(IR)` está deprecado: IR é o único compilador, e a seleção sai da DSL. Removido em Kotlin 2.6.
     - `srcDir(Any)` nos source sets do AGP 9 dá lugar a `directories`.
   - Os três foram corrigidos. A lição fica registrada porque vale para toda auditoria futura: **contagem de aviso feita sobre cache mede o cache, não o projeto.**
+  - Conferido depois no runner, com padrão largo em vez do meu próprio grep: restam 4 menções a "deprecat" no log inteiro, e as 4 são internas às ações do GitHub — `Buffer()` no `download-artifact` e `url.parse()` no `gradle/actions`. **Do projeto, nenhuma.** São código JS de terceiros, fora do nosso alcance e sem impacto no build.
