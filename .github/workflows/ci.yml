@@ -32,6 +32,9 @@ jobs:
       # Os testes de isolamento rodam contra Postgres real, conectados como app_backend — papel
       # sem SUPERUSER e sem BYPASSRLS (D-0.2). Rodar como superusuario deixaria a suite verde sem
       # provar nada, entao ConnectionRoleTest falha o build nesse caso.
+      #
+      # A partir da fatia 1 isto tambem roda `packages/domain` nos tres alvos: e o alvo JS que
+      # prova que a medicao de texto nao divergiu (D-1.2, D-1.6).
       - name: Build e testes
         run: ./gradlew build
 
@@ -40,5 +43,128 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: relatorio-de-testes
-          path: apps/api/build/reports/tests/test
+          path: |
+            apps/api/build/reports/tests/test
+            packages/domain/build/reports/tests
+          if-no-files-found: ignore
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar dependencias do web
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Testes do renderizador web
+        working-directory: apps/web
+        run: npm test
+
+      - name: Build do web
+        working-directory: apps/web
+        run: npm run build
+
+      # O PDF do lado web e insumo do job de paridade.
+      - name: Gerar PDF da fixture
+        working-directory: apps/web
+        run: npx tsx scripts/render-fixture.ts
+
+      # ADR-0001: fidelidade dimensional e propriedade do documento, medida a 1200 dpi com
+      # tolerancia de 0,05 mm. Medir no papel mediria a impressora — tres delas reescalaram a
+      # mesma folha entre -3,4% e +4,7%, em direcoes opostas, com escala declarada em 100%.
+      - name: Instalar o medidor
+        working-directory: tools/parity
+        run: npm ci
+
+      - name: Fidelidade dimensional do documento
+        working-directory: tools/parity
+        run: node fidelidade.mjs ../../build/parity/web.pdf ../../fixtures/prova-referencia.layout.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pdf-web
+          path: build/parity/web.pdf
+
+  # §16: "se o teste de paridade nao existir, vira o maior risco do projeto". Fica em job separado
+  # porque o emulador domina o tempo do pipeline, e nao deve atrasar o retorno do build do servidor.
+  paridade:
+    runs-on: ubuntu-latest
+    needs: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Baixar PDF do web
+        uses: actions/download-artifact@v4
+        with:
+          name: pdf-web
+          path: build/parity
+
+      - name: Habilitar KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # O teste instrumentado gera o PDF pelo `PdfDocument` real do Android. E o desenho da
+      # plataforma que precisa ser medido; um duble nao provaria nada.
+      - name: PDF do Android no emulador
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: aosp_atd
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: ./gradlew :apps:android:connectedDebugAndroidTest
+
+      # O AGP desinstala os APKs ao fim da execucao, entao nao adianta puxar de `filesDir` depois:
+      # o diretorio vai junto. O teste grava no `additionalTestOutputDir`, que o proprio AGP
+      # recolhe para `build/outputs/` antes de desinstalar.
+      - name: Recolher o PDF do Android
+        run: |
+          mkdir -p build/parity
+          find apps/android/build/outputs/connected_android_test_additional_output \
+            -name android.pdf -exec cp {} build/parity/android.pdf \;
+          test -s build/parity/android.pdf
+
+      - name: Instalar o comparador
+        working-directory: tools/parity
+        run: npm ci
+
+      # Os dois PDFs sao rasterizados aqui, pelo mesmo rasterizador (D-1.7). Se cada plataforma
+      # rasterizasse a sua, o teste mediria diferenca de rasterizador, nao de renderizador.
+      - name: Fidelidade dimensional do documento do Android
+        working-directory: tools/parity
+        run: node fidelidade.mjs ../../build/parity/android.pdf ../../fixtures/prova-referencia.layout.json
+
+      - name: Comparar centroides com tolerancia de 0,3 mm
+        working-directory: tools/parity
+        run: node compare.mjs ../../build/parity/web.pdf ../../build/parity/android.pdf ../../fixtures/prova-referencia.layout.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pdfs-de-paridade
+          path: build/parity/*.pdf
           if-no-files-found: ignore
