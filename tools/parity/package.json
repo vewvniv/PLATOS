@@ -1,0 +1,13 @@
+{
+  "name": "@platos/parity",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Compara os PDFs dos dois renderizadores rasterizando ambos com o mesmo rasterizador",
+  "scripts": {
+    "compare": "node compare.mjs"
+  },
+  "dependencies": {
+    "mupdf": "^1.26.4"
+  }
+}

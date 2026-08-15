@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Fatia 1: o modulo existe para desenhar o LayoutMap. Sem camera, sem rede, sem tela. -->
+    <application android:label="PLATOS" />
+</manifest>
