@@ -4,7 +4,11 @@
 /build/
 /buildSrc/build/
 /apps/*/build/
+/packages/*/build/
 /out/
+node_modules/
+# Caminho do SDK Android: e da maquina, nao do projeto.
+local.properties
 .gradle/
 .kotlin/
 !gradle/wrapper/gradle-wrapper.jar
@@ -27,3 +31,7 @@ supabase/.branches/
 # SO
 .DS_Store
 Thumbs.db
+
+# Saidas de build do web e do comparador
+apps/web/dist/
+build/parity/
