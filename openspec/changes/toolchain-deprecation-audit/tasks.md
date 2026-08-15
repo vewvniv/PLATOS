@@ -32,7 +32,7 @@
 
 ## 4. Ações do GitHub
 
-- [ ] 4.1 Subir as majors em bloco (D-A.4): checkout v7, setup-java v5, setup-node v7, upload-artifact v7, download-artifact v8, gradle/actions v6. Resultado: pipeline verde e sem aviso de Node 20 depreciado.
+- [x] 4.1 Subir as majors em bloco (D-A.4): checkout v7, setup-java v5, setup-node v7, upload-artifact v7, download-artifact v8, gradle/actions v6. Resultado: pipeline verde e sem aviso de Node 20 depreciado.
 - [ ] 4.2 Confirmar que o job de paridade continua colhendo o PDF do Android pelo `additionalTestOutputDir` e que o passo de liberar disco segue necessário. Resultado: job `paridade` verde no PR.
 
 ## 5. Decisões adiadas
