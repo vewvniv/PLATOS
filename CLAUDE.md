@@ -22,6 +22,20 @@
 9. **Teste antes de declarar concluído.** Execute testes diretamente relacionados à mudança e, quando possível, a suíte afetada.
 10. **Nunca marque tarefa como concluída sem verificação real.**
 
+## Verificação
+
+A regra 10 diz *o que* verificar; esta diz como saber se a verificação vale. Aplica-se a número, não só a teste: as piores evidências falsas desta base foram medições, não suítes vermelhas.
+
+**Antes de confiar numa medição, prove que ela reage a uma mudança no que ela mede.**
+
+Crítico é o que falha em silêncio e chega à folha impressa ou ao OMR — medição de texto, geometria, paridade, fidelidade e todo artefato imutável hasheado. Para esses:
+
+- Introduza um erro de propósito, confirme que a verificação fica vermelha, e reverta.
+- Cubra `NaN`, infinito, vazio e fora de faixa. `NaN > tolerância` é falso e passa calado.
+- Confira valor numérico contra oracle independente, que não compartilhe código com o que ele julga.
+- Desconfie de janela de medição que alcance o vizinho, e de contagem feita sobre cache.
+- Registre em `docs/cobertura-*.md` como o teste foi visto falhar, não só que ele passa.
+
 ## Invariantes arquiteturais
 
 - I1: toda questão nasce marcada por habilidade BNCC.
