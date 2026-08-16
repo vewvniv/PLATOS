@@ -32,7 +32,9 @@ Vale registrar com clareza, porque o recorte escolhido tem um custo real e ele n
 
 Ou seja: esta fatia valida o **mecanismo** — converter, empacotar como caixa, desenhar igual nos dois renderizadores — mas não valida o **caso predominante**. Fórmula em linha exige caixa com alinhamento de linha de base dentro da quebra de linha, mexendo justamente no código cuja identidade entre alvos a fatia 1 acabou de garantir, e por isso não entra aqui.
 
-**Gatilho:** matemática em linha precisa existir como fatia própria — 1.6 — e precisa estar pronta **antes da fatia 6**. Chegar à geração por IA com a tipografia predominante das exatas nunca tendo passado pelo Layout Engine anularia o motivo pelo qual a 1.5 foi posta antes da 2.
+**Gatilho formal:** matemática em linha é fatia própria — 1.6 — e é **bloqueadora da fatia 6**. Chegar à geração por IA com a tipografia predominante das exatas nunca tendo passado pelo Layout Engine anularia o motivo pelo qual a 1.5 foi posta antes da 2.
+
+**Execução planejada: imediatamente após a 1.5, e antes da 2.** O gatilho formal diz o mais tarde aceitável; esta é a data desejada, e a razão é de contrato. A 1.6 precisa introduzir uma `InlineBox` — caixa atômica com largura, altura e `baseline_offset` —, e esse tipo entra na medição de texto. Resolvê-lo antes de a fatia 2 congelar os contratos do `ExamPackage` evita reabrir a medição do Layout Engine depois, quando o pipeline de OMR já estiver estabilizado sobre geometria publicada e hasheada.
 
 ## Decisions
 
@@ -94,7 +96,24 @@ Acrescentar fórmula à fixture altera a geometria da folha de referência, ent�
 
 Aditivo. Nenhuma migration, nenhum contrato exposto, nenhuma mudança em `apps/api`. Reverter é `git revert` mais regravar o golden anterior.
 
+### D-1.5.6 — A fixture cobre a educação básica inteira, do EF ao 3º ano do EM
+
+**Dentro:** aritmética, frações, raízes, potências e subscritos, trigonometria, logaritmos, vetores e módulos, somatórios simples, e as estruturas verticais comuns do EM — matrizes 2×2 e 3×3, e sistemas lineares com `cases`.
+
+**Fora:** macros customizadas, pacotes arbitrários e gráficos por TikZ. Gráfico entra pelo fluxo de assets nativos, como imagem, e não pela compilação de fórmula.
+
+As estruturas verticais não estão na lista por completude: matriz 3×3 e sistema com `cases` são as fórmulas mais altas do currículo, e são elas que exercitam de verdade o arredondamento à grade de 3 mm e o limite de bloco que não cabe na coluna. Uma fixture só com frações e raízes deixaria esses dois caminhos sem prova.
+
+Cobrir a matriz do EM valida o caso de uso real agora, e não custa generalidade futura: como o Layout Engine só posiciona a caixa que o backend gerou (D33), suportar notação de ensino superior depois é configuração do parser no backend, sem tocar no KMP nem no layout.
+
+### D-1.5.7 — Cinza de 8 bits na rasterização de verificação
+
+A rasterização que o CI faz para comparar as duas folhas usa **cinza de 8 bits a 600 dpi, com antialiasing** — que é o que `tools/parity` já faz com `DeviceGray`.
+
+Preto e branco puro seria mais simples e mais errado aqui: 1 bit mascara variação sutil de subpixel e de espessura de traço entre os renderizadores, que é exatamente o sinal que o teste de paridade existe para captar. Quantizar antes de medir jogaria fora a diferença que se quer detectar.
+
+Isso vale para a **verificação**. O que vai ao PDF continua sendo o raster da fórmula definido em D-1.5.1.
+
 ## Open Questions
 
-- Qual conjunto de LaTeX a fixture deve exercitar: fração, raiz, somatório, matriz? Decidível ao montar a fixture; amplia cobertura sem mudar desenho.
-- O raster deve ser cinza ou preto e branco puro? §8 diz que a captura do gabarito é sempre monocromática, mas a fórmula fica fora de região escaneável. Decidível na conversão.
+Nenhuma. As três que existiam foram fechadas em D-1.5.6, D-1.5.7 e na seção sobre o que a fatia deixa sem validar.
