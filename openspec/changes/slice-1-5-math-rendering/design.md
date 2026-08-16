@@ -19,10 +19,20 @@ Ver `proposal.md — Why`. O que a fatia 1 deixou pronto define quase todo o des
 
 **Non-Goals**
 
-- Fórmula em linha. Ver `proposal.md`.
+- Fórmula em linha. Ver "O que esta fatia deixa sem validar", abaixo — não é um recorte confortável.
 - Integração com publicação real, `item_asset` e `ExamPackage` — fatia 2.
 - Qualidade tipográfica além do que o MathJax entrega por padrão.
 - Suporte a todo LaTeX. O que a fixture não exercitar, não está verificado.
+
+## O que esta fatia deixa sem validar
+
+Vale registrar com clareza, porque o recorte escolhido tem um custo real e ele não é óbvio.
+
+§15 justifica a existência da fatia 1.5 em uma linha: "exatas antes de gerar conteúdo de exatas". O conteúdo em questão é o que a fatia 6 vai gerar por IA. Só que, na prova de ensino básico, a matemática é predominantemente **em linha**, e não em bloco. A fixture de referência já demonstra isso: 7 das 28 questões têm matemática, e todas as sete são em linha, escritas hoje como texto simples — `Qual e o valor de x na equacao 3x = 21?`.
+
+Ou seja: esta fatia valida o **mecanismo** — converter, empacotar como caixa, desenhar igual nos dois renderizadores — mas não valida o **caso predominante**. Fórmula em linha exige caixa com alinhamento de linha de base dentro da quebra de linha, mexendo justamente no código cuja identidade entre alvos a fatia 1 acabou de garantir, e por isso não entra aqui.
+
+**Gatilho:** matemática em linha precisa existir como fatia própria — 1.6 — e precisa estar pronta **antes da fatia 6**. Chegar à geração por IA com a tipografia predominante das exatas nunca tendo passado pelo Layout Engine anularia o motivo pelo qual a 1.5 foi posta antes da 2.
 
 ## Decisions
 
@@ -34,7 +44,7 @@ Desenhar SVG em cada plataforma com a biblioteca dela reintroduziria exatamente 
 
 Isso não contraria D33. O SVG continua sendo o que se armazena junto ao item; o raster é artefato de impressão derivado. A arquitetura já opera assim em outro ponto: D41 manda a publicação gerar uma versão print-safe em cinza a partir da imagem colorida armazenada. Forma armazenada e forma impressa já são coisas distintas.
 
-O raster é gerado a 1200 dpi, mesma resolução em que a fidelidade do documento é medida, para que a fórmula não seja o elo mais fraco da folha.
+O raster é gerado a **600 dpi**. A primeira versão deste desenho dizia 1200 dpi, "mesma resolução em que a fidelidade do documento é medida" — o que confunde duas coisas diferentes. Aquela medição verifica **geometria**, e por isso usa resolução alta; o raster aqui é **saída de impressão**, e 600 dpi é o que impressora doméstica e escolar entrega. As três impressoras medidas no ADR-0001 nem sequer reproduzem escala corretamente. A 1200 dpi o arquivo quadruplica sem ganho visível no papel.
 
 *Alternativa descartada:* converter o SVG em primitivas de caminho no KMP e emitir `DrawPath`. É mais fiel ao vetor e evita resolução fixa, mas exige parser de SVG com transforms e referências de glifo — superfície grande de código novo, justamente na fatia cujo objetivo é não introduzir divergência. Fica registrada como caminho possível se a resolução do raster algum dia incomodar.
 
@@ -54,6 +64,16 @@ A entrada traz largura e altura da fórmula em micrômetros, já resolvidas pela
 
 O engine não abre o SVG, não lê o PNG e não mede nada da fórmula. Isso mantém o cálculo do `LayoutMap` como função pura sobre inteiros (D-1.2) e preserva a comparação byte a byte entre alvos: nenhum alvo precisa decodificar imagem para calcular geometria.
 
+### D-1.5.5 — Os bytes do raster chegam aos renderizadores pelo mesmo caminho da fonte
+
+`DrawImage` referencia um recurso por identificador, e alguém precisa transformar isso em bytes. A fatia 1 já enfrentou exatamente este problema com o TTF embarcado, e a solução dela vale aqui: o asset é versionado em `fixtures/`, entra no KMP por task de build que o transforma em código, e chega ao Android por assets do módulo de teste.
+
+O ponto não é conveniência, é garantia: **os dois renderizadores precisam desenhar os mesmos bytes**, e é disso que D-1.5.1 depende inteiramente. Se cada lado resolvesse a referência por conta própria — um lendo do disco, outro de assets, com caminhos diferentes — a igualdade por construção viraria igualdade por coincidência de configuração.
+
+*Alternativa descartada:* embutir a imagem no próprio `LayoutMap` em base64, como ArUco e QR fazem com suas matrizes. §5 é explícita ao contrário: "imagens nunca entram no JSON — vão para o Storage por referência". A diferença é de tamanho: uma matriz de QR são centenas de bytes, um raster de fórmula são dezenas de milhares.
+
+*Alternativa descartada:* cada renderizador abrindo o arquivo pelo caminho da referência. Funciona para fixture e CI, e morre na fatia 2, quando o pacote vier do Storage.
+
 ### D-1.5.4 — O golden muda, e isso é decisão, não efeito colateral
 
 Acrescentar fórmula à fixture altera a geometria da folha de referência, então o golden do `LayoutMap` é regravado deliberadamente, no mesmo commit, como D-1.9 prevê.
@@ -62,9 +82,9 @@ Acrescentar fórmula à fixture altera a geometria da folha de referência, ent�
 
 ## Risks / Trade-offs
 
-**Raster preso a uma resolução** → a 1200 dpi a fórmula empata com a precisão em que a fidelidade é medida, e a impressora doméstica medida no ADR-0001 fica muito abaixo disso. Se algum dia incomodar, D-1.5.1 registra o caminho vetorial.
+**Raster preso a uma resolução** → 600 dpi é o que impressora doméstica e escolar entrega, e as três medidas no ADR-0001 sequer reproduzem escala. Se algum dia incomodar, D-1.5.1 registra o caminho vetorial. A tarefa 6.6 imprime a folha, então a decisão é conferida no papel e não só no argumento.
 
-**Peso do arquivo** → cada fórmula vira um PNG. Numa prova com muitas fórmulas isso cresce, e a fatia 2 vai empacotar isso em `ExamPackage`. §5 já determina que imagens não entram no JSON e vão para o Storage por referência; medir o peso nesta fatia dá números para aquela decisão.
+**Peso do arquivo** → cada fórmula vira um PNG. Numa prova com muitas fórmulas isso cresce, e a fatia 2 vai empacotar isso em `ExamPackage`. §5 já determina que imagens não entram no JSON e vão para o Storage por referência; medir o peso nesta fatia dá números para aquela decisão. A queda de 1200 para 600 dpi já corta isso a um quarto.
 
 **MathJax mudar de saída entre versões** → a versão fica fixada no `package-lock.json` e o golden pega qualquer mudança de dimensão. Uma atualização de MathJax que mexa no traçado sem mexer nas dimensões passaria despercebida pelo golden, mas seria pega pela fidelidade do documento se deslocar a caixa.
 

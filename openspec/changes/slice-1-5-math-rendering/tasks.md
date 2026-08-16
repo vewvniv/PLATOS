@@ -5,8 +5,9 @@
 ## 2. Conversão em `tools/math`
 
 - [ ] 2.1 Criar `tools/math` com MathJax fixado por lock, convertendo LaTeX e MathML em SVG (D-1.5.2). Resultado: uma fórmula de entrada produz SVG determinístico, byte a byte igual entre execuções.
-- [ ] 2.2 Derivar o raster a 1200 dpi a partir do SVG e extrair largura e altura em micrômetros (D-1.5.1). Resultado: a mesma fórmula produz sempre os mesmos bytes de imagem e as mesmas dimensões.
+- [ ] 2.2 Derivar o raster a 600 dpi a partir do SVG e extrair largura e altura em micrômetros (D-1.5.1). Resultado: a mesma fórmula produz sempre os mesmos bytes de imagem e as mesmas dimensões.
 - [ ] 2.3 Emitir o manifesto que a fixture consome — identificador, dimensões e caminho do raster. Resultado: entrada pura para o Layout Engine, sem que ele precise abrir imagem.
+- [ ] 2.5 Embutir os rasters para os três alvos pelo mesmo caminho da fonte embarcada: task de build gerando código para o KMP e assets no módulo Android (D-1.5.5). Resultado: os dois renderizadores desenham comprovadamente os mesmos bytes, e não bytes que coincidem por configuração.
 - [ ] 2.4 Verificar que a conversão é reprodutível: rodar duas vezes e comparar bytes. Resultado: saída idêntica, ou a causa da variação identificada e eliminada.
 
 ## 3. Domínio: entrada e caixa da fórmula
@@ -38,5 +39,6 @@
 - [ ] 6.3 Medir paridade web × Android com fórmula na folha. Resultado: cobre "Fórmula equivalente entre renderizadores" dentro de 0,3 mm.
 - [ ] 6.4 Provar que a verificação continua capaz de falhar: deslocar a caixa da fórmula de propósito e confirmar que paridade e fidelidade acusam, com o elemento e a distância. Resultado: as duas saem com código 1; reverter em seguida.
 - [ ] 6.5 Registrar o peso dos rasters da fixture. Resultado: número anotado, para a fatia 2 decidir empacotamento com dado em vez de estimativa (§5).
-- [ ] 6.6 Imprimir a folha com fórmula e conferir legibilidade a olho, seguindo o protocolo. Resultado: registrado se a fórmula sai nítida na impressora medida no ADR-0001.
+- [ ] 6.6 Imprimir a folha com fórmula e conferir legibilidade a olho, seguindo o protocolo. Resultado: registrado se a fórmula a 600 dpi sai nítida na impressora medida no ADR-0001 — é o que confere a escolha de resolução no papel, e não só no argumento.
 - [ ] 6.7 Atualizar `docs/cobertura-fatia-1.md` com os cenários novos. Resultado: nenhum cenário das duas specs sem verificação.
+- [ ] 6.8 Registrar a fatia 1.6 — matemática em linha — como próxima da lista, com o gatilho de precisar existir antes da fatia 6. Resultado: o caso predominante das exatas não fica só numa nota de design.

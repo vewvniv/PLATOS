@@ -20,6 +20,7 @@ O ponto difícil não é tipografar — §7 já resolveu isso ao mandar converte
 **Renderizadores**
 - Ambos passam a desenhar `DrawImage`, primitiva que já existe no `LayoutMap` e hoje é recusada pelos dois.
 - Os mesmos bytes de raster vão para os dois lados, então a paridade é exata por construção, e não por concordância entre bibliotecas.
+- Os bytes chegam pelo mesmo caminho que a fonte embarcada já usa na fatia 1: asset versionado, embutido por task de build para o KMP e lido de assets no Android.
 
 **Verificação**
 - Paridade e fidelidade seguem valendo, agora com fórmula na folha.
@@ -49,6 +50,7 @@ Nenhuma.
 
 **Explicitamente NÃO alterado**
 - **Fórmula em linha**, no meio do texto corrido. Exigiria caixas com alinhamento de linha de base dentro da quebra de linha — justamente o código cuja identidade entre alvos a fatia 1 acabou de garantir.
+  - Este é o recorte menos confortável desta fatia, e o `design.md` o registra com nome próprio. Matemática em linha é o caso **predominante** em prova de ensino básico: das 28 questões da fixture de referência, 7 têm matemática e todas as sete são em linha. Fica como fatia **1.6**, com gatilho explícito — precisa existir antes da fatia 6, que gera conteúdo de exatas por IA.
 - **Imagens de enunciado** e a versão print-safe em cinza (D41). A primitiva de imagem passa a existir, mas o fluxo de imagem do item é fatia posterior.
 - **Publicação, `ExamPackage`, hash e `item_asset`** — fatia 2.
 - **Região discursiva**, colunas adaptativas, densidade em três níveis.
