@@ -1,6 +1,6 @@
 {
   "id": "prova-referencia-slice-1",
-  "title": "Prova de referencia — fatia 1",
+  "title": "Prova de referencia — fatias 1 e 1.5",
   "questions": [
     {
       "id": "q01",
@@ -309,6 +309,198 @@
         "18",
         "20"
       ]
+    },
+    {
+      "id": "q29",
+      "kind": "objective",
+      "statement": "Qual e o valor da expressao abaixo?",
+      "options": [
+        "0",
+        "24",
+        "31",
+        "36"
+      ],
+      "formula": {
+        "reference": "f-aritmetica",
+        "width": 25866,
+        "height": 3344
+      }
+    },
+    {
+      "id": "q30",
+      "kind": "objective",
+      "statement": "Qual e o resultado da soma indicada?",
+      "options": [
+        "3/7",
+        "5/12",
+        "11/12",
+        "7/12"
+      ],
+      "formula": {
+        "reference": "f-fracoes",
+        "width": 10414,
+        "height": 6900
+      }
+    },
+    {
+      "id": "q31",
+      "kind": "objective",
+      "statement": "Quanto vale a expressao abaixo?",
+      "options": [
+        "12",
+        "15",
+        "18",
+        "21"
+      ],
+      "formula": {
+        "reference": "f-raizes",
+        "width": 18203,
+        "height": 3683
+      }
+    },
+    {
+      "id": "q32",
+      "kind": "objective",
+      "statement": "Numa PG com a1 = 3 e razao q = 2, quanto vale o quarto termo?",
+      "options": [
+        "12",
+        "18",
+        "24",
+        "48"
+      ],
+      "formula": {
+        "reference": "f-potencias",
+        "width": 20616,
+        "height": 3598
+      }
+    },
+    {
+      "id": "q33",
+      "kind": "objective",
+      "statement": "Se o seno de um angulo agudo e 3/5, quanto vale o cosseno desse angulo?",
+      "options": [
+        "2/5",
+        "3/5",
+        "4/5",
+        "5/4"
+      ],
+      "formula": {
+        "reference": "f-trigonometria",
+        "width": 26035,
+        "height": 3217
+      }
+    },
+    {
+      "id": "q34",
+      "kind": "objective",
+      "statement": "Qual e o valor de x na igualdade abaixo?",
+      "options": [
+        "4",
+        "5",
+        "6",
+        "16"
+      ],
+      "formula": {
+        "reference": "f-logaritmo",
+        "width": 16044,
+        "height": 3133
+      }
+    },
+    {
+      "id": "q35",
+      "kind": "objective",
+      "statement": "Qual e o modulo do vetor indicado?",
+      "options": [
+        "3",
+        "4",
+        "5",
+        "7"
+      ],
+      "formula": {
+        "reference": "f-vetor",
+        "width": 44027,
+        "height": 4572
+      }
+    },
+    {
+      "id": "q36",
+      "kind": "objective",
+      "statement": "Usando a identidade abaixo, quanto vale a soma dos dez primeiros inteiros positivos?",
+      "options": [
+        "45",
+        "50",
+        "55",
+        "100"
+      ],
+      "formula": {
+        "reference": "f-somatorio",
+        "width": 24892,
+        "height": 9398
+      }
+    },
+    {
+      "id": "q37",
+      "kind": "objective",
+      "statement": "Qual e o valor do determinante indicado?",
+      "options": [
+        "6",
+        "8",
+        "10",
+        "14"
+      ],
+      "formula": {
+        "reference": "f-matriz2",
+        "width": 8932,
+        "height": 8043
+      }
+    },
+    {
+      "id": "q38",
+      "kind": "objective",
+      "statement": "Qual e a soma dos elementos da diagonal principal da matriz abaixo?",
+      "options": [
+        "12",
+        "15",
+        "18",
+        "45"
+      ],
+      "formula": {
+        "reference": "f-matriz3",
+        "width": 17611,
+        "height": 12742
+      }
+    },
+    {
+      "id": "q39",
+      "kind": "objective",
+      "statement": "Qual e o valor de x no sistema abaixo?",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "5"
+      ],
+      "formula": {
+        "reference": "f-sistema",
+        "width": 17992,
+        "height": 8043
+      }
+    },
+    {
+      "id": "q40",
+      "kind": "objective",
+      "statement": "Aplicando a formula abaixo, quais sao as raizes de x2 - 5x + 6 = 0?",
+      "options": [
+        "1 e 6",
+        "2 e 3",
+        "-2 e -3",
+        "0 e 5"
+      ],
+      "formula": {
+        "reference": "f-bhaskara",
+        "width": 30776,
+        "height": 7832
+      }
     }
   ]
 }

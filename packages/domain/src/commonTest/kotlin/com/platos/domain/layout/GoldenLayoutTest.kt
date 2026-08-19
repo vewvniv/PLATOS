@@ -55,8 +55,38 @@ class GoldenLayoutTest {
     fun `fixture de referencia atravessa mais de uma pagina`() {
         val map = LayoutEngine().layout(exam)
         assertTrue(map.pages.size > 1, "a fixture precisa exercitar a paginacao")
-        assertEquals(28, exam.questions.size)
-        assertEquals(28 * 4, map.regions.single().bubbles.size)
+        assertEquals(40, exam.questions.size)
+        assertEquals(40 * 4, map.regions.single().bubbles.size)
+    }
+
+    /**
+     * A fixture precisa exercitar formula, e nao so texto (D-1.5.6).
+     *
+     * As doze cobrem a educacao basica inteira: aritmetica, fracao, raiz, potencia com subscrito,
+     * trigonometria, logaritmo, vetor com modulo, somatorio, matriz 2x2 e 3x3, e sistema linear.
+     * As verticais nao sao enfeite — matriz 3x3 e `cases` sao as formulas mais altas do curriculo,
+     * e sao elas que exercitam de verdade o arredondamento a grade.
+     */
+    @Test
+    fun `fixture de referencia traz formula em bloco`() {
+        val map = LayoutEngine().layout(exam)
+        val imagens = map.pages.flatMap { it.primitives }.filterIsInstance<DrawImage>()
+
+        assertEquals(12, imagens.size, "a folha de referencia precisa ter matematica")
+        assertEquals(
+            exam.questions.count { it.formula != null },
+            imagens.size,
+            "toda questao com formula precisa ter a caixa dela no mapa",
+        )
+        assertEquals(
+            imagens.size,
+            imagens.map { it.reference }.distinct().size,
+            "as formulas da fixture precisam ser distintas entre si",
+        )
+        assertTrue(
+            imagens.any { it.reference == "f-matriz3" } && imagens.any { it.reference == "f-sistema" },
+            "as estruturas verticais mais altas precisam estar na fixture",
+        )
     }
 
     @Test

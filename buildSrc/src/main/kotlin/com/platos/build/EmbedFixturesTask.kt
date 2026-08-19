@@ -52,15 +52,20 @@ abstract class EmbedFixturesTask : DefaultTask() {
                     .uppercase()
                 val chunks = file.readText().chunked(CHUNK_SIZE)
                 appendLine()
-                appendLine("    const val $constant: String =")
-                if (chunks.isEmpty()) {
-                    appendLine("        \"\"")
-                } else {
-                    chunks.forEachIndexed { index, chunk ->
-                        val suffix = if (index == chunks.lastIndex) "" else " +"
-                        appendLine("        \"${escape(chunk)}\"$suffix")
-                    }
+                // Juntado em tempo de execucao, e nao com `const val`.
+                //
+                // `const val` exige constante de compilacao, entao o compilador dobra a soma dos
+                // pedacos num literal so — e o pool de constantes da JVM recusa qualquer UTF-8
+                // acima de 65535 bytes. Quebrar em pedacos nao adiantava nada enquanto o todo
+                // continuasse `const`: o golden passou de 65 KB ao ganhar formulas e o build caiu
+                // com "UTF8 string too large". A lista impede a dobra.
+                appendLine("    private val ${constant}_PARTS: List<String> = listOf(")
+                for (chunk in chunks) {
+                    appendLine("        \"${escape(chunk)}\",")
                 }
+                appendLine("    )")
+                appendLine()
+                appendLine("    val $constant: String = ${constant}_PARTS.joinToString(\"\")")
             }
             appendLine("}")
         }
