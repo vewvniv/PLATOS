@@ -234,16 +234,31 @@
   | PDF web / Android | 204 544 B / 221 146 B (contra 136 169 B / 146 246 B sem fórmula) |
 
   Para a fatia 2: **~8 KiB por fórmula a 600 dpi**. Uma prova de 40 questões toda de exatas ficaria em torno de 330 KiB de raster — o que sustenta §5 mandar imagem para o Storage por referência em vez de para dentro do JSON. A queda de 1200 para 600 dpi decidida em D-1.5.1 já cortou isso a um quarto.
-- [ ] 6.6 Imprimir a folha com fórmula e conferir legibilidade a olho, seguindo o protocolo. Resultado: registrado se a fórmula a 600 dpi sai nítida na impressora medida no ADR-0001 — é o que confere a escolha de resolução no papel, e não só no argumento.
+- [x] 6.6 Imprimir a folha com fórmula e conferir legibilidade a olho, seguindo o protocolo. Resultado: **aprovada**, e o caminho até a aprovação é o que esta tarefa existia para produzir.
 
-  **Bloqueada: exige papel e impressora física, que não estão ao meu alcance.** É a única tarefa da fatia que nenhuma verificação automática substitui, e é justamente a que confere D-1.5.1 no papel em vez de no argumento — a escolha de 600 dpi foi feita porque "é o que impressora doméstica e escolar entrega", e isso continua sendo um argumento até alguém olhar a folha.
+  Foram **três** impressões, e só a primeira delas era a prevista.
 
-  O documento está pronto em `build/parity/web.pdf` (4 páginas, 12 fórmulas). O protocolo está em `docs/protocolo-medicao-impressa.md`. O que precisa ser olhado, além do que o protocolo já pede:
+  | | resultado |
+  |---|---|
+  | 1ª | resolução **aprovada**; espaçamento **reprovado** |
+  | 2ª | proximidade corrigida, aprovada com pedido de mais separação abaixo |
+  | 3ª | **aprovada** |
 
-  - traço da fração e da raiz — são os finos, e são o primeiro lugar onde 600 dpi falharia;
-  - subscrito e expoente de `f-potencias`, que são os menores glifos da folha;
-  - as barras verticais de `f-matriz2` e as parênteses altas de `f-matriz3`;
-  - se a fórmula parece do mesmo peso óptico do texto ao redor, já que foi composta no mesmo corpo.
+  A resolução passou de primeira, e essa era a pergunta que a tarefa fazia: traço de fração e raiz,
+  subscrito e expoente de `f-potencias`, barras de `f-matriz2`, parênteses de `f-matriz3`, e o peso
+  óptico contra o texto ao redor. Os 600 dpi de D-1.5.1 estão conferidos no papel, e não só no
+  argumento.
+
+  **O que ela achou não era o que ela procurava.** O espaçamento em volta da fórmula estava
+  invertido: 10,089 mm de branco acima contra 2,565 mm abaixo, então por proximidade a fórmula lia
+  como pertencente às alternativas em vez do enunciado. Corrigido em D-1.5.9, na seção 8.
+
+  Vale registrar por que nenhuma verificação automática pegou isso, porque nenhuma delas estava
+  errada: a paridade compara os dois renderizadores, e os dois erravam igual, com 0,042 mm de
+  divergência; a fidelidade compara o documento com o `LayoutMap`, e o documento estava fiel a um
+  mapa errado; o golden compara o mapa consigo mesmo. **Defeito de julgamento tipográfico não tem
+  oracle dentro do sistema** — o oracle é o olho de quem lê a folha. É o argumento para esta tarefa
+  nunca ser substituída por medição, e ela acabou de pagar o próprio custo.
 
 - [x] 6.7 Atualizar `docs/cobertura-fatia-1.md` com os cenários novos. Resultado: nenhum cenário das duas specs sem verificação.
 
@@ -425,5 +440,8 @@ impressão.
 
   Instrumentados no emulador: 4 testes, 0 falhas.
 
-- [ ] 8.6 Segunda impressão, para fechar a 6.6. O que conferir está em
-  `docs/protocolo-medicao-impressa.md` §8.
+- [x] 8.6 Reimprimir para fechar a 6.6. Resultado: aprovada na terceira impressão.
+
+  A segunda aprovou a inversão da proximidade e pediu mais separação das alternativas, atendida em
+  8.7. A terceira aprovou a folha. O que foi conferido está em `docs/protocolo-medicao-impressa.md`
+  §8, que passou a registrar também a armadilha de traduzir ajuste visual em constante nominal.
