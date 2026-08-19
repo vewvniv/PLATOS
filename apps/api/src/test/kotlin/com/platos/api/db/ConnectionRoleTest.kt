@@ -5,6 +5,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * D-0.2. Este e o teste que impede que todos os outros sejam decorativos.
@@ -62,8 +63,19 @@ class ConnectionRoleTest {
         }
     }
 
+    /**
+     * Derivado do catalogo, e **nao** de uma lista escrita a mao.
+     *
+     * A versao anterior enumerava as cinco tabelas da fatia 0 num `in (...)` e afirmava que eram
+     * cinco. Uma tabela nova — a fatia 2 cria varias — nascia fora da verificacao sem derrubar
+     * nada: a guarda continuava verde afirmando sobre um universo que tinha parado de crescer.
+     * Era o proprio risco que este arquivo existe para cobrir, entrando pela porta dos fundos.
+     *
+     * Agora o universo e "toda tabela base de `public`". Tabela nova nasce coberta, e quem quiser
+     * excluir alguma precisa dizer isso em voz alta aqui.
+     */
     @Test
-    fun `todas as tabelas de dominio tem RLS habilitada e forcada`() {
+    fun `toda tabela de public tem RLS habilitada e forcada`() {
         PostgresSupport.adminDataSource.connection.use { connection ->
             connection.createStatement().use { statement ->
                 statement.executeQuery(
@@ -73,17 +85,21 @@ class ConnectionRoleTest {
                     join pg_namespace n on n.oid = c.relnamespace
                     where n.nspname = 'public'
                       and c.relkind = 'r'
-                      and c.relname in ('app_user', 'organization', 'membership', 'subscription', 'credit_ledger')
+                    order by c.relname
                     """.trimIndent(),
                 ).use { rows ->
+                    val semRls = mutableListOf<String>()
                     var tabelas = 0
                     while (rows.next()) {
                         tabelas++
                         val nome = rows.getString("relname")
-                        assertEquals(true, rows.getBoolean("relrowsecurity"), "$nome sem RLS habilitada")
-                        assertEquals(true, rows.getBoolean("relforcerowsecurity"), "$nome sem RLS forcada")
+                        if (!rows.getBoolean("relrowsecurity")) semRls += "$nome sem RLS habilitada"
+                        if (!rows.getBoolean("relforcerowsecurity")) semRls += "$nome sem RLS forcada"
                     }
-                    assertEquals(5, tabelas, "faltou tabela de dominio na verificacao de RLS")
+                    // Sem este piso a consulta poderia voltar vazia — por schema errado ou migration
+                    // nao aplicada — e o teste passaria sem ter olhado nada.
+                    assertTrue(tabelas >= 5, "esperava ao menos as 5 tabelas da fatia 0, vi $tabelas")
+                    assertEquals(emptyList<String>(), semRls.toList(), "tabela de dominio sem RLS forcada")
                 }
             }
         }
