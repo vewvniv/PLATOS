@@ -6,7 +6,7 @@ Uma questão SHALL poder declarar uma fórmula em bloco, acompanhada de suas dim
 
 O Layout Engine SHALL tratar a fórmula como uma caixa opaca: ele posiciona e reserva espaço, e SHALL NOT interpretar, tipografar ou remedir o conteúdo matemático.
 
-A altura reservada para a fórmula SHALL ser múltiplo da grade de 3 mm, arredondada para cima a partir da altura declarada, sem deformar nem reescalar a fórmula.
+A fórmula SHALL ser desenhada exatamente com as dimensões declaradas, sem deformar nem reescalar. O espaço que ela ocupa no bloco SHALL NOT ser arredondado à grade: quem cai na grade de 3 mm é o bloco da questão, e arredondar também a fórmula depositaria o resíduo desse arredondamento de um dos lados dela.
 
 Uma fórmula cuja largura declarada exceda a largura da coluna SHALL produzir erro explícito e identificável, e nenhum layout SHALL ser emitido.
 
@@ -18,7 +18,7 @@ Uma fórmula cuja largura declarada exceda a largura da coluna SHALL produzir er
 #### Scenario: Fórmula não é reescalada
 
 - **WHEN** a altura declarada da fórmula não é múltiplo da grade
-- **THEN** o espaço reservado sobe ao próximo múltiplo e as dimensões da fórmula permanecem exatamente as declaradas
+- **THEN** as dimensões desenhadas permanecem exatamente as declaradas, e é a altura do bloco que sobe ao próximo múltiplo da grade
 
 #### Scenario: Fórmula mais larga que a coluna
 
@@ -29,6 +29,24 @@ Uma fórmula cuja largura declarada exceda a largura da coluna SHALL produzir er
 
 - **WHEN** duas questões declaram fórmulas de conteúdos diferentes mas dimensões iguais
 - **THEN** os blocos resultantes têm a mesma altura e a mesma posição
+
+### Requirement: O branco em volta da fórmula a mantém ligada ao enunciado
+
+A fórmula em bloco é parte do enunciado, e o espaçamento SHALL refletir isso: o branco abaixo da fórmula SHALL ser maior que o branco acima, de modo que a proximidade não a apresente como pertencente às alternativas.
+
+Os dois espaços SHALL ser derivados da mesma grandeza que já governa a transição entre o fim do enunciado e a primeira alternativa, e SHALL NOT ser constantes independentes — dois valores independentes divergem quando um deles é ajustado.
+
+Os dois espaços SHALL ser iguais para todas as fórmulas, independentemente da altura de cada uma.
+
+#### Scenario: Fórmula lê como parte do enunciado
+
+- **WHEN** uma questão com fórmula em bloco é posicionada
+- **THEN** o espaço entre a fórmula e a primeira alternativa é maior que o espaço entre a última linha do enunciado e a fórmula
+
+#### Scenario: Espaçamento não varia com a altura da fórmula
+
+- **WHEN** duas questões declaram fórmulas de alturas diferentes
+- **THEN** o branco acima e o branco abaixo são os mesmos nas duas
 
 ### Requirement: Fórmula pertence ao bloco indivisível da questão
 

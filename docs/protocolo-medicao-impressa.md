@@ -155,3 +155,16 @@ pedido veio em tinta e a implementação é nominal, e as duas escalas não são
 Multiplicar o espaçamento nominal por 1,5 teria dado +74% de branco visível, não +50%, porque a
 ascendente da linha seguinte é uma subtração fixa que não escala junto. Quem ajustar espaçamento a
 olho precisa converter, e não multiplicar.
+
+### Resultado
+
+**Aprovada na terceira impressão.** A resolução passou na primeira — os 600 dpi de D-1.5.1 estão
+conferidos no papel. O espaçamento levou duas correções: a primeira inverteu a proximidade, a
+segunda ajustou a separação das alternativas.
+
+O que fica desta tarefa para as próximas fatias, mais do que o resultado: **a impressão achou o que
+nenhuma verificação automática podia achar, e nenhuma delas estava errada.** Paridade compara os
+dois renderizadores entre si, e os dois erravam igual; fidelidade compara o documento com o
+`LayoutMap`, e o documento estava fiel a um mapa errado; o golden compara o mapa consigo mesmo.
+Defeito de julgamento tipográfico não tem oracle dentro do sistema. Enquanto a folha for impressa
+por uma pessoa, esta seção precisa continuar existindo.

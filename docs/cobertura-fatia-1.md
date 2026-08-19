@@ -41,7 +41,7 @@ em três runtimes.
 | Questão discursiva na entrada | `LayoutEngineTest.questao discursiva impede a emissao do mapa` |
 | Conteúdo não suportado não degrada em silêncio | `ExamDefinitionTest.recurso nao suportado no enunciado e recusado` |
 
-## `layout-engine` — fatia 1.5, 8 cenários, 8 cobertos
+## `layout-engine` — fatia 1.5, 10 cenários, 10 cobertos
 
 Todos em `BlockFormulaTest`, `commonTest`, nos três alvos.
 
@@ -55,6 +55,8 @@ Todos em `BlockFormulaTest`, `commonTest`, nos três alvos.
 | Ordem dentro do bloco | `formula fica abaixo do enunciado e acima da primeira alternativa` |
 | Fórmula não se separa do enunciado | `enunciado formula e alternativas ficam na mesma coluna e pagina`, com fórmula de 30 mm forçando várias quebras |
 | Fórmula em linha ainda é recusada | `formula em linha continua recusada com mensagem propria` |
+| Fórmula lê como parte do enunciado | `os dois vaos sao derivados e o de baixo e maior que o de cima` — afirma `spaceBelow > spaceAbove * 2` |
+| Espaçamento não varia com a altura da fórmula | `a formula nao arredonda a grade, quem arredonda e o bloco` — quatro alturas, um único par de vãos |
 
 > **Nota de D-1.5.9.** O espaçamento em volta da fórmula mudou depois que a folha impressa foi
 > reprovada por proximidade — o branco de cima era 3,9× o de baixo, e a fórmula lia como parte das
