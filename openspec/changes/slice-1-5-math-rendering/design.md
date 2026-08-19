@@ -114,6 +114,23 @@ Preto e branco puro seria mais simples e mais errado aqui: 1 bit mascara variaç
 
 Isso vale para a **verificação**. O que vai ao PDF continua sendo o raster da fórmula definido em D-1.5.1.
 
+### D-1.5.8 — O raster sai do `resvg`, porque o rasterizador do projeto não lê SVG
+
+D-1.5.1 manda derivar o raster do SVG e não diz com o quê. A resposta que não custaria tecnologia nova seria o **mupdf**, que já é dependência de `tools/parity` e é o rasterizador de referência do projeto — o mesmo que julga paridade e fidelidade. Ele não serve, e isso foi medido, não suposto:
+
+```
+mupdf.Document.openDocument(svg, 'image/svg+xml')
+  -> cannot find document handler for file type: 'image/svg+xml'
+```
+
+O build WASM publicado no npm não inclui o handler de SVG. Então a conversão precisa de um rasterizador próprio, e entra **`@resvg/resvg-js`** como segunda ferramenta de build — o `proposal.md` foi corrigido, porque a linha dele dizia "dependências novas: MathJax" no singular.
+
+A escolha não é por conveniência. `resvg` rasteriza em `tiny-skia`, implementação Rust própria: não chama gráfico de plataforma e não consulta fonte do sistema. Como o MathJax roda com `fontCache: 'none'` e emite apenas `<path>`, nenhuma fonte participa do caminho — que é a única forma de o raster ser o mesmo na máquina de quem desenvolve e no runner do CI. É a mesma exigência que fez D-1.5.5 embutir os bytes em vez de deixar cada lado resolver a referência.
+
+*Alternativa descartada:* traduzir o SVG do MathJax em caminhos de PDF com `pdf-lib` e rasterizar o PDF com mupdf, sem dependência nova. É exatamente a superfície que D-1.5.1 recusou — parser de SVG com cadeia de transforms —, e aqui ela ficaria no caminho do artefato que vai à impressora.
+
+**Como isto pode falhar em silêncio:** uma troca de versão de `resvg` que mexa no antialiasing mudaria os bytes do PNG sem mexer em dimensão nenhuma, então o golden do `LayoutMap` não acusaria. Por isso a versão fica fixada no lock, o raster é artefato versionado em `fixtures/` e o manifesto carrega o `sha256` de cada PNG: a mudança aparece no diff do commit, e não na folha impressa.
+
 ## Open Questions
 
-Nenhuma. As três que existiam foram fechadas em D-1.5.6, D-1.5.7 e na seção sobre o que a fatia deixa sem validar.
+Nenhuma. As três que existiam foram fechadas em D-1.5.6, D-1.5.7 e na seção sobre o que a fatia deixa sem validar. A quarta, aberta na implementação — com que ferramenta rasterizar —, foi fechada em D-1.5.8.
