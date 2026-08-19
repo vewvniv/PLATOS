@@ -283,7 +283,10 @@ class BlockFormulaTest {
     // --- Entrada não suportada ---
 
     @Test
-    fun `formula em linha continua recusada com mensagem propria`() {
+    fun `formula em linha declarada como recurso embutido aponta o caminho certo`() {
+        // A fatia 1.6 tirou a recusa de formula em linha e deu forma propria a ela. Declara-la como
+        // recurso embutido segue recusado, mas por ser o caminho errado — e a mensagem precisa
+        // dizer isso, senao manda quem le esperar por uma fatia que ja chegou.
         val comInline = prova(
             questao("q1").copy(
                 assets = listOf(QuestionAsset(kind = "inline_formula", reference = "f-x")),
@@ -291,8 +294,9 @@ class BlockFormulaTest {
             questao("q2"),
         )
         val erro = assertFailsWith<UnsupportedContentException> { engine.layout(comInline) }
-        assertContains(erro.message!!, "formula em linha")
         assertContains(erro.message!!, "q1")
+        assertContains(erro.message!!, "marcador")
+        assertContains(erro.message!!, "inline")
     }
 
     @Test

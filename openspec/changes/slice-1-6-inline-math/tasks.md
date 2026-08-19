@@ -58,20 +58,46 @@
 
 ## 3. Medição: a linha vira sequência
 
-- [ ] 3.1 Converter `MeasuredLine` em sequência de trechos com deslocamento horizontal resolvido, mais ascendente e descendente da linha (D-1.6.3). Resultado: uma linha sem fórmula produz exatamente um trecho de texto e a entrelinha de hoje.
-- [ ] 3.2 Fazer `MeasuredText.height` somar as alturas das linhas em vez de multiplicar entrelinha por número de linhas. Resultado: cobre "Altura do parágrafo é a soma das linhas".
-- [ ] 3.3 Incluir `InlineBox` na quebra de linha como unidade indivisível, com a mesma largura que uma palavra ocuparia. Resultado: cobre "Fórmula em linha ocupa espaço no meio do texto" e "Fórmula não é partida entre linhas".
-- [ ] 3.4 Posicionar a caixa pelo `baseline_offset` declarado, com **uma** linha de base por linha. Resultado: cobre "Alinhamento à linha de base".
+- [x] 3.1 Converter `MeasuredLine` em sequência de trechos com deslocamento horizontal resolvido, mais ascendente e descendente da linha (D-1.6.3). Resultado: uma linha sem fórmula produz exatamente um trecho de texto e a entrelinha de hoje.
+
+  `MeasuredLine` passou de `(text, width)` para `(runs, width, ascent, descent)`, e ganhou `text` como propriedade derivada — o que manteve o resto do engine compilando sem mudanca.
+
+  A altura da linha e `max(ascendente dos trechos) + max(descendente)`, com o texto entrando como `ascent = entrelinha, descent = zero`. Nao e arbitrario: e exatamente a aritmetica que o engine ja fazia, onde a primeira linha de base fica uma entrelinha abaixo do topo do bloco. E por isso que uma linha sem formula continua medindo a entrelinha, e o golden nao se mexeu.
+- [x] 3.2 Fazer `MeasuredText.height` somar as alturas das linhas em vez de multiplicar entrelinha por número de linhas. Resultado: cobre "Altura do parágrafo é a soma das linhas".
+
+  `MeasuredText.height` virou `fold` sobre as alturas das linhas. `texto sem formula mede exatamente entrelinha vezes linhas` fixa a equivalencia com o calculo antigo — e o par dela, `altura do paragrafo e a soma das alturas das linhas`, mostra que a multiplicacao subestimaria um paragrafo com formula.
+- [x] 3.3 Incluir `InlineBox` na quebra de linha como unidade indivisível, com a mesma largura que uma palavra ocuparia. Resultado: cobre "Fórmula em linha ocupa espaço no meio do texto" e "Fórmula não é partida entre linhas".
+
+  Uma caixa **encerra** o trecho de texto corrente. O texto continua sendo medido em pedacos acumulados, e nao palavra a palavra somando o espaco: e o par de kerning na juncao que faz a diferenca, e medir de outro jeito mudaria a largura de linhas que nao tem formula nenhuma — ou seja, mudaria o golden por um motivo que nao e o desta fatia.
+- [x] 3.4 Posicionar a caixa pelo `baseline_offset` declarado, com **uma** linha de base por linha. Resultado: cobre "Alinhamento à linha de base".
+
+  A conversao acontece num ponto so: `y = baseline - (height - baselineOffset)`, dentro do laco que desenha os trechos. `o deslocamento declarado decide o quanto a caixa desce` afirma a consequencia observavel.
+
+  **Uma expectativa minha estava errada e o teste a corrigiu.** Eu tinha escrito que descer a caixa nao mexeria no que ela tem acima da linha de base. Mexe: a altura total e a mesma, entao descer reduz a ascendente e aumenta a descendente, e a linha cresce. O teste agora afirma isso.
   - A conversão linha-de-base → topo continua num ponto único, como D-1.5.9 estabeleceu. Este é o segundo elemento posicionado por caixa numa folha regida por linha de base, e é aqui que aquele defeito voltaria.
-- [ ] 3.5 Fazer a linha crescer para caber a caixa, mantendo o arredondamento à grade no bloco e nunca por linha. Resultado: cobre "Linha com fórmula cresce" e "Grade continua no bloco".
-- [ ] 3.6 Recusar fórmula em linha acima do teto do perfil, com erro que aponta a forma em bloco (D-1.6.4). Resultado: cobre "Fórmula em linha alta demais", com um caso na borda exata do teto fixando o limite.
-- [ ] 3.7 Testar que a quebra não depende do conteúdo matemático, só das dimensões. Resultado: cobre "Layout não depende do conteúdo matemático em linha".
-- [ ] 3.8 Estreitar a recusa de entrada não suportada: fórmula em linha passa, imagem de enunciado e discursiva continuam recusadas. Resultado: cobre os cinco cenários de "Recusa de entrada não suportada".
+- [x] 3.5 Fazer a linha crescer para caber a caixa, mantendo o arredondamento à grade no bloco e nunca por linha. Resultado: cobre "Linha com fórmula cresce" e "Grade continua no bloco".
+
+  `so a linha da formula cresce` verifica os dois lados: a linha com caixa passa da entrelinha, e **toda** linha sem caixa continua medindo exatamente a entrelinha. Sem a segunda metade, uma implementacao que engordasse o paragrafo inteiro passaria.
+- [x] 3.6 Recusar fórmula em linha acima do teto do perfil, com erro que aponta a forma em bloco (D-1.6.4). Resultado: cobre "Fórmula em linha alta demais", com um caso na borda exata do teto fixando o limite.
+
+  Teto do perfil, com `formula com exatamente a altura do teto e aceita` fixando a borda — sem ela, um `>=` no lugar do `>` recusaria o caso limite e ninguem notaria. A mensagem aponta a forma em bloco pelo nome.
+- [x] 3.7 Testar que a quebra não depende do conteúdo matemático, só das dimensões. Resultado: cobre "Layout não depende do conteúdo matemático em linha".
+
+  Duas fixtures com referencias diferentes e dimensoes iguais produzem o mesmo mapa a menos da referencia.
+- [x] 3.8 Estreitar a recusa de entrada não suportada: fórmula em linha passa, imagem de enunciado e discursiva continuam recusadas. Resultado: cobre os cinco cenários de "Recusa de entrada não suportada".
+
+  A recusa se estreitou de novo: formula em linha passa, imagem de enunciado e discursiva continuam recusadas.
+
+  Declarar formula em linha como **recurso embutido** segue recusado, mas a mensagem mudou de sentido: antes dizia "fora de escopo, e a fatia 1.6"; agora diz qual e o caminho certo — marcador no enunciado mais a caixa em `inline`. Mensagem que manda esperar por uma fatia que ja chegou e pior que nenhuma.
 
 ## 4. Conversão e renderizadores
 
 - [ ] 4.1 Expor o `baseline_offset` em `tools/math`, a partir do que o MathJax já traz no SVG, e levá-lo ao manifesto. Resultado: a mesma fórmula produz sempre o mesmo deslocamento.
-- [ ] 4.2 Emitir as primitivas de uma linha composta no `LayoutMap`, com posição absoluta por trecho. Resultado: o mapa declara a sequência; nenhum renderizador ganha lógica de posicionamento.
+- [x] 4.2 Emitir as primitivas de uma linha composta no `LayoutMap`, com posição absoluta por trecho. Resultado: o mapa declara a sequência; nenhum renderizador ganha lógica de posicionamento.
+
+  Uma linha deixou de ser um `DrawText` e virou um `DrawText` ou `DrawImage` por trecho, todos na mesma linha de base, com `x` absoluto resolvido pelo mapa.
+
+  **O identificador de linha de trecho unico foi preservado de proposito.** Uma linha com um so trecho de texto continua sendo `q<id>-s<n>`; so quando ha mais de um trecho o sufixo ganha o indice. Sem isso, as 40 questoes da fixture mudariam de identificador e o golden desta fatia misturaria formula em linha com uma renomeacao em massa — exatamente o que a tarefa 2.4 existe para impedir.
 - [ ] 4.3 Confirmar que os dois renderizadores desenham a linha composta sem mudança de código de posicionamento. Resultado: se algum precisar decidir posição, o desenho de D-1.6.3 está errado e a tarefa reprova.
 
 ## 5. Fixture e golden

@@ -7,6 +7,7 @@ import com.platos.domain.exam.requireSupported
 import com.platos.domain.geometry.Ppm
 import com.platos.domain.geometry.Um
 import com.platos.domain.text.EmbeddedFont
+import com.platos.domain.text.LineRun
 import com.platos.domain.text.TextMeasurer
 import com.platos.domain.text.TextStyle
 
@@ -236,16 +237,46 @@ class LayoutEngine(
             text = "${content.number}.",
         )
 
+        // Uma linha pode ter mais de um trecho — texto e caixa — e todos compartilham a **mesma**
+        // linha de base (D-1.6.3). O cursor anda pelo topo das linhas; a linha de base de cada uma
+        // sai da ascendente dela, e nao de uma entrelinha fixa, porque uma linha com formula e mais
+        // alta que as vizinhas.
+        var cursor = placement.top
+        var lastBaseline = placement.top
         for ((index, line) in content.statement.lines.withIndex()) {
-            primitives += DrawText(
-                id = "q${content.questionId}-s$index",
-                x = textLeft.raw,
-                baseline = baseline.raw,
-                size = style.size.raw,
-                text = line.text,
-            )
-            baseline += style.lineHeight
+            cursor += line.ascent
+            lastBaseline = cursor
+            for ((runIndex, run) in line.runs.withIndex()) {
+                // Uma linha com trecho unico de texto mantem o identificador de sempre. Sem isso,
+                // toda questao da fixture mudaria de identificador e o golden desta fatia
+                // misturaria a formula em linha com uma renomeacao em massa.
+                val suffix = if (line.runs.size == 1) "$index" else "$index-$runIndex"
+                when (run) {
+                    is LineRun.Text -> primitives += DrawText(
+                        id = "q${content.questionId}-s$suffix",
+                        x = (textLeft + run.x).raw,
+                        baseline = lastBaseline.raw,
+                        size = style.size.raw,
+                        text = run.text,
+                    )
+
+                    is LineRun.Box -> primitives += DrawImage(
+                        id = "q${content.questionId}-si$suffix",
+                        x = (textLeft + run.x).raw,
+                        // A unica conversao linha-de-base -> topo do desenho em linha: o que fica
+                        // acima da linha de base e `height - baselineOffset`.
+                        y = (lastBaseline - (run.height - run.baselineOffset)).raw,
+                        width = run.width.raw,
+                        height = run.height.raw,
+                        reference = run.reference,
+                    )
+                }
+            }
+            cursor += line.descent
         }
+        // `advanceAfterStatement` conta a partir da linha fantasma — uma entrelinha alem da ultima
+        // linha de base —, que e o que um texto seguinte consumiria com a ascendente dele.
+        baseline = lastBaseline + style.lineHeight
         // A formula fica entre a ultima linha do enunciado e a primeira alternativa. O engine nao
         // sabe o que ha dentro dela: posiciona a caixa que a conversao mediu e segue (D-1.5.3).
         //

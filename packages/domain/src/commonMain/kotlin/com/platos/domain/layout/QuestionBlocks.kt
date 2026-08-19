@@ -1,10 +1,13 @@
 package com.platos.domain.layout
 
 import com.platos.domain.exam.ExamDefinition
+import com.platos.domain.exam.StatementSegment
+import com.platos.domain.exam.parseStatement
 import com.platos.domain.exam.Question
 import com.platos.domain.geometry.Um
 import com.platos.domain.text.MeasuredText
 import com.platos.domain.text.TextMeasurer
+import com.platos.domain.text.TextPiece
 import com.platos.domain.text.TextStyle
 
 /** Uma alternativa ja medida. */
@@ -76,7 +79,7 @@ class QuestionBlockBuilder(
         exam.questions.mapIndexed { index, question -> build(question, index + 1) }
 
     fun build(question: Question, number: Int): QuestionContent {
-        val statement = measurer.measure(question.statement, style, textWidth)
+        val statement = measurer.measure(piecesOf(question), style, textWidth)
         val options = question.options.mapIndexed { index, text ->
             OptionContent(
                 letter = 'A' + index,
@@ -120,6 +123,44 @@ class QuestionBlockBuilder(
             options = options,
             block = block,
         )
+    }
+
+    /**
+     * Converte o enunciado em pedacos para a medicao, resolvendo as formulas em linha.
+     *
+     * Sempre passa pelo parser, mesmo quando a questao nao declara formula nenhuma: e o parser
+     * que resolve o escape `\\{{`, e curto-circuitar aqui deixaria a barra na folha de quem
+     * escreveu chave como texto. Para as questoes sem marcador o resultado e um unico trecho de
+     * texto com a mesma string — que e por que o golden nao muda.
+     */
+    private fun piecesOf(question: Question): List<TextPiece> {
+        val porReferencia = question.inline.associateBy { it.reference }
+        return parseStatement(question.statement).map { segment ->
+            when (segment) {
+                is StatementSegment.Text -> TextPiece.Words(segment.text)
+                is StatementSegment.Formula -> {
+                    val formula = porReferencia.getValue(segment.reference)
+                    val height = Um(formula.height)
+                    // D-1.6.4: o teto existe para o autor descobrir agora, e nao na impressao.
+                    // Sem ele, uma matriz 3x3 no meio de um paragrafo abriria uma linha de
+                    // 15 mm cercada de linhas de 4,7 mm, sem ninguem avisar.
+                    if (height > profile.inlineHeightCeiling) {
+                        throw LayoutException(
+                            "formula em linha `${formula.reference}` da questao " +
+                                "`${question.id}` tem $height de altura e excede o teto de " +
+                                "linha do perfil `${profile.id}`, que e " +
+                                "${profile.inlineHeightCeiling}; use a forma em bloco",
+                        )
+                    }
+                    TextPiece.Box(
+                        reference = formula.reference,
+                        width = Um(formula.width),
+                        height = height,
+                        baselineOffset = Um(formula.baselineOffset),
+                    )
+                }
+            }
+        }
     }
 
     companion object {

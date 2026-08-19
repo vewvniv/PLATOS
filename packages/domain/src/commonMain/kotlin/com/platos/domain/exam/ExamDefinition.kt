@@ -147,10 +147,16 @@ fun ExamDefinition.requireSupported() {
             // uma limitacao permanente.
             val inline = kinds.filter { it in INLINE_FORMULA_KINDS }
             if (inline.isNotEmpty()) {
+                // Formula em linha deixou de ser recusada e passou a ter forma propria: marcador no
+                // enunciado mais `Question.inline`. Declara-la como recurso embutido continua sendo
+                // recusado, agora por ser o caminho errado e nao por ser fora de escopo — e a
+                // mensagem precisa dizer isso, senao manda quem le esperar por uma fatia futura que
+                // ja chegou.
                 throw UnsupportedContentException(
-                    "questao `${question.id}` traz formula em linha no meio do texto " +
-                        "(${inline.joinToString()}); esta capacidade desenha apenas formula em " +
-                        "bloco, e formula em linha exige caixa com alinhamento de linha de base",
+                    "questao `${question.id}` declara formula em linha como recurso embutido " +
+                        "(${inline.joinToString()}); formula em linha se declara com marcador no " +
+                        "enunciado e a caixa em `inline`, com largura, altura e deslocamento de " +
+                        "linha de base",
                 )
             }
             throw UnsupportedContentException(
