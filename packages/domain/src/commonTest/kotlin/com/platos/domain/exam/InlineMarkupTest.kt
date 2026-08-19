@@ -23,7 +23,7 @@ class InlineMarkupTest {
 
     private fun questao(
         statement: String,
-        inline: Map<String, InlineFormula> = emptyMap(),
+        inline: List<InlineFormula> = emptyList(),
     ) = Question(
         id = "q1",
         statement = statement,
@@ -65,7 +65,7 @@ class InlineMarkupTest {
 
     @Test
     fun `a mesma formula citada duas vezes aparece duas vezes`() {
-        // O mapa tem um recurso; o enunciado tem duas ocorrencias. As duas precisam ser desenhadas.
+        // A lista tem um recurso; o enunciado tem duas ocorrencias. As duas precisam ser desenhadas.
         assertEquals(listOf("f-a", "f-a"), referencedInlineFormulas("De {{f-a}} conclui-se {{f-a}}."))
     }
 
@@ -131,28 +131,41 @@ class InlineMarkupTest {
     @Test
     fun `recurso declarado e nao citado e recusado`() {
         val erro = assertFailsWith<UnsupportedContentException> {
-            questao("Sem formula nenhuma.", mapOf("f-eq1" to formula())).requireInlineFormulasResolved()
+            questao("Sem formula nenhuma.", listOf(formula())).requireInlineFormulasResolved()
         }
         assertContains(erro.message!!, "nao cita")
     }
 
     @Test
-    fun `chave do mapa divergente da referencia declarada e recusada`() {
+    fun `declaracao repetida da mesma referencia e recusada`() {
+        // Com lista em vez de mapa, nada impede duas declaracoes da mesma referencia — e ai nao
+        // ha como dizer qual vale. E o unico risco que a lista introduz, e ele fica coberto aqui.
         val erro = assertFailsWith<UnsupportedContentException> {
-            questao("Valor de {{f-eq1}}.", mapOf("f-eq1" to formula(reference = "f-outra")))
+            questao(
+                "Valor de {{f-eq1}}.",
+                listOf(formula(width = 10_000), formula(width = 20_000)),
+            ).requireInlineFormulasResolved()
+        }
+        assertContains(erro.message!!, "f-eq1")
+        assertContains(erro.message!!, "mais de uma vez")
+    }
+
+    @Test
+    fun `referencia em branco e recusada`() {
+        assertFailsWith<UnsupportedContentException> {
+            questao("Valor de {{f-eq1}}.", listOf(formula(), formula(reference = " ")))
                 .requireInlineFormulasResolved()
         }
-        assertContains(erro.message!!, "coincidir")
     }
 
     @Test
     fun `dimensao nao positiva e recusada`() {
         assertFailsWith<UnsupportedContentException> {
-            questao("Valor de {{f-eq1}}.", mapOf("f-eq1" to formula(width = 0)))
+            questao("Valor de {{f-eq1}}.", listOf(formula(width = 0)))
                 .requireInlineFormulasResolved()
         }
         assertFailsWith<UnsupportedContentException> {
-            questao("Valor de {{f-eq1}}.", mapOf("f-eq1" to formula(height = -1)))
+            questao("Valor de {{f-eq1}}.", listOf(formula(height = -1)))
                 .requireInlineFormulasResolved()
         }
     }
@@ -160,12 +173,12 @@ class InlineMarkupTest {
     @Test
     fun `deslocamento fora da caixa e recusado`() {
         val erro = assertFailsWith<UnsupportedContentException> {
-            questao("Valor de {{f-eq1}}.", mapOf("f-eq1" to formula(height = 5_000, baselineOffset = 5_001)))
+            questao("Valor de {{f-eq1}}.", listOf(formula(height = 5_000, baselineOffset = 5_001)))
                 .requireInlineFormulasResolved()
         }
         assertContains(erro.message!!, "fora da caixa")
         assertFailsWith<UnsupportedContentException> {
-            questao("Valor de {{f-eq1}}.", mapOf("f-eq1" to formula(baselineOffset = -1)))
+            questao("Valor de {{f-eq1}}.", listOf(formula(baselineOffset = -1)))
                 .requireInlineFormulasResolved()
         }
     }
@@ -173,15 +186,15 @@ class InlineMarkupTest {
     @Test
     fun `deslocamento nas bordas exatas e aceito`() {
         // Sem estes dois, um `<` no lugar de `<=` passaria despercebido.
-        questao("Valor de {{f-eq1}}.", mapOf("f-eq1" to formula(height = 5_000, baselineOffset = 0)))
+        questao("Valor de {{f-eq1}}.", listOf(formula(height = 5_000, baselineOffset = 0)))
             .requireInlineFormulasResolved()
-        questao("Valor de {{f-eq1}}.", mapOf("f-eq1" to formula(height = 5_000, baselineOffset = 5_000)))
+        questao("Valor de {{f-eq1}}.", listOf(formula(height = 5_000, baselineOffset = 5_000)))
             .requireInlineFormulasResolved()
     }
 
     @Test
     fun `questao com formula em linha declarada e citada e aceita`() {
-        questao("Valor de {{f-eq1}} para y = 2.", mapOf("f-eq1" to formula()))
+        questao("Valor de {{f-eq1}} para y = 2.", listOf(formula()))
             .requireInlineFormulasResolved()
     }
 }

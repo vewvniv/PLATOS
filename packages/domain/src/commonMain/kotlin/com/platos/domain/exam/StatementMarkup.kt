@@ -105,8 +105,17 @@ fun Question.requireInlineFormulasResolved() {
         throw UnsupportedContentException("questao `$id`: ${e.message}")
     }
 
-    val declaradas = inline.keys
-    val faltando = citadas.toSet() - declaradas
+    val repetidas = inline.groupingBy { it.reference }.eachCount().filterValues { it > 1 }.keys
+    if (repetidas.isNotEmpty()) {
+        throw UnsupportedContentException(
+            "questao `$id` declara a mesma formula em linha mais de uma vez: " +
+                repetidas.sorted().joinToString() + "; a referencia identifica o recurso, e " +
+                "duas declaracoes com a mesma referencia nao dizem qual vale",
+        )
+    }
+
+    val declaradas = inline.associateBy { it.reference }
+    val faltando = citadas.toSet() - declaradas.keys
     if (faltando.isNotEmpty()) {
         throw UnsupportedContentException(
             "questao `$id` cita formula em linha nao declarada: " +
@@ -115,36 +124,33 @@ fun Question.requireInlineFormulasResolved() {
         )
     }
 
-    val sobrando = declaradas - citadas.toSet()
+    val sobrando = declaradas.keys - citadas.toSet()
     if (sobrando.isNotEmpty()) {
         throw UnsupportedContentException(
             "questao `$id` declara formula em linha que o enunciado nao cita: " +
-                sobrando.sorted().joinToString() + "; quase sempre e marcador digitado errado, e " +
-                "a folha sairia sem a formula que o enunciado precisa",
+                sobrando.sorted().joinToString() + "; quase sempre e marcador digitado errado, " +
+                "e a folha sairia sem a formula que o enunciado precisa",
         )
     }
 
-    for (referencia in citadas.distinct()) {
-        val formula = inline.getValue(referencia)
-        if (formula.reference != referencia) {
+    for (formula in inline) {
+        if (formula.reference.isBlank()) {
             throw UnsupportedContentException(
-                "questao `$id`: a formula em linha indexada por `$referencia` declara a " +
-                    "referencia `${formula.reference}`; as duas precisam coincidir, senao o " +
-                    "consumidor resolve bytes de outra formula",
+                "questao `$id` declara formula em linha sem referencia ao recurso",
             )
         }
         if (formula.width <= 0 || formula.height <= 0) {
             throw UnsupportedContentException(
-                "formula em linha `$referencia` da questao `$id` tem dimensao nao positiva: " +
-                    "${formula.width} x ${formula.height} um",
+                "formula em linha `${formula.reference}` da questao `$id` tem dimensao nao " +
+                    "positiva: ${formula.width} x ${formula.height} um",
             )
         }
         // Fora deste intervalo a caixa nao tem como se alinhar: um deslocamento maior que a
         // altura poria a formula inteira abaixo da linha de base.
         if (formula.baselineOffset < 0 || formula.baselineOffset > formula.height) {
             throw UnsupportedContentException(
-                "formula em linha `$referencia` da questao `$id` tem deslocamento de linha de " +
-                    "base fora da caixa: ${formula.baselineOffset} um para altura " +
+                "formula em linha `${formula.reference}` da questao `$id` tem deslocamento de " +
+                    "linha de base fora da caixa: ${formula.baselineOffset} um para altura " +
                     "${formula.height} um",
             )
         }

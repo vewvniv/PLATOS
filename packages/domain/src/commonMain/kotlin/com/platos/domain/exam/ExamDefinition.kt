@@ -84,11 +84,14 @@ data class Question(
     /**
      * Formulas em linha citadas pelo [statement] por meio de marcador.
      *
-     * Mapa, e nao lista, de proposito: a mesma formula pode ser citada duas vezes no mesmo
-     * enunciado, e o recurso continua sendo um so. Quem resolve referencia para bytes segue sendo
-     * o consumidor, pelo caminho unico de D-1.5.5.
+     * Lista, e nao mapa indexado pela referencia: a chave duplicaria [InlineFormula.reference] e
+     * exigiria uma guarda so para manter as duas em sincronia. `assets` ja e lista na mesma classe,
+     * e o `ExamPackage` da fatia 2a publicaria a mesma string duas vezes em todo diff de prova.
+     *
+     * Uma formula pode ser citada mais de uma vez pelo enunciado e continua declarada uma vez so.
+     * Quem resolve referencia para bytes segue sendo o consumidor, pelo caminho unico de D-1.5.5.
      */
-    val inline: Map<String, InlineFormula> = emptyMap(),
+    val inline: List<InlineFormula> = emptyList(),
 )
 
 /**
