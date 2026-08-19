@@ -245,6 +245,20 @@ class LayoutEngine(
         }
         baseline += QuestionBlockBuilder.SPACE_AFTER_STATEMENT
 
+        // A formula fica entre a ultima linha do enunciado e a primeira alternativa. O engine nao
+        // sabe o que ha dentro dela: posiciona a caixa que a conversao mediu e segue (D-1.5.3).
+        content.formula?.let { formula ->
+            primitives += DrawImage(
+                id = "q${content.questionId}-f",
+                x = textLeft.raw,
+                y = (baseline + QuestionBlockBuilder.SPACE_AROUND_FORMULA).raw,
+                width = formula.width.raw,
+                height = formula.height.raw,
+                reference = formula.reference,
+            )
+            baseline += formula.reserved
+        }
+
         for (option in content.options) {
             primitives += DrawText(
                 id = "q${content.questionId}-o${option.letter}",

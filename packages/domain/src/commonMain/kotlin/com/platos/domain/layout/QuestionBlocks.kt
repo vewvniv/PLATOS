@@ -14,15 +14,30 @@ data class OptionContent(
 )
 
 /**
+ * A caixa que a formula em bloco ocupa, ja alinhada a grade.
+ *
+ * [width] e [height] sao exatamente as dimensoes declaradas — a formula **nao** e reescalada nem
+ * deformada. Quem sobe para o proximo multiplo da grade e [reserved], o espaco que o bloco gasta;
+ * a formula continua desenhada no seu tamanho, com a sobra virando respiro.
+ */
+data class FormulaContent(
+    val reference: String,
+    val width: Um,
+    val height: Um,
+    val reserved: Um,
+)
+
+/**
  * Uma questao medida e pronta para posicionar.
  *
- * Enunciado e alternativas viajam juntos: e isto que faz o bloco ser indivisivel (D34). Nenhum
- * consumidor pode posicionar as alternativas sem o enunciado.
+ * Enunciado, formula e alternativas viajam juntos: e isto que faz o bloco ser indivisivel (D34).
+ * Nenhum consumidor pode posicionar as alternativas sem o enunciado.
  */
 data class QuestionContent(
     val questionId: String,
     val number: Int,
     val statement: MeasuredText,
+    val formula: FormulaContent?,
     val options: List<OptionContent>,
     val block: Block,
 )
@@ -50,9 +65,32 @@ class QuestionBlockBuilder(
                 text = measurer.measure(text, style, OPTION_WIDTH),
             )
         }
+        val formula = question.formula?.let { declared ->
+            val width = Um(declared.width)
+            // A largura e o unico limite duro: uma formula mais larga que a coluna nao tem como
+            // caber sem reescalar, e reescalar e o que a spec proibe. Falhar aqui e o certo — a
+            // alternativa seria uma folha impressa com a formula invadindo a coluna vizinha.
+            if (width > TEXT_WIDTH) {
+                throw LayoutException(
+                    "formula `${declared.reference}` da questao `${question.id}` tem $width de " +
+                        "largura e nao cabe na coluna, que oferece $TEXT_WIDTH; a formula nao e " +
+                        "reescalada e nenhum layout e emitido",
+                )
+            }
+            val height = Um(declared.height)
+            FormulaContent(
+                reference = declared.reference,
+                width = width,
+                height = height,
+                // Sobe ao proximo multiplo da grade sem comprimir a formula: o espaco reservado
+                // cresce, as dimensoes desenhadas continuam as declaradas.
+                reserved = snapToGrid(height + SPACE_AROUND_FORMULA * 2),
+            )
+        }
 
         val content = statement.height +
             SPACE_AFTER_STATEMENT +
+            (formula?.reserved ?: Um.ZERO) +
             options.fold(Um.ZERO) { total, option -> total + option.text.height }
         val block = Block(
             id = question.id,
@@ -63,6 +101,7 @@ class QuestionBlockBuilder(
             questionId = question.id,
             number = number,
             statement = statement,
+            formula = formula,
             options = options,
             block = block,
         )
@@ -76,6 +115,9 @@ class QuestionBlockBuilder(
         val OPTION_INDENT = Um.mm(6)
 
         val SPACE_AFTER_STATEMENT = Um.mm(3)
+
+        /** Respiro acima e abaixo da formula, um passo da grade de cada lado. */
+        val SPACE_AROUND_FORMULA = Um.mm(3)
 
         /** Respiro entre questoes, dois passos da grade. */
         val SPACE_AFTER_BLOCK = Um.mm(6)
