@@ -41,6 +41,8 @@ Crítico é o que falha em silêncio e chega à folha impressa ou ao OMR — med
 - I1: toda questão nasce marcada por habilidade BNCC.
 - I2: resultados são fatos append-only atribuídos a habilidade.
 - I3: todo artefato gerado por IA carrega `prompt_version`, `model_id` e `params_hash`.
+- I4: todo item nasce com proveniência e licença; `visibility: public` é condicionado à licença.
+- I5: artefato imutável nunca contém dado pessoal direto.
 - Toda tabela de domínio é autorizada por `organization_id`, nunca por `user_id`.
 - `membership` é N:N entre usuário e organização.
 - Assinatura pertence à organização.

@@ -31,11 +31,11 @@ Quatro módulos sobre um núcleo comum:
 | **M3 — Boletim** | Agrega desempenho por habilidade e período | Preparado, não especificado |
 | **M4 — Planejamento** | Gera plano de aula a partir das lacunas da turma | Preparado, não especificado |
 
-**A tese central da arquitetura:** M3 e M4 não são módulos novos — são **leituras** sobre fatos que M1 e M2 produzem. Se as três invariantes de §2 forem respeitadas, eles custam prompts e read models, não re-arquitetura.
+**A tese central da arquitetura:** M3 e M4 não são módulos novos — são **leituras** sobre fatos que M1 e M2 produzem. Se as invariantes de §2 forem respeitadas, eles custam prompts e read models, não re-arquitetura.
 
 ---
 
-## 2. As três invariantes
+## 2. As invariantes
 
 Tudo o mais é negociável. Estas não são.
 
@@ -47,6 +47,14 @@ Sem isso, boletim por competência e diagnóstico de turma são impossíveis, e 
 
 **I3 — Todo artefato gerado por IA carrega `prompt_version` + `model_id` + `params_hash`.**
 Prompts vivem em arquivos no Git. Sem isso não há reprodutibilidade, auditoria de contestação de nota, nem controle de regressão.
+
+**I4 — Todo item nasce com proveniência e licença.**
+Autoria humana, geração por IA ou origem externa, e o que pode ser feito com o item. `visibility: public` é condicionado à licença. É o mesmo argumento de I1: a fatia 6 gera itens em volume, e retro-atribuir milhares depois é caro e impreciso. ADR-0005.
+
+**I5 — Artefato imutável nunca contém dado pessoal direto.**
+O que é imutável, hasheado e copiado para dispositivos offline não pode carregar nome, turma ou matrícula: o direito de eliminação não alcança cópia imutável já distribuída. Operacionalizada pela separação do roster. ADR-0002, ADR-0006.
+
+As cinco são verificáveis: cada uma reprova um desenho concreto. Regras que não podem ser reprovadas por teste — "toda tabela com dado pessoal declara finalidade" é a principal — ficam como exigência de ADR e critério de revisão de migration, não como invariante. Invariante que nada consegue reprovar enfraquece as que existem.
 
 ---
 
@@ -373,7 +381,7 @@ Não existe sync bidirecional de entidades mutáveis. Só **pull de referência 
 
 ## 12. Preparação para M3 e M4
 
-Respeitadas I1–I3, sobra pouco a construir:
+Respeitadas I1–I5, sobra pouco a construir:
 
 - **M3 Boletim** = read models sobre `assessment_fact` + política de notas por organização + template de PDF (reusa o Layout Engine). Em organização pessoal, é "relatório da minha turma"; boletim consolidado da instituição é recurso de escola, porque exige as notas de todos os componentes.
 - **M4 Planejamento** = diagnóstico (mesmo read model) + retrieval via `pgvector` sobre currículo e itens + prompt versionado + entidade `lesson_plan`.
@@ -435,18 +443,24 @@ CLAUDE.md
 | **1** | **Medição de texto (KMP) · grade de 3 mm · paginação DP · LayoutMap · dois renderizadores · teste de paridade em CI · impressão real medida com régua** | O risco central do render client-side |
 | 1.5 | Renderização matemática **em bloco** (LaTeX/MathML → SVG → raster) | Exatas antes de gerar conteúdo de exatas |
 | **1.6** | **Matemática em linha · `InlineBox` com largura, altura e `baseline_offset` na medição de texto** | **O caso predominante das exatas — bloqueadora da fatia 6** |
-| 2 | Prova **fixa** (sem IA) → `ExamPackage` → PDF → impressão | Contrato do pacote e qualidade de impressão dos ArUcos |
+| **2a** | **Um pacote real: `ExamPackage` publicado · validação server-side · PDF nos dois alvos** | **O contrato do pacote, provado pelo menor artefato que pode reprová-lo** |
+| 2b | Prova fixa completa · marcadores de captura · qualidade de impressão | Escopo original da 2 |
 | 3 | Captura por região · ArUco → homografia → QR → OMR normalizado · nota objetiva offline · escaneamento em lote | **Produto já usável e vendável no Basic, sem gastar um token** |
 | 4 | Sync · outbox · gate de pré-voo · modo degradado | Modelo offline |
 | 5 | Regiões discursivas · completude · deviants · correção manual · **corpus de medição** | D1 sem IA, e os dados para decidir §9 |
 | 6 | Op-log de autoria · seed BNCC · `AiGateway` com caching · geração por IA · banco de itens | M1 real |
 | 7 | Blueprint/distribuição · variantes · `exam_assignment` · dados impressos · folha avulsa | Randomização e impressão fim a fim |
 | 8 | Assinatura, quotas e ledger · correção discursiva por IA · revisão do professor | Fecha M2 e a monetização |
-| 9+ | Boletim, depois Planejamento | Valida I1–I3 |
+| 9+ | Boletim, depois Planejamento | Valida I1–I5 |
 
 Duas escolhas de ordem que valem defender: a **fatia 1 é o Layout Engine**, porque é onde mora o risco que a renderização client-side criou; e a **fatia 3 já é produto** — prova objetiva corrigida 100% offline é exatamente a proposta de valor do Basic, e ela fica pronta antes de qualquer custo de IA existir.
 
+
 Uma terceira, acrescentada ao fechar a 1.5: a **fatia 1.6 vem antes da 2**. A 1.5 validou o mecanismo — converter, empacotar como caixa, desenhar igual nos dois renderizadores —, mas a matemática de prova de ensino básico é predominantemente **em linha**, e não em bloco. O gatilho formal é ser bloqueadora da fatia 6: chegar à geração de exatas por IA com a tipografia predominante nunca tendo passado pelo Layout Engine anularia o motivo pelo qual a 1.5 veio antes da 2. A data desejada é mais cedo que isso, e a razão é de contrato: a 1.6 introduz `InlineBox` na medição de texto, e resolver esse tipo antes de a fatia 2 congelar os contratos do `ExamPackage` evita reabrir a medição depois, com o OMR já estabilizado sobre geometria publicada e hasheada.
+
+Uma quarta escolha, acrescentada ao fechar a 1.5: a **fatia 2 foi partida em 2a e 2b**, e o critério do corte é o que a entrega consegue **reprovar**. A 2a entrega o menor pacote publicado de ponta a ponta, e seu critério de aceite são os dois contratos que esse pacote de fato exercita: o **roster mutável separado do pacote imutável** (ADR-0002, I5) e o **perfil tipográfico no cabeçalho do `LayoutMap`** (ADR-0004). Ambos ficam caros depois que houver pacote publicado e hasheado, e ambos falham visivelmente se estiverem errados.
+
+Ficaram deliberadamente **fora** da 2a três itens que uma versão anterior deste plano listava como critério dela: proveniência de item (I4, ADR-0005), identidade de aluno (ADR-0003) e classe de retenção (ADR-0006). Nenhum é exercitado por "publicar uma prova fixa e renderizá-la" — uma prova fixa não tem IA, não produz fatos e não cria tabela de aluno —, então entrariam como declarações que a fatia não pode reprovar. Cada um entra como **commit de contrato antes do consumidor** na fatia que o exercita, e cada um tem fatia-limite e dono em §16. Uma fatia cujo critério de aceite não pode falhar é uma camada horizontal com nome de fatia vertical, e a regra 3 do `CLAUDE.md` existe para impedir isso.
 
 ---
 
@@ -459,7 +473,22 @@ Uma terceira, acrescentada ao fechar a 1.5: a **fatia 1.6 vem antes da 2**. A 1.
 | **Impressão dos ArUcos** | São 4 por questão discursiva, não 4 por prova: muito mais superfície sujeita a toner fraco. Marcador ≥ 12 mm e folha de teste de impressão no onboarding. |
 | **Custo de IA** | Contido por design: Basic não inclui correção por IA; caching corta 37% de graça; quota por plano limita o teto. |
 | **LGPD com dados de menores** | Único item ainda sem encaminhamento. Imagens de manuscrito, notas e identificação de menores exigem base legal, retenção definida e contrato de operador com a escola. **Gatilho: fim da fatia 3**, quando o primeiro piloto com turma real põe dado de menor no sistema — e não "antes do primeiro contrato", que é mais tarde e induz a folga que não existe. Some-se que o Basic é *self-serve*: não há escola para figurar como controladora, e professor pessoa física operando dado de menor numa SaaS comercial é figura ambígua. É o produto de lançamento, então a ambiguidade chega junto com o primeiro cliente. A separação do roster (§5) habilita de graça um modo sem identificação nominal — aluno como número ou apelido —, que é a mitigação que compra tempo até haver parecer jurídico. |
-| **Um mantenedor, quatro módulos** | Mitigado pelas fatias verticais e por I1–I3: o escopo cresce sem que o núcleo precise ser reescrito. |
+| **Um mantenedor, quatro módulos** | Mitigado pelas fatias verticais e por I1–I5: o escopo cresce sem que o núcleo precise ser reescrito. |
+
+### Ponto de não-retorno
+
+Risco sem ponto de não-retorno flutua: fica sempre "para a próxima fatia" até virar retrofit. O caso
+da LGPD foi exatamente isso — o item estava certo, o **registro** é que não dizia quando ele deixa de
+ser barato. Tabela separada, e não colunas na de cima, porque cinco colunas de prosa não se leem.
+
+| Risco | Fatia-limite | O que encarece depois dela | Dono |
+|---|---|---|---|
+| Divergência entre renderizadores | contínuo, verificado a cada CI | Depois da 3, divergir quebra OMR sobre geometria já publicada e hasheada | mantenedor |
+| Acurácia em manuscrito | **5** (medir antes de construir a 8) | Construir a 8 sem o número é construir sobre suposição; o critério de reprovação precisa existir antes (ADR-0007) | mantenedor |
+| Impressão dos ArUcos | **2b** | Depois que houver folha distribuída, corrigir marcador significa reimprimir | mantenedor |
+| Custo de IA | **6** | Depois da geração em volume, caching e quota viram retrofit sobre uso real | mantenedor |
+| **LGPD com dados de menores** | **3** (primeiro piloto com turma real) | Depois do primeiro dado real de menor, a correção envolve dado já coletado — e o Basic é self-serve, sem escola controladora (ADR-0006) | mantenedor + parecer jurídico externo, que **não** tem dono técnico |
+| Um mantenedor, quatro módulos | contínuo | — | mantenedor |
 
 ---
 
@@ -481,7 +510,31 @@ Uma terceira, acrescentada ao fechar a 1.5: a **fatia 1.6 vem antes da 2**. A 1.
 | **D44** | Dados do aluno impressos, não preenchidos. Folha avulsa com campos em branco para aluno fora da lista. |
 | **D45** | Deviants detectados por proporção de tinta fora do quadrilátero e enviados ao mesmo canal de conferência manual do detector de deriva. |
 
-**Aberto:** base legal e política de retenção sob LGPD (§16).
+**Novas ao fechar a fatia 1.5 (viram ADR):**
+
+| # | Decisão | ADR |
+|---|---|---|
+| **D46** | Roster mutável — nome, turma, matrícula — fora do `ExamPackage` imutável e fora do `content_hash`. Sem segundo hash: integridade do impresso já vem do QR. | ADR-0002 |
+| **D47** | Identidade de aluno unificada por `student_alias` append-only, resolvido em read model. Nenhum fato é reescrito. | ADR-0003 |
+| **D48** | O `LayoutMap` declara o perfil tipográfico que o produziu. Campo antes da parametrização. | ADR-0004 |
+| **D49** | Todo item nasce com proveniência e licença; `visibility: public` condicionado à licença. Vira I4. | ADR-0005 |
+| **D50** | Artefato imutável nunca contém dado pessoal direto (I5). Finalidade e classe de retenção por tabela ficam como exigência de ADR, não como invariante. | ADR-0006 |
+| **D51** | Critério de aprovação de toda medição que decide é registrado antes da primeira execução. | ADR-0007 |
+| **D52** | O branco em volta da fórmula em bloco é derivado da transição de texto, assimétrico, e não varia com a altura da fórmula. | D-1.5.9 (fatia 1.5) |
+
+**Aberto** — cada item com o ponto em que deixa de ser barato. Um item sem essa coluna volta a flutuar, que foi o que aconteceu com a LGPD.
+
+| Item | Fatia-limite | O que encarece depois dela | Dono |
+|---|---|---|---|
+| Base legal e política de retenção sob LGPD | **3** | Dado real de menor já coletado; sem escola controladora no Basic (§16) | mantenedor + jurídico externo |
+| Unicidade de `skill` por versão do framework curricular | **6** (seed BNCC) | Código BNCC reusado entre versões quebra comparação longitudinal em silêncio; `skill_relation` cobre o mapeamento entre currículos, não a unicidade | mantenedor |
+| `subscription.origin` — distinguir empenho de cartão | **8** | Backfill adivinhado sobre assinaturas já existentes. Hoje é uma coluna numa tabela sem linhas em produção | mantenedor |
+| Garantia executável de que o recorte discursivo não contém cabeçalho | **5** | A moldura já exclui o enunciado por geometria (§8), mas nada afirma isso; o nome do aluno é impresso na folha | mantenedor |
+| Injeção de prompt manuscrita pelo aluno, no eval set | **5** | Validação de schema garante forma, não conteúdo: resposta adversarial produz JSON válido com nota errada | mantenedor |
+| Fórmula em bloco seguida de mais enunciado | **1.6+** | Exige o corpo da questão virar sequência de blocos — contrato maior que `InlineBox`, e não sai de graça junto com ele | mantenedor |
+| Parametrização de `Sheet` e `CaptureGeometry` (LayoutProfile) | **1.6** | O campo já entra na 2a (ADR-0004); o parâmetro pode vir depois, mas depois da 1.6 disputa espaço com a medição já estabilizada | mantenedor |
+
+Três itens desta lista não viraram ADR de propósito — unicidade de `skill`, `subscription.origin` e a garantia de recorte. São decisões de um campo ou de um cenário de spec, e um ADR por coluna de tabela esvazia o instrumento. Ficam aqui, com data-limite e dono, que é o que faltava.
 
 ---
 
