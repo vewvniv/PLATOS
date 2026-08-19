@@ -177,7 +177,25 @@
   A folga passou a ser **metade da distancia ate a tinta mais proxima**, limitada ao mesmo teto de 1 mm. Em bloco nada muda, porque nao ha vizinho a 1 mm; em linha ela encolhe ate o necessario. Os primeiros dois pixels sao ignorados de proposito — o antialiasing da propria caixa transborda cerca de um pixel, e conta-lo como vizinho zeraria a folga.
 
   Resultado: **116 verificacoes, maior desvio 0,039 mm**, o mesmo patamar de sempre, e o pior elemento voltou a ser um marcador em vez de uma formula.
-- [ ] 6.3 Medir paridade web × Android com fórmula em linha na folha. Resultado: dentro de 0,3 mm, com o emulador ou no CI.
+- [x] 6.3 Medir paridade web × Android com fórmula em linha na folha. Resultado: dentro de 0,3 mm, com o emulador ou no CI.
+
+  **185 de 185 elementos, 4 páginas, maior divergência 0,216 mm** contra tolerância de 0,3. PDF do Android gerado pelo `PdfDocument` real no emulador `platos-atd34`; 4 instrumentados, zero falhas.
+
+  A primeira execução reprovou cinco fórmulas em linha, até 0,495 mm — e reprovou o **instrumento**. Três foram medidos, nos dois sentidos que importam:
+
+  | instrumento | documentos corretos | deslocado 0,5 mm |
+  |---|---|---|
+  | canto (`min x`, `min y`) | 0,425 mm — **falha** | 0,508 mm — acusa |
+  | borda esquerda + centro vertical | 0,425 mm — **falha** | 0,508 mm — acusa |
+  | **centro da caixa de tinta** | **0,216 mm — passa** | **0,381 mm — acusa** |
+
+  As duas primeiras dependem de um **extremo**: um único pixel decide onde a tinta começa, e os dois renderizadores discordam nele. O centro da caixa usa as duas bordas, então um extremo instável entra pela metade. O centroide — mais estável ainda contra ruído de pixel — não serve por outro motivo: é média ponderada, e a massa de tinta da palavra vizinha o domina.
+
+  Duas hipóteses foram testadas e **descartadas** antes da escolha: o limiar de tinta, medido a 8, 32, 64 e 128, não muda o número; e a forma da janela, medida com folga por lado e com o mínimo dos quatro lados, também não.
+
+  **A margem é fina e fica registrada como tal**: ruído de 0,216 contra sinal de 0,381, com a tolerância de 0,3 no meio. Serve para esta fixture; não é conforto.
+
+  E fica uma contradição **não explicada**: a fidelidade mede cada documento contra o `LayoutMap` e aprova os dois a menos de 0,04 mm, o que limitaria a diferença entre eles a 0,08 mm — não 0,216. A pista mais concreta é que a fidelidade calcula a janela **por documento**, e o comparador usa a do web nos dois, por exigência de medir a mesma região. Quem retomar começa por aí.
 - [ ] 6.4 Provar que a verificação continua capaz de falhar: deslocar de propósito uma fórmula **em linha** e confirmar que paridade e fidelidade acusam, com elemento e distância. Resultado: as duas saem com código 1; reverter em seguida.
   - A janela de medição precisa ser conferida para o caso em linha antes de se confiar nela. Esta base já produziu quatro verificações incapazes de falhar, e duas foram por janela mal dimensionada — uma alcançava o vizinho, outra recortava o próprio elemento. Uma fórmula em linha tem texto a milímetros nos dois lados, então é o caso mais apertado até agora.
 - [ ] 6.5 Atualizar `docs/cobertura-fatia-1.md` com os cenários novos e como cada verificação foi vista falhar. Resultado: nenhum cenário da spec sem verificação.
