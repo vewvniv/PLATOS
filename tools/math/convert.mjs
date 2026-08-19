@@ -177,7 +177,13 @@ export function toSvg({ id, notation, source }) {
   );
 }
 
-/** Largura e altura do SVG em ems, lidas do `viewBox`. */
+/**
+ * Largura, altura e profundidade do SVG em ems, lidas do `viewBox`.
+ *
+ * O MathJax emite o SVG com a origem na **linha de base**: o `viewBox` e `minX minY w h`, com
+ * `minY` negativo para o que sobe acima dela. A profundidade — o que desce abaixo — e entao
+ * `minY + h`. E dai que sai o `baseline_offset` que a formula em linha precisa, sem API nova.
+ */
 function emBoxOf(id, svg) {
   const match = /viewBox="([^"]+)"/.exec(svg);
   if (!match) {
@@ -188,7 +194,7 @@ function emBoxOf(id, svg) {
     throw new UnsupportedFormulaError(`formula \`${id}\` tem viewBox ilegivel: "${match[1]}"`);
   }
   // O MathJax emite o viewBox em milesimos de em.
-  return { width: box[2] / 1000, height: box[3] / 1000 };
+  return { width: box[2] / 1000, height: box[3] / 1000, depth: (box[1] + box[3]) / 1000 };
 }
 
 /**
@@ -221,12 +227,25 @@ export function toRaster(id, svg) {
   // PNG. Sem isso, largura e altura arredondariam em separado e a formula sairia esticada.
   const pixelsToUm = (px) => Math.round((px * UM_PER_INCH) / RASTER_DPI);
 
+  const heightUm = pixelsToUm(rendered.height);
+  // A profundidade acompanha a altura efetivamente rasterizada, pela mesma razao que a altura
+  // acompanha o pixel: se ela viesse do em puro, a caixa do mapa e o retangulo do PNG
+  // discordariam por arredondamento, e o alinhamento a linha de base sairia por um fio.
+  const baselineOffsetUm = Math.round((heightUm * em.depth) / em.height);
+  if (baselineOffsetUm < 0 || baselineOffsetUm > heightUm) {
+    throw new UnsupportedFormulaError(
+      `formula \`${id}\` tem profundidade fora da caixa: ${baselineOffsetUm} um para altura ` +
+        `${heightUm} um; o dominio exige 0 <= deslocamento <= altura`,
+    );
+  }
+
   return {
     png,
     widthPx: rendered.width,
     heightPx: rendered.height,
     widthUm: pixelsToUm(rendered.width),
-    heightUm: pixelsToUm(rendered.height),
+    heightUm,
+    baselineOffsetUm,
     sha256: createHash('sha256').update(png).digest('hex'),
   };
 }

@@ -39,6 +39,7 @@ const manifest = {
     notation: f.notation,
     width_um: f.widthUm,
     height_um: f.heightUm,
+    baseline_offset_um: f.baselineOffsetUm,
     width_px: f.widthPx,
     height_px: f.heightPx,
     raster: `formulas/${f.id}.png`,

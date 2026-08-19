@@ -92,13 +92,37 @@
 
 ## 4. Conversão e renderizadores
 
-- [ ] 4.1 Expor o `baseline_offset` em `tools/math`, a partir do que o MathJax já traz no SVG, e levá-lo ao manifesto. Resultado: a mesma fórmula produz sempre o mesmo deslocamento.
+- [x] 4.1 Expor o `baseline_offset` em `tools/math`, a partir do que o MathJax já traz no SVG, e levá-lo ao manifesto. Resultado: a mesma fórmula produz sempre o mesmo deslocamento.
+
+  Sai do `viewBox`, sem API nova. O MathJax emite o SVG com a origem na **linha de base**: `viewBox="minX minY w h"` tem `minY` negativo para o que sobe, e `minY + h` e o que desce. Em `f-fracoes`, `viewBox="0 -1342 3102.4 2050"` da `-1342 + 2050 = 708` milesimos de em abaixo da linha de base.
+
+  A profundidade acompanha a altura efetivamente rasterizada, pela mesma razao que a altura acompanha o pixel: vinda do em puro, a caixa do mapa e o retangulo do PNG discordariam por arredondamento e o alinhamento sairia por um fio.
+
+  Os doze valores derivados, conferidos contra o que a notacao manda esperar:
+
+  | formula | % abaixo da linha de base |
+  |---|---|
+  | `f-raizes` | 7,5% |
+  | `f-trigonometria` | 8,5% |
+  | `f-potencias` | 18,0% |
+  | `f-fracoes` | 34,5% |
+  | `f-matriz2` / `f-sistema` | 39,6% |
+  | `f-matriz3` | 43,4% |
+  | `f-somatorio` | 44,4% |
+
+  Raiz quase nao desce, fracao desce um terco, somatorio e matriz — centrados no eixo matematico — descem quase metade. Os PNG ficaram **byte a byte identicos**: so o manifesto mudou.
+
+  **Visto falhar.** Dois testes cobrem o valor, e eles nao sao redundantes: um afirma a faixa `0 <= deslocamento <= altura`, o outro afirma a ordem `raiz < fracao < somatorio`. Com o deslocamento forcado a zero de proposito, **so o segundo fica vermelho** — o de faixa passa, porque zero esta na faixa. Um deslocamento constante passaria pela verificacao obvia e so apareceria na folha impressa, com a formula flutuando fora da linha.
 - [x] 4.2 Emitir as primitivas de uma linha composta no `LayoutMap`, com posição absoluta por trecho. Resultado: o mapa declara a sequência; nenhum renderizador ganha lógica de posicionamento.
 
   Uma linha deixou de ser um `DrawText` e virou um `DrawText` ou `DrawImage` por trecho, todos na mesma linha de base, com `x` absoluto resolvido pelo mapa.
 
   **O identificador de linha de trecho unico foi preservado de proposito.** Uma linha com um so trecho de texto continua sendo `q<id>-s<n>`; so quando ha mais de um trecho o sufixo ganha o indice. Sem isso, as 40 questoes da fixture mudariam de identificador e o golden desta fatia misturaria formula em linha com uma renomeacao em massa — exatamente o que a tarefa 2.4 existe para impedir.
-- [ ] 4.3 Confirmar que os dois renderizadores desenham a linha composta sem mudança de código de posicionamento. Resultado: se algum precisar decidir posição, o desenho de D-1.6.3 está errado e a tarefa reprova.
+- [x] 4.3 Confirmar que os dois renderizadores desenham a linha composta sem mudança de código de posicionamento. Resultado: se algum precisar decidir posição, o desenho de D-1.6.3 está errado e a tarefa reprova.
+
+  **Nenhuma linha de renderizador foi tocada nesta fatia** — `git diff main...HEAD -- apps/web/src apps/android/src` volta vazio —, e os 12 testes do renderizador web seguem verdes.
+
+  E o resultado que D-1.6.3 previa, e a tarefa foi escrita para poder reprovar: se algum dos dois tivesse precisado decidir posicao, o desenho da linha como sequencia de trechos com `x` absoluto estaria errado. Desenhar dois `DrawText` e um `DrawImage` na mesma linha de base usa as primitivas que ja existiam, e e por isso que `print` nao entrou como capability modificada na proposta.
 
 ## 5. Fixture e golden
 

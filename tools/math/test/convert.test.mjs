@@ -154,3 +154,37 @@ test('o manifesto versionado bate com a conversao', () => {
     assert.ok(versioned.equals(actual.png), `\`${declared.raster}\` difere da conversao`);
   }
 });
+
+test('o deslocamento de linha de base sai do viewBox e cabe na caixa', () => {
+  // O `viewBox` do MathJax tem origem na linha de base: `minY` e negativo para o que sobe, e
+  // `minY + altura` e o que desce. O dominio exige 0 <= deslocamento <= altura, e uma formula
+  // fora dessa faixa nao teria como se alinhar ao texto — ela seria recusada na entrada.
+  for (const entry of formulas) {
+    const { heightUm, baselineOffsetUm } = convert(entry);
+    assert.ok(
+      Number.isInteger(baselineOffsetUm) && baselineOffsetUm >= 0 && baselineOffsetUm <= heightUm,
+      `${entry.id}: deslocamento ${baselineOffsetUm} um fora da caixa de ${heightUm} um`,
+    );
+  }
+});
+
+test('o deslocamento acompanha a tipografia da formula', () => {
+  // Oracle independente do codigo: o que desce abaixo da linha de base e propriedade da NOTACAO,
+  // e da para conferir sem abrir o conversor. Uma raiz quase nao desce; uma fracao desce cerca de
+  // um terco; um somatorio, centrado no eixo matematico, desce quase metade.
+  //
+  // Sem esta afirmacao, um deslocamento constante — ou zero — passaria pelo teste de faixa acima
+  // e so apareceria na folha impressa, como formula flutuando fora da linha.
+  const fracao = (id) => {
+    const { heightUm, baselineOffsetUm } = convert(formulas.find((f) => f.id === id));
+    return baselineOffsetUm / heightUm;
+  };
+
+  assert.ok(fracao('f-raizes') < 0.15, 'a raiz quase nao desce abaixo da linha de base');
+  assert.ok(fracao('f-fracoes') > 0.25, 'a fracao precisa descer');
+  assert.ok(fracao('f-somatorio') > 0.4, 'o somatorio e centrado no eixo e desce quase metade');
+  assert.ok(
+    fracao('f-raizes') < fracao('f-fracoes') && fracao('f-fracoes') < fracao('f-somatorio'),
+    'a ordem raiz < fracao < somatorio e o que mostra que o valor acompanha a notacao',
+  );
+});
