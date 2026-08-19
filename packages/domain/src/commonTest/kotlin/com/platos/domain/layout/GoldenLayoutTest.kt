@@ -70,7 +70,12 @@ class GoldenLayoutTest {
     @Test
     fun `fixture de referencia traz formula em bloco`() {
         val map = LayoutEngine().layout(exam)
-        val imagens = map.pages.flatMap { it.primitives }.filterIsInstance<DrawImage>()
+        // Formula em bloco tem identificador `q<questao>-f`; em linha, `q<questao>-si<linha>`.
+        // Separar os dois e o que impede este teste de virar uma contagem sem sentido agora que a
+        // fixture tem as duas formas.
+        val imagens = map.pages.flatMap { it.primitives }
+            .filterIsInstance<DrawImage>()
+            .filter { it.id.endsWith("-f") }
 
         assertEquals(12, imagens.size, "a folha de referencia precisa ter matematica")
         assertEquals(
@@ -86,6 +91,27 @@ class GoldenLayoutTest {
         assertTrue(
             imagens.any { it.reference == "f-matriz3" } && imagens.any { it.reference == "f-sistema" },
             "as estruturas verticais mais altas precisam estar na fixture",
+        )
+    }
+
+    @Test
+    fun `fixture de referencia traz formula em linha`() {
+        val map = LayoutEngine().layout(exam)
+        val emLinha = map.pages.flatMap { it.primitives }
+            .filterIsInstance<DrawImage>()
+            .filter { it.id.contains("-si") }
+
+        // Sete questoes da fixture descreviam matematica em texto puro — era o caso predominante
+        // que a fatia 1.5 nao validava. Nove ocorrencias porque duas questoes citam duas formulas.
+        assertEquals(9, emLinha.size, "o caso predominante das exatas precisa estar na folha")
+        assertEquals(
+            exam.questions.count { it.inline.isNotEmpty() },
+            7,
+            "as sete questoes que descreviam matematica em texto precisam usar formula em linha",
+        )
+        assertTrue(
+            emLinha.all { it.reference.startsWith("i-") },
+            "formula em linha usa as referencias `i-`; em bloco usa `f-`",
         )
     }
 

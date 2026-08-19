@@ -126,8 +126,41 @@
 
 ## 5. Fixture e golden
 
-- [ ] 5.1 Converter as 7 questões da fixture que hoje **descrevem** matemática em texto puro para usar fórmula em linha, e acrescentar casos de borda: fórmula no início da linha, no fim, duas na mesma linha, e uma que força quebra. Resultado: o caso predominante das exatas passa a ser exercitado de verdade.
-- [ ] 5.2 Regravar o golden deliberadamente e registrar aqui o antes e o depois, com contagem de páginas e atribuição bloco→página. Resultado: a mudança fica auditável, e não confundível com regressão aceita por engano.
+- [x] 5.1 Converter as 7 questões da fixture que hoje **descrevem** matemática em texto puro para usar fórmula em linha, e acrescentar casos de borda: fórmula no início da linha, no fim, duas na mesma linha, e uma que força quebra. Resultado: o caso predominante das exatas passa a ser exercitado de verdade.
+
+  As sete questoes que **descreviam** matematica em texto — `q01`, `q03`, `q07`, `q11`, `q16`, `q23`, `q26` — passaram a usa-la. Nove ocorrencias, porque duas questoes citam duas formulas.
+
+  Os casos de borda entraram **dentro** dessas sete, e nao como questoes novas: acrescentar questao mexeria na grade de bolhas e na paginacao, e o golden desta fatia misturaria matematica em linha com uma prova de outro tamanho.
+
+  | caso de borda | onde |
+  |---|---|
+  | marcador no inicio do enunciado | `q01` |
+  | marcador no fim do enunciado | `q16` |
+  | duas formulas na mesma linha | `q26` |
+  | formula larga forcando quebra | `q07`, com `i-larga` de 35 mm |
+
+  Nove fontes novas em `formulas.json`, com prefixo `i-` para separar de `f-`. Todas abaixo do teto de 9 382 um: a mais alta e `i-meio` com 6 773 um.
+
+  **Duas vezes o mesmo erro meu, e vale registrar.** Escrevi as fontes LaTeX por linha de comando e o escaping do shell comeu barras: `\sqrt{144}` virou `sqrt{144}`, e `\frac{1}{2}` virou `"\frac..."` no JSON com **uma** barra — onde `\f` e *form feed*, um caractere de controle. O MathJax quebrou com `TypeError` cru, e a saida do build **nao dizia qual formula**.
+
+  Cheguei a suspeitar do vazamento de estado global que a fatia 1.5 documentou. Era hipotese errada: a bisseccao mostrou `\frac{1}{2}` falhando **sem nada antes**, o que descarta estado. O conversor esta integro e os 17 testes dele passam com as 21 formulas — a garantia de independencia de ordem continua valendo.
+
+  Fica anotado o que isso expos, fora do escopo desta tarefa: **entrada malformada derruba o conversor com `TypeError` em vez do `UnsupportedFormulaError` que o desenho promete, e sem dizer qual formula**. A falha e alta — nao ha degradacao silenciosa — mas nao e identificavel. Ver secao 7.
+- [x] 5.2 Regravar o golden deliberadamente e registrar aqui o antes e o depois, com contagem de páginas e atribuição bloco→página. Resultado: a mudança fica auditável, e não confundível com regressão aceita por engano.
+
+  | | antes | depois |
+  |---|---|---|
+  | `sha256` | `34a1810ca05b39a0…69275e65` | `15a55f0fa60ba116…` |
+  | Tamanho | 68 175 bytes | 69 864 bytes |
+  | Paginas | 4 | **4** |
+  | Questoes que mudaram de pagina ou coluna | — | **4 de 40** |
+  | Primitivas de imagem | 12 | **21** (12 em bloco + 9 em linha) |
+
+  O impacto de paginacao ficou pequeno porque formula em linha ocupa espaco que o texto ja ocupava: das sete questoes convertidas, so as que ganharam linha a mais empurram vizinhas.
+
+  **E a primeira mudanca de golden desta fatia.** Os grupos 2, 3 e 4 inteiros — perfil, reforma da medicao, deslocamento de linha de base — passaram com o golden byte a byte intacto em `34a1810c…`. E o que a tarefa 2.4 comprou: esta regravacao tem uma causa so, e ela e a fixture.
+
+  `fixture de referencia traz formula em bloco` precisou separar as duas formas — contava toda primitiva de imagem e esperava 12. Ganhou par: `fixture de referencia traz formula em linha` afirma as nove ocorrencias e as sete questoes.
 
 ## 6. Verificação
 
@@ -140,3 +173,29 @@
 - [ ] 6.5 Atualizar `docs/cobertura-fatia-1.md` com os cenários novos e como cada verificação foi vista falhar. Resultado: nenhum cenário da spec sem verificação.
 - [ ] 6.6 Imprimir a folha com matemática em linha e conferir a olho, seguindo `docs/protocolo-medicao-impressa.md`. Resultado: registrado se a fórmula em linha assenta na linha de base sem parecer deslocada, e se a linha alta não abre buraco visível no parágrafo.
   - É a única verificação que nenhum teste automático substitui, e na fatia 1.5 foi ela que achou o defeito que nenhuma das outras podia achar. Alinhamento óptico de linha de base é exatamente o tipo de defeito sem oracle dentro do sistema.
+
+## 7. Fora do escopo, encontrado no caminho
+
+### Entrada malformada derruba a conversão com erro não identificável
+
+`tools/math` promete, em D-1.5.6 e nos testes de recusa, que o que ela não entende falha com
+`UnsupportedFormulaError` trazendo o identificador da fórmula. Isso vale para o que a **guarda de
+origem** conhece — `\newcommand`, `\usepackage`, TikZ, comando indefinido.
+
+Fora dessa lista, o MathJax pode lançar direto. Uma fonte com caractere de controle — um form feed,
+no caso — produziu:
+
+```
+TypeError: Cannot read properties of null (reading '4')
+    at Object.Other [as item] (.../BaseConfiguration.js:79:10)
+```
+
+Sem o identificador da fórmula, e com o `build.mjs` interrompido no meio sem dizer em qual das 21
+ele parou. Foi preciso bissetar por fora para descobrir.
+
+Não é degradação silenciosa — a falha é alta e nada é gravado, que é a parte que importa. Mas
+"erro identificável" é o que o desenho promete, e aqui ele não entrega. A correção é pequena:
+envolver a conversão e reetiquetar qualquer exceção que não seja `UnsupportedFormulaError` com o
+identificador da fórmula. Fica registrado, e não corrigido nesta fatia, porque não é o escopo dela.
+
+Vale também uma guarda de entrada: nenhuma fonte de fórmula deve conter caractere de controle.

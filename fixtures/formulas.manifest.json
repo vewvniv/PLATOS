@@ -134,6 +134,105 @@
       "height_px": 185,
       "raster": "formulas/f-bhaskara.png",
       "sha256": "f6d9d19b36136e9da620dc463ddde0229ffe99c3ac48f9a7d14b18a2c642a507"
+    },
+    {
+      "id": "i-soma",
+      "notation": "latex",
+      "width_um": 10795,
+      "height_um": 2498,
+      "baseline_offset_um": 274,
+      "width_px": 255,
+      "height_px": 59,
+      "raster": "formulas/i-soma.png",
+      "sha256": "60308a857701042717663761145d2da216d15b12344a9a3165b2ff41c4150689"
+    },
+    {
+      "id": "i-meio",
+      "notation": "latex",
+      "width_um": 3133,
+      "height_um": 6773,
+      "baseline_offset_um": 2291,
+      "width_px": 74,
+      "height_px": 160,
+      "raster": "formulas/i-meio.png",
+      "sha256": "517cd61b6e8c1f4b1ecf05e23805a23a78d293de8dd977ff0ef238ada4a600b6"
+    },
+    {
+      "id": "i-equacao",
+      "notation": "latex",
+      "width_um": 11430,
+      "height_um": 2498,
+      "baseline_offset_um": 274,
+      "width_px": 270,
+      "height_px": 59,
+      "raster": "formulas/i-equacao.png",
+      "sha256": "fa8cba86d7fe995d45cfac9b0b4c66068372fee005f35a1562e43f3ffb20a237"
+    },
+    {
+      "id": "i-potencia",
+      "notation": "latex",
+      "width_um": 3133,
+      "height_um": 2963,
+      "baseline_offset_um": 0,
+      "width_px": 74,
+      "height_px": 70,
+      "raster": "formulas/i-potencia.png",
+      "sha256": "c2420744d535426f0c50cf88b2b61489ec487154a0892b64f3899af18cc85019"
+    },
+    {
+      "id": "i-raiz",
+      "notation": "latex",
+      "width_um": 7874,
+      "height_um": 3556,
+      "baseline_offset_um": 155,
+      "width_px": 186,
+      "height_px": 84,
+      "raster": "formulas/i-raiz.png",
+      "sha256": "2cd4617b75e0198863ef1f555e63765500dccb9ccaa397021a5dcb6b05f8b6dc"
+    },
+    {
+      "id": "i-decimal",
+      "notation": "latex",
+      "width_um": 5969,
+      "height_um": 2879,
+      "baseline_offset_um": 649,
+      "width_px": 141,
+      "height_px": 68,
+      "raster": "formulas/i-decimal.png",
+      "sha256": "254522b5318991781863c13011b3cb371b83a8b7b8ea7ea08a328f7c22a613e3"
+    },
+    {
+      "id": "i-x-vale",
+      "notation": "latex",
+      "width_um": 8043,
+      "height_um": 2498,
+      "baseline_offset_um": 274,
+      "width_px": 190,
+      "height_px": 59,
+      "raster": "formulas/i-x-vale.png",
+      "sha256": "f8921c2d64e0bf6d29d28d81952b4123a12fc84c1effe01544b07a4a04d018d2"
+    },
+    {
+      "id": "i-dobro",
+      "notation": "latex",
+      "width_um": 5038,
+      "height_um": 3006,
+      "baseline_offset_um": 37,
+      "width_px": 119,
+      "height_px": 71,
+      "raster": "formulas/i-dobro.png",
+      "sha256": "024380ab0ad8e09f3d7deb4c84a2ae845c35b13cbc15bae295885e9de3ba7da4"
+    },
+    {
+      "id": "i-larga",
+      "notation": "latex",
+      "width_um": 35052,
+      "height_um": 3810,
+      "baseline_offset_um": 840,
+      "width_px": 828,
+      "height_px": 90,
+      "raster": "formulas/i-larga.png",
+      "sha256": "e97774c4c7f5c9f8ed98fdfe792188f599a23267ac1bf6c38f9ca56004f65da8"
     }
   ]
 }

@@ -1,5 +1,5 @@
 {
-  "comment": "Fonte das formulas da fixture. `tools/math/build.mjs` converte isto em SVG, raster e manifesto. Cobre a educacao basica inteira conforme D-1.5.6; macro customizada, pacote arbitrario e TikZ ficam de fora e sao recusados pela conversao.",
+  "comment": "Fonte das formulas da fixture. `tools/math/build.mjs` converte isto em SVG, raster e manifesto. Cobre a educacao basica inteira conforme D-1.5.6. As entradas `i-` sao formulas em linha (fatia 1.6) e as `f-` sao em bloco; macro customizada, pacote arbitrario e TikZ ficam de fora e sao recusados pela conversao.",
   "formulas": [
     {
       "id": "f-aritmetica",
@@ -60,6 +60,51 @@
       "id": "f-bhaskara",
       "notation": "mathml",
       "source": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><mi>x</mi><mo>=</mo><mfrac><mrow><mo>&#x2212;</mo><mi>b</mi><mo>&#xB1;</mo><msqrt><mrow><msup><mi>b</mi><mn>2</mn></msup><mo>&#x2212;</mo><mn>4</mn><mi>a</mi><mi>c</mi></mrow></msqrt></mrow><mrow><mn>2</mn><mi>a</mi></mrow></mfrac></math>"
+    },
+    {
+      "id": "i-soma",
+      "notation": "latex",
+      "source": "12 + 15"
+    },
+    {
+      "id": "i-meio",
+      "notation": "latex",
+      "source": "\\frac{1}{2}"
+    },
+    {
+      "id": "i-equacao",
+      "notation": "latex",
+      "source": "3x = 21"
+    },
+    {
+      "id": "i-potencia",
+      "notation": "latex",
+      "source": "2^{5}"
+    },
+    {
+      "id": "i-raiz",
+      "notation": "latex",
+      "source": "\\sqrt{144}"
+    },
+    {
+      "id": "i-decimal",
+      "notation": "latex",
+      "source": "0{,}25"
+    },
+    {
+      "id": "i-x-vale",
+      "notation": "latex",
+      "source": "x = 3"
+    },
+    {
+      "id": "i-dobro",
+      "notation": "latex",
+      "source": "2x^{2}"
+    },
+    {
+      "id": "i-larga",
+      "notation": "latex",
+      "source": "a^{2} + 2ab + b^{2} = (a + b)^{2}"
     }
   ]
 }
