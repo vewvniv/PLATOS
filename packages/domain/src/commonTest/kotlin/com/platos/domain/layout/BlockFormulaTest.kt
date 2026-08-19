@@ -84,10 +84,10 @@ class BlockFormulaTest {
         assertTrue(com.block.height > sem.block.height, "a formula precisa reservar espaco proprio")
         val crescimento = com.block.height - sem.block.height
         assertTrue(
-            crescimento.isMultipleOf(Sheet.GRID),
+            crescimento.isMultipleOf(LayoutProfile.DEFAULT.grid),
             "o crescimento do bloco saiu fora da grade: $crescimento",
         )
-        assertTrue(com.block.height.isMultipleOf(Sheet.GRID))
+        assertTrue(com.block.height.isMultipleOf(LayoutProfile.DEFAULT.grid))
     }
 
     // --- Fórmula não é reescalada ---
@@ -131,7 +131,7 @@ class BlockFormulaTest {
         val vaos = alturas.map { altura ->
             val content = QuestionBlockBuilder(measurer).build(questao("q1", formula(height = altura)), 1)
             val formula = assertNotNull(content.formula)
-            assertTrue(content.block.height.isMultipleOf(Sheet.GRID), "o bloco precisa cair na grade")
+            assertTrue(content.block.height.isMultipleOf(LayoutProfile.DEFAULT.grid), "o bloco precisa cair na grade")
             formula.spaceAbove to formula.spaceBelow
         }
         assertEquals(1, vaos.toSet().size, "os vaos nao podem variar com a altura da formula")
@@ -150,7 +150,7 @@ class BlockFormulaTest {
 
     @Test
     fun `formula mais larga que a coluna impede a emissao do mapa`() {
-        val larga = formula(width = QuestionBlockBuilder.TEXT_WIDTH + Um(1))
+        val larga = formula(width = QuestionBlockBuilder.textWidth(LayoutProfile.DEFAULT) + Um(1))
         val erro = assertFailsWith<LayoutException> {
             engine.layout(provaDe(4).let { prova ->
                 prova.copy(
@@ -166,7 +166,7 @@ class BlockFormulaTest {
 
     @Test
     fun `formula com exatamente a largura da coluna e aceita`() {
-        val justa = formula(width = QuestionBlockBuilder.TEXT_WIDTH)
+        val justa = formula(width = QuestionBlockBuilder.textWidth(LayoutProfile.DEFAULT))
         val map = engine.layout(
             provaDe(4).let { prova ->
                 prova.copy(
@@ -177,7 +177,7 @@ class BlockFormulaTest {
             },
         )
         val imagem = assertNotNull(imagemDe(map, "q1"))
-        assertEquals(QuestionBlockBuilder.TEXT_WIDTH.raw, imagem.width)
+        assertEquals(QuestionBlockBuilder.textWidth(LayoutProfile.DEFAULT).raw, imagem.width)
     }
 
     // --- Layout não depende do conteúdo matemático ---

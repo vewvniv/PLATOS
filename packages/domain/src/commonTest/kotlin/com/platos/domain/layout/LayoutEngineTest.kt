@@ -56,7 +56,7 @@ class LayoutEngineTest {
         // O topo do quadrilatero fica meio marcador abaixo do topo da regiao, que comeca na
         // margem superior.
         assertEquals(
-            (Sheet.MARGIN_TOP + CaptureGeometry.MARKER_SIDE.divFloor(2)).raw,
+            (LayoutProfile.DEFAULT.marginTop + CaptureGeometry.MARKER_SIDE.divFloor(2)).raw,
             region.quadY,
         )
     }
@@ -132,7 +132,7 @@ class LayoutEngineTest {
     @Test
     fun `passo vertical das bolhas e 6 mm e multiplo da grade`() {
         assertEquals(Um.mm(6), CaptureGeometry.BUBBLE_PITCH_V)
-        assertTrue(CaptureGeometry.BUBBLE_PITCH_V.isMultipleOf(Sheet.GRID))
+        assertTrue(CaptureGeometry.BUBBLE_PITCH_V.isMultipleOf(LayoutProfile.DEFAULT.grid))
 
         val map = engine.layout(prova(6))
         val circles = map.pages[0].primitives.filterIsInstance<DrawCircle>()

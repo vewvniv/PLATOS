@@ -143,9 +143,9 @@ class FormulaRasterTest {
         for (entry in formulas) {
             val largura = inteiro(entry, "width_um")
             assertTrue(
-                largura <= QuestionBlockBuilder.TEXT_WIDTH.raw,
+                largura <= QuestionBlockBuilder.textWidth(LayoutProfile.DEFAULT).raw,
                 "`${texto(entry, "id")}` tem $largura um e a coluna oferece " +
-                    "${QuestionBlockBuilder.TEXT_WIDTH.raw} um",
+                    "${QuestionBlockBuilder.textWidth(LayoutProfile.DEFAULT).raw} um",
             )
         }
     }

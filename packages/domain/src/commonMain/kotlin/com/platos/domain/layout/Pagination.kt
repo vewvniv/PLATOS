@@ -17,9 +17,6 @@ data class Block(
 ) {
     init {
         require(height > Um.ZERO) { "bloco `$id` sem altura" }
-        require(height.isMultipleOf(Sheet.GRID)) {
-            "altura do bloco `$id` nao esta na grade de 3 mm: $height"
-        }
     }
 }
 
@@ -46,9 +43,6 @@ data class Pagination(
     val pageCount: Int,
 )
 
-/** Sobe [height] ate o proximo multiplo da grade, sem comprimir conteudo. */
-fun snapToGrid(height: Um): Um = height.ceilToMultipleOf(Sheet.GRID)
-
 /**
  * Distribui blocos indivisiveis por slots de coluna minimizando `Sigma(sobra_do_slot)^2` (D-1.4).
  *
@@ -61,6 +55,7 @@ fun snapToGrid(height: Um): Um = height.ceilToMultipleOf(Sheet.GRID)
  * pagina 1 — ver [reservedOnFirstPage].
  */
 class Paginator(
+    private val profile: LayoutProfile = LayoutProfile.DEFAULT,
     private val reservedOnFirstPage: Um = Um.ZERO,
     private val maxPages: Int = 40,
 ) {
@@ -70,7 +65,17 @@ class Paginator(
             throw LayoutException("nenhum bloco para paginar")
         }
 
-        val maxSlots = maxPages * Sheet.COLUMNS
+        val foraDaGrade = blocks.filterNot { it.height.isMultipleOf(profile.grid) }
+        if (foraDaGrade.isNotEmpty()) {
+            // A grade e do perfil, entao quem confere e quem conhece o perfil. Antes isto vivia
+            // no `init` de Block, afirmado contra uma constante global.
+            throw LayoutException(
+                "altura de bloco fora da grade de ${profile.grid}: " +
+                    foraDaGrade.joinToString { "`${it.id}` com ${it.height}" },
+            )
+        }
+
+        val maxSlots = maxPages * profile.columns
         val capacities = (0 until maxSlots).map { capacityOf(it) }
 
         val tallest = blocks.maxBy { it.height }
@@ -160,8 +165,8 @@ class Paginator(
         val slotCount = boundaries.size - 1
 
         for (slotIndex in 0 until slotCount) {
-            val page = slotIndex / Sheet.COLUMNS
-            val column = slotIndex % Sheet.COLUMNS
+            val page = slotIndex / profile.columns
+            val column = slotIndex % profile.columns
             val slotTop = topOf(slotIndex)
             slots += ColumnSlot(
                 page = page,
@@ -186,18 +191,19 @@ class Paginator(
         return Pagination(
             placements = placements,
             slots = slots,
-            pageCount = (slotCount + Sheet.COLUMNS - 1) / Sheet.COLUMNS,
+            pageCount = (slotCount + profile.columns - 1) / profile.columns,
         )
     }
 
     private fun capacityOf(slotIndex: Int): Um {
-        val reserved = if (slotIndex < Sheet.COLUMNS) reservedOnFirstPage else Um.ZERO
+        val reserved = if (slotIndex < profile.columns) reservedOnFirstPage else Um.ZERO
         // A capacidade tambem desce ate a grade: um resto de 1 mm no fim da coluna nao pode
         // deslocar o proximo bloco para fora do ritmo vertical.
-        val usable = Sheet.CONTENT_HEIGHT - reserved
-        return usable.divFloor(Sheet.GRID.raw) * Sheet.GRID.raw
+        val usable = profile.contentHeight - reserved
+        return usable.divFloor(profile.grid.raw) * profile.grid.raw
     }
 
     private fun topOf(slotIndex: Int): Um =
-        if (slotIndex < Sheet.COLUMNS) Sheet.MARGIN_TOP + reservedOnFirstPage else Sheet.MARGIN_TOP
+        if (slotIndex < profile.columns) profile.marginTop + reservedOnFirstPage
+        else profile.marginTop
 }

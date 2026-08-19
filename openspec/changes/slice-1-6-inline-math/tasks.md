@@ -40,10 +40,21 @@
   Duas guardas contra vacuidade, no molde da fatia 1.5: um caso positivo — questão com fórmula declarada e citada é aceita — e as **bordas exatas** do deslocamento, 0 e a altura inteira. Sem as bordas, um `<` no lugar de `<=` passaria despercebido.
 
   O parser roda em `commonTest` de propósito: um `Regex` que se comportasse diferente em Kotlin/JS produziria enunciados diferentes na mesma prova. Os três alvos concordam.
-- [ ] 2.3 Criar `LayoutProfile` com margens, colunas, medianiz, grade, corpo, entrelinha e teto de linha (D-1.6.5). Resultado: `Sheet` e `TextStyle` deixam de ser constantes de objeto e passam a vir do perfil.
-- [ ] 2.4 Provar que o perfil padrão não muda nada **antes** de qualquer fórmula em linha entrar na fixture: calcular a fixture atual sem perfil explícito e afirmar o golden byte a byte, nos três alvos (D-1.6.6). Resultado: cobre "Perfil padrão não muda o resultado".
-  - Esta tarefa é a que separa as duas mudanças grandes desta fatia. Sem ela, a regravação do golden na tarefa 5.2 vira ato de fé.
-- [ ] 2.5 Testar que um perfil de corpo maior muda quebras e alturas e **não** muda a geometria de captura. Resultado: cobre "Perfil com corpo maior muda a folha", e é o que impede a parametrização de ser decorativa.
+- [x] 2.3 Criar `LayoutProfile` com margens, colunas, medianiz, grade, corpo, entrelinha e teto de linha (D-1.6.5). Resultado: `Sheet` e `TextStyle` deixam de ser constantes de objeto e passam a vir do perfil.
+
+  `object Sheet` **deixou de existir**; suas 29 referências passaram a sair do perfil. `LayoutEngine`, `QuestionBlockBuilder` e `Paginator` recebem `LayoutProfile` com o padrão como default, e `TEXT_WIDTH`/`OPTION_WIDTH` viraram funções do perfil, porque a largura da coluna passou a ser dele.
+
+  **Uma verificação mudou de lugar, e não de existência.** `Block` afirmava no próprio `init` que a altura estava na grade — contra uma constante global, a única grade que existia. Com a grade vindo do perfil, `Block` não tem como saber qual é: quem confere passou a ser `Paginator`, que conhece o perfil. Há dois testes onde havia um: `bloco fora da grade e recusado ao paginar`, e `a grade cobrada ao paginar e a do perfil`, que usa um perfil de 5 mm para provar que a guarda não ficou afirmando 3 mm fixos.
+- [x] 2.4 Provar que o perfil padrão não muda nada **antes** de qualquer fórmula em linha entrar na fixture: calcular a fixture atual sem perfil explícito e afirmar o golden byte a byte, nos três alvos (D-1.6.6). Resultado: cobre "Perfil padrão não muda o resultado".
+
+  `perfil padrao produz exatamente o mapa de antes de o perfil existir` afirma duas coisas: que declarar o perfil padrão dá o mesmo mapa que não declarar nada, e que esse mapa é o golden **atual**, byte a byte. O golden não foi regravado nesta tarefa e não podia ser: o ponto é justamente que a metade "perfil" da fatia contribui com zero para a mudança que virá na 5.2.
+
+  Acompanha `o perfil padrao reproduz a geometria que o Sheet fixava`, com os catorze números de §7 escritos à mão. O golden sozinho diria que algo mudou; ele não diria **qual constante**.
+- [x] 2.5 Testar que um perfil de corpo maior muda quebras e alturas e **não** muda a geometria de captura. Resultado: cobre "Perfil com corpo maior muda a folha", e é o que impede a parametrização de ser decorativa.
+
+  Com o corpo e a entrelinha dobrados, o mapa muda e a prova passa a ocupar mais páginas. E o par que fecha o sentido de D-1.5.9 e do ADR-0001: `perfil nao mexe na geometria de captura` afirma que quad, contagem e coordenadas normalizadas das bolhas ficam **idênticos** sob o perfil ampliado. Sem essa metade, "o perfil muda a folha" seria compatível com o perfil ter mexido no que o OMR depende.
+
+  Mais quatro guardas do próprio perfil: grampo maior que a margem superior, teto menor que a entrelinha, zero colunas e grade zero são recusados na construção.
 
 ## 3. Medição: a linha vira sequência
 

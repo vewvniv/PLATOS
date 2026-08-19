@@ -2,6 +2,7 @@ package com.platos.domain.layout
 
 import com.platos.domain.geometry.Um
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -12,15 +13,38 @@ class PaginationTest {
 
     @Test
     fun `altura sobe ao proximo multiplo da grade`() {
-        assertEquals(Um(3_000), snapToGrid(Um(1)))
-        assertEquals(Um(3_000), snapToGrid(Um(3_000)))
-        assertEquals(Um(6_000), snapToGrid(Um(3_001)))
+        assertEquals(Um(3_000), LayoutProfile.DEFAULT.snapToGrid(Um(1)))
+        assertEquals(Um(3_000), LayoutProfile.DEFAULT.snapToGrid(Um(3_000)))
+        assertEquals(Um(6_000), LayoutProfile.DEFAULT.snapToGrid(Um(3_001)))
     }
 
     @Test
-    fun `bloco fora da grade e recusado na construcao`() {
-        assertFailsWith<IllegalArgumentException> { Block("q1", Um(3_001)) }
+    fun `bloco sem altura e recusado na construcao`() {
         assertFailsWith<IllegalArgumentException> { Block("q1", Um.ZERO) }
+        assertFailsWith<IllegalArgumentException> { Block("q1", Um(-1)) }
+    }
+
+    @Test
+    fun `bloco fora da grade e recusado ao paginar`() {
+        // A verificacao mudou de lugar com o `LayoutProfile` (D-1.6.5), e nao de existencia: a
+        // grade passou a ser do perfil, entao quem confere precisa ser quem conhece o perfil.
+        // `Block` nao conhece, e afirmava contra uma constante global.
+        val erro = assertFailsWith<LayoutException> {
+            Paginator().paginate(listOf(Block("q1", Um(3_000)), Block("q2", Um(3_001))))
+        }
+        assertContains(erro.message!!, "q2")
+        assertContains(erro.message!!, "fora da grade")
+    }
+
+    @Test
+    fun `a grade cobrada ao paginar e a do perfil`() {
+        // Um perfil com grade de 5 mm recusa o que a grade de 3 mm aceitava, e vice-versa. Sem
+        // isto, a guarda poderia estar afirmando contra 3 mm fixos e ninguem notaria.
+        val cincoMm = LayoutProfile.DEFAULT.copy(grid = Um.mm(5))
+        assertFailsWith<LayoutException> {
+            Paginator(profile = cincoMm).paginate(listOf(Block("q1", Um.mm(6))))
+        }
+        Paginator(profile = cincoMm).paginate(listOf(Block("q1", Um.mm(10))))
     }
 
     @Test
@@ -29,9 +53,9 @@ class PaginationTest {
         val resultado = Paginator().paginate(blocos)
 
         for (colocacao in resultado.placements) {
-            val relativo = colocacao.top - Sheet.MARGIN_TOP
+            val relativo = colocacao.top - LayoutProfile.DEFAULT.marginTop
             assertTrue(
-                relativo.isMultipleOf(Sheet.GRID),
+                relativo.isMultipleOf(LayoutProfile.DEFAULT.grid),
                 "bloco ${colocacao.blockId} fora da grade: $relativo",
             )
         }
@@ -83,12 +107,12 @@ class PaginationTest {
 
         val primeiraPagina = resultado.slots.filter { it.page == 0 }
         val demais = resultado.slots.filter { it.page > 0 }
-        assertEquals(Sheet.COLUMNS, primeiraPagina.size)
+        assertEquals(LayoutProfile.DEFAULT.columns, primeiraPagina.size)
         assertTrue(demais.isNotEmpty(), "o caso precisa de mais de uma pagina")
 
         for (slot in primeiraPagina) {
             assertTrue(slot.capacity < demais.first().capacity)
-            assertEquals(Sheet.MARGIN_TOP + reserva, slot.top)
+            assertEquals(LayoutProfile.DEFAULT.marginTop + reserva, slot.top)
         }
     }
 

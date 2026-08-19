@@ -61,18 +61,26 @@ data class QuestionContent(
  */
 class QuestionBlockBuilder(
     private val measurer: TextMeasurer,
-    private val style: TextStyle = TextStyle.BODY,
+    private val profile: LayoutProfile = LayoutProfile.DEFAULT,
 ) {
+
+    private val style: TextStyle get() = profile.style
+
+    /** Largura util do texto dentro da coluna, depois da canaleta do numero. */
+    val textWidth: Um get() = textWidth(profile)
+
+    /** Largura util do texto de uma alternativa, depois do recuo da letra. */
+    val optionWidth: Um get() = optionWidth(profile)
 
     fun build(exam: ExamDefinition): List<QuestionContent> =
         exam.questions.mapIndexed { index, question -> build(question, index + 1) }
 
     fun build(question: Question, number: Int): QuestionContent {
-        val statement = measurer.measure(question.statement, style, TEXT_WIDTH)
+        val statement = measurer.measure(question.statement, style, textWidth)
         val options = question.options.mapIndexed { index, text ->
             OptionContent(
                 letter = 'A' + index,
-                text = measurer.measure(text, style, OPTION_WIDTH),
+                text = measurer.measure(text, style, optionWidth),
             )
         }
         val formula = question.formula?.let { declared ->
@@ -80,10 +88,10 @@ class QuestionBlockBuilder(
             // A largura e o unico limite duro: uma formula mais larga que a coluna nao tem como
             // caber sem reescalar, e reescalar e o que a spec proibe. Falhar aqui e o certo — a
             // alternativa seria uma folha impressa com a formula invadindo a coluna vizinha.
-            if (width > TEXT_WIDTH) {
+            if (width > textWidth) {
                 throw LayoutException(
                     "formula `${declared.reference}` da questao `${question.id}` tem $width de " +
-                        "largura e nao cabe na coluna, que oferece $TEXT_WIDTH; a formula nao e " +
+                        "largura e nao cabe na coluna, que oferece $textWidth; a formula nao e " +
                         "reescalada e nenhum layout e emitido",
                 )
             }
@@ -101,7 +109,7 @@ class QuestionBlockBuilder(
             options.fold(Um.ZERO) { total, option -> total + option.text.height }
         val block = Block(
             id = question.id,
-            height = snapToGrid(content + SPACE_AFTER_BLOCK),
+            height = profile.snapToGrid(content + SPACE_AFTER_BLOCK),
         )
 
         return QuestionContent(
@@ -180,7 +188,14 @@ class QuestionBlockBuilder(
         /** Respiro entre questoes, dois passos da grade. */
         val SPACE_AFTER_BLOCK = Um.mm(6)
 
-        val TEXT_WIDTH = Sheet.COLUMN_WIDTH - NUMBER_GUTTER
-        val OPTION_WIDTH = TEXT_WIDTH - OPTION_INDENT
+        /**
+         * Largura util do texto na coluna do perfil.
+         *
+         * Deixou de ser constante junto com `Sheet` (D-1.6.5): a largura da coluna e do perfil,
+         * entao a largura do texto tambem tem de ser.
+         */
+        fun textWidth(profile: LayoutProfile): Um = profile.columnWidth - NUMBER_GUTTER
+
+        fun optionWidth(profile: LayoutProfile): Um = textWidth(profile) - OPTION_INDENT
     }
 }

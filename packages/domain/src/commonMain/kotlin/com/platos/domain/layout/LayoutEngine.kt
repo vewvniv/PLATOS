@@ -30,17 +30,20 @@ private data class BubbleGrid(
  */
 class LayoutEngine(
     private val measurer: TextMeasurer = TextMeasurer(EmbeddedFont.program),
-    private val style: TextStyle = TextStyle.BODY,
+    private val profile: LayoutProfile = LayoutProfile.DEFAULT,
 ) {
+
+    private val style: TextStyle get() = profile.style
 
     fun layout(exam: ExamDefinition): LayoutMap {
         exam.requireSupported()
 
         val grid = gridFor(exam)
-        val regionHeight = snapToGrid(TOP_BAND + grid.height + BOTTOM_CLEARANCE)
+        val regionHeight = profile.snapToGrid(TOP_BAND + grid.height + BOTTOM_CLEARANCE)
 
-        val contents = QuestionBlockBuilder(measurer, style).build(exam)
+        val contents = QuestionBlockBuilder(measurer, profile).build(exam)
         val pagination = Paginator(
+            profile = profile,
             reservedOnFirstPage = regionHeight + SPACE_AFTER_REGION,
         ).paginate(contents.map { it.block })
 
@@ -63,8 +66,8 @@ class LayoutEngine(
             layoutEngineVersion = LayoutMap.ENGINE_VERSION,
             minRendererVersion = LayoutMap.MIN_RENDERER_VERSION,
             examId = exam.id,
-            pageWidth = Sheet.WIDTH.raw,
-            pageHeight = Sheet.HEIGHT.raw,
+            pageWidth = profile.pageWidth.raw,
+            pageHeight = profile.pageHeight.raw,
             fontSha256 = EmbeddedFont.sha256,
             pages = pages,
             regions = listOf(region),
@@ -82,7 +85,7 @@ class LayoutEngine(
         val optionCount = exam.questions.maxOf { it.options.size }
         val columnWidth = CaptureGeometry.LABEL_WIDTH + CaptureGeometry.BUBBLE_PITCH_H * optionCount
 
-        val availableWidth = Sheet.CONTENT_WIDTH -
+        val availableWidth = profile.contentWidth -
             (CaptureGeometry.MARKER_SIDE + CaptureGeometry.QUIET_ZONE) * 2
         val availableHeight = CaptureGeometry.MAX_REGION_HEIGHT - TOP_BAND - BOTTOM_CLEARANCE
 
@@ -105,9 +108,9 @@ class LayoutEngine(
         regionHeight: Um,
         primitives: MutableList<Primitive>,
     ): ScannableRegion {
-        val left = Sheet.MARGIN_SIDE
-        val top = Sheet.MARGIN_TOP
-        val right = left + Sheet.CONTENT_WIDTH
+        val left = profile.marginSide
+        val top = profile.marginTop
+        val right = left + profile.contentWidth
         val bottom = top + regionHeight
         val marker = CaptureGeometry.MARKER_SIDE
 
@@ -115,7 +118,7 @@ class LayoutEngine(
         // devolve com mais estabilidade, e e a ele que tudo dentro da regiao e normalizado.
         val quadX = left + marker.divFloor(2)
         val quadY = top + marker.divFloor(2)
-        val quadWidth = Sheet.CONTENT_WIDTH - marker
+        val quadWidth = profile.contentWidth - marker
         val quadHeight = regionHeight - marker
 
         val markerIds = CaptureGeometry.markerIdsOf(REGION_INDEX)
@@ -141,7 +144,7 @@ class LayoutEngine(
         val payload = qrPayloadOf(exam.id, REGION_INDEX)
         val qrMatrix = QrEncoder.encode(payload)
         val qrSide = CaptureGeometry.QR_SIDE
-        val qrX = left + (Sheet.CONTENT_WIDTH - qrSide).divFloor(2)
+        val qrX = left + (profile.contentWidth - qrSide).divFloor(2)
         // O QR comeca na linha do quadrilatero, e nao no topo da regiao: o quadrilatero passa pelos
         // *centros* dos marcadores, entao qualquer coisa acima dele normalizaria para v negativo.
         val qrY = quadY
@@ -221,7 +224,7 @@ class LayoutEngine(
         placement: Placement,
         primitives: MutableList<Primitive>,
     ) {
-        val columnLeft = Sheet.columnLeft(placement.column)
+        val columnLeft = profile.columnLeft(placement.column)
         val textLeft = columnLeft + QuestionBlockBuilder.NUMBER_GUTTER
         var baseline = placement.top + style.lineHeight
 
