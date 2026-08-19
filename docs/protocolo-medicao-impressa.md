@@ -106,3 +106,40 @@ da página.
 Anote os valores observados na tarefa 10.2 de `openspec/changes/slice-1-layout-engine/tasks.md`,
 junto com impressora, driver e data. Valor observado, não valor esperado: o objetivo do registro é
 poder comparar a próxima medição com esta.
+
+## 8. Legibilidade da matemática impressa (fatia 1.5)
+
+Acrescentado ao fechar a impressão da tarefa 6.6. Esta seção não usa régua: é inspeção a olho, e
+existe porque a resolução do raster (D-1.5.1, 600 dpi) foi escolhida por argumento e precisa ser
+conferida no papel.
+
+Imprimir `build/parity/web.pdf` (4 páginas, 12 fórmulas) e conferir:
+
+- traço da fração e da raiz — são os finos, e o primeiro lugar onde 600 dpi falharia;
+- subscrito e expoente de `f-potencias`, os menores glifos da folha;
+- barras verticais de `f-matriz2` e parênteses altas de `f-matriz3`;
+- se a fórmula tem o mesmo peso óptico do texto ao redor, já que foi composta no mesmo corpo;
+- **espaçamento**: a fórmula precisa ler como parte do enunciado, e não do bloco de alternativas.
+
+### O que a primeira impressão encontrou
+
+A resolução passou: traço, subscrito, expoente, barras e peso óptico foram aprovados a olho. **O
+espaçamento não.** Nas 12 fórmulas, o branco acima era grande demais e o de baixo pequeno demais, e
+por proximidade a fórmula se lia como pertencente às alternativas — o inverso do correto, já que a
+fórmula é parte do enunciado.
+
+Medido depois, na tinta do PDF a 600 dpi: **10,089 mm de média acima contra 2,565 mm abaixo**, razão
+3,9× e até 6,9× em `f-matriz2` e `f-sistema`. O vão de cima era constante nas 12 (amplitude
+0,931 mm); o de baixo variava 2,159 mm, porque era ele que absorvia o resíduo do arredondamento à
+grade.
+
+A causa não era uma constante errada: era misturar posicionamento por linha de base com
+posicionamento por topo. Corrigido em D-1.5.9.
+
+**Por que isto vale registrar aqui.** Nenhuma das verificações automáticas desta fatia podia pegar
+isso, e nenhuma delas estava errada. Paridade compara os dois renderizadores entre si — e os dois
+erravam igual, com 0,042 mm de divergência. Fidelidade compara o documento com o `LayoutMap` — e o
+documento estava fiel ao mapa; o mapa é que estava errado. Golden compara o mapa com ele mesmo. Um
+defeito de *julgamento tipográfico* não tem oracle dentro do sistema: o oracle é o olho de quem lê a
+folha. É exatamente o que a tarefa 6.6 existe para fazer, e é o argumento para ela nunca ser
+substituída por medição.

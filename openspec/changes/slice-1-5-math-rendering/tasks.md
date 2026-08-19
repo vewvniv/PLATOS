@@ -255,22 +255,51 @@
 
 ## 7. Fora do escopo, encontrado no caminho
 
-Nada aqui foi corrigido nesta fatia. Fica registrado porque foi medido, não suposto.
+Encontrado ao executar esta fatia, e registrado porque foi medido, não suposto. O primeiro item
+foi corrigido depois — e o registro original dele estava errado, o que é o motivo de a correção
+vir acompanhada da refutação.
 
-### Medição de texto diverge entre alvos em surrogate solto
+### Surrogate solto: o insumo do teste era corrompido pelo gerador de código, não a medição
 
-`CodePointMeasurementTest` falha 3 de 5 no alvo **Node/JS**, e passa em JVM e Android. Confirmado pré-existente na árvore limpa, com `git stash`, antes de qualquer mudança desta fatia.
+**Corrigido, e o diagnóstico anterior desta seção estava errado.** Ela dizia que `CodePointMeasurementTest`
+falhava 3 de 5 no alvo Node/JS por causa de `FontProgram.glyphIn`, que leria `bytes.u16(at)` sem
+checar limite quando o segmento do `cmap` tem `idRangeOffset != 0`. Não é isso, por três evidências:
 
-| Entrada | JVM e Android | Node/JS |
-|---|---|---|
-| `\uD83D` (surrogate alto solto) | 2 145 µm | **1 394 µm** |
-| `\uDE00\uD83D` (dois code points) | 4 289 µm | **2 788 µm** |
+- **A leitura é checada.** `u16` chama `u8`, que chama `require` (`FontProgram.kt:14-19`, `:40-46`).
+  Fora dos limites lança `FontFormatException` com mensagem própria — nunca devolve lixo, e nunca
+  devolveria valores diferentes por alvo.
+- **Oracle independente sobre o TTF**, sem passar por nenhuma linha do domínio: `U+D83D` resolve
+  para o glifo 0 (`.notdef`), avanço 640, os mesmos 2 145 µm do JVM. O `cmap` não diverge.
+- **O artefato compilado mostrava a causa.** Em `platos-packages-domain-test.js`, o par bem formado
+  saía como `'😀'` e o surrogate **solto** saía como `'?'` — um caractere que a fonte
+  cobre, com avanço 416 contra os 640 do `.notdef`. 416 unidades são exatamente os 1 394 µm que o
+  teste acusava.
 
-O par bem formado (`😀`) mede igual nos três; só o surrogate **solto** diverge. 1 394 µm correspondem a um avanço de 416 unidades de fonte contra as 640 do `.notdef`, ou seja: em JS o code point resolve para um glifo real, e nos outros dois para `.notdef`.
+A causa é o gerador de código do Kotlin/JS, que não emite surrogate solto dentro de um literal de
+string e o substitui. Não é divergência de medição, não é defeito de produção, e **a invariante de
+que o KMP é a fonte compartilhada de medição não está quebrada**: JVM, Node e Android calculam o
+mesmo valor sobre a mesma entrada. O que divergia era a entrada.
 
-A causa provável está em `FontProgram.glyphIn`: quando o segmento do `cmap` formato 4 tem `idRangeOffset != 0`, o índice `at` é calculado e lido com `bytes.u16(at)` **sem checar limite**. Uma leitura fora do array se comporta de forma diferente em JVM e em Kotlin/JS, e é isso que os números indicam.
+A correção é construir a string a partir do code point — `Char(0xD83D).toString()` —, o que tira o
+insumo do caminho do gerador. Verificado: o código emitido passa a ser `toString_0(<código>)`, sem
+literal, e os três alvos ficam verdes (JVM 122, Node 118, Android host 118).
 
-Por que importa mais do que parece: é a invariante que a fatia 1 comprou — "KMP é a fonte compartilhada de medição" —, e este é o mesmo tipo de defeito que o commit `88a8aca` corrigiu no `codePoints`. Não afeta prova real, porque enunciado não tem surrogate solto; afeta a garantia. Merece fatia própria, curta.
+**Visto falhar, e o segundo caso é pior que o problema original.** Com o literal reposto de propósito:
+
+| o que o gerador emitiu | avanço | as três medições | a asserção de insumo |
+|---|---|---|---|
+| `'?'` | 416 | **vermelhas** — o sintoma original | vermelha |
+| `'�'` | 640, igual ao `.notdef` | **verdes, medindo o insumo errado** | vermelha |
+
+O segundo caso é a explicação mais provável para o CI em Linux estar verde neste teste desde
+sempre: passando sem nunca ter exercitado um surrogate solto. É a **quarta** verificação incapaz de
+falhar que esta base produz, e a primeira cuja causa está fora do código do projeto.
+
+Daí a asserção de insumo — `o insumo chega intacto ao alvo` — afirmar comprimento e code point
+**antes** de medir qualquer coisa. Ela não é redundante com a construção em runtime: é o que
+transforma a construção em runtime de suposição em verificação, e é a única coisa que acusa quando
+a corrupção cai num caractere que mede igual.
+
 
 ### O terceiro alvo do `packages/domain` tinha parado de rodar
 

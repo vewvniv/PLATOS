@@ -458,7 +458,7 @@ Uma terceira, acrescentada ao fechar a 1.5: a **fatia 1.6 vem antes da 2**. A 1.
 | **Acurácia em manuscrito** | Maior risco não-arquitetural. Não se resolve por arquitetura — meça na fatia 5 antes de construir a 8. |
 | **Impressão dos ArUcos** | São 4 por questão discursiva, não 4 por prova: muito mais superfície sujeita a toner fraco. Marcador ≥ 12 mm e folha de teste de impressão no onboarding. |
 | **Custo de IA** | Contido por design: Basic não inclui correção por IA; caching corta 37% de graça; quota por plano limita o teto. |
-| **LGPD com dados de menores** | Único item ainda sem encaminhamento. Imagens de manuscrito, notas e identificação de menores exigem base legal, retenção definida e contrato de operador com a escola. Resolver antes do primeiro contrato, não depois. |
+| **LGPD com dados de menores** | Único item ainda sem encaminhamento. Imagens de manuscrito, notas e identificação de menores exigem base legal, retenção definida e contrato de operador com a escola. **Gatilho: fim da fatia 3**, quando o primeiro piloto com turma real põe dado de menor no sistema — e não "antes do primeiro contrato", que é mais tarde e induz a folga que não existe. Some-se que o Basic é *self-serve*: não há escola para figurar como controladora, e professor pessoa física operando dado de menor numa SaaS comercial é figura ambígua. É o produto de lançamento, então a ambiguidade chega junto com o primeiro cliente. A separação do roster (§5) habilita de graça um modo sem identificação nominal — aluno como número ou apelido —, que é a mitigação que compra tempo até haver parecer jurídico. |
 | **Um mantenedor, quatro módulos** | Mitigado pelas fatias verticais e por I1–I3: o escopo cresce sem que o núcleo precise ser reescrito. |
 
 ---
