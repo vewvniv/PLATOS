@@ -1,0 +1,127 @@
+{
+  "comment": "Gerado por tools/math/build.mjs a partir de fixtures/formulas.json. Nao edite a mao. As dimensoes sao a caixa que o Layout Engine reserva; o raster e o que os dois renderizadores desenham, byte a byte igual dos dois lados (D-1.5.1).",
+  "raster_dpi": 600,
+  "body_size_um": 3351,
+  "formulas": [
+    {
+      "id": "f-aritmetica",
+      "notation": "latex",
+      "width_um": 25866,
+      "height_um": 3344,
+      "width_px": 611,
+      "height_px": 79,
+      "raster": "formulas/f-aritmetica.png",
+      "sha256": "0c1023f0156ed77bd743b78f837d9b81c0a0fb7b6ded1891e886995f50536750"
+    },
+    {
+      "id": "f-fracoes",
+      "notation": "latex",
+      "width_um": 10414,
+      "height_um": 6900,
+      "width_px": 246,
+      "height_px": 163,
+      "raster": "formulas/f-fracoes.png",
+      "sha256": "05200dd6c75c102007f8e0f47dec86eb968a30f1f5fa885c225eac4708a0ae26"
+    },
+    {
+      "id": "f-raizes",
+      "notation": "latex",
+      "width_um": 18203,
+      "height_um": 3683,
+      "width_px": 430,
+      "height_px": 87,
+      "raster": "formulas/f-raizes.png",
+      "sha256": "a2e3f46fba248cb57eecbe0552074c2f5c64f1c85ff86dd4e5cffe512245af63"
+    },
+    {
+      "id": "f-potencias",
+      "notation": "latex",
+      "width_um": 20616,
+      "height_um": 3598,
+      "width_px": 487,
+      "height_px": 85,
+      "raster": "formulas/f-potencias.png",
+      "sha256": "281d5ef8a725456a28ac9c84487dc3806baf522696e335961a2ce1621587a8d6"
+    },
+    {
+      "id": "f-trigonometria",
+      "notation": "latex",
+      "width_um": 26035,
+      "height_um": 3217,
+      "width_px": 615,
+      "height_px": 76,
+      "raster": "formulas/f-trigonometria.png",
+      "sha256": "8186025faa978901ff3c4ac87209f76a7481484c160f86840053e0c2c37123af"
+    },
+    {
+      "id": "f-logaritmo",
+      "notation": "latex",
+      "width_um": 16044,
+      "height_um": 3133,
+      "width_px": 379,
+      "height_px": 74,
+      "raster": "formulas/f-logaritmo.png",
+      "sha256": "b1ded436fb8b5c507d8aebbdefaf92560ac7610ce905e91e020f8ea8d7bb032b"
+    },
+    {
+      "id": "f-vetor",
+      "notation": "latex",
+      "width_um": 44027,
+      "height_um": 4572,
+      "width_px": 1040,
+      "height_px": 108,
+      "raster": "formulas/f-vetor.png",
+      "sha256": "1680948fcd467c2dd9c21cd50e21bb115f1ee855c3e22d00454001f5c50133c0"
+    },
+    {
+      "id": "f-somatorio",
+      "notation": "latex",
+      "width_um": 24892,
+      "height_um": 9398,
+      "width_px": 588,
+      "height_px": 222,
+      "raster": "formulas/f-somatorio.png",
+      "sha256": "38500a4ca0da96f7eeb257a17a95599ea302b4c7f744c86bfb95fac43a724242"
+    },
+    {
+      "id": "f-matriz2",
+      "notation": "latex",
+      "width_um": 8932,
+      "height_um": 8043,
+      "width_px": 211,
+      "height_px": 190,
+      "raster": "formulas/f-matriz2.png",
+      "sha256": "0f128d4f23f37227a6125c8155f1eaa02f2d433fd48b228249163bf64f2521eb"
+    },
+    {
+      "id": "f-matriz3",
+      "notation": "latex",
+      "width_um": 17611,
+      "height_um": 12742,
+      "width_px": 416,
+      "height_px": 301,
+      "raster": "formulas/f-matriz3.png",
+      "sha256": "bb0a416bcc0b9c15749e12a98a5f6c5416112b5937ada8ccc424a061d4c87460"
+    },
+    {
+      "id": "f-sistema",
+      "notation": "latex",
+      "width_um": 17992,
+      "height_um": 8043,
+      "width_px": 425,
+      "height_px": 190,
+      "raster": "formulas/f-sistema.png",
+      "sha256": "0341312a8020edd12b13faf987bcb5afd8c34af39159f5336c2a0d38a19baf49"
+    },
+    {
+      "id": "f-bhaskara",
+      "notation": "mathml",
+      "width_um": 30776,
+      "height_um": 7832,
+      "width_px": 727,
+      "height_px": 185,
+      "raster": "formulas/f-bhaskara.png",
+      "sha256": "f6d9d19b36136e9da620dc463ddde0229ffe99c3ac48f9a7d14b18a2c642a507"
+    }
+  ]
+}
