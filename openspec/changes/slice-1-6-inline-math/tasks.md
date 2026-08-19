@@ -164,7 +164,21 @@
 
 ## 6. Verificação
 
-- [ ] 6.1 Rodar a suíte completa nos três alvos, mais `./gradlew build`. Resultado: golden novo estável byte a byte em JVM, Node e Android.
+- [x] 6.1 Rodar a suíte completa nos três alvos, mais `./gradlew build`. Resultado: golden novo estável byte a byte em JVM, Node e Android.
+
+  `./gradlew build :packages:domain:testAndroidHostTest --rerun-tasks` passa. O golden novo é estável byte a byte nos três alvos.
+
+  | Alvo | Testes | Falhas |
+  |---|---|---|
+  | `packages/domain` JVM | 163 | 0 |
+  | `packages/domain` Node/JS | 159 | 0 |
+  | `packages/domain` Android (host) | 159 | 0 |
+  | `apps/api` | 69 | 0 |
+  | `apps/web` (vitest) | 12 | 0 |
+  | `tools/math` | 17 | 0 |
+  | Android instrumentado (emulador) | 4 | 0 |
+
+  `build` explicitamente, e não só as tarefas de teste alvo a alvo — foi essa diferença que deixou a falha de dependência de lint passar despercebida na fatia 1.5 e só aparecer no CI.
   - `build` explicitamente, e não só as tarefas de teste: foi exatamente essa diferença que deixou passar a falha de dependência de lint na fatia 1.5.
 - [x] 6.2 Medir fidelidade do documento nos dois PDFs, agora com fórmula dentro do texto corrido. Resultado: dentro de 0,05 mm, comparado com a base da tarefa 1.1.
 
@@ -196,9 +210,34 @@
   **A margem é fina e fica registrada como tal**: ruído de 0,216 contra sinal de 0,381, com a tolerância de 0,3 no meio. Serve para esta fixture; não é conforto.
 
   E fica uma contradição **não explicada**: a fidelidade mede cada documento contra o `LayoutMap` e aprova os dois a menos de 0,04 mm, o que limitaria a diferença entre eles a 0,08 mm — não 0,216. A pista mais concreta é que a fidelidade calcula a janela **por documento**, e o comparador usa a do web nos dois, por exigência de medir a mesma região. Quem retomar começa por aí.
-- [ ] 6.4 Provar que a verificação continua capaz de falhar: deslocar de propósito uma fórmula **em linha** e confirmar que paridade e fidelidade acusam, com elemento e distância. Resultado: as duas saem com código 1; reverter em seguida.
+- [x] 6.4 Provar que a verificação continua capaz de falhar: deslocar de propósito uma fórmula **em linha** e confirmar que paridade e fidelidade acusam, com elemento e distância. Resultado: as duas saem com código 1; reverter em seguida.
+
+  `render-shifted.ts` passou a deslocar uma fórmula de **cada** forma, e não a primeira que encontrar. A de linha é o caso apertado — tem a palavra vizinha a fração de milímetro —, então deslocar só a de bloco deixaria justamente o caso crítico sem verificação.
+
+  Com 0,5 mm numa bolha, num marcador, em `qq01-si0-1` (em linha) e em `qq29-f` (em bloco):
+
+  | Elemento | Paridade acusa | Fidelidade acusa |
+  |---|---|---|
+  | `r0-m0` (marcador) | 0,500 mm | borda superior |
+  | `r0-bq01-A` (bolha) | 0,409 mm | centro |
+  | **`qq01-si0-1` (em linha)** | **0,381 mm** | **borda esquerda, 0,486 mm** |
+  | `qq29-f` (em bloco) | 0,466 mm | borda esquerda, 0,480 mm |
+
+  As duas saem com código 1; o par correto volta a sair com 0. Nada a reverter no repositório: o PDF deslocado é artefato de build.
+
+  **Esta tarefa reprovou as duas ferramentas antes de aprová-las**, e é o achado que mais custou na fatia. A fidelidade media com folga fixa de 1 mm e entrava dentro da palavra vizinha; a paridade media centroide e era dominada pela massa de tinta dela. As duas foram corrigidas, e a da paridade exigiu **trocar o instrumento**, escolhido entre três medidos nos dois sentidos. Ver 6.2, 6.3 e a cobertura.
+
+  O número que fecha: a fidelidade lê **0,486 mm** de um deslocamento real de 0,500 numa fórmula em linha. A versão que a fatia 1.5 corrigiu lia 0,142 de 0,500.
   - A janela de medição precisa ser conferida para o caso em linha antes de se confiar nela. Esta base já produziu quatro verificações incapazes de falhar, e duas foram por janela mal dimensionada — uma alcançava o vizinho, outra recortava o próprio elemento. Uma fórmula em linha tem texto a milímetros nos dois lados, então é o caso mais apertado até agora.
-- [ ] 6.5 Atualizar `docs/cobertura-fatia-1.md` com os cenários novos e como cada verificação foi vista falhar. Resultado: nenhum cenário da spec sem verificação.
+- [x] 6.5 Atualizar `docs/cobertura-fatia-1.md` com os cenários novos e como cada verificação foi vista falhar. Resultado: nenhum cenário da spec sem verificação.
+
+  `docs/cobertura-fatia-1.md` passou a cobrir as três fatias. **17 cenários novos, 17 cobertos**, agrupados pelos cinco requisitos da spec delta.
+
+  Duas entradas ficaram obsoletas e foram corrigidas em vez de deixadas: "Fórmula em linha ainda é recusada" foi **removido** pela própria fatia — a barreira que ele descrevia é a que a 1.6 levanta —, e a contagem de `tools/math` foi de 15 para 17 testes.
+
+  A seção "como cada verificação foi vista falhar" registra seis, incluindo a que corrigiu uma expectativa **minha** sobre o alinhamento à linha de base, e a que mostra que forçar o deslocamento a zero deixa vermelho **só** o teste de tipografia — o de faixa passa, porque zero está na faixa.
+
+  Também ficou registrado, com números, o conserto das duas ferramentas de medição e as duas coisas que continuam em aberto: a margem fina da paridade (ruído 0,216 contra sinal 0,381) e a contradição não explicada com a fidelidade.
 - [ ] 6.6 Imprimir a folha com matemática em linha e conferir a olho, seguindo `docs/protocolo-medicao-impressa.md`. Resultado: registrado se a fórmula em linha assenta na linha de base sem parecer deslocada, e se a linha alta não abre buraco visível no parágrafo.
   - É a única verificação que nenhum teste automático substitui, e na fatia 1.5 foi ela que achou o defeito que nenhuma das outras podia achar. Alinhamento óptico de linha de base é exatamente o tipo de defeito sem oracle dentro do sistema.
 
