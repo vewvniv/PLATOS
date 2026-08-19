@@ -16,6 +16,9 @@ import { readFileSync } from 'node:fs';
 
 const DPI = 600;
 const TOLERANCE_MM = 0.3;
+
+/** Folga da janela de medicao da formula, de cada lado. Ver `targetsOf`. */
+const WINDOW_SLACK_UM = 1_000;
 const MM_PER_PX = 25.4 / DPI;
 const UM_PER_PT = 25400 / 72;
 
@@ -56,11 +59,11 @@ function rasterize(path) {
  * Um elemento deslocado alem da janela nao produz centroide — e isso conta como falha, que e o
  * comportamento certo.
  */
-function centroidIn(page, centerXpx, centerYpx, halfWindowPx) {
-  const x0 = Math.max(0, Math.floor(centerXpx - halfWindowPx));
-  const x1 = Math.min(page.width - 1, Math.ceil(centerXpx + halfWindowPx));
-  const y0 = Math.max(0, Math.floor(centerYpx - halfWindowPx));
-  const y1 = Math.min(page.height - 1, Math.ceil(centerYpx + halfWindowPx));
+function centroidIn(page, centerXpx, centerYpx, halfWidthPx, halfHeightPx = halfWidthPx) {
+  const x0 = Math.max(0, Math.floor(centerXpx - halfWidthPx));
+  const x1 = Math.min(page.width - 1, Math.ceil(centerXpx + halfWidthPx));
+  const y0 = Math.max(0, Math.floor(centerYpx - halfHeightPx));
+  const y1 = Math.min(page.height - 1, Math.ceil(centerYpx + halfHeightPx));
 
   let weight = 0;
   let sumX = 0;
@@ -111,6 +114,30 @@ function targetsOf(map) {
           // do centro, entao a janela precisa ficar abaixo disso.
           halfWindowUm: Math.round(primitive.diameter * 0.6),
         });
+      } else if (primitive.type === 'image') {
+        targets.push({
+          id: primitive.id,
+          page: page.index,
+          kind: 'formula',
+          centerUm: {
+            x: primitive.x + primitive.width / 2,
+            y: primitive.y + primitive.height / 2,
+          },
+          // A caixa declarada mais 1 mm de folga de cada lado, e nao um quadrado.
+          //
+          // Retangulo porque a formula e larga e baixa: um quadrado do tamanho da largura
+          // alcancaria o enunciado acima e as alternativas abaixo, que ficam a 3 mm, e tinta
+          // alheia dilui o centroide.
+          //
+          // E com folga porque a janela justa comete o erro simetrico — ela **recorta** a propria
+          // formula quando esta deslocada, e o centroide volta para o meio. Medido: com folga
+          // zero, um deslocamento deliberado de 0,500 mm era lido como 0,142 mm e passava na
+          // tolerancia de 0,3 mm; com 1 mm de folga le 0,466 mm e falha, como tem de ser. O peso
+          // de tinta na janela e o que denuncia — 1 195 519 contra 1 226 245 do lado nao
+          // deslocado. A folga fica em 1 mm porque o respiro ate o texto vizinho e 3 mm.
+          halfWindowUm: Math.round(primitive.width / 2) + WINDOW_SLACK_UM,
+          halfHeightUm: Math.round(primitive.height / 2) + WINDOW_SLACK_UM,
+        });
       }
     }
   }
@@ -154,9 +181,10 @@ function compare(webPath, androidPath, mapPath) {
     const cx = umToPx(target.centerUm.x);
     const cy = umToPx(target.centerUm.y);
     const half = umToPx(target.halfWindowUm);
+    const halfY = umToPx(target.halfHeightUm ?? target.halfWindowUm);
 
-    const a = centroidIn(webPage, cx, cy, half);
-    const b = centroidIn(androidPage, cx, cy, half);
+    const a = centroidIn(webPage, cx, cy, half, halfY);
+    const b = centroidIn(androidPage, cx, cy, half, halfY);
     if (!a || !b) {
       missing.push(`${target.id} (${!a ? 'web' : 'android'} sem tinta na janela)`);
       continue;

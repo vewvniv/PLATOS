@@ -26,13 +26,29 @@ if (!pdfPath || !mapPath) {
 
 const map = JSON.parse(readFileSync(mapPath, 'utf8'));
 const doc = mupdf.Document.openDocument(readFileSync(pdfPath), 'application/pdf');
-const pixmap = doc
-  .loadPage(0)
-  .toPixmap(mupdf.Matrix.scale(DPI / 72, DPI / 72), mupdf.ColorSpace.DeviceGray, false, true);
-const width = pixmap.getWidth();
-const height = pixmap.getHeight();
-// Copia: `getPixels()` aponta para a memoria WASM e qualquer rasterizacao seguinte a invalida.
-const pixels = new Uint8Array(pixmap.getPixels());
+
+/**
+ * Rasteriza uma pagina do documento em cinza de 8 bits (D-1.5.7).
+ *
+ * A copia de `getPixels()` e obrigatoria: ela aponta para a memoria WASM do mupdf, e rasterizar a
+ * proxima pagina a invalida. Sem a copia, a pagina anterior vira lixo e toda medicao depois dela
+ * sai `NaN` — que e pior que falhar, porque `NaN > tolerancia` e falso e passa calado.
+ */
+function rasterize(index) {
+  const pixmap = doc
+    .loadPage(index)
+    .toPixmap(mupdf.Matrix.scale(DPI / 72, DPI / 72), mupdf.ColorSpace.DeviceGray, false, true);
+  return {
+    width: pixmap.getWidth(),
+    height: pixmap.getHeight(),
+    pixels: new Uint8Array(pixmap.getPixels()),
+  };
+}
+
+const page0 = rasterize(0);
+const width = page0.width;
+const height = page0.height;
+const pixels = page0.pixels;
 const dark = (x, y) => pixels[y * width + x] < 128;
 const toPx = (um) => um / 1000 / MM;
 
@@ -42,8 +58,36 @@ function check(label, observedMm, expectedMm) {
   checks.push({ label, observedMm, expectedMm, delta, ok: delta <= TOLERANCE_MM });
 }
 
+/**
+ * Caixa de tinta de um pixmap inteiro, em pixels dele.
+ *
+ * Usada sobre o PNG de origem, que e o oracle independente das formulas: ele nao passa por
+ * nenhuma linha de codigo do renderizador.
+ */
+function inkBoxOfPixmap(pixmap) {
+  const w = pixmap.getWidth();
+  const h = pixmap.getHeight();
+  const n = pixmap.getNumberOfComponents();
+  const px = pixmap.getPixels();
+  let x0 = Infinity, x1 = -1, y0 = Infinity, y1 = -1;
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const i = (y * w + x) * n;
+      const value = n >= 3 ? (px[i] + px[i + 1] + px[i + 2]) / 3 : px[i];
+      if (value >= 128) continue;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  }
+  return x1 < 0 ? null : { x0, x1, y0, y1 };
+}
+
 /** Caixa de tinta de um elemento, procurada numa janela folgada ao redor do declarado. */
-function inkBox(xUm, yUm, wUm, hUm, marginPx = 60) {
+function inkBox(xUm, yUm, wUm, hUm, marginPx = 60, page = page0) {
+  const { width, height, pixels } = page;
+  const dark = (x, y) => pixels[y * width + x] < 128;
   const x0 = Math.max(0, Math.round(toPx(xUm)) - marginPx);
   const x1 = Math.min(width - 1, Math.round(toPx(xUm + wUm)) + marginPx);
   const y0 = Math.max(0, Math.round(toPx(yUm)) - marginPx);
@@ -157,6 +201,80 @@ if (column.length >= 10) {
       (tenth - first) / 9,
       (column[9].center_y - column[0].center_y) / 9 / 1000,
     );
+  }
+}
+
+// Formulas: a caixa declarada e desenhada a partir de um PNG versionado, entao da para conferir a
+// posicao contra um oracle que nao compartilha codigo nenhum com o renderizador — o proprio
+// arquivo. Mede-se a caixa de tinta dentro do PNG, mapeia-se para a caixa declarada na pagina, e
+// compara-se com a tinta que o documento realmente traz ali.
+//
+// Conferir a caixa *declarada* contra a tinta nao funcionaria: o `viewBox` do MathJax inclui folga
+// tipografica, entao a tinta e sempre menor que a caixa, por uma margem que depende da formula.
+const imagePages = map.pages
+  .map((page) => ({ index: page.index, images: page.primitives.filter((p) => p.type === 'image') }))
+  .filter((page) => page.images.length > 0);
+
+if (imagePages.length > 0) {
+  const manifest = JSON.parse(
+    readFileSync(new URL('../../fixtures/formulas.manifest.json', import.meta.url), 'utf8'),
+  );
+  const byId = new Map(manifest.formulas.map((f) => [f.id, f]));
+
+  for (const { index, images } of imagePages) {
+    // As formulas caem nas paginas de questoes, e nao na pagina do gabarito: medir so a pagina 0
+    // deixaria todas elas sem verificacao nenhuma, e a saida diria "fidelidade OK" do mesmo jeito.
+    const page = rasterize(index);
+
+    for (const image of images) {
+      const declared = byId.get(image.reference);
+      if (!declared) {
+        console.error(`o manifesto nao descreve a formula \`${image.reference}\``);
+        process.exit(1);
+      }
+
+      const source = new mupdf.Image(
+        readFileSync(new URL(`../../fixtures/${declared.raster}`, import.meta.url)),
+      );
+      const sourcePix = source.toPixmap();
+      const box = inkBoxOfPixmap(sourcePix);
+      if (!box) {
+        console.error(`o raster de \`${image.reference}\` nao tem tinta nenhuma`);
+        process.exit(1);
+      }
+
+      // Da caixa de tinta em pixels do PNG para milimetros absolutos na pagina.
+      const scaleX = image.width / sourcePix.getWidth();
+      const scaleY = image.height / sourcePix.getHeight();
+      const expected = {
+        x0: (image.x + box.x0 * scaleX) / 1000,
+        x1: (image.x + (box.x1 + 1) * scaleX) / 1000,
+        y0: (image.y + box.y0 * scaleY) / 1000,
+        y1: (image.y + (box.y1 + 1) * scaleY) / 1000,
+      };
+
+      // Janela folgada, mas nunca alem do meio do respiro de 3 mm que separa a formula do
+      // enunciado acima e das alternativas abaixo: 1 mm de cada lado.
+      const margin = Math.round(toPx(1000));
+      const observed = inkBox(image.x, image.y, image.width, image.height, margin, page);
+      if (!observed) {
+        console.error(`a formula \`${image.id}\` nao aparece no documento`);
+        process.exit(1);
+      }
+
+      check(`formula ${image.id}: borda esquerda`, observed.x0, expected.x0);
+      check(`formula ${image.id}: borda superior`, observed.y0, expected.y0);
+      check(
+        `formula ${image.id}: largura da tinta`,
+        observed.x1 - observed.x0,
+        expected.x1 - expected.x0,
+      );
+      check(
+        `formula ${image.id}: altura da tinta`,
+        observed.y1 - observed.y0,
+        expected.y1 - expected.y0,
+      );
+    }
   }
 }
 

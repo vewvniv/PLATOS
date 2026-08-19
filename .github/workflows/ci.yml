@@ -38,6 +38,12 @@ jobs:
       - name: Build e testes
         run: ./gradlew build
 
+      # `build` nao alcanca o teste de host do alvo Android do modulo KMP, entao ele e pedido pelo
+      # nome. Sem esta linha, "o mesmo valor afirmado em tres runtimes" valeria em dois — foi o que
+      # aconteceu, calado, entre a subida para AGP 9 e a fatia 1.5.
+      - name: Testes do alvo Android do dominio
+        run: ./gradlew :packages:domain:testAndroidHostTest
+
       - name: Publicar relatorio de testes
         if: always()
         uses: actions/upload-artifact@v7
@@ -57,6 +63,22 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '22'
+
+      # D-1.5.2/D-1.5.8: a conversao de formula e ferramenta de build. O `--check` nao escreve nada
+      # e falha se o raster ou o manifesto versionados nao forem o que a conversao produz hoje —
+      # uma troca de versao de MathJax ou de resvg que mexesse no tracado sem mexer na dimensao
+      # passaria pelo golden do `LayoutMap` sem um ruido.
+      - name: Instalar a conversao de formula
+        working-directory: tools/math
+        run: npm ci
+
+      - name: Testes da conversao de formula
+        working-directory: tools/math
+        run: npm test
+
+      - name: Conversao de formula esta em dia
+        working-directory: tools/math
+        run: node build.mjs --check
 
       - name: Instalar dependencias do web
         working-directory: apps/web
@@ -176,6 +198,31 @@ jobs:
       - name: Comparar centroides com tolerancia de 0,3 mm
         working-directory: tools/parity
         run: node compare.mjs ../../build/parity/web.pdf ../../build/parity/android.pdf ../../fixtures/prova-referencia.layout.json
+
+      # Uma verificacao que nunca falha e pior que nenhuma, e esta base ja produziu tres: uma
+      # janela que alcancava o vizinho, um `NaN` que passava em qualquer tolerancia, e uma janela
+      # justa que recortava a propria formula deslocada e lia 0,5 mm como 0,142 mm. Deslocar de
+      # proposito e conferir que as duas ferramentas acusam custa segundos.
+      - name: Instalar o gerador do deslocamento deliberado
+        working-directory: apps/web
+        run: npm ci
+
+      - name: A verificacao continua capaz de falhar
+        working-directory: apps/web
+        run: |
+          npx tsx scripts/render-shifted.ts
+          cd ../../tools/parity
+          if node compare.mjs ../../build/parity/web.pdf ../../build/parity/shifted.pdf \
+               ../../fixtures/prova-referencia.layout.json; then
+            echo "::error::a paridade aceitou um deslocamento deliberado de 0,5 mm"
+            exit 1
+          fi
+          if node fidelidade.mjs ../../build/parity/shifted.pdf \
+               ../../fixtures/prova-referencia.layout.json; then
+            echo "::error::a fidelidade aceitou um deslocamento deliberado de 0,5 mm"
+            exit 1
+          fi
+          echo "as duas ferramentas acusaram o deslocamento, como devem"
 
       - uses: actions/upload-artifact@v7
         if: always()

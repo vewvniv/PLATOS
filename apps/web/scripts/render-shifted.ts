@@ -1,8 +1,8 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { renderLayoutMap } from '../src/renderer.js';
 import type { LayoutMap } from '../src/layoutMap.js';
+import { loadFontBytes, loadFormulaRasters, repoRoot } from './formulaAssets.js';
 
 /**
  * Gera um PDF com deslocamento deliberado, para provar que o comparador de paridade e o medidor
@@ -19,13 +19,14 @@ import type { LayoutMap } from '../src/layoutMap.js';
  */
 const SHIFT_UM = 500; // 0,5 mm: acima da tolerancia de 0,3 mm da paridade
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const map: LayoutMap = JSON.parse(
   await readFile(resolve(repoRoot, 'fixtures/prova-referencia.layout.json'), 'utf8'),
 );
 
 let bubbles = 0;
 let markers = 0;
+let formulas = 0;
+const movidas: string[] = [];
 for (const page of map.pages) {
   for (const primitive of page.primitives) {
     if (primitive.type === 'circle' && bubbles < 1) {
@@ -36,16 +37,24 @@ for (const page of map.pages) {
       primitive.y += SHIFT_UM;
       markers += 1;
     }
+    // A formula tambem: sem isto, `image` seria a unica primitiva da folha que nenhuma das duas
+    // ferramentas confere, e as duas continuariam dizendo "OK" com a matematica fora do lugar.
+    if (primitive.type === 'image' && formulas < 1) {
+      primitive.x += SHIFT_UM;
+      formulas += 1;
+      movidas.push(primitive.id);
+    }
   }
 }
 
-const font = new Uint8Array(
-  await readFile(resolve(repoRoot, 'packages/domain/fonts/SourceSerif4-Regular.ttf')),
-);
 const output = resolve(repoRoot, 'build/parity/shifted.pdf');
 await mkdir(dirname(output), { recursive: true });
-await writeFile(output, await renderLayoutMap(map, font));
+await writeFile(
+  output,
+  await renderLayoutMap(map, await loadFontBytes(), await loadFormulaRasters()),
+);
 
 console.log(
-  `PDF deslocado: ${output} — ${bubbles} bolha e ${markers} marcador movidos ${SHIFT_UM / 1000} mm`,
+  `PDF deslocado: ${output} — ${bubbles} bolha, ${markers} marcador e ${formulas} formula ` +
+    `(${movidas.join(', ')}) movidos ${SHIFT_UM / 1000} mm`,
 );
