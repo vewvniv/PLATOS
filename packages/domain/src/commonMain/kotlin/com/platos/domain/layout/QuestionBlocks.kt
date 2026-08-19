@@ -124,26 +124,40 @@ class QuestionBlockBuilder(
         val SPACE_AFTER_STATEMENT = Um.mm(3)
 
         /**
-         * Branco abaixo da formula: **a mesma transicao** que a folha ja faz entre o fim do
-         * enunciado e a primeira alternativa, pelas mesmas duas constantes e na mesma ordem.
+         * A transicao que a folha ja faz entre o fim do enunciado e a primeira alternativa.
          *
-         * Nao e um valor novo, e isso e o ponto. A transicao formula -> alternativas e a mesma
-         * transicao enunciado -> alternativas; se fossem dois valores, divergiriam com o tempo.
-         * Sendo derivado, nao pode divergir.
+         * **Ancoradouro unico dos dois vaos da formula.** Nenhum deles e um valor proprio: sao
+         * multiplos deste, entao mexer na entrelinha ou em [SPACE_AFTER_STATEMENT] move os dois
+         * juntos e eles nao tem como divergir com o tempo.
          */
-        fun spaceBelowFormula(style: TextStyle): Um = style.lineHeight + SPACE_AFTER_STATEMENT
+        fun textTransition(style: TextStyle): Um = style.lineHeight + SPACE_AFTER_STATEMENT
 
         /**
-         * Branco acima da formula: 45% do de baixo.
+         * Branco acima da formula: 45% da transicao de texto.
          *
-         * Heuristica de proximidade: para dois grupos lerem como grupos distintos, o espaco entre
-         * eles precisa ser ao menos o dobro do espaco dentro de cada um. 45% da 2,2x, dentro da
-         * faixa segura sem gastar papel. Como e uma **fracao** do de baixo, e nao um valor proprio,
-         * um perfil tipografico mais compacto encolhe os dois juntos e a razao sobrevive por
-         * construcao — nao e preciso piso para proteger isso.
+         * Ancorado direto na base, e **nao** como fracao do vao de baixo. Pendurado no de baixo,
+         * qualquer ajuste la arrastava o de cima junto — e os dois respondem a criterios
+         * diferentes: o de cima e proximidade com o enunciado, o de baixo e separacao das
+         * alternativas.
          */
         fun spaceAboveFormula(style: TextStyle): Um =
-            (spaceBelowFormula(style) * 45).divFloor(100)
+            (textTransition(style) * 45).divFloor(100)
+
+        /**
+         * Branco abaixo da formula: 4/3 da transicao de texto.
+         *
+         * A primeira versao de D-1.5.9 usava a transicao **inteira**, com o argumento de que
+         * formula -> alternativas e a mesma transicao que enunciado -> alternativas. A segunda
+         * impressao pediu mais separacao, e o argumento estava bom demais para ser verdade: uma
+         * formula e bloco de exibicao, nao linha de texto, e bloco de exibicao precisa de mais ar
+         * embaixo do que uma linha precisa. A igualdade era elegante; o papel discordou.
+         *
+         * O 4/3 e do vao de **tinta**, que e o que se ve: ele entrega +49,6% de branco visivel.
+         * Multiplicar o nominal por 3/2 daria +74%, porque a ascendente da alternativa e uma
+         * subtracao fixa e a proporcao nao sobrevive a conversao nominal -> tinta.
+         */
+        fun spaceBelowFormula(style: TextStyle): Um =
+            (textTransition(style) * 4).divFloor(3)
 
         /**
          * O avanco entre o fim do enunciado e a linha de base da primeira alternativa.

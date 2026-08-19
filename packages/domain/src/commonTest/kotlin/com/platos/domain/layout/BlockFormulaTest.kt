@@ -99,20 +99,24 @@ class BlockFormulaTest {
             .build(questao("q1", formula(height = Um.mm(7))), 1)
         val formula = assertNotNull(content.formula)
 
-        // O de baixo NAO e um valor proprio: e a mesma transicao que a folha ja faz entre o fim do
-        // enunciado e a primeira alternativa. Se alguem trocar por uma constante nova, isto cai.
-        assertEquals(
-            style.lineHeight + QuestionBlockBuilder.SPACE_AFTER_STATEMENT,
-            formula.spaceBelow,
-            "o vao de baixo precisa continuar derivado da transicao enunciado -> alternativa",
-        )
-        // E o de cima e uma fracao do de baixo, nao um segundo valor solto.
-        assertEquals((formula.spaceBelow * 45).divFloor(100), formula.spaceAbove)
+        // Nenhum dos dois e valor proprio: sao multiplos da mesma base, a transicao que a folha
+        // ja faz entre o fim do enunciado e a primeira alternativa. Se alguem trocar qualquer um
+        // deles por uma constante solta, isto cai.
+        val base = style.lineHeight + QuestionBlockBuilder.SPACE_AFTER_STATEMENT
+        assertEquals(base, QuestionBlockBuilder.textTransition(style))
+        assertEquals((base * 45).divFloor(100), formula.spaceAbove)
+        assertEquals((base * 4).divFloor(3), formula.spaceBelow)
 
         // O ponto semantico da fatia: a formula pertence ao enunciado, entao le colada nele.
         assertTrue(
             formula.spaceBelow > formula.spaceAbove * 2,
             "o vao de baixo precisa ser mais que o dobro do de cima para a proximidade nao mentir",
+        )
+        // Os dois vaos respondem a criterios diferentes, entao mexer num nao pode mover o outro.
+        assertEquals(
+            formula.spaceAbove,
+            QuestionBlockBuilder.spaceAboveFormula(style),
+            "o vao de cima nao pode depender do de baixo",
         )
 
         assertEquals(Um.mm(7), formula.height, "a altura declarada nao pode ser deformada")

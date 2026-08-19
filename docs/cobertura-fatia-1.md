@@ -58,9 +58,10 @@ Todos em `BlockFormulaTest`, `commonTest`, nos três alvos.
 
 > **Nota de D-1.5.9.** O espaçamento em volta da fórmula mudou depois que a folha impressa foi
 > reprovada por proximidade — o branco de cima era 3,9× o de baixo, e a fórmula lia como parte das
-> alternativas em vez do enunciado. Os dois vãos passaram a ser derivados: abaixo é a mesma
-> transição que a folha já faz entre enunciado e primeira alternativa, acima é 45% dela. A fórmula
-> deixou de arredondar à grade, porque o bloco já arredonda e o resíduo caía todo abaixo dela.
+> alternativas em vez do enunciado. Os dois vãos passaram a ser derivados da mesma base, a transição
+> que a folha já faz entre enunciado e primeira alternativa: acima é 45% dela, abaixo é 4/3. A
+> fórmula deixou de arredondar à grade, porque o bloco já arredonda e o resíduo caía todo abaixo
+> dela. Resultado na tinta: 2,865 mm acima e 7,775 mm abaixo, contra 10,089 e 2,565 originais.
 >
 > Nenhuma das verificações automáticas podia ter pego isso, e nenhuma estava errada: paridade
 > compara os dois renderizadores, que erravam igual; fidelidade compara documento com `LayoutMap`,

@@ -320,12 +320,12 @@ impressão.
   vez do texto seguinte. É a quinta janela de medição mal dimensionada desta base. Corrigida
   agrupando linhas de tinta em faixas e tomando a faixa **seguinte** à da fórmula.
 
-  | | antes | depois |
-  |---|---|---|
-  | branco acima, média | 10,089 mm | **2,868 mm** |
-  | branco abaixo, média | 2,565 mm | **5,214 mm** |
-  | amplitude do vão de baixo | 2,159 mm | **0,550 mm** |
-  | razão abaixo/acima | 0,25× | **1,82×** |
+  | | antes | 1ª correção | aprovado |
+  |---|---|---|---|
+  | branco acima, média | 10,089 mm | 2,868 mm | **2,865 mm** |
+  | branco abaixo, média | 2,565 mm | 5,214 mm | **7,775 mm** |
+  | amplitude do vão de baixo | 2,159 mm | 0,550 mm | **0,550 mm** |
+  | razão abaixo/acima | 0,25× | 1,82× | **2,71×** |
 
   O vão de cima era **constante** nas 12 (amplitude 0,931 mm) e o de baixo variava, porque era o de
   baixo que absorvia o resíduo do arredondamento à grade. A hipótese natural — "o resíduo do snap
@@ -345,19 +345,22 @@ impressão.
 - [x] 8.3 Regravar o golden e relatar contagem de páginas e atribuição bloco→página **antes** de
   aprovar. Resultado: mudança auditável, sem surpresa na impressão.
 
-  | | antes | depois |
-  |---|---|---|
-  | `sha256` | `936a561caa9c2b1d…ba2d4d75` | `0eedd2b2316fb262…2ed96325` |
-  | Tamanho | 68 192 bytes | 68 174 bytes |
-  | Páginas | 4 | **4** |
-  | Questões que mudaram de página ou coluna | — | **15 de 40** |
-  | Questões deslocadas verticalmente | — | 37 de 40 |
+  Regravado **duas vezes**, porque a segunda impressão pediu ajuste. Ambas deliberadas:
 
-  Os blocos com fórmula **encolheram** cerca de 5 mm cada: o excesso de cima era maior que a falta
-  de baixo. Questões sem fórmula não mudaram de altura — o que as moveu foi a regra de distribuir a
-  sobra entre páginas em vez de empurrá-la para o fim, que propaga uma mudança de conteúdo para
-  trás. É comportamento declarado em `PaginationTest.sobra e distribuida em vez de empurrada para o
-  fim`, e não efeito colateral.
+  | | antes da fatia | 1ª correção | aprovado |
+  |---|---|---|---|
+  | `sha256` | `936a561c…ba2d4d75` | `0eedd2b2…2ed96325` | `34a1810c…69275e65` |
+  | Páginas | 4 | 4 | **4** |
+  | Questões que mudaram de página ou coluna | — | 15 de 40 | 18 de 40 |
+
+  Na primeira correção os blocos com fórmula **encolheram** ~5 mm; com o 4/3 eles voltaram a
+  crescer ~2,6 mm, e a paginação ficou perto da original. Em nenhuma das duas a folha passou de 4
+  páginas.
+
+  Questões sem fórmula não mudaram de altura em nenhuma das duas regravações — o que as moveu foi a
+  regra de distribuir a sobra entre páginas em vez de empurrá-la para o fim, que propaga uma mudança
+  de conteúdo para trás. É comportamento declarado em `PaginationTest.sobra e distribuida em vez de
+  empurrada para o fim`, e não efeito colateral.
 
 - [x] 8.4 Reverificar. Resultado: três alvos verdes, fidelidade dentro da tolerância, verificação
   ainda capaz de falhar.
@@ -373,7 +376,27 @@ impressão.
   o mesmo patamar de antes, e agora no marcador 2 em vez de numa fórmula.
 
   O deslocamento deliberado continua sendo acusado pelas duas ferramentas, com nome e distância:
-  `qq29-f` divergiu 0,508 mm na paridade e 0,495 mm na borda esquerda da fidelidade.
+  `qq29-f` divergiu 0,466 mm na paridade.
+
+- [x] 8.7 Aumentar a separação das alternativas, pedida na segunda impressão. Resultado: +49,1% de
+  branco visível abaixo, com o vão de cima intacto.
+
+  O pedido veio em tinta — "aumentaria em 50%" —, e traduzi-lo para o nominal não é multiplicar por
+  1,5: a ascendente da alternativa é uma **subtração fixa**, então 3/2 no nominal daria +74,4% de
+  branco visível. 4/3 dá +49,6%, e o medido no papel foi +49,1%.
+
+  | multiplicador | nominal | tinta | variação |
+  |---|---|---|---|
+  | 3/2 | 11 536 µm | 9 016 µm | +74,4% |
+  | 7/5 | 10 767 µm | 8 247 µm | +59,5% |
+  | **4/3** | **10 254 µm** | **7 734 µm** | **+49,6%** |
+  | 13/10 | 9 998 µm | 7 478 µm | +44,6% |
+
+  Os dois vãos passaram a ser ancorados na **base** — a transição de texto — e não um no outro.
+  Antes, "acima" era 45% de "abaixo", então este ajuste teria arrastado o vão superior junto. Com o
+  reancoramento ele ficou em 2,865 mm contra os 2,868 mm anteriores: três micrômetros, que é ruído
+  de rasterização. É o que a mudança de forma existia para garantir, e está afirmado em
+  `os dois vaos sao derivados e o de baixo e maior que o de cima`.
 
 - [ ] 8.5 Reexecutar paridade web × Android com o layout novo. **Pendente: exige o emulador.**
 

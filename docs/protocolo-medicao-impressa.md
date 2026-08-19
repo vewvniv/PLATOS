@@ -143,3 +143,15 @@ documento estava fiel ao mapa; o mapa é que estava errado. Golden compara o map
 defeito de *julgamento tipográfico* não tem oracle dentro do sistema: o oracle é o olho de quem lê a
 folha. É exatamente o que a tarefa 6.6 existe para fazer, e é o argumento para ela nunca ser
 substituída por medição.
+
+### O que a segunda impressão pediu
+
+A correção de espaçamento foi aprovada, com um ajuste: mais separação entre a fórmula e as
+alternativas. O vão inferior passou de 4/4 para **4/3** da transição de texto — de 5,214 mm para
+7,775 mm de branco visível, +49,1%.
+
+Vale registrar a armadilha, porque ela vai reaparecer em qualquer ajuste tipográfico futuro: **o
+pedido veio em tinta e a implementação é nominal, e as duas escalas não são proporcionais.**
+Multiplicar o espaçamento nominal por 1,5 teria dado +74% de branco visível, não +50%, porque a
+ascendente da linha seguinte é uma subtração fixa que não escala junto. Quem ajustar espaçamento a
+olho precisa converter, e não multiplicar.

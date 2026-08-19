@@ -146,12 +146,27 @@ transformava em branco puro. Somavam-se ainda `SPACE_AFTER_STATEMENT` e um respi
 
 **Decisão.**
 
-- **Abaixo** = `lineHeight + SPACE_AFTER_STATEMENT`, isto é, **a mesma transição** que a folha já faz
-  entre o fim do enunciado e a primeira alternativa, pelas mesmas duas constantes. Não é valor novo,
-  e isso é o ponto: a transição fórmula → alternativas *é* a transição enunciado → alternativas. Dois
-  valores divergiriam com o tempo; um derivado não pode.
-- **Acima** = 45% do de baixo. Heurística de proximidade: para dois grupos lerem como distintos, o
+- **Uma base única**: `textTransition = lineHeight + SPACE_AFTER_STATEMENT`, a transição que a folha
+  já faz entre o fim do enunciado e a primeira alternativa. Os dois vãos são **múltiplos dela**, e
+  nenhum é valor próprio — mexer na entrelinha move os dois juntos, e divergir fica impossível.
+- **Acima** = 45% da base. Heurística de proximidade: para dois grupos lerem como distintos, o
   espaço entre eles precisa ser ao menos o dobro do espaço dentro de cada um.
+- **Abaixo** = 4/3 da base.
+
+  A primeira versão desta decisão usava a base **inteira**, com o argumento de que fórmula →
+  alternativas *é* a mesma transição que enunciado → alternativas. A impressão pediu mais separação,
+  e o argumento era elegante demais para ser verdade: uma fórmula é **bloco de exibição**, não linha
+  de texto, e bloco de exibição precisa de mais ar embaixo do que uma linha precisa. A igualdade
+  agradava no papel do design; o papel de verdade discordou.
+
+  O 4/3 é escolhido pelo vão de **tinta**, que é o que se vê: entrega +49,6% de branco visível.
+  Multiplicar o nominal por 3/2 daria **+74%**, porque a ascendente da alternativa é uma subtração
+  fixa e a proporção não sobrevive à conversão nominal → tinta. É o mesmo motivo pelo qual a regra
+  precisa ser nominal e a tinta precisa ser critério de aceite: as duas escalas não são
+  proporcionais entre si.
+- **Os dois vãos são ancorados na base, e não um no outro.** Pendurar "acima" como fração de
+  "abaixo" fazia qualquer ajuste no de baixo arrastar o de cima junto — e eles respondem a critérios
+  diferentes: o de cima é proximidade com o enunciado, o de baixo é separação das alternativas.
 - **A conversão linha-de-base → topo acontece num ponto só**, `advanceAfterStatement`, usado tanto
   pelo builder que dimensiona o bloco quanto pelo engine que desenha. Se fossem dois cálculos, altura
   reservada e altura desenhada divergiriam em silêncio, e só a folha impressa acusaria.
@@ -169,17 +184,20 @@ tinta julga o resultado.
 
 **Resultado medido**, tinta a 600 dpi nas 12 fórmulas:
 
-| | antes | depois |
-|---|---|---|
-| branco acima (média) | 10,089 mm | **2,868 mm** |
-| branco abaixo (média) | 2,565 mm | **5,214 mm** |
-| amplitude do vão de baixo | 2,159 mm | **0,550 mm** |
-| razão abaixo/acima | 0,25× (invertida) | **1,82×** |
-| fórmula × vão entre linhas do corpo | — | 3,58× (o limiar de proximidade é 2×) |
+| | antes | 1ª correção | **aprovado** |
+|---|---|---|---|
+| branco acima (média) | 10,089 mm | 2,868 mm | **2,865 mm** |
+| branco abaixo (média) | 2,565 mm | 5,214 mm | **7,775 mm** |
+| amplitude do vão de baixo | 2,159 mm | 0,550 mm | **0,550 mm** |
+| razão abaixo/acima | 0,25× (invertida) | 1,82× | **2,71×** |
+| fórmula × vão entre linhas do corpo | — | 3,58× | **5,34×** (limiar de proximidade: 2×) |
 
-A razão de tinta é 1,82× e não os 2,22× nominais porque a ascendente da alternativa come o vão de
-baixo de forma assimétrica — consequência esperada de a tinta não ser controlável. O que decide a
-leitura é a comparação com o espaço *dentro* do grupo, e essa está em 3,58×.
+A coluna do meio é a primeira correção, que inverteu a proximidade e foi aprovada na segunda
+impressão com um pedido: mais separação embaixo. A terceira coluna é o resultado do 4/3.
+
+O vão de cima **não se moveu** entre as duas últimas colunas (2,868 → 2,865 mm, três micrômetros de
+ruído de rasterização): é a evidência de que ancorar os dois na base, em vez de um no outro,
+funcionou como pretendido.
 
 *Consequência aceita:* os blocos com fórmula **encolhem** cerca de 5 mm cada, porque o excesso de
 cima era maior que a falta de baixo. Páginas seguem 4; 15 das 40 questões mudaram de coluna ou
