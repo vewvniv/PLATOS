@@ -243,21 +243,29 @@ class LayoutEngine(
             )
             baseline += style.lineHeight
         }
-        baseline += QuestionBlockBuilder.SPACE_AFTER_STATEMENT
-
         // A formula fica entre a ultima linha do enunciado e a primeira alternativa. O engine nao
         // sabe o que ha dentro dela: posiciona a caixa que a conversao mediu e segue (D-1.5.3).
-        content.formula?.let { formula ->
+        //
+        // O avanco ate a primeira alternativa vem de `advanceAfterStatement`, o mesmo calculo que
+        // `QuestionBlockBuilder` usa para dimensionar o bloco. Se fossem dois calculos, altura
+        // reservada e altura desenhada divergiriam em silencio — e a divergencia so apareceria na
+        // folha impressa, que e onde este arquivo nao pode errar.
+        val formula = content.formula
+        if (formula != null) {
+            // Unica conversao linha-de-base -> topo: a formula e posicionada pelo topo, entao a
+            // entrelinha que o laco acima ja avancou nao seria consumida por ascendente nenhuma.
+            val ultimaBaseline = baseline - style.lineHeight
+            val topo = ultimaBaseline + formula.spaceAbove
             primitives += DrawImage(
                 id = "q${content.questionId}-f",
                 x = textLeft.raw,
-                y = (baseline + QuestionBlockBuilder.SPACE_AROUND_FORMULA).raw,
+                y = topo.raw,
                 width = formula.width.raw,
                 height = formula.height.raw,
                 reference = formula.reference,
             )
-            baseline += formula.reserved
         }
+        baseline += QuestionBlockBuilder.advanceAfterStatement(formula, style)
 
         for (option in content.options) {
             primitives += DrawText(

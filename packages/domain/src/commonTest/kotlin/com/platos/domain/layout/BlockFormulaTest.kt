@@ -8,6 +8,7 @@ import com.platos.domain.exam.UnsupportedContentException
 import com.platos.domain.geometry.Um
 import com.platos.domain.text.EmbeddedFont
 import com.platos.domain.text.TextMeasurer
+import com.platos.domain.text.TextStyle
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -92,17 +93,44 @@ class BlockFormulaTest {
     // --- Fórmula não é reescalada ---
 
     @Test
-    fun `espaco reservado sobe a grade e as dimensoes ficam as declaradas`() {
+    fun `os dois vaos sao derivados e o de baixo e maior que o de cima`() {
+        val style = TextStyle.BODY
         val content = QuestionBlockBuilder(measurer)
             .build(questao("q1", formula(height = Um.mm(7))), 1)
         val formula = assertNotNull(content.formula)
 
-        // 7 mm de formula mais 3 mm de respiro de cada lado sao 13 mm, que sobem para 15 mm.
-        assertEquals(Um.mm(15), formula.reserved)
+        // O de baixo NAO e um valor proprio: e a mesma transicao que a folha ja faz entre o fim do
+        // enunciado e a primeira alternativa. Se alguem trocar por uma constante nova, isto cai.
+        assertEquals(
+            style.lineHeight + QuestionBlockBuilder.SPACE_AFTER_STATEMENT,
+            formula.spaceBelow,
+            "o vao de baixo precisa continuar derivado da transicao enunciado -> alternativa",
+        )
+        // E o de cima e uma fracao do de baixo, nao um segundo valor solto.
+        assertEquals((formula.spaceBelow * 45).divFloor(100), formula.spaceAbove)
+
+        // O ponto semantico da fatia: a formula pertence ao enunciado, entao le colada nele.
+        assertTrue(
+            formula.spaceBelow > formula.spaceAbove * 2,
+            "o vao de baixo precisa ser mais que o dobro do de cima para a proximidade nao mentir",
+        )
+
         assertEquals(Um.mm(7), formula.height, "a altura declarada nao pode ser deformada")
         assertEquals(Um.mm(40), formula.width, "a largura declarada nao pode ser deformada")
-        assertTrue(formula.reserved.isMultipleOf(Sheet.GRID))
-        assertTrue(formula.reserved > formula.height)
+    }
+
+    @Test
+    fun `a formula nao arredonda a grade, quem arredonda e o bloco`() {
+        // Arredondar tambem a formula era redundante — o bloco ja cai na grade — e o residuo desse
+        // arredondamento caia todo abaixo dela, fazendo o vao inferior variar com a altura.
+        val alturas = listOf(Um.mm(7), Um(7_100), Um(8_999), Um.mm(12))
+        val vaos = alturas.map { altura ->
+            val content = QuestionBlockBuilder(measurer).build(questao("q1", formula(height = altura)), 1)
+            val formula = assertNotNull(content.formula)
+            assertTrue(content.block.height.isMultipleOf(Sheet.GRID), "o bloco precisa cair na grade")
+            formula.spaceAbove to formula.spaceBelow
+        }
+        assertEquals(1, vaos.toSet().size, "os vaos nao podem variar com a altura da formula")
     }
 
     @Test
@@ -157,7 +185,8 @@ class BlockFormulaTest {
         val matriz = builder.build(questao("q1", formula(reference = "f-matriz3")), 1)
 
         assertEquals(bhaskara.block.height, matriz.block.height)
-        assertEquals(bhaskara.formula!!.reserved, matriz.formula!!.reserved)
+        assertEquals(bhaskara.formula!!.spaceAbove, matriz.formula!!.spaceAbove)
+        assertEquals(bhaskara.formula!!.spaceBelow, matriz.formula!!.spaceBelow)
     }
 
     @Test

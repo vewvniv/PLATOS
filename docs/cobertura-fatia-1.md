@@ -48,13 +48,25 @@ Todos em `BlockFormulaTest`, `commonTest`, nos três alvos.
 | Cenário | Verificação |
 |---|---|
 | Fórmula em bloco é aceita | `formula em bloco e aceita e o mapa inclui a caixa dela` |
-| Fórmula reserva espaço próprio | `formula faz o bloco crescer em multiplos da grade` |
-| Fórmula não é reescalada | `espaco reservado sobe a grade e as dimensoes ficam as declaradas` + `a caixa desenhada tem exatamente as dimensoes declaradas` |
+| Fórmula reserva espaço próprio | `formula faz o bloco crescer em multiplos da grade` + `a formula nao arredonda a grade, quem arredonda e o bloco` |
+| Fórmula não é reescalada | `os dois vaos sao derivados e o de baixo e maior que o de cima` + `a caixa desenhada tem exatamente as dimensoes declaradas` |
 | Fórmula mais larga que a coluna | `formula mais larga que a coluna impede a emissao do mapa`, com `formula com exatamente a largura da coluna e aceita` fixando a borda |
 | Layout não depende do conteúdo matemático | `formulas de conteudos diferentes e dimensoes iguais dao blocos iguais` + `trocar so a referencia move apenas a referencia no mapa` |
 | Ordem dentro do bloco | `formula fica abaixo do enunciado e acima da primeira alternativa` |
 | Fórmula não se separa do enunciado | `enunciado formula e alternativas ficam na mesma coluna e pagina`, com fórmula de 30 mm forçando várias quebras |
 | Fórmula em linha ainda é recusada | `formula em linha continua recusada com mensagem propria` |
+
+> **Nota de D-1.5.9.** O espaçamento em volta da fórmula mudou depois que a folha impressa foi
+> reprovada por proximidade — o branco de cima era 3,9× o de baixo, e a fórmula lia como parte das
+> alternativas em vez do enunciado. Os dois vãos passaram a ser derivados: abaixo é a mesma
+> transição que a folha já faz entre enunciado e primeira alternativa, acima é 45% dela. A fórmula
+> deixou de arredondar à grade, porque o bloco já arredonda e o resíduo caía todo abaixo dela.
+>
+> Nenhuma das verificações automáticas podia ter pego isso, e nenhuma estava errada: paridade
+> compara os dois renderizadores, que erravam igual; fidelidade compara documento com `LayoutMap`,
+> e o documento estava fiel a um mapa errado; o golden compara o mapa consigo mesmo. Defeito de
+> julgamento tipográfico não tem oracle dentro do sistema — é o argumento para a tarefa 6.6 nunca
+> ser substituída por medição.
 
 ## `print` — fatia 1.5, 4 cenários, 4 cobertos
 

@@ -131,6 +131,67 @@ A escolha não é por conveniência. `resvg` rasteriza em `tiny-skia`, implement
 
 **Como isto pode falhar em silêncio:** uma troca de versão de `resvg` que mexa no antialiasing mudaria os bytes do PNG sem mexer em dimensão nenhuma, então o golden do `LayoutMap` não acusaria. Por isso a versão fica fixada no lock, o raster é artefato versionado em `fixtures/` e o manifesto carrega o `sha256` de cada PNG: a mudança aparece no diff do commit, e não na folha impressa.
 
+### D-1.5.9 — O branco em volta da fórmula é derivado, e assimétrico de propósito
+
+A folha impressa da tarefa 6.6 foi aprovada em resolução e **reprovada em espaçamento**: nas 12
+fórmulas o branco de cima era grande demais e o de baixo pequeno demais, e por proximidade a fórmula
+lia como pertencente às alternativas. A fórmula é parte do **enunciado**, então a leitura estava
+invertida.
+
+**A causa não era uma constante errada.** Era misturar posicionamento por linha de base com
+posicionamento por topo. O laço do enunciado deixa o cursor uma entrelinha adiante da última linha —
+avanço que um texto seguinte consome com a ascendente, mas que a fórmula, posicionada pelo topo,
+transformava em branco puro. Somavam-se ainda `SPACE_AFTER_STATEMENT` e um respiro próprio, dando
+10,691 mm fixos acima contra 3 mm mais resíduo abaixo.
+
+**Decisão.**
+
+- **Abaixo** = `lineHeight + SPACE_AFTER_STATEMENT`, isto é, **a mesma transição** que a folha já faz
+  entre o fim do enunciado e a primeira alternativa, pelas mesmas duas constantes. Não é valor novo,
+  e isso é o ponto: a transição fórmula → alternativas *é* a transição enunciado → alternativas. Dois
+  valores divergiriam com o tempo; um derivado não pode.
+- **Acima** = 45% do de baixo. Heurística de proximidade: para dois grupos lerem como distintos, o
+  espaço entre eles precisa ser ao menos o dobro do espaço dentro de cada um.
+- **A conversão linha-de-base → topo acontece num ponto só**, `advanceAfterStatement`, usado tanto
+  pelo builder que dimensiona o bloco quanto pelo engine que desenha. Se fossem dois cálculos, altura
+  reservada e altura desenhada divergiriam em silêncio, e só a folha impressa acusaria.
+- **A fórmula deixa de arredondar à grade.** Quem precisa cair na grade é o bloco, e ele já cai. O
+  arredondamento da fórmula era redundante e seu resíduo caía todo abaixo dela — era ele que fazia o
+  vão inferior variar 2,159 mm entre as doze.
+
+**Por que a regra é nominal e a tinta é só critério de aceite.** A tentação é escrever a regra em
+tinta, já que é tinta que o olho lê. Não dá, e isto foi medido: as métricas de `hhea` da fonte
+embarcada são `ascender = 1036` e `descender = −335`, que somam mais que o em e preveem um vão de
+**96 µm** entre duas linhas de corpo — onde o papel mostra **1 456 µm**. Métrica de fonte dá caixa de
+linha, não tinta; tinta exigiria abrir contornos de glifo (`glyf`/`loca`), superfície que esta fatia
+existe para não abrir. A regra é aplicada ao espaçamento nominal, que é o que o engine controla, e a
+tinta julga o resultado.
+
+**Resultado medido**, tinta a 600 dpi nas 12 fórmulas:
+
+| | antes | depois |
+|---|---|---|
+| branco acima (média) | 10,089 mm | **2,868 mm** |
+| branco abaixo (média) | 2,565 mm | **5,214 mm** |
+| amplitude do vão de baixo | 2,159 mm | **0,550 mm** |
+| razão abaixo/acima | 0,25× (invertida) | **1,82×** |
+| fórmula × vão entre linhas do corpo | — | 3,58× (o limiar de proximidade é 2×) |
+
+A razão de tinta é 1,82× e não os 2,22× nominais porque a ascendente da alternativa come o vão de
+baixo de forma assimétrica — consequência esperada de a tinta não ser controlável. O que decide a
+leitura é a comparação com o espaço *dentro* do grupo, e essa está em 3,58×.
+
+*Consequência aceita:* os blocos com fórmula **encolhem** cerca de 5 mm cada, porque o excesso de
+cima era maior que a falta de baixo. Páginas seguem 4; 15 das 40 questões mudaram de coluna ou
+página, efeito da regra de distribuir sobra em vez de empurrá-la para o fim.
+
+*Fica em aberto:* fórmula em bloco seguida de **mais enunciado**, e não de alternativas. Aí não há
+quebra semântica e o vão de baixo deveria ser o de cima — o vão inferior é escolhido pelo que vem
+**depois**, não pela fórmula. Não é especificado aqui porque `Question` não consegue expressar a
+estrutura: tem um `statement` e uma `formula`, e a ordem está fixa no engine. Expressá-la exige o
+corpo da questão virar sequência de blocos, que é contrato maior que o `InlineBox` da 1.6 e não sai
+de graça junto com ele.
+
 ## Open Questions
 
 Nenhuma. As três que existiam foram fechadas em D-1.5.6, D-1.5.7 e na seção sobre o que a fatia deixa sem validar. A quarta, aberta na implementação — com que ferramenta rasterizar —, foi fechada em D-1.5.8.

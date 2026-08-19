@@ -304,3 +304,84 @@ a corrupção cai num caractere que mede igual.
 ### O terceiro alvo do `packages/domain` tinha parado de rodar
 
 Descrito na tarefa 6.1. Religado aqui porque sem ele a 6.1 não podia ser cumprida como está escrita, mas a causa é anterior: a subida para AGP 9 trocou o plugin do módulo KMP e o teste de host deixou de ser criado, com aviso no build e nenhuma falha.
+
+## 8. D-1.5.9 — espaçamento da fórmula, achado na impressão
+
+A tarefa 6.6 imprimiu a folha e aprovou a resolução: traço de fração e raiz, subscrito e expoente,
+barras de matriz e peso óptico contra o texto ao redor, tudo legível a 600 dpi. **Reprovou o
+espaçamento**, e é isto que esta seção resolve. A 6.6 continua aberta, à espera da segunda
+impressão.
+
+- [x] 8.1 Medir os 12 vãos no papel antes de propor qualquer correção. Resultado: tabela de tinta,
+  para separar defeito real de impressão de percepção.
+
+  A **primeira** medição estava errada e foi descartada: lia `0,000 mm` abaixo em 11 das 12, porque
+  a varredura começava na base da caixa declarada e encontrava o antialiasing da própria fórmula em
+  vez do texto seguinte. É a quinta janela de medição mal dimensionada desta base. Corrigida
+  agrupando linhas de tinta em faixas e tomando a faixa **seguinte** à da fórmula.
+
+  | | antes | depois |
+  |---|---|---|
+  | branco acima, média | 10,089 mm | **2,868 mm** |
+  | branco abaixo, média | 2,565 mm | **5,214 mm** |
+  | amplitude do vão de baixo | 2,159 mm | **0,550 mm** |
+  | razão abaixo/acima | 0,25× | **1,82×** |
+
+  O vão de cima era **constante** nas 12 (amplitude 0,931 mm) e o de baixo variava, porque era o de
+  baixo que absorvia o resíduo do arredondamento à grade. A hipótese natural — "o resíduo do snap
+  está sendo depositado acima" — é o contrário do que o código fazia, e foi refutada com o mapa: a
+  identidade `abaixo − 3 mm == resíduo` bate ao micrômetro nas 12.
+
+- [x] 8.2 Corrigir a causa, e não o sintoma (D-1.5.9). Resultado: os dois vãos derivados de
+  constantes que já existiam, e a conversão linha-de-base → topo num ponto único.
+
+  A causa era misturar posicionamento por linha de base com posicionamento por topo. `advanceAfterStatement`
+  é agora o único lugar do layout onde essa conversão acontece, e é usado tanto por
+  `QuestionBlockBuilder` — que dimensiona o bloco — quanto por `LayoutEngine`, que desenha. Dois
+  cálculos fariam altura reservada e altura desenhada divergirem em silêncio.
+
+  A fórmula deixou de arredondar à grade: quem precisa cair na grade é o bloco, e ele já cai.
+
+- [x] 8.3 Regravar o golden e relatar contagem de páginas e atribuição bloco→página **antes** de
+  aprovar. Resultado: mudança auditável, sem surpresa na impressão.
+
+  | | antes | depois |
+  |---|---|---|
+  | `sha256` | `936a561caa9c2b1d…ba2d4d75` | `0eedd2b2316fb262…2ed96325` |
+  | Tamanho | 68 192 bytes | 68 174 bytes |
+  | Páginas | 4 | **4** |
+  | Questões que mudaram de página ou coluna | — | **15 de 40** |
+  | Questões deslocadas verticalmente | — | 37 de 40 |
+
+  Os blocos com fórmula **encolheram** cerca de 5 mm cada: o excesso de cima era maior que a falta
+  de baixo. Questões sem fórmula não mudaram de altura — o que as moveu foi a regra de distribuir a
+  sobra entre páginas em vez de empurrá-la para o fim, que propaga uma mudança de conteúdo para
+  trás. É comportamento declarado em `PaginationTest.sobra e distribuida em vez de empurrada para o
+  fim`, e não efeito colateral.
+
+- [x] 8.4 Reverificar. Resultado: três alvos verdes, fidelidade dentro da tolerância, verificação
+  ainda capaz de falhar.
+
+  | Alvo | Testes | Falhas |
+  |---|---|---|
+  | `packages/domain` JVM | 123 | 0 |
+  | `packages/domain` Node/JS | 119 | 0 |
+  | `packages/domain` Android (host) | 119 | 0 |
+  | `apps/web` (vitest) | 12 | 0 |
+
+  Fidelidade do PDF web: 80 verificações, maior desvio **0,039 mm** contra 0,05 mm de tolerância —
+  o mesmo patamar de antes, e agora no marcador 2 em vez de numa fórmula.
+
+  O deslocamento deliberado continua sendo acusado pelas duas ferramentas, com nome e distância:
+  `qq29-f` divergiu 0,508 mm na paridade e 0,495 mm na borda esquerda da fidelidade.
+
+- [ ] 8.5 Reexecutar paridade web × Android com o layout novo. **Pendente: exige o emulador.**
+
+  O `android.pdf` em `build/parity/` é do golden anterior, então comparar agora mediria a diferença
+  entre dois layouts e não entre dois renderizadores. A mudança é toda em `commonMain` — nenhuma
+  linha de renderizador foi tocada —, então não há razão para a paridade mudar de patamar; mas isso
+  é argumento, e esta base não fecha tarefa com argumento. Roda no CI, ou localmente quando o
+  emulador for autorizado.
+
+- [ ] 8.6 Segunda impressão, para fechar a 6.6. O que conferir está em
+  `docs/protocolo-medicao-impressa.md` §8.
