@@ -1,12 +1,45 @@
 ## 1. Base de comparação
 
-- [ ] 1.1 Registrar os números atuais antes de tocar em qualquer coisa: hash e tamanho do golden, paridade, fidelidade nos dois PDFs e contagem da suíte por alvo. Resultado: valores anotados nesta tarefa — a fatia altera o golden de propósito, então a base precisa existir antes.
+- [x] 1.1 Registrar os números atuais antes de tocar em qualquer coisa: hash e tamanho do golden, paridade, fidelidade nos dois PDFs e contagem da suíte por alvo. Resultado: valores anotados nesta tarefa — a fatia altera o golden de propósito, então a base precisa existir antes.
+
+  Medido em 2026-08-19, na máquina de desenvolvimento, com `./gradlew build` e não apenas as tarefas de teste alvo a alvo — foi essa diferença que deixou passar a falha de dependência de lint na fatia 1.5.
+
+  | Grandeza | Valor |
+  |---|---|
+  | `fixtures/prova-referencia.layout.json` | sha256 `34a1810ca05b39a01bc50befb925d4cdd01444d6db75eea9d8307b5269275e65`, 68 175 bytes |
+  | `fixtures/prova-referencia.json` | sha256 `abec1bad621d72603c7a87c2874f5cf9c16318581d332a8c7f18776fd07bbb4b` |
+  | Paridade web × Android | 176 de 176 elementos, 4 páginas, maior divergência **0,042 mm** em `qq37-f`, tolerância 0,3 mm |
+  | Fidelidade do PDF web | 80 verificações, maior desvio **0,039 mm** em "marcador 2: borda superior" |
+  | Fidelidade do PDF Android | 80 verificações, maior desvio **0,022 mm** em "formula qq30-f: altura da tinta" |
+
+  Contagem da suíte, por alvo:
+
+  | Alvo | Testes | Falhas |
+  |---|---|---|
+  | `packages/domain` JVM | 123 | 0 |
+  | `packages/domain` Node/JS | 119 | 0 |
+  | `packages/domain` Android (host) | 119 | 0 |
+  | `apps/api` | 69 | 0 |
+  | `apps/android` (unitário) | 9 | 0 |
+
+  `./gradlew build :packages:domain:testAndroidHostTest --rerun-tasks` passa. Diferente da base da fatia 1.5, **não há falha pré-existente**: as três em Node foram corrigidas ao construir o surrogate em tempo de execução.
 
 ## 2. Contrato: entrada e perfil
 
-- [ ] 2.1 Estender a definição de prova com `InlineFormula` — largura, altura e `baseline_offset` — em campo próprio, referenciada por marcador `{{ref}}` no enunciado (D-1.6.1). Resultado: entrada versionada em JSON, com a fixture ainda legível.
-- [ ] 2.2 Recusar referência não resolvida: recurso inexistente, chave não fechada, chave aninhada e recurso declarado sem uso (D-1.6.2). Resultado: cobre "Referência inexistente" e "Referência não vira texto impresso".
-  - Incluir o caso do marcador aparecendo como texto legítimo — `{{` num enunciado sobre programação —, que é o risco residual registrado no design.
+- [x] 2.1 Estender a definição de prova com `InlineFormula` — largura, altura e `baseline_offset` — em campo próprio, referenciada por marcador no enunciado (D-1.6.1). Resultado: entrada versionada em JSON, com a fixture ainda legível.
+
+  `Question.inline` é **mapa**, e não lista: a mesma fórmula pode ser citada duas vezes no mesmo enunciado e o recurso continua sendo um só. Há teste para as duas ocorrências.
+
+  `baselineOffset` é **quanto da caixa fica abaixo da linha de base**, nunca negativo. Vale que o topo está em `baseline − (height − baselineOffset)` e a base em `baseline + baselineOffset` — posicionamento por aritmética inteira sobre a linha de base, que é a conversão única de D-1.5.9.
+- [x] 2.2 Recusar referência não resolvida: recurso inexistente, chave não fechada, chave aninhada e recurso declarado sem uso (D-1.6.2). Resultado: cobre "Referência inexistente" e "Referência não vira texto impresso".
+
+  `InlineMarkupTest`, 17 testes em `commonTest`, verdes nos três alvos. Sete recusas de gramática e resolução: chave não fechada, chave aninhada, referência fora do vocabulário, referência não declarada, recurso declarado e não citado, chave do mapa divergente da referência, dimensão não positiva e deslocamento fora da caixa.
+
+  **O risco residual do design está coberto**: `\{{` escapa, e há teste com `{{` aparecendo como texto legítimo num enunciado sobre programação. A barra só é especial imediatamente antes de `{{`, então `6\2` continua sendo texto.
+
+  Duas guardas contra vacuidade, no molde da fatia 1.5: um caso positivo — questão com fórmula declarada e citada é aceita — e as **bordas exatas** do deslocamento, 0 e a altura inteira. Sem as bordas, um `<` no lugar de `<=` passaria despercebido.
+
+  O parser roda em `commonTest` de propósito: um `Regex` que se comportasse diferente em Kotlin/JS produziria enunciados diferentes na mesma prova. Os três alvos concordam.
 - [ ] 2.3 Criar `LayoutProfile` com margens, colunas, medianiz, grade, corpo, entrelinha e teto de linha (D-1.6.5). Resultado: `Sheet` e `TextStyle` deixam de ser constantes de objeto e passam a vir do perfil.
 - [ ] 2.4 Provar que o perfil padrão não muda nada **antes** de qualquer fórmula em linha entrar na fixture: calcular a fixture atual sem perfil explícito e afirmar o golden byte a byte, nos três alvos (D-1.6.6). Resultado: cobre "Perfil padrão não muda o resultado".
   - Esta tarefa é a que separa as duas mudanças grandes desta fatia. Sem ela, a regravação do golden na tarefa 5.2 vira ato de fé.

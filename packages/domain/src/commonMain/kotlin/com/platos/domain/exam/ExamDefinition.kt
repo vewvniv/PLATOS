@@ -48,6 +48,31 @@ data class BlockFormula(
     val height: Int,
 )
 
+/**
+ * Formula em linha: caixa atomica que anda dentro do texto corrido (D-1.6.1).
+ *
+ * Como a formula em bloco, as dimensoes chegam **ja resolvidas** pela conversao, e o Layout Engine
+ * nao abre o SVG nem le o PNG. O que esta forma acrescenta e [baselineOffset], sem o qual a caixa
+ * nao tem como se alinhar ao texto que a cerca.
+ *
+ * [baselineOffset] e quanto da caixa fica **abaixo** da linha de base, em micrometros. Um radical,
+ * que nao desce, tem deslocamento zero; uma fracao desce cerca de metade da propria altura. Vale
+ * entao que o topo da caixa esta em `baseline - (height - baselineOffset)` e a base em
+ * `baseline + baselineOffset` — posicionamento por aritmetica inteira sobre a linha de base, que e
+ * a mesma conversao unica estabelecida em D-1.5.9.
+ */
+@Serializable
+data class InlineFormula(
+    val reference: String,
+    /** Largura em micrometros, como a conversao a resolveu. */
+    val width: Int,
+    /** Altura total da caixa em micrometros: acima mais abaixo da linha de base. */
+    val height: Int,
+    /** Quanto da caixa fica abaixo da linha de base, em micrometros. Nunca negativo. */
+    @SerialName("baseline_offset")
+    val baselineOffset: Int,
+)
+
 @Serializable
 data class Question(
     val id: String,
@@ -56,6 +81,14 @@ data class Question(
     val options: List<String> = emptyList(),
     val assets: List<QuestionAsset> = emptyList(),
     val formula: BlockFormula? = null,
+    /**
+     * Formulas em linha citadas pelo [statement] por meio de marcador.
+     *
+     * Mapa, e nao lista, de proposito: a mesma formula pode ser citada duas vezes no mesmo
+     * enunciado, e o recurso continua sendo um so. Quem resolve referencia para bytes segue sendo
+     * o consumidor, pelo caminho unico de D-1.5.5.
+     */
+    val inline: Map<String, InlineFormula> = emptyMap(),
 )
 
 /**
@@ -122,6 +155,7 @@ fun ExamDefinition.requireSupported() {
                     kinds.joinToString(),
             )
         }
+        question.requireInlineFormulasResolved()
         question.formula?.let { formula ->
             if (formula.reference.isBlank()) {
                 throw UnsupportedContentException(
