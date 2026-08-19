@@ -2,6 +2,7 @@ package com.platos.android.render
 
 import com.platos.domain.exam.ExamDefinition
 import com.platos.domain.exam.Question
+import com.platos.domain.layout.DrawImage
 import com.platos.domain.layout.LayoutEngine
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -58,21 +59,37 @@ class RendererContractTest {
         assertEquals(842, RendererContract.pagePoints(297_000))
     }
 
+    private val imagem = DrawImage(
+        id = "img-1",
+        x = 0,
+        y = 0,
+        width = 1_000,
+        height = 1_000,
+        reference = "f-teste",
+    )
+
     @Test
-    fun `primitiva desconhecida e recusada sem entregar documento parcial`() {
-        val imagem = com.platos.domain.layout.DrawImage(
-            id = "img-1",
-            x = 0,
-            y = 0,
-            width = 1_000,
-            height = 1_000,
-            reference = "grafico.png",
-        )
-        val falha = assertThrows<UnknownPrimitiveException> {
-            RendererContract.assertDrawable(imagem)
+    fun `bytes ausentes recusam a imagem sem entregar documento parcial`() {
+        val falha = assertThrows<MissingResourceException> {
+            RendererContract.assertDrawable(imagem) { false }
         }
         assertTrue(falha.message!!.contains("img-1"), falha.message)
+        assertTrue(falha.message!!.contains("f-teste"), falha.message)
         assertTrue(falha.message!!.contains("parcial"), falha.message)
+    }
+
+    @Test
+    fun `referencia diferente da declarada nao satisfaz a guarda`() {
+        // Ter *alguma* imagem disponivel nao basta: precisa ser a que o mapa declara, senao a
+        // folha sairia com a formula de outra questao no lugar.
+        assertThrows<MissingResourceException> {
+            RendererContract.assertDrawable(imagem) { it == "f-outra" }
+        }
+    }
+
+    @Test
+    fun `imagem com os bytes fornecidos passa pela guarda`() {
+        RendererContract.assertDrawable(imagem) { it == "f-teste" }
     }
 
     @Test
@@ -80,5 +97,29 @@ class RendererContractTest {
         for (primitive in map.pages.flatMap { it.primitives }) {
             RendererContract.assertDrawable(primitive)
         }
+    }
+
+    /**
+     * Cobre "Renderizador nao tipografa matematica" no lado Android.
+     *
+     * Mesma evidencia estrutural ja usada para medicao de texto: o renderizador nao pode conter
+     * caminho de codigo que interprete LaTeX, MathML ou SVG. Ele desenha o recurso pronto.
+     */
+    @Test
+    fun `o renderizador nao interpreta LaTeX MathML nem SVG`() {
+        val fonte = java.io.File("src/main/kotlin/com/platos/android/render")
+            .walkTopDown()
+            .filter { it.extension == "kt" }
+            .joinToString("\n") { it.readText() }
+
+        assertTrue(fonte.isNotBlank(), "o teste nao encontrou o codigo do renderizador")
+        for (proibido in listOf("latex", "mathml", "mathjax", "svg", "tex")) {
+            assertTrue(
+                !Regex("""\b$proibido\b""", RegexOption.IGNORE_CASE).containsMatchIn(fonte),
+                "o renderizador Android menciona `$proibido`; ele deve desenhar o raster pronto",
+            )
+        }
+        // O que ele *tem* de fazer: decodificar o raster que o mapa referencia.
+        assertTrue(fonte.contains("decodeByteArray"), "o renderizador nao desenha o raster")
     }
 }

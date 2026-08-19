@@ -1,0 +1,15 @@
+{
+  "name": "@platos/math",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Converte LaTeX e MathML em SVG e no raster de impressao, alimentando a fixture (D-1.5.2)",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "mathjax-full": "3.2.2"
+  }
+}

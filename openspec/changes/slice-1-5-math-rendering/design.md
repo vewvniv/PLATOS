@@ -114,6 +114,102 @@ Preto e branco puro seria mais simples e mais errado aqui: 1 bit mascara variaç
 
 Isso vale para a **verificação**. O que vai ao PDF continua sendo o raster da fórmula definido em D-1.5.1.
 
+### D-1.5.8 — O raster sai do `resvg`, porque o rasterizador do projeto não lê SVG
+
+D-1.5.1 manda derivar o raster do SVG e não diz com o quê. A resposta que não custaria tecnologia nova seria o **mupdf**, que já é dependência de `tools/parity` e é o rasterizador de referência do projeto — o mesmo que julga paridade e fidelidade. Ele não serve, e isso foi medido, não suposto:
+
+```
+mupdf.Document.openDocument(svg, 'image/svg+xml')
+  -> cannot find document handler for file type: 'image/svg+xml'
+```
+
+O build WASM publicado no npm não inclui o handler de SVG. Então a conversão precisa de um rasterizador próprio, e entra **`@resvg/resvg-js`** como segunda ferramenta de build — o `proposal.md` foi corrigido, porque a linha dele dizia "dependências novas: MathJax" no singular.
+
+A escolha não é por conveniência. `resvg` rasteriza em `tiny-skia`, implementação Rust própria: não chama gráfico de plataforma e não consulta fonte do sistema. Como o MathJax roda com `fontCache: 'none'` e emite apenas `<path>`, nenhuma fonte participa do caminho — que é a única forma de o raster ser o mesmo na máquina de quem desenvolve e no runner do CI. É a mesma exigência que fez D-1.5.5 embutir os bytes em vez de deixar cada lado resolver a referência.
+
+*Alternativa descartada:* traduzir o SVG do MathJax em caminhos de PDF com `pdf-lib` e rasterizar o PDF com mupdf, sem dependência nova. É exatamente a superfície que D-1.5.1 recusou — parser de SVG com cadeia de transforms —, e aqui ela ficaria no caminho do artefato que vai à impressora.
+
+**Como isto pode falhar em silêncio:** uma troca de versão de `resvg` que mexa no antialiasing mudaria os bytes do PNG sem mexer em dimensão nenhuma, então o golden do `LayoutMap` não acusaria. Por isso a versão fica fixada no lock, o raster é artefato versionado em `fixtures/` e o manifesto carrega o `sha256` de cada PNG: a mudança aparece no diff do commit, e não na folha impressa.
+
+### D-1.5.9 — O branco em volta da fórmula é derivado, e assimétrico de propósito
+
+A folha impressa da tarefa 6.6 foi aprovada em resolução e **reprovada em espaçamento**: nas 12
+fórmulas o branco de cima era grande demais e o de baixo pequeno demais, e por proximidade a fórmula
+lia como pertencente às alternativas. A fórmula é parte do **enunciado**, então a leitura estava
+invertida.
+
+**A causa não era uma constante errada.** Era misturar posicionamento por linha de base com
+posicionamento por topo. O laço do enunciado deixa o cursor uma entrelinha adiante da última linha —
+avanço que um texto seguinte consome com a ascendente, mas que a fórmula, posicionada pelo topo,
+transformava em branco puro. Somavam-se ainda `SPACE_AFTER_STATEMENT` e um respiro próprio, dando
+10,691 mm fixos acima contra 3 mm mais resíduo abaixo.
+
+**Decisão.**
+
+- **Uma base única**: `textTransition = lineHeight + SPACE_AFTER_STATEMENT`, a transição que a folha
+  já faz entre o fim do enunciado e a primeira alternativa. Os dois vãos são **múltiplos dela**, e
+  nenhum é valor próprio — mexer na entrelinha move os dois juntos, e divergir fica impossível.
+- **Acima** = 45% da base. Heurística de proximidade: para dois grupos lerem como distintos, o
+  espaço entre eles precisa ser ao menos o dobro do espaço dentro de cada um.
+- **Abaixo** = 4/3 da base.
+
+  A primeira versão desta decisão usava a base **inteira**, com o argumento de que fórmula →
+  alternativas *é* a mesma transição que enunciado → alternativas. A impressão pediu mais separação,
+  e o argumento era elegante demais para ser verdade: uma fórmula é **bloco de exibição**, não linha
+  de texto, e bloco de exibição precisa de mais ar embaixo do que uma linha precisa. A igualdade
+  agradava no papel do design; o papel de verdade discordou.
+
+  O 4/3 é escolhido pelo vão de **tinta**, que é o que se vê: entrega +49,6% de branco visível.
+  Multiplicar o nominal por 3/2 daria **+74%**, porque a ascendente da alternativa é uma subtração
+  fixa e a proporção não sobrevive à conversão nominal → tinta. É o mesmo motivo pelo qual a regra
+  precisa ser nominal e a tinta precisa ser critério de aceite: as duas escalas não são
+  proporcionais entre si.
+- **Os dois vãos são ancorados na base, e não um no outro.** Pendurar "acima" como fração de
+  "abaixo" fazia qualquer ajuste no de baixo arrastar o de cima junto — e eles respondem a critérios
+  diferentes: o de cima é proximidade com o enunciado, o de baixo é separação das alternativas.
+- **A conversão linha-de-base → topo acontece num ponto só**, `advanceAfterStatement`, usado tanto
+  pelo builder que dimensiona o bloco quanto pelo engine que desenha. Se fossem dois cálculos, altura
+  reservada e altura desenhada divergiriam em silêncio, e só a folha impressa acusaria.
+- **A fórmula deixa de arredondar à grade.** Quem precisa cair na grade é o bloco, e ele já cai. O
+  arredondamento da fórmula era redundante e seu resíduo caía todo abaixo dela — era ele que fazia o
+  vão inferior variar 2,159 mm entre as doze.
+
+**Por que a regra é nominal e a tinta é só critério de aceite.** A tentação é escrever a regra em
+tinta, já que é tinta que o olho lê. Não dá, e isto foi medido: as métricas de `hhea` da fonte
+embarcada são `ascender = 1036` e `descender = −335`, que somam mais que o em e preveem um vão de
+**96 µm** entre duas linhas de corpo — onde o papel mostra **1 456 µm**. Métrica de fonte dá caixa de
+linha, não tinta; tinta exigiria abrir contornos de glifo (`glyf`/`loca`), superfície que esta fatia
+existe para não abrir. A regra é aplicada ao espaçamento nominal, que é o que o engine controla, e a
+tinta julga o resultado.
+
+**Resultado medido**, tinta a 600 dpi nas 12 fórmulas:
+
+| | antes | 1ª correção | **aprovado** |
+|---|---|---|---|
+| branco acima (média) | 10,089 mm | 2,868 mm | **2,865 mm** |
+| branco abaixo (média) | 2,565 mm | 5,214 mm | **7,775 mm** |
+| amplitude do vão de baixo | 2,159 mm | 0,550 mm | **0,550 mm** |
+| razão abaixo/acima | 0,25× (invertida) | 1,82× | **2,71×** |
+| fórmula × vão entre linhas do corpo | — | 3,58× | **5,34×** (limiar de proximidade: 2×) |
+
+A coluna do meio é a primeira correção, que inverteu a proximidade e foi aprovada na segunda
+impressão com um pedido: mais separação embaixo. A terceira coluna é o resultado do 4/3.
+
+O vão de cima **não se moveu** entre as duas últimas colunas (2,868 → 2,865 mm, três micrômetros de
+ruído de rasterização): é a evidência de que ancorar os dois na base, em vez de um no outro,
+funcionou como pretendido.
+
+*Consequência aceita:* os blocos com fórmula **encolhem** cerca de 5 mm cada, porque o excesso de
+cima era maior que a falta de baixo. Páginas seguem 4; 15 das 40 questões mudaram de coluna ou
+página, efeito da regra de distribuir sobra em vez de empurrá-la para o fim.
+
+*Fica em aberto:* fórmula em bloco seguida de **mais enunciado**, e não de alternativas. Aí não há
+quebra semântica e o vão de baixo deveria ser o de cima — o vão inferior é escolhido pelo que vem
+**depois**, não pela fórmula. Não é especificado aqui porque `Question` não consegue expressar a
+estrutura: tem um `statement` e uma `formula`, e a ordem está fixa no engine. Expressá-la exige o
+corpo da questão virar sequência de blocos, que é contrato maior que o `InlineBox` da 1.6 e não sai
+de graça junto com ele.
+
 ## Open Questions
 
-Nenhuma. As três que existiam foram fechadas em D-1.5.6, D-1.5.7 e na seção sobre o que a fatia deixa sem validar.
+Nenhuma. As três que existiam foram fechadas em D-1.5.6, D-1.5.7 e na seção sobre o que a fatia deixa sem validar. A quarta, aberta na implementação — com que ferramenta rasterizar —, foi fechada em D-1.5.8.

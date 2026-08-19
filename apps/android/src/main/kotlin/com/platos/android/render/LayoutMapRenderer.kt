@@ -1,7 +1,10 @@
 package com.platos.android.render
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import com.platos.domain.layout.DrawAruco
@@ -23,7 +26,21 @@ import java.io.OutputStream
  * O eixo vertical do `Canvas` desce, igual ao do `LayoutMap`, entao — ao contrario do lado web,
  * que desenha em PDF de origem inferior — nao ha inversao de Y.
  */
-class LayoutMapRenderer(private val typeface: Typeface) {
+class LayoutMapRenderer(
+    private val typeface: Typeface,
+    /**
+     * Referencia do `LayoutMap` -> bytes do raster (D-1.5.5).
+     *
+     * Quem resolve a referencia e quem chama, e nao o renderizador: sao **os mesmos bytes** que vao
+     * para o lado web, e e disso que a paridade da formula depende. Se cada renderizador procurasse
+     * o arquivo do seu jeito, a igualdade por construcao viraria coincidencia de configuracao.
+     */
+    private val imageBytes: Map<String, ByteArray> = emptyMap(),
+) {
+
+    // Decodifica uma vez por referencia, e nao por ocorrencia: o mesmo raster em duas questoes nao
+    // precisa de dois bitmaps.
+    private val bitmaps = mutableMapOf<String, Bitmap>()
 
     fun render(map: LayoutMap, output: OutputStream) {
         RendererContract.assertSupports(map)
@@ -36,11 +53,20 @@ class LayoutMapRenderer(private val typeface: Typeface) {
             for (source in map.pages.sortedBy { it.index }) {
                 val info = PdfDocument.PageInfo.Builder(widthPt, heightPt, source.index + 1).create()
                 val page = document.startPage(info)
-                for (primitive in source.primitives) {
-                    draw(page.canvas, primitive)
+                try {
+                    for (primitive in source.primitives) {
+                        draw(page.canvas, primitive)
+                    }
+                } finally {
+                    // Fecha a pagina mesmo quando o desenho falha. Sem isto, `close()` no `finally`
+                    // de baixo lanca "Current page not finished!" e essa excecao **substitui** a
+                    // que diz o que realmente aconteceu — quem chamou receberia um erro de estado
+                    // do `PdfDocument` no lugar de "faltam os bytes da formula tal".
+                    document.finishPage(page)
                 }
-                document.finishPage(page)
             }
+            // So depois de todas as paginas: uma falha no meio nao pode deixar meio documento
+            // escrito no destino.
             document.writeTo(output)
         } finally {
             document.close()
@@ -48,7 +74,7 @@ class LayoutMapRenderer(private val typeface: Typeface) {
     }
 
     private fun draw(canvas: Canvas, primitive: Primitive) {
-        RendererContract.assertDrawable(primitive)
+        RendererContract.assertDrawable(primitive) { it in imageBytes }
         when (primitive) {
             is DrawRect -> canvas.drawRect(
                 pt(primitive.x),
@@ -88,12 +114,32 @@ class LayoutMapRenderer(private val typeface: Typeface) {
                 primitive.modules,
             )
 
-            // `assertDrawable` ja recusou este caso antes do `when`; o ramo existe porque o tipo
-            // e selado e o compilador exige exaustividade.
-            is DrawImage -> throw UnknownPrimitiveException(
-                "primitiva `image` (${primitive.id}) nao e desenhada nesta fatia",
+            is DrawImage -> canvas.drawBitmap(
+                bitmapOf(primitive.reference),
+                null,
+                // A caixa vem do mapa e o raster foi gerado exatamente nela (D-1.5.1). O destino
+                // usa a mesma conversao de unidade dos demais elementos, entao a formula cai na
+                // grade de pontos do documento junto com o resto da folha.
+                RectF(
+                    pt(primitive.x),
+                    pt(primitive.y),
+                    pt(primitive.x + primitive.width),
+                    pt(primitive.y + primitive.height),
+                ),
+                imagePaint,
             )
         }
+    }
+
+    private fun bitmapOf(reference: String): Bitmap = bitmaps.getOrPut(reference) {
+        // `assertDrawable` ja garantiu que a referencia existe; o que pode falhar aqui e o PNG
+        // estar corrompido, e isso tambem nao pode virar pagina sem a formula.
+        val bytes = imageBytes.getValue(reference)
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            ?: throw MissingResourceException(
+                "o recurso `$reference` tem ${bytes.size} bytes que nao decodificam como imagem; " +
+                    "nenhum documento parcial e entregue",
+            )
     }
 
     /** Um retangulo por modulo preto: o padrao ja veio resolvido no mapa (D-1.10). */
@@ -130,6 +176,19 @@ class LayoutMapRenderer(private val typeface: Typeface) {
         style = Paint.Style.STROKE
         strokeWidth = pt(strokeUm)
         color = android.graphics.Color.BLACK
+    }
+
+    /**
+     * Sem filtragem e sem dithering.
+     *
+     * O raster ja foi gerado no tamanho exato da caixa, entao nao ha reamostragem a suavizar — e
+     * ligar o filtro faria o Android decidir sozinho pixels que o lado web nao decide, que e
+     * justamente a divergencia que a fatia existe para eliminar.
+     */
+    private val imagePaint = Paint().apply {
+        isAntiAlias = false
+        isFilterBitmap = false
+        isDither = false
     }
 
     private fun textPaint(sizeUm: Int) = Paint().apply {

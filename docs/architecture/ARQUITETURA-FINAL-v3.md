@@ -433,7 +433,8 @@ CLAUDE.md
 |---|---|---|
 | 0 | Schema núcleo · organização + membership + RLS · assinatura inerte | Tenancy e a forma que evita retrofit |
 | **1** | **Medição de texto (KMP) · grade de 3 mm · paginação DP · LayoutMap · dois renderizadores · teste de paridade em CI · impressão real medida com régua** | O risco central do render client-side |
-| 1.5 | Renderização matemática (LaTeX/MathML → SVG) | Exatas antes de gerar conteúdo de exatas |
+| 1.5 | Renderização matemática **em bloco** (LaTeX/MathML → SVG → raster) | Exatas antes de gerar conteúdo de exatas |
+| **1.6** | **Matemática em linha · `InlineBox` com largura, altura e `baseline_offset` na medição de texto** | **O caso predominante das exatas — bloqueadora da fatia 6** |
 | 2 | Prova **fixa** (sem IA) → `ExamPackage` → PDF → impressão | Contrato do pacote e qualidade de impressão dos ArUcos |
 | 3 | Captura por região · ArUco → homografia → QR → OMR normalizado · nota objetiva offline · escaneamento em lote | **Produto já usável e vendável no Basic, sem gastar um token** |
 | 4 | Sync · outbox · gate de pré-voo · modo degradado | Modelo offline |
@@ -445,6 +446,8 @@ CLAUDE.md
 
 Duas escolhas de ordem que valem defender: a **fatia 1 é o Layout Engine**, porque é onde mora o risco que a renderização client-side criou; e a **fatia 3 já é produto** — prova objetiva corrigida 100% offline é exatamente a proposta de valor do Basic, e ela fica pronta antes de qualquer custo de IA existir.
 
+Uma terceira, acrescentada ao fechar a 1.5: a **fatia 1.6 vem antes da 2**. A 1.5 validou o mecanismo — converter, empacotar como caixa, desenhar igual nos dois renderizadores —, mas a matemática de prova de ensino básico é predominantemente **em linha**, e não em bloco. O gatilho formal é ser bloqueadora da fatia 6: chegar à geração de exatas por IA com a tipografia predominante nunca tendo passado pelo Layout Engine anularia o motivo pelo qual a 1.5 veio antes da 2. A data desejada é mais cedo que isso, e a razão é de contrato: a 1.6 introduz `InlineBox` na medição de texto, e resolver esse tipo antes de a fatia 2 congelar os contratos do `ExamPackage` evita reabrir a medição depois, com o OMR já estabilizado sobre geometria publicada e hasheada.
+
 ---
 
 ## 16. Riscos
@@ -455,7 +458,7 @@ Duas escolhas de ordem que valem defender: a **fatia 1 é o Layout Engine**, por
 | **Acurácia em manuscrito** | Maior risco não-arquitetural. Não se resolve por arquitetura — meça na fatia 5 antes de construir a 8. |
 | **Impressão dos ArUcos** | São 4 por questão discursiva, não 4 por prova: muito mais superfície sujeita a toner fraco. Marcador ≥ 12 mm e folha de teste de impressão no onboarding. |
 | **Custo de IA** | Contido por design: Basic não inclui correção por IA; caching corta 37% de graça; quota por plano limita o teto. |
-| **LGPD com dados de menores** | Único item ainda sem encaminhamento. Imagens de manuscrito, notas e identificação de menores exigem base legal, retenção definida e contrato de operador com a escola. Resolver antes do primeiro contrato, não depois. |
+| **LGPD com dados de menores** | Único item ainda sem encaminhamento. Imagens de manuscrito, notas e identificação de menores exigem base legal, retenção definida e contrato de operador com a escola. **Gatilho: fim da fatia 3**, quando o primeiro piloto com turma real põe dado de menor no sistema — e não "antes do primeiro contrato", que é mais tarde e induz a folga que não existe. Some-se que o Basic é *self-serve*: não há escola para figurar como controladora, e professor pessoa física operando dado de menor numa SaaS comercial é figura ambígua. É o produto de lançamento, então a ambiguidade chega junto com o primeiro cliente. A separação do roster (§5) habilita de graça um modo sem identificação nominal — aluno como número ou apelido —, que é a mitigação que compra tempo até haver parecer jurídico. |
 | **Um mantenedor, quatro módulos** | Mitigado pelas fatias verticais e por I1–I3: o escopo cresce sem que o núcleo precise ser reescrito. |
 
 ---

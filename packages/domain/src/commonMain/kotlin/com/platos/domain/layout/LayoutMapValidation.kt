@@ -52,6 +52,25 @@ fun LayoutMap.validate(): ValidationResult {
             if (!seenIds.add(primitive.id)) {
                 problems += "identificador de elemento repetido: `${primitive.id}`"
             }
+            // A imagem e a unica primitiva cujo desenho depende de um recurso externo: sem
+            // referencia ou com area nula ela vira buraco na folha, e o buraco so aparece depois
+            // de impresso.
+            if (primitive is DrawImage) {
+                if (primitive.reference.isBlank()) {
+                    problems += "imagem `${primitive.id}` nao referencia recurso nenhum"
+                }
+                if (primitive.width <= 0 || primitive.height <= 0) {
+                    problems += "imagem `${primitive.id}` com dimensao nao positiva: " +
+                        "${primitive.width}x${primitive.height}"
+                }
+                val fits = primitive.x >= 0 && primitive.y >= 0 &&
+                    primitive.x + primitive.width <= pageWidth &&
+                    primitive.y + primitive.height <= pageHeight
+                if (!fits) {
+                    problems += "imagem `${primitive.id}` sai da pagina: " +
+                        "${primitive.x}+${primitive.width} x ${primitive.y}+${primitive.height}"
+                }
+            }
         }
     }
 

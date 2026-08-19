@@ -10,6 +10,9 @@ class RendererVersionException(message: String) : IllegalStateException(message)
 /** O mapa traz uma primitiva que este renderizador nao desenha. */
 class UnknownPrimitiveException(message: String) : IllegalStateException(message)
 
+/** O mapa referencia um recurso cujos bytes nao foram fornecidos. */
+class MissingResourceException(message: String) : IllegalStateException(message)
+
 /**
  * A parte do renderizador que nao toca `android.graphics`.
  *
@@ -37,17 +40,20 @@ object RendererContract {
     }
 
     /**
-     * Recusa uma primitiva que este renderizador nao desenha.
+     * Recusa uma primitiva cujo desenho nao pode ser cumprido.
      *
      * Fica aqui, e nao dentro do `when` sobre o `Canvas`, para poder ser verificada em teste local
      * de JVM. A regra e a mesma do lado web: nada de pagina com o elemento omitido — um documento
      * silenciosamente incompleto e pior que uma falha, porque so aparece depois de impresso.
+     *
+     * A partir da fatia 1.5 `image` deixa de ser recusada por natureza e passa a ser recusada por
+     * falta de bytes: [available] responde se a referencia foi fornecida.
      */
-    fun assertDrawable(primitive: Primitive) {
-        if (primitive is DrawImage) {
-            throw UnknownPrimitiveException(
-                "primitiva `image` (${primitive.id}) nao e desenhada nesta fatia; " +
-                    "nenhum documento parcial e entregue",
+    fun assertDrawable(primitive: Primitive, available: (String) -> Boolean = { false }) {
+        if (primitive is DrawImage && !available(primitive.reference)) {
+            throw MissingResourceException(
+                "imagem `${primitive.id}` referencia o recurso `${primitive.reference}`, que nao " +
+                    "foi fornecido; nenhum documento parcial e entregue",
             )
         }
     }

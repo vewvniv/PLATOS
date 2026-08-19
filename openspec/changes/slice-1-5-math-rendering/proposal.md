@@ -46,7 +46,7 @@ Nenhuma.
 - `apps/web` e `apps/android` — desenho de `DrawImage`
 - `openspec/specs/layout-engine/spec.md` e `openspec/specs/print/spec.md`
 
-**Dependências novas**: MathJax, como ferramenta de build em Node. §13 evita um segundo runtime **no servidor**, e é isso que fica preservado: a conversão não entra no caminho do Ktor. Justificativa no `design.md`.
+**Dependências novas**: MathJax e `@resvg/resvg-js`, ambas como ferramenta de build em Node. §13 evita um segundo runtime **no servidor**, e é isso que fica preservado: a conversão não entra no caminho do Ktor. Justificativa no `design.md` — o MathJax em D-1.5.2, o rasterizador em D-1.5.8, que existe porque o mupdf do projeto não lê SVG.
 
 **Explicitamente NÃO alterado**
 - **Fórmula em linha**, no meio do texto corrido. Exigiria caixas com alinhamento de linha de base dentro da quebra de linha — justamente o código cuja identidade entre alvos a fatia 1 acabou de garantir.

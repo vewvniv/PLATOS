@@ -1,0 +1,65 @@
+{
+  "comment": "Fonte das formulas da fixture. `tools/math/build.mjs` converte isto em SVG, raster e manifesto. Cobre a educacao basica inteira conforme D-1.5.6; macro customizada, pacote arbitrario e TikZ ficam de fora e sao recusados pela conversao.",
+  "formulas": [
+    {
+      "id": "f-aritmetica",
+      "notation": "latex",
+      "source": "(-7) + 12 \\times 3 - 5"
+    },
+    {
+      "id": "f-fracoes",
+      "notation": "latex",
+      "source": "\\frac{2}{3} + \\frac{1}{4}"
+    },
+    {
+      "id": "f-raizes",
+      "notation": "latex",
+      "source": "\\sqrt{144} + \\sqrt[3]{27}"
+    },
+    {
+      "id": "f-potencias",
+      "notation": "latex",
+      "source": "a_n = a_1 \\cdot q^{\\,n-1}"
+    },
+    {
+      "id": "f-trigonometria",
+      "notation": "latex",
+      "source": "\\sin^2\\theta + \\cos^2\\theta = 1"
+    },
+    {
+      "id": "f-logaritmo",
+      "notation": "latex",
+      "source": "\\log_{2} 32 = x"
+    },
+    {
+      "id": "f-vetor",
+      "notation": "latex",
+      "source": "\\vec{v} = (3,\\,4) \\qquad \\|\\vec{v}\\| = \\sqrt{3^2 + 4^2}"
+    },
+    {
+      "id": "f-somatorio",
+      "notation": "latex",
+      "source": "\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}"
+    },
+    {
+      "id": "f-matriz2",
+      "notation": "latex",
+      "source": "\\begin{vmatrix} 3 & 1 \\\\ 2 & 4 \\end{vmatrix}"
+    },
+    {
+      "id": "f-matriz3",
+      "notation": "latex",
+      "source": "\\begin{pmatrix} 1 & 2 & 3 \\\\ 4 & 5 & 6 \\\\ 7 & 8 & 9 \\end{pmatrix}"
+    },
+    {
+      "id": "f-sistema",
+      "notation": "latex",
+      "source": "\\begin{cases} 2x + y = 7 \\\\ x - y = 2 \\end{cases}"
+    },
+    {
+      "id": "f-bhaskara",
+      "notation": "mathml",
+      "source": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><mi>x</mi><mo>=</mo><mfrac><mrow><mo>&#x2212;</mo><mi>b</mi><mo>&#xB1;</mo><msqrt><mrow><msup><mi>b</mi><mn>2</mn></msup><mo>&#x2212;</mo><mn>4</mn><mi>a</mi><mi>c</mi></mrow></msqrt></mrow><mrow><mn>2</mn><mi>a</mi></mrow></mfrac></math>"
+    }
+  ]
+}

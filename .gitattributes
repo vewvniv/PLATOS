@@ -5,3 +5,8 @@
 *.bat text eol=crlf
 
 *.jar binary
+
+# Rasters de formula. `text=auto` detectaria binario pela heuristica e provavelmente acertaria, mas
+# aqui a aposta nao vale: D-1.5.1 depende de os dois renderizadores desenharem *os mesmos bytes*, e
+# uma conversao de fim de linha aplicada por engano corromperia o PNG sem aviso.
+*.png binary
