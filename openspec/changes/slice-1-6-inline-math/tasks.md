@@ -209,3 +209,32 @@ envolver a conversão e reetiquetar qualquer exceção que não seja `Unsupporte
 identificador da fórmula. Fica registrado, e não corrigido nesta fatia, porque não é o escopo dela.
 
 Vale também uma guarda de entrada: nenhuma fonte de fórmula deve conter caractere de controle.
+
+### O instrumento de paridade não serve para fórmula em linha, e isso foi medido nos dois sentidos
+
+A tarefa 6.3 está aberta por esta razão, e ela é de desenho, não de implementação.
+
+`compare.mjs` mede **centroide de tinta numa janela**. Para marcador, bolha e fórmula em bloco isso
+funciona: o vizinho mais próximo está a milímetros e nunca entra na janela. Para fórmula **em
+linha**, a palavra ao lado está a fração de milímetro na mesma linha de base, e não existe janela
+que resolva os dois lados do problema:
+
+| janela | paridade de dois documentos corretos | deslocamento deliberado de 0,5 mm |
+|---|---|---|
+| folga fixa de 1 mm | **falha**: 5 fórmulas, até 0,495 mm | acusa |
+| folga até o vizinho | passa, 0,044 mm | **não acusa** a de linha |
+| folga até o vizinho, medindo borda de tinta | falha em 1 de 9, 0,425 mm | acusa, 0,508 mm |
+
+A primeira linha é diluição: a massa de tinta do vizinho domina o centroide. A segunda é recorte: a
+fórmula deslocada sai da janela apertada e o centroide volta ao meio. A terceira troca o instrumento
+— borda em vez de média ponderada — e resolve o deslocamento, mas ainda erra numa fórmula.
+
+**A contradição que prova que é medição, e não desenho:** a fidelidade mede cada documento contra o
+`LayoutMap` e aprova os dois — web a 0,039 mm, Android a 0,022 mm, tolerância 0,05. Dois documentos
+que estão cada um a menos de 0,04 mm da mesma referência não podem estar a 0,425 mm um do outro.
+
+O que falta decidir é qual instrumento a paridade usa para fórmula em linha. Uma pista já medida: a
+borda de tinta tomada como `min(x)` e `min(y)` independentes é frágil, porque o pixel mais à esquerda
+e o mais acima podem ser glifos diferentes — numa fração, a barra e o numerador. A caixa de tinta
+inteira, ou a borda esquerda sozinha, provavelmente são mais estáveis, e nenhuma das duas foi
+medida ainda.
