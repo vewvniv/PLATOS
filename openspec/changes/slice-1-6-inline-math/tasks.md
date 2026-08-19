@@ -166,7 +166,17 @@
 
 - [ ] 6.1 Rodar a suíte completa nos três alvos, mais `./gradlew build`. Resultado: golden novo estável byte a byte em JVM, Node e Android.
   - `build` explicitamente, e não só as tarefas de teste: foi exatamente essa diferença que deixou passar a falha de dependência de lint na fatia 1.5.
-- [ ] 6.2 Medir fidelidade do documento nos dois PDFs, agora com fórmula dentro do texto corrido. Resultado: dentro de 0,05 mm, comparado com a base da tarefa 1.1.
+- [x] 6.2 Medir fidelidade do documento nos dois PDFs, agora com fórmula dentro do texto corrido. Resultado: dentro de 0,05 mm, comparado com a base da tarefa 1.1.
+
+  **A primeira execucao reprovou, e reprovou a ferramenta, nao a folha.** 116 verificacoes, 21 falhas — todas em formula em linha, **zero** em bloco, com a mesma ferramenta na mesma pagina. Desvios de 1 a 2,8 mm contra tolerancia de 0,05.
+
+  A assinatura dizia o que era: `largura da tinta: observado 7,980 mm, declarado 5,673`. Tinta **a mais**, e nao tinta deslocada. Formula fora do lugar nao engorda; janela que alcanca o vizinho, sim.
+
+  A janela era folga fixa de 1 mm nos quatro lados. Para formula em bloco isso nunca alcanca nada — ha 2,8 mm de branco acima, 7,8 mm abaixo e a coluna inteira na horizontal. Para formula **em linha** a palavra vizinha esta a fracao de milimetro na mesma linha de base, e 1 mm entra dentro dela.
+
+  A folga passou a ser **metade da distancia ate a tinta mais proxima**, limitada ao mesmo teto de 1 mm. Em bloco nada muda, porque nao ha vizinho a 1 mm; em linha ela encolhe ate o necessario. Os primeiros dois pixels sao ignorados de proposito — o antialiasing da propria caixa transborda cerca de um pixel, e conta-lo como vizinho zeraria a folga.
+
+  Resultado: **116 verificacoes, maior desvio 0,039 mm**, o mesmo patamar de sempre, e o pior elemento voltou a ser um marcador em vez de uma formula.
 - [ ] 6.3 Medir paridade web × Android com fórmula em linha na folha. Resultado: dentro de 0,3 mm, com o emulador ou no CI.
 - [ ] 6.4 Provar que a verificação continua capaz de falhar: deslocar de propósito uma fórmula **em linha** e confirmar que paridade e fidelidade acusam, com elemento e distância. Resultado: as duas saem com código 1; reverter em seguida.
   - A janela de medição precisa ser conferida para o caso em linha antes de se confiar nela. Esta base já produziu quatro verificações incapazes de falhar, e duas foram por janela mal dimensionada — uma alcançava o vizinho, outra recortava o próprio elemento. Uma fórmula em linha tem texto a milímetros nos dois lados, então é o caso mais apertado até agora.

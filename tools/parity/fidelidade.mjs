@@ -84,14 +84,22 @@ function inkBoxOfPixmap(pixmap) {
   return x1 < 0 ? null : { x0, x1, y0, y1 };
 }
 
-/** Caixa de tinta de um elemento, procurada numa janela folgada ao redor do declarado. */
+/**
+ * Caixa de tinta de um elemento, procurada numa janela folgada ao redor do declarado.
+ *
+ * [marginPx] pode ser um numero — mesma folga nos quatro lados — ou `{left, right, top, bottom}`.
+ * A folga por lado existe por causa da formula **em linha**: ver [roomAround].
+ */
 function inkBox(xUm, yUm, wUm, hUm, marginPx = 60, page = page0) {
   const { width, height, pixels } = page;
   const dark = (x, y) => pixels[y * width + x] < 128;
-  const x0 = Math.max(0, Math.round(toPx(xUm)) - marginPx);
-  const x1 = Math.min(width - 1, Math.round(toPx(xUm + wUm)) + marginPx);
-  const y0 = Math.max(0, Math.round(toPx(yUm)) - marginPx);
-  const y1 = Math.min(height - 1, Math.round(toPx(yUm + hUm)) + marginPx);
+  const m = typeof marginPx === 'number'
+    ? { left: marginPx, right: marginPx, top: marginPx, bottom: marginPx }
+    : marginPx;
+  const x0 = Math.max(0, Math.round(toPx(xUm)) - m.left);
+  const x1 = Math.min(width - 1, Math.round(toPx(xUm + wUm)) + m.right);
+  const y0 = Math.max(0, Math.round(toPx(yUm)) - m.top);
+  const y1 = Math.min(height - 1, Math.round(toPx(yUm + hUm)) + m.bottom);
   let ax0 = Infinity, ax1 = -1, ay0 = Infinity, ay1 = -1;
   for (let y = y0; y <= y1; y += 1) {
     for (let x = x0; x <= x1; x += 1) {
@@ -104,6 +112,59 @@ function inkBox(xUm, yUm, wUm, hUm, marginPx = 60, page = page0) {
   }
   if (ax1 < 0) return null;
   return { x0: ax0 * MM, x1: (ax1 + 1) * MM, y0: ay0 * MM, y1: (ay1 + 1) * MM };
+}
+
+/**
+ * Quanto de branco existe de cada lado da caixa declarada, antes da tinta do vizinho.
+ *
+ * A folga da janela **nao pode ser constante**. Uma formula em bloco tem 2,8 mm de branco acima
+ * e 7,8 mm abaixo, e a coluna inteira na horizontal: 1 mm de folga nunca alcanca nada. Uma
+ * formula em **linha** tem a palavra vizinha a fracao de milimetro na mesma linha de base, e a
+ * mesma folga de 1 mm entra dentro dela — a medicao passa a somar a tinta do vizinho a da
+ * formula, e reporta largura maior que a declarada.
+ *
+ * Esta base ja produziu quatro verificacoes incapazes de falhar, e **duas foram por janela mal
+ * dimensionada**: uma alcancava o vizinho e diluia o desvio, outra recortava o proprio elemento
+ * deslocado e lia 0,5 mm como 0,142 mm. As duas pontas importam, entao a folga aqui e a maior
+ * possivel que ainda nao alcanca o vizinho: **metade da distancia ate a tinta mais proxima**,
+ * limitada ao teto de 1 mm que a formula em bloco ja usava.
+ *
+ * Os primeiros pixels sao ignorados de proposito: o antialiasing da propria formula transborda
+ * a caixa declarada em cerca de um pixel, e conta-lo como vizinho zeraria a folga.
+ */
+function roomAround(xUm, yUm, wUm, hUm, tetoPx, page) {
+  const { width, height, pixels } = page;
+  const dark = (x, y) => pixels[y * width + x] < 128;
+  const bx0 = Math.round(toPx(xUm));
+  const bx1 = Math.round(toPx(xUm + wUm));
+  const by0 = Math.round(toPx(yUm));
+  const by1 = Math.round(toPx(yUm + hUm));
+  const BLEED = 2; // antialiasing da propria caixa
+
+  const colunaTemTinta = (x) => {
+    for (let y = Math.max(0, by0); y <= Math.min(height - 1, by1); y += 1) if (dark(x, y)) return true;
+    return false;
+  };
+  const linhaTemTinta = (y) => {
+    for (let x = Math.max(0, bx0); x <= Math.min(width - 1, bx1); x += 1) if (dark(x, y)) return true;
+    return false;
+  };
+
+  const varrer = (inicio, passo, limite, temTinta) => {
+    for (let d = BLEED; d <= tetoPx; d += 1) {
+      const at = inicio + passo * d;
+      if (at < 0 || at > limite) return tetoPx;
+      if (temTinta(at)) return Math.max(0, Math.floor(d / 2));
+    }
+    return tetoPx;
+  };
+
+  return {
+    left: varrer(bx0, -1, width - 1, colunaTemTinta),
+    right: varrer(bx1, +1, width - 1, colunaTemTinta),
+    top: varrer(by0, -1, height - 1, linhaTemTinta),
+    bottom: varrer(by1, +1, height - 1, linhaTemTinta),
+  };
 }
 
 // Pagina: a caixa e declarada em pontos inteiros de proposito (D-1.7), porque o `PdfDocument` do
@@ -253,9 +314,11 @@ if (imagePages.length > 0) {
         y1: (image.y + (box.y1 + 1) * scaleY) / 1000,
       };
 
-      // Janela folgada, mas nunca alem do meio do respiro de 3 mm que separa a formula do
-      // enunciado acima e das alternativas abaixo: 1 mm de cada lado.
-      const margin = Math.round(toPx(1000));
+      // Teto de 1 mm, como antes; mas a folga de cada lado encolhe ate a metade da distancia
+      // ate a tinta vizinha. Em bloco nada muda — nao ha vizinho a 1 mm. Em linha, e o que
+      // impede a janela de somar a palavra ao lado a tinta da formula.
+      const teto = Math.round(toPx(1000));
+      const margin = roomAround(image.x, image.y, image.width, image.height, teto, page);
       const observed = inkBox(image.x, image.y, image.width, image.height, margin, page);
       if (!observed) {
         console.error(`a formula \`${image.id}\` nao aparece no documento`);

@@ -39,10 +39,19 @@ for (const page of map.pages) {
     }
     // A formula tambem: sem isto, `image` seria a unica primitiva da folha que nenhuma das duas
     // ferramentas confere, e as duas continuariam dizendo "OK" com a matematica fora do lugar.
-    if (primitive.type === 'image' && formulas < 1) {
-      primitive.x += SHIFT_UM;
-      formulas += 1;
-      movidas.push(primitive.id);
+    //
+    // Uma de cada forma, e nao a primeira que aparecer. A formula em **linha** e o caso apertado:
+    // ela tem palavra vizinha a fracao de milimetro, entao e nela que uma janela de medicao mal
+    // dimensionada recorta o proprio elemento — ou alcanca o vizinho — e passa a ler deslocamento
+    // menor do que o real. Deslocar so a de bloco deixaria isso sem verificacao.
+    if (primitive.type === 'image') {
+      const emBloco = primitive.id.endsWith('-f');
+      const jaTem = movidas.some((id) => id.endsWith('-f') === emBloco);
+      if (!jaTem) {
+        primitive.x += SHIFT_UM;
+        formulas += 1;
+        movidas.push(primitive.id);
+      }
     }
   }
 }
