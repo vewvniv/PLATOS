@@ -75,7 +75,7 @@ Todos em `BlockFormulaTest`, `commonTest`, nos três alvos.
 |---|---|
 | Imagem ocupa a caixa declarada | `renderer.test.ts.desenha uma imagem por formula declarada no mapa` (web) e `desenhaUmaFormulaPorCaixaDeclarada` no emulador; medido em `fidelidade.mjs`, 48 verificações de fórmula |
 | Bytes ausentes | web: três testes em `renderer.test.ts`; Android: `RendererContractTest` (guarda) e `recusaImprimirQuandoOsBytesDaFormulaFaltam` no `PdfDocument` real |
-| Fórmula equivalente entre renderizadores | web × Android reais: 12 fórmulas entre os 176 elementos, maior divergência **0,042 mm** contra 0,3 mm |
+| Fórmula equivalente entre renderizadores | web × Android reais: 12 fórmulas entre os 176 elementos, maior divergência **0,042 mm** contra 0,3 mm. Depois de D-1.5.9, o espaçamento medido nos dois documentos difere 3 µm acima e 10 µm abaixo — abaixo de um pixel a 600 dpi |
 | Renderizador não tipografa matemática | evidência estrutural nos dois: nenhum dos módulos menciona LaTeX, MathML, MathJax, SVG ou TeX; o web chama `embedPng`, o Android `decodeByteArray` |
 
 ## Conversão de fórmula — `tools/math`, 15 testes
@@ -112,11 +112,11 @@ Fora das specs, mas é o que sustenta D-1.5.6 e D-1.5.8.
 **Paridade entre renderizadores.** O risco central que a fatia existe para neutralizar — dois
 renderizadores divergirem e quebrarem o OMR em silêncio (§16):
 
-| | fatia 1 | fatia 1.5 |
-|---|---|---|
-| Elementos comparados | 116 (4 marcadores + 112 bolhas), 3 páginas | 176 (4 marcadores + 160 bolhas + 12 fórmulas), 4 páginas |
-| Maior divergência | **0,041 mm** | **0,042 mm**, em `qq31-f` — uma fórmula |
-| Tolerância | 0,3 mm | 0,3 mm |
+| | fatia 1 | fatia 1.5 | após D-1.5.9 |
+|---|---|---|---|
+| Elementos comparados | 116 (4 marcadores + 112 bolhas), 3 páginas | 176 (4 marcadores + 160 bolhas + 12 fórmulas), 4 páginas | 176, 4 páginas |
+| Maior divergência | **0,041 mm** | **0,042 mm**, em `qq31-f` | **0,042 mm**, em `qq37-f` |
+| Tolerância | 0,3 mm | 0,3 mm | 0,3 mm |
 
 Os 0,042 mm equivalem a cerca de um pixel a 600 dpi: é o piso da própria rasterização, não
 diferença real de desenho. Que o pior elemento seja uma fórmula e ainda assim esteja no piso é o

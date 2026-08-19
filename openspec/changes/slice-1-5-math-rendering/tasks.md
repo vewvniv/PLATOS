@@ -398,13 +398,32 @@ impressão.
   de rasterização. É o que a mudança de forma existia para garantir, e está afirmado em
   `os dois vaos sao derivados e o de baixo e maior que o de cima`.
 
-- [ ] 8.5 Reexecutar paridade web × Android com o layout novo. **Pendente: exige o emulador.**
+- [x] 8.5 Reexecutar paridade web × Android com o layout novo. Resultado: mesmo patamar de antes,
+  com o `android.pdf` gerado pelo `PdfDocument` real no emulador `platos-atd34`.
 
-  O `android.pdf` em `build/parity/` é do golden anterior, então comparar agora mediria a diferença
-  entre dois layouts e não entre dois renderizadores. A mudança é toda em `commonMain` — nenhuma
-  linha de renderizador foi tocada —, então não há razão para a paridade mudar de patamar; mas isso
-  é argumento, e esta base não fecha tarefa com argumento. Roda no CI, ou localmente quando o
-  emulador for autorizado.
+  | | fatia 1.5 | depois de D-1.5.9 |
+  |---|---|---|
+  | Elementos | 176 de 176, 4 páginas | **176 de 176, 4 páginas** |
+  | Maior divergência | 0,042 mm em `qq31-f` | **0,042 mm em `qq37-f`** |
+  | Tolerância | 0,3 mm | 0,3 mm |
+  | Fidelidade do PDF Android | 0,022 mm | **0,022 mm em `formula qq30-f: altura da tinta`** |
+
+  Os 0,042 mm são cerca de um pixel a 600 dpi — o piso da própria rasterização, como na fatia 1.5.
+  Que o pior elemento continue sendo uma fórmula e continue no piso é o resultado que D-1.5.1
+  previa: os dois lados recebem os mesmos bytes.
+
+  O cruzamento mais forte é o espaçamento medido nos **dois** documentos, com a mesma régua:
+
+  | | web | Android | diferença |
+  |---|---|---|---|
+  | branco acima, média | 2,865 mm | 2,868 mm | 3 µm |
+  | branco abaixo, média | 7,775 mm | 7,765 mm | 10 µm |
+
+  Um pixel a 600 dpi são 42 µm, então as duas diferenças estão abaixo da resolução da medição. É a
+  evidência de que a correção nasceu em `commonMain` e chegou igual aos dois lados — que era o ponto
+  de D-1.5.9 corrigir o layout e não o renderizador.
+
+  Instrumentados no emulador: 4 testes, 0 falhas.
 
 - [ ] 8.6 Segunda impressão, para fechar a 6.6. O que conferir está em
   `docs/protocolo-medicao-impressa.md` §8.
