@@ -119,3 +119,15 @@ tasks.withType<Test>().configureEach {
             .asFile.absolutePath,
     )
 }
+
+// As tarefas de lint do AGP leem os diretorios de fonte diretamente, sem passar pela dependencia
+// que `kotlin.srcDir(provider)` estabelece para a compilacao. Enquanto o alvo de host do Android
+// nao existia isso nao aparecia; `withHostTest {}` criou `lintAnalyzeAndroidHostTest` e
+// `generateAndroidHostTestLintModel`, e `./gradlew build` passou a falhar com "uses this output of
+// task ':packages:domain:embedFixtures' without declaring an explicit or implicit dependency".
+//
+// Nao e ruido de validacao: sem a dependencia declarada, a ordem de execucao decide se o lint le a
+// fixture embutida ou um diretorio vazio, e o resultado muda sem aviso.
+tasks.matching { it.name.contains("Lint") }.configureEach {
+    dependsOn(embedFixtures, embedRasters)
+}
