@@ -73,6 +73,17 @@ class ConnectionRoleTest {
      *
      * Agora o universo e "toda tabela base de `public`". Tabela nova nasce coberta, e quem quiser
      * excluir alguma precisa dizer isso em voz alta aqui.
+     *
+     * **Visto falhar**, com uma migration temporaria criando `tabela_nova_sem_rls` sem RLS — que e
+     * exatamente o cenario da fatia 2 em diante:
+     *
+     * ```
+     * expected: <[]> but was: <[tabela_nova_sem_rls sem RLS habilitada,
+     *                          tabela_nova_sem_rls sem RLS forcada]>
+     * ```
+     *
+     * E a consulta da versao anterior, rodada contra o mesmo banco, devolveu **5** — a contagem que
+     * ela esperava. A guarda antiga teria passado com uma tabela de dominio sem RLS no schema.
      */
     @Test
     fun `toda tabela de public tem RLS habilitada e forcada`() {
