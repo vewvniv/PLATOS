@@ -1,5 +1,6 @@
 import com.platos.build.EmbedFixturesTask
 import com.platos.build.EmbedFontTask
+import com.platos.build.EmbedRastersTask
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -24,9 +25,25 @@ val embedFixtures = tasks.register<EmbedFixturesTask>("embedFixtures") {
     files.from(
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.json"),
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.layout.json"),
+        rootProject.layout.projectDirectory.file("fixtures/formulas.manifest.json"),
     )
     packageName.set("com.platos.domain.fixtures")
     outputDir.set(layout.buildDirectory.dir("generated/fixtures"))
+}
+
+// D-1.5.5: os dois renderizadores precisam desenhar os mesmos bytes de raster. Embutir aqui e o
+// que permite a um teste comum afirmar, nos tres alvos, que os bytes sao os do manifesto — sem
+// isso a igualdade viria de cada lado resolver a referencia por conta propria.
+val embedRasters = tasks.register<EmbedRastersTask>("embedRasters") {
+    group = "build"
+    description = "Embute os rasters de formula da fixture para os testes"
+    files.from(
+        rootProject.layout.projectDirectory.dir("fixtures/formulas").asFileTree.matching {
+            include("*.png")
+        },
+    )
+    packageName.set("com.platos.domain.fixtures")
+    outputDir.set(layout.buildDirectory.dir("generated/rasters"))
 }
 
 // D-1.1: um modulo KMP so, com praticamente tudo em commonMain. Se o calculo do LayoutMap
@@ -40,6 +57,11 @@ kotlin {
         namespace = "com.platos.domain"
         compileSdk = 35
         minSdk = 26
+        // Sem isto o alvo Android nao executa `commonTest`: o plugin `android.kmp.library` nao
+        // cria o teste de host por padrao, e o build avisava mas seguia verde. A garantia que a
+        // fatia 1 comprou — a mesma medicao afirmada em tres runtimes — vinha valendo em dois
+        // desde a subida para AGP 9.
+        withHostTest {}
         compilations.configureEach {
             compileTaskProvider.configure {
                 compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
@@ -61,6 +83,7 @@ kotlin {
         }
         commonTest {
             kotlin.srcDir(embedFixtures.flatMap { it.outputDir })
+            kotlin.srcDir(embedRasters.flatMap { it.outputDir })
             dependencies {
                 implementation(kotlin("test"))
             }

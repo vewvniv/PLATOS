@@ -124,6 +124,9 @@ export class RendererVersionError extends Error {}
 
 export class UnknownPrimitiveError extends Error {}
 
+/** O mapa referencia um recurso cujos bytes nao foram fornecidos. */
+export class MissingResourceError extends Error {}
+
 /**
  * Recusa desenhar um mapa que exige renderizador mais novo (D24).
  *
