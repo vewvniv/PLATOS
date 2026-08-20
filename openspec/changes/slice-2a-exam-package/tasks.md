@@ -329,8 +329,16 @@ a próxima verificação decorativa.
 
   `docs/cobertura-fatia-2a.md`: os 13 cenários de `exam-package`, todos cobertos, e a tabela dos seis defeitos deliberados com a mensagem que cada um produziu.
 
-- [ ] 6.6 Imprimir a folha derivada do pacote e conferir a olho. Resultado: registrado.
+- [x] 6.6 Imprimir a folha derivada do pacote e conferir a olho. Resultado: registrado.
   - **Duas fatias seguidas, dois defeitos de espaçamento que só o papel achou** — e o segundo explicou uma divergência de métrica que eu tratava como problema de ferramenta. Enquanto o Layout Engine estiver mudando, esta tarefa não é formalidade.
+
+  Conferido pelo mantenedor em 2026-08-20, sobre a folha impressa a partir de
+  `build/parity/web.pdf` — o documento derivado do pacote `61c96f4c…`. **Nenhum defeito apontado.**
+
+  É a primeira das três fatias em que o papel não achou nada, e o motivo mais provável é que esta
+  não mexeu em geometria: o campo de perfil entrou no cabeçalho e a origem do mapa mudou, mas
+  nenhuma medida de espaçamento foi tocada — o que a paridade e a fidelidade já diziam, com os
+  mesmos números da base. O papel confirma que elas estavam falando da folha certa.
 
 ## 7. Registro
 
