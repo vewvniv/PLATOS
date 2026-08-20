@@ -161,7 +161,16 @@ class TextMeasurer(private val font: FontProgram) {
         // Trecho de texto em construcao: o texto acumulado e onde ele comeca na linha.
         var runText = StringBuilder()
         var runStart = Um.ZERO
+        // Espaco da fronteira entre texto e caixa: o espaco da palavra MAIS um espaco fino.
+        //
+        // A soma nao e enfeite. Entre duas letras, o branco que se ve e o avanco do espaco mais as
+        // laterais dos dois glifos vizinhos. Entre uma letra e a caixa da formula uma dessas
+        // laterais nao existe — o raster comeca praticamente na borda declarada —, e o mesmo avanco
+        // produz menos branco. O espaco fino de 1/6 do corpo e a unidade que a composicao
+        // tradicional usa para exatamente esse ajuste, e sai do corpo, entao acompanha o perfil.
         val espaco = width(" ", style)
+        val espacoFino = style.size.divFloor(6)
+        val fronteira = espaco + espacoFino
 
         fun fecharTrecho() {
             if (runText.isNotEmpty()) {
@@ -208,7 +217,7 @@ class TextMeasurer(private val font: FontProgram) {
                         val words = paragraph.split(' ').filter { it.isNotEmpty() }
 
                         if (comecaComEspaco && runs.isNotEmpty() && runText.isEmpty()) {
-                            cursor += espaco
+                            cursor += fronteira
                             runStart = cursor
                         }
 
@@ -231,7 +240,7 @@ class TextMeasurer(private val font: FontProgram) {
 
                         if (terminaComEspaco && words.isNotEmpty()) {
                             fecharTrecho()
-                            cursor += espaco
+                            cursor += fronteira
                             runStart = cursor
                         }
                     }

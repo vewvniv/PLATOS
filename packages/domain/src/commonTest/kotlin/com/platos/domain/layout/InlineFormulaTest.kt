@@ -99,7 +99,9 @@ class InlineFormulaTest {
         //
         // Nenhum teste pegava isso porque todos mediam largura, altura e quebra, e o espaco de
         // fronteira nao muda nenhuma das tres o bastante para reprovar. Este afirma a posicao.
-        val espaco = measurer.width(" ", style)
+        // A fronteira e o espaco da palavra mais um espaco fino de 1/6 do corpo: entre letra e
+        // caixa falta a lateral de um dos lados, e o mesmo avanco produz menos branco.
+        val fronteira = measurer.width(" ", style) + style.size.divFloor(6)
         val medido = measurer.measure(
             listOf(TextPiece.Words("Quanto vale "), caixa(), TextPiece.Words(" ao todo?")),
             style,
@@ -114,12 +116,12 @@ class InlineFormulaTest {
         assertEquals("Quanto vale", antes.text, "o espaco nao pode ficar dentro do texto desenhado")
         assertEquals("ao todo?", depois.text)
         assertEquals(
-            antes.x + antes.width + espaco,
+            antes.x + antes.width + fronteira,
             box.x,
             "falta o espaco entre o texto e a formula",
         )
         assertEquals(
-            box.x + box.width + espaco,
+            box.x + box.width + fronteira,
             depois.x,
             "falta o espaco entre a formula e o texto seguinte",
         )
