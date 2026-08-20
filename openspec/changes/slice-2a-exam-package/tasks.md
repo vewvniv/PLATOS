@@ -177,12 +177,43 @@ a próxima verificação decorativa.
 
 ## 3. Persistência
 
-- [ ] 3.1 Migration com `exam`, `exam_package` e `exam_roster`, chaveadas por `organization_id`, com RLS habilitada e forçada. Resultado: as três nascem cobertas pela guarda derivada do catálogo.
-  - Confirmar que a guarda **reprova** se uma delas nascer sem RLS: acrescentar sem a política, ver vermelho, corrigir.
-- [ ] 3.2 Impor a imutabilidade de `exam_package` no próprio banco (D-2a.3). Resultado: cobre "Pacote publicado não pode ser alterado".
-  - O teste tenta `UPDATE` e `DELETE` de verdade, contra Postgres real e como `app_backend`, no molde de `TenancyIsolationTest`. Uma guarda de imutabilidade que ninguém exercita é decorativa.
-- [ ] 3.3 Testar isolamento por organização das três tabelas novas, sem filtro na aplicação. Resultado: consulta de organização alheia devolve zero linhas.
-- [ ] 3.4 Testar que apagar o roster deixa o pacote íntegro e com o mesmo hash. Resultado: cobre "Eliminação de dado pessoal não destrói a prova" — a operacionalização de I5.
+- [x] 3.1 Migration com `exam`, `exam_package` e `exam_roster`, chaveadas por `organization_id`, com RLS habilitada e forçada. Resultado: as três nascem cobertas pela guarda derivada do catálogo.
+
+  `0007_exam_tables.sql`. Três decisões que a migration congela:
+
+  - **`content` é `text`, e não `jsonb`.** `jsonb` reordena chaves e descarta espaçamento; o hash é sobre a serialização canônica (D-2a.4). Guardado como `jsonb`, o pacote voltaria com outros bytes e o dispositivo da fatia 4 recalcularia um hash diferente do declarado — falha que aparece longe daqui, no único lugar onde o pacote é verificado. A sintaxe continua validada, por `check (content::json is not null)`, que valida sem normalizar o que fica gravado.
+  - **Um pacote por prova** (`unique (exam_id)`). O QR identifica a prova por `short_id` e nada mais (§8): com dois pacotes, a captura da fatia 3 não teria como saber de qual geometria saiu a folha em cima da mesa. Corrigir prova publicada é publicar prova nova, com `short_id` próprio — que é o que a folha já distribuída diz que ela é.
+  - **Chave estrangeira composta** `(exam_id, organization_id) → exam (id, organization_id)`. Sem ela, um membro de A poderia gravar roster com o **seu** `organization_id` apontando prova de B: a política de RLS aprovaria, porque o `organization_id` da linha está correto.
+
+  **Visto falhar.** Comentando `enable row level security` de `exam_package`, a guarda do catálogo em `ConnectionRoleTest` ficou vermelha:
+
+  ```
+  tabela de dominio sem RLS forcada ==> expected: <[]> but was: <[exam_package sem RLS habilitada]>
+  ```
+
+- [x] 3.2 Impor a imutabilidade de `exam_package` no próprio banco (D-2a.3). Resultado: cobre "Pacote publicado não pode ser alterado".
+
+  Duas camadas, porque cobrem chamadores diferentes: `revoke update, delete, truncate` barra `app_backend`, e um gatilho `before update or delete` barra **também o dono da tabela e o superusuário**, que o `REVOKE` não alcança. Se a imutabilidade fosse só o privilégio, ela valeria até a primeira migration, job de manutenção ou script de suporte — que é exatamente quando um pacote já distribuído seria alterado.
+
+  `ExamPackageImmutabilityTest` tenta as quatro operações de verdade, contra Postgres real: `UPDATE` e `DELETE` como `app_backend` (recusa `42501`), e os mesmos como superusuário (recusa `PT001`, do gatilho). Mais o caminho que ninguém escreve: apagar a **prova** é recusado com `23503` enquanto houver pacote, porque `on delete cascade` faria o pacote sumir sem uma linha de código mencionar `exam_package`.
+
+- [x] 3.3 Testar isolamento por organização das três tabelas novas, sem filtro na aplicação. Resultado: consulta de organização alheia devolve zero linhas.
+
+  `ExamTenancyIsolationTest`, no molde do de identidade: nenhuma consulta leva `where` de organização. **A guarda do catálogo e este teste não se substituem** — aquela afirma que a RLS existe e está forçada, este que ela está *certa*; uma política escrita com o `organization_id` da tabela errada satisfaria a primeira e vazaria prova alheia.
+
+- [x] 3.4 Testar que apagar o roster deixa o pacote íntegro e com o mesmo hash. Resultado: cobre "Eliminação de dado pessoal não destrói a prova" — a operacionalização de I5.
+
+  Apagados os dois alunos, o pacote continua lá, com o conteúdo byte a byte igual, sem o nome de ninguém dentro. O hash é **recalculado** do conteúdo gravado com o `MessageDigest` da JVM — oracle independente do `Sha256` do domínio — e comparado com a coluna: ler a coluna de volta e compará-la consigo mesma passaria mesmo com o conteúdo alterado.
+
+  **Visto falhar, e a primeira tentativa não valia.** Trocar a coluna para `jsonb` derruba os sete testes com erro de tipo no `INSERT` — barulho, e não o defeito que a coluna existe para evitar. A versão silenciosa é um gatilho que normaliza via `jsonb` mantendo a coluna `text`: nada quebra ao gravar, só os bytes mudam. Aí exatamente os três testes que comparam conteúdo ficaram vermelhos, e os quatro de imutabilidade seguiram verdes:
+
+  ```
+  a serializacao canonica nao sobreviveu ao armazenamento
+  ==> expected: <{"meta":{"exam_id":"prova-x"},...}>
+       but was: <{"meta": {"exam_id": "prova-x"}, ...}>
+  ```
+
+  `apps/api`: **83 testes, zero falhas** — eram 69.
 
 ## 4. Publicação
 
