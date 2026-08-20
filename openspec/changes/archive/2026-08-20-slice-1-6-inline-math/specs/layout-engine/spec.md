@@ -10,6 +10,10 @@ A fórmula SHALL ser posicionada de modo que o deslocamento declarado a alinhe �
 
 Uma fórmula em linha cuja altura exceda o teto declarado para a linha SHALL ser recusada com erro identificável que aponte a forma em bloco como alternativa, e nenhum layout SHALL ser emitido.
 
+O espaço que o enunciado declara entre o texto e a fórmula SHALL ser preservado no layout. Onde o enunciado não declara espaço, a fórmula SHALL ficar encostada no texto vizinho.
+
+Esse espaço SHALL ser maior que o espaço entre duas palavras comuns. O branco que se vê entre duas letras é o avanço do espaço somado às laterais dos dois glifos; entre uma letra e a caixa da fórmula uma dessas laterais não existe, e o mesmo avanço produziria menos branco.
+
 #### Scenario: Fórmula em linha ocupa espaço no meio do texto
 
 - **WHEN** um enunciado referencia uma fórmula no meio de um parágrafo
@@ -29,6 +33,16 @@ Uma fórmula em linha cuja altura exceda o teto declarado para a linha SHALL ser
 
 - **WHEN** um enunciado declara em linha uma fórmula mais alta que o teto de linha
 - **THEN** o cálculo falha com erro identificável indicando a forma em bloco, e nenhum `LayoutMap` é produzido
+
+#### Scenario: Espaço do enunciado é preservado em volta da fórmula
+
+- **WHEN** o enunciado declara espaço entre o texto e a fórmula em linha
+- **THEN** a fórmula é posicionada depois desse espaço, e o texto seguinte depois de outro, sem que texto e fórmula se toquem
+
+#### Scenario: Sem espaço no enunciado a fórmula fica encostada
+
+- **WHEN** o enunciado não declara espaço entre o texto e a fórmula — pontuação logo após, por exemplo
+- **THEN** nenhum espaço é acrescentado, e a fórmula fica encostada no texto vizinho
 
 #### Scenario: Layout não depende do conteúdo matemático em linha
 

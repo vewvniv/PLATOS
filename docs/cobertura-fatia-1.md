@@ -72,7 +72,7 @@ Todos em `BlockFormulaTest`, `commonTest`, nos três alvos.
 > ser substituída por medição.
 
 
-## `layout-engine` — fatia 1.6, 17 cenários, 17 cobertos
+## `layout-engine` — fatia 1.6, 19 cenários, 19 cobertos
 
 Matemática **em linha** — o caso predominante das exatas, e o que a fatia 1.5 deliberadamente não
 validou: das 28 questões originais da fixture, 7 tinham matemática e todas as sete eram em linha.
@@ -86,6 +86,8 @@ validou: das 28 questões originais da fixture, 7 tinham matemática e todas as 
 | Alinhamento à linha de base | `o deslocamento declarado decide o quanto a caixa desce` |
 | Fórmula em linha alta demais | `formula em linha acima do teto impede a emissao do mapa`, com `formula com exatamente a altura do teto e aceita` fixando a borda |
 | Layout não depende do conteúdo matemático em linha | `formulas de referencias diferentes e dimensoes iguais dao a mesma geometria` |
+| Espaço do enunciado é preservado em volta da fórmula | `o espaco antes e depois da caixa sobrevive` — afirma **posição**: o x da caixa é o fim do texto anterior mais a fronteira |
+| Sem espaço no enunciado a fórmula fica encostada | `sem espaco no enunciado a caixa encosta no texto` — o par que impede o conserto de virar "sempre põe espaço" |
 
 ### A altura de uma linha acompanha o conteúdo dela
 
