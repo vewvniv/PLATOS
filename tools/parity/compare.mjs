@@ -53,105 +53,13 @@ function rasterize(path) {
 }
 
 /**
- * Folga da janela ate a tinta vizinha, em pixels, medida no documento de referencia.
- *
- * Precisa ser medida **uma vez** e aplicada aos dois documentos: janelas diferentes nos dois
- * lados compararia coisas diferentes, e a paridade deixaria de significar o que diz.
- *
- * O teto e o mesmo 1 mm de sempre. O que muda e o piso do vizinho: formula em bloco nao tem
- * ninguem a 1 mm e fica com o teto; formula em **linha** tem a palavra ao lado na mesma linha
- * de base, e ai a folga encolhe ate metade da distancia ate a tinta dela. Sem isso, o centroide
- * passa a ser dominado pela massa de tinta do vizinho e a medicao deixa de falar da formula.
- */
-function slackFor(page, centerXpx, centerYpx, halfWidthPx, halfHeightPx, tetoPx) {
-  const dark = (x, y) => 255 - page.pixels[y * page.width + x] > 8;
-  const bx0 = Math.round(centerXpx - halfWidthPx);
-  const bx1 = Math.round(centerXpx + halfWidthPx);
-  const by0 = Math.round(centerYpx - halfHeightPx);
-  const by1 = Math.round(centerYpx + halfHeightPx);
-  const BLEED = 2; // antialiasing da propria caixa transborda cerca de um pixel
-
-  const colunaTemTinta = (x) => {
-    for (let y = Math.max(0, by0); y <= Math.min(page.height - 1, by1); y += 1) if (dark(x, y)) return true;
-    return false;
-  };
-  const linhaTemTinta = (y) => {
-    for (let x = Math.max(0, bx0); x <= Math.min(page.width - 1, bx1); x += 1) if (dark(x, y)) return true;
-    return false;
-  };
-  const varrer = (inicio, passo, limite, temTinta) => {
-    for (let d = BLEED; d <= tetoPx; d += 1) {
-      const at = inicio + passo * d;
-      if (at < 0 || at > limite) return tetoPx;
-      if (temTinta(at)) return Math.max(0, Math.floor(d / 2));
-    }
-    return tetoPx;
-  };
-
-  // Folga POR LADO, como `fidelidade.mjs` sempre fez. O minimo dos quatro parecia mais seguro e
-  // nao e: ele encolhe os lados folgados junto com o apertado, e a caixa de tinta acaba recortada
-  // onde nao precisava.
-  return {
-    left: varrer(bx0, -1, page.width - 1, colunaTemTinta),
-    right: varrer(bx1, +1, page.width - 1, colunaTemTinta),
-    top: varrer(by0, -1, page.height - 1, linhaTemTinta),
-    bottom: varrer(by1, +1, page.height - 1, linhaTemTinta),
-  };
-}
-
-/** Caixa de tinta dentro da janela. */
-function inkBoxIn(page, centerXpx, centerYpx, halfWidthPx, halfHeightPx, folga = null) {
-  const f = folga ?? { left: 0, right: 0, top: 0, bottom: 0 };
-  const wx0 = Math.max(0, Math.floor(centerXpx - halfWidthPx - f.left));
-  const wx1 = Math.min(page.width - 1, Math.ceil(centerXpx + halfWidthPx + f.right));
-  const wy0 = Math.max(0, Math.floor(centerYpx - halfHeightPx - f.top));
-  const wy1 = Math.min(page.height - 1, Math.ceil(centerYpx + halfHeightPx + f.bottom));
-  const LIMIAR = 8;
-  let x0 = Infinity, x1 = -1, y0 = Infinity, y1 = -1;
-  for (let y = wy0; y <= wy1; y += 1) {
-    for (let x = wx0; x <= wx1; x += 1) {
-      if (255 - page.pixels[y * page.width + x] <= LIMIAR) continue;
-      if (x < x0) x0 = x;
-      if (x > x1) x1 = x;
-      if (y < y0) y0 = y;
-      if (y > y1) y1 = y;
-    }
-  }
-  return x1 < 0 ? null : { x0, x1, y0, y1 };
-}
-
-/**
- * Centro da caixa de tinta da formula.
- *
- * **Tres instrumentos foram medidos, nos dois sentidos que importam**, e este e o unico que passa
- * nos dois. Numeros do web contra o Android reais, e do deslocamento deliberado de 0,5 mm:
- *
- *   instrumento                          documentos corretos    deslocado 0,5 mm
- *   canto (min x, min y)                 0,425 mm  FALHA        0,508 mm  acusa
- *   borda esquerda + centro vertical     0,425 mm  FALHA        0,508 mm  acusa
- *   centro da caixa de tinta             0,216 mm  passa        0,381 mm  acusa
- *
- * As duas primeiras dependem de um extremo — um unico pixel decide onde a tinta comeca — e os dois
- * renderizadores discordam nele. O centro da caixa usa as duas bordas, entao um extremo instavel
- * entra pela metade. O centroide, que seria ainda mais estavel, nao serve: ele e media ponderada e
- * a massa de tinta da palavra vizinha o domina, ver .
- *
- * **A margem e fina de proposito registrada:** ruido de 0,216 contra sinal de 0,381, com tolerancia
- * de 0,3 no meio. E o suficiente para esta fixture e nao e conforto. Se um dia apertar, o caminho
- * nao e mexer no limiar — foi medido a 8, 32, 64 e 128 e nao muda nada — nem na forma da janela,
- * que tambem foi medida por lado e no minimo dos quatro, com o mesmo resultado.
- */
-function inkCenterIn(page, cx, cy, hw, hh, folga) {
-  const b = inkBoxIn(page, cx, cy, hw, hh, folga);
-  return b ? { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2 } : null;
-}/**
  * Centroide dos pixels escuros em uma janela ao redor da posicao esperada.
  *
  * A janela vem do proprio `LayoutMap`, entao os dois lados sao medidos exatamente da mesma forma.
  * Um elemento deslocado alem da janela nao produz centroide — e isso conta como falha, que e o
  * comportamento certo.
  */
-function centroidIn(page, centerXpx, centerYpx, halfWidthPx, halfHeightPx = halfWidthPx, _folga) {
+function centroidIn(page, centerXpx, centerYpx, halfWidthPx, halfHeightPx = halfWidthPx) {
   const x0 = Math.max(0, Math.floor(centerXpx - halfWidthPx));
   const x1 = Math.min(page.width - 1, Math.ceil(centerXpx + halfWidthPx));
   const y0 = Math.max(0, Math.floor(centerYpx - halfHeightPx));
@@ -224,12 +132,11 @@ function targetsOf(map) {
           // E com folga porque a janela justa comete o erro simetrico — ela **recorta** a propria
           // formula quando esta deslocada, e o centroide volta para o meio. Medido: com folga
           // zero, um deslocamento deliberado de 0,500 mm era lido como 0,142 mm e passava na
-          // tolerancia de 0,3 mm.
-          //
-          // O teto de folga e 1 mm, mas ele **nao** vale para toda formula: a de bloco tem 3 mm
-          // de respiro ate o texto, a em linha tem a palavra vizinha a fracao de milimetro na
-          // mesma linha de base. A folga efetiva e decidida em `slackFor`, contra a tinta.
-          boxUm: { width: primitive.width, height: primitive.height },
+          // tolerancia de 0,3 mm; com 1 mm de folga le 0,466 mm e falha, como tem de ser. O peso
+          // de tinta na janela e o que denuncia — 1 195 519 contra 1 226 245 do lado nao
+          // deslocado. A folga fica em 1 mm porque o respiro ate o texto vizinho e 3 mm.
+          halfWindowUm: Math.round(primitive.width / 2) + WINDOW_SLACK_UM,
+          halfHeightUm: Math.round(primitive.height / 2) + WINDOW_SLACK_UM,
         });
       }
     }
@@ -273,25 +180,11 @@ function compare(webPath, androidPath, mapPath) {
 
     const cx = umToPx(target.centerUm.x);
     const cy = umToPx(target.centerUm.y);
-    let half;
-    let halfY;
-    let folgaLados = null;
-    if (target.boxUm) {
-      // A folga sai do documento de referencia e vale para os dois lados.
-      const baseX = umToPx(Math.round(target.boxUm.width / 2));
-      const baseY = umToPx(Math.round(target.boxUm.height / 2));
-      folgaLados = slackFor(webPage, cx, cy, baseX, baseY, umToPx(WINDOW_SLACK_UM));
-      half = baseX;
-      halfY = baseY;
-    } else {
-      half = umToPx(target.halfWindowUm);
-      halfY = umToPx(target.halfHeightUm ?? target.halfWindowUm);
-    }
+    const half = umToPx(target.halfWindowUm);
+    const halfY = umToPx(target.halfHeightUm ?? target.halfWindowUm);
 
-    // Formula usa borda de tinta; o resto usa centroide. Ver `inkCornerIn`.
-    const medir = target.boxUm ? inkCenterIn : centroidIn;
-    const a = medir(webPage, cx, cy, half, halfY, folgaLados);
-    const b = medir(androidPage, cx, cy, half, halfY, folgaLados);
+    const a = centroidIn(webPage, cx, cy, half, halfY);
+    const b = centroidIn(androidPage, cx, cy, half, halfY);
     if (!a || !b) {
       missing.push(`${target.id} (${!a ? 'web' : 'android'} sem tinta na janela)`);
       continue;

@@ -191,25 +191,26 @@
   A folga passou a ser **metade da distancia ate a tinta mais proxima**, limitada ao mesmo teto de 1 mm. Em bloco nada muda, porque nao ha vizinho a 1 mm; em linha ela encolhe ate o necessario. Os primeiros dois pixels sao ignorados de proposito — o antialiasing da propria caixa transborda cerca de um pixel, e conta-lo como vizinho zeraria a folga.
 
   Resultado: **116 verificacoes, maior desvio 0,039 mm**, o mesmo patamar de sempre, e o pior elemento voltou a ser um marcador em vez de uma formula.
-- [x] 6.3 Medir paridade web × Android com fórmula em linha na folha. Resultado: dentro de 0,3 mm, com o emulador ou no CI.
+- [x] 6.3 Medir paridade web × Android com fórmula em linha na folha. Resultado: **185 de 185 elementos, 4 páginas, maior divergência 0,078 mm** contra tolerância de 0,3.
 
-  **185 de 185 elementos, 4 páginas, maior divergência 0,216 mm** contra tolerância de 0,3. PDF do Android gerado pelo `PdfDocument` real no emulador `platos-atd34`; 4 instrumentados, zero falhas.
+  PDF do Android gerado pelo `PdfDocument` real no emulador `platos-atd34`; 4 instrumentados, zero falhas.
 
-  A primeira execução reprovou cinco fórmulas em linha, até 0,495 mm — e reprovou o **instrumento**. Três foram medidos, nos dois sentidos que importam:
+  **Esta tarefa me levou a uma investigação inteira que era sintoma, e o registro precisa dizer isso.** A primeira execução reprovou cinco fórmulas em linha, até 0,495 mm. Concluí que o instrumento estava errado, medi três alternativas, troquei o centroide por caixa de tinta e registrei uma "contradição não explicada" — a fidelidade aprovava os dois documentos a menos de 0,04 mm do mesmo mapa, o que limitaria a diferença entre eles a 0,08 mm, não 0,216.
+
+  A contradição era real e a explicação apareceu depois, na folha impressa: **faltava o espaço entre o texto e a fórmula**. Com texto colado na caixa, qualquer janela de medição contém tinta do vizinho, e os dois renderizadores discordam nela. Corrigido o espaço, medi de novo:
 
   | instrumento | documentos corretos | deslocado 0,5 mm |
   |---|---|---|
-  | canto (`min x`, `min y`) | 0,425 mm — **falha** | 0,508 mm — acusa |
-  | borda esquerda + centro vertical | 0,425 mm — **falha** | 0,508 mm — acusa |
-  | **centro da caixa de tinta** | **0,216 mm — passa** | **0,381 mm — acusa** |
+  | canto (`min x`, `min y`) | 0,042 mm | 0,508 mm |
+  | borda esquerda + centro vertical | 0,042 mm | 0,508 mm |
+  | centro da caixa de tinta | 0,042 mm | 0,508 mm |
+  | **`compare.mjs` original, intocado** | **0,078 mm** | **0,496 mm** |
 
-  As duas primeiras dependem de um **extremo**: um único pixel decide onde a tinta começa, e os dois renderizadores discordam nele. O centro da caixa usa as duas bordas, então um extremo instável entra pela metade. O centroide — mais estável ainda contra ruído de pixel — não serve por outro motivo: é média ponderada, e a massa de tinta da palavra vizinha o domina.
+  Os três instrumentos passaram a dar o **mesmo número**, e o comparador original — sem uma linha minha — resolve os dois critérios com folga de 6,4×. **A mudança inteira em `compare.mjs` foi revertida**: 117 linhas a menos. Ela existia para compensar um defeito, e o defeito foi corrigido na origem.
 
-  Duas hipóteses foram testadas e **descartadas** antes da escolha: o limiar de tinta, medido a 8, 32, 64 e 128, não muda o número; e a forma da janela, medida com folga por lado e com o mínimo dos quatro lados, também não.
+  O que **não** foi revertido, porque continua necessário: a janela adaptativa de `fidelidade.mjs`. Testada com o espaço já corrigido, a versão original ainda falha com 2,773 mm — ela mede a caixa de tinta contra a caixa declarada, e 1 mm de folga fixa alcança o vizinho mesmo com o espaço presente.
 
-  **A margem é fina e fica registrada como tal**: ruído de 0,216 contra sinal de 0,381, com a tolerância de 0,3 no meio. Serve para esta fixture; não é conforto.
-
-  E fica uma contradição **não explicada**: a fidelidade mede cada documento contra o `LayoutMap` e aprova os dois a menos de 0,04 mm, o que limitaria a diferença entre eles a 0,08 mm — não 0,216. A pista mais concreta é que a fidelidade calcula a janela **por documento**, e o comparador usa a do web nos dois, por exigência de medir a mesma região. Quem retomar começa por aí.
+  A lição fica registrada porque custou caro: **três camadas de investigação sobre um número que era consequência, não causa.** O sinal que eu tinha e não soube ler era a própria contradição — quando duas medições independentes dizem coisas incompatíveis, a hipótese certa costuma ser um defeito comum às duas, e não uma delas estar errada.
 - [x] 6.4 Provar que a verificação continua capaz de falhar: deslocar de propósito uma fórmula **em linha** e confirmar que paridade e fidelidade acusam, com elemento e distância. Resultado: as duas saem com código 1; reverter em seguida.
 
   `render-shifted.ts` passou a deslocar uma fórmula de **cada** forma, e não a primeira que encontrar. A de linha é o caso apertado — tem a palavra vizinha a fração de milímetro —, então deslocar só a de bloco deixaria justamente o caso crítico sem verificação.

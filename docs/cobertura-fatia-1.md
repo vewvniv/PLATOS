@@ -133,37 +133,35 @@ ficar vermelho, e com que mudança:
 | Grade cobrada ao paginar | perfil com grade de 5 mm recusa o que a de 3 mm aceitava, e vice-versa — sem isso a guarda poderia estar afirmando 3 mm fixos |
 | Fidelidade e paridade | deslocamento deliberado de 0,5 mm numa fórmula **em linha** e numa **em bloco**: as duas ferramentas acusam as duas |
 
-### As duas ferramentas de medição foram consertadas nesta fatia, e é o achado que mais custou
+### A medição de fórmula em linha, e a investigação que era sintoma
 
-Fórmula em linha tem a palavra vizinha a fração de milímetro na mesma linha de base. Nenhuma das
-duas ferramentas media isso corretamente, e as duas falhavam **em direções opostas**:
+Fórmula em linha tem a palavra vizinha a fração de milímetro na mesma linha de base, e as duas
+ferramentas reprovaram na primeira execução. Uma delas estava mesmo errada; a outra reprovava
+porque **a folha estava errada**, e essa diferença levou três camadas de investigação para
+aparecer.
 
-- **Fidelidade** usava folga fixa de 1 mm nos quatro lados. Em bloco nunca alcança nada — há
-  2,8 mm de branco acima e 7,8 mm abaixo. Em linha, entrava dentro da palavra vizinha: 21 de 116
-  verificações falhavam, com "largura da tinta observada **maior** que a declarada" — tinta a
-  mais, e não tinta deslocada. A folga passou a ser metade da distância até a tinta mais próxima,
-  limitada ao mesmo teto de 1 mm.
-- **Paridade** media centroide, que é média ponderada: a massa de tinta do vizinho o dominava, e
-  dois documentos corretos apareciam divergindo 0,495 mm. Encolher a janela resolvia a diluição e
-  criava recorte — a fórmula deslocada saía da janela e deixava de ser acusada. A saída foi trocar
-  o instrumento, e a escolha foi medida entre três, nos dois sentidos.
+**`fidelidade.mjs` estava errada, e continua corrigida.** Ela usava folga fixa de 1 mm nos quatro
+lados — segura em bloco, onde há 2,8 mm de branco acima e 7,8 mm abaixo; insuficiente em linha. A
+folga passou a ser metade da distância até a tinta mais próxima. Verificado com o defeito da folha
+já corrigido: a versão original **ainda** falha, com 2,773 mm.
 
-| instrumento da paridade | documentos corretos | deslocado 0,5 mm |
+**`compare.mjs` não estava errada.** Ela acusava 0,495 mm entre dois documentos corretos porque
+faltava o espaço entre o texto e a fórmula — e com texto colado na caixa, qualquer janela contém
+tinta do vizinho, na qual os dois renderizadores discordam. Corrigido o espaço, o comparador
+**original, sem uma linha de mudança**, mede 0,078 mm em documentos corretos e 0,496 mm no
+deslocamento deliberado. As 117 linhas que eu tinha acrescentado foram revertidas.
+
+| | ruído (documentos corretos) | sinal (deslocado 0,5 mm) |
 |---|---|---|
-| canto (`min x`, `min y`) | 0,425 mm — falha | 0,508 mm — acusa |
-| borda esquerda + centro vertical | 0,425 mm — falha | 0,508 mm — acusa |
-| **centro da caixa de tinta** | **0,216 mm — passa** | **0,381 mm — acusa** |
+| antes do conserto do espaço | 0,495 mm — falha | — |
+| depois, com instrumento trocado | 0,042 mm | 0,508 mm |
+| depois, com o comparador **original** | **0,078 mm** | **0,496 mm** |
 
-As duas primeiras dependem de um **extremo**, e um único pixel decide onde a tinta começa. O
-centro usa as duas bordas, então um extremo instável entra pela metade.
-
-> **Duas coisas continuam em aberto, e ficam ditas.** A margem da paridade é fina — ruído de
-> 0,216 contra sinal de 0,381, com a tolerância de 0,3 no meio. E há uma contradição não
-> explicada: a fidelidade aprova os dois documentos a menos de 0,04 mm do mesmo mapa, o que
-> limitaria a diferença entre eles a 0,08 mm, não 0,216. A pista é que a fidelidade calcula a
-> janela por documento e o comparador usa a do web nos dois. Limiar de tinta (8, 32, 64, 128) e
-> forma da janela (por lado, e mínimo dos quatro) foram testados e **não** explicam.
-
+> **A lição, porque custou caro.** Eu tinha registrado uma "contradição não explicada": a
+> fidelidade aprovava os dois documentos a menos de 0,04 mm do mesmo mapa, o que limitaria a
+> diferença entre eles a 0,08 mm — e a paridade dizia 0,216. Duas medições independentes dizendo
+> coisas incompatíveis quase sempre apontam um **defeito comum às duas**, e não uma delas estar
+> quebrada. A contradição era o sinal certo; eu li como ruído e fui consertar o instrumento.
 ## `print` — fatia 1.5, 4 cenários, 4 cobertos
 
 | Cenário | Verificação |
@@ -211,7 +209,7 @@ renderizadores divergirem e quebrarem o OMR em silêncio (§16):
 | | fatia 1 | fatia 1.5 | após D-1.5.9 |
 |---|---|---|---|
 | Elementos comparados | 116 (4 marcadores + 112 bolhas), 3 páginas | 176 (4 marcadores + 160 bolhas + 12 fórmulas), 4 páginas | **185** (mais 9 fórmulas em linha), 4 páginas |
-| Maior divergência | **0,041 mm** | **0,042 mm**, em `qq31-f` | **0,216 mm**, em `qq03-si0-1` — uma fórmula em linha |
+| Maior divergência | **0,041 mm** | **0,042 mm**, em `qq31-f` | **0,078 mm**, em `qq26-si0-3` — uma fórmula em linha |
 | Tolerância | 0,3 mm | 0,3 mm | 0,3 mm |
 
 Os 0,042 mm equivalem a cerca de um pixel a 600 dpi: é o piso da própria rasterização, não
