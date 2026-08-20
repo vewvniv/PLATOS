@@ -191,7 +191,7 @@
   A folga passou a ser **metade da distancia ate a tinta mais proxima**, limitada ao mesmo teto de 1 mm. Em bloco nada muda, porque nao ha vizinho a 1 mm; em linha ela encolhe ate o necessario. Os primeiros dois pixels sao ignorados de proposito — o antialiasing da propria caixa transborda cerca de um pixel, e conta-lo como vizinho zeraria a folga.
 
   Resultado: **116 verificacoes, maior desvio 0,039 mm**, o mesmo patamar de sempre, e o pior elemento voltou a ser um marcador em vez de uma formula.
-- [x] 6.3 Medir paridade web × Android com fórmula em linha na folha. Resultado: **185 de 185 elementos, 4 páginas, maior divergência 0,078 mm** contra tolerância de 0,3.
+- [x] 6.3 Medir paridade web × Android com fórmula em linha na folha. Resultado: **185 de 185 elementos, 4 páginas, maior divergência 0,042 mm** contra tolerância de 0,3 — o piso da rasterização, e o pior elemento voltou a ser uma fórmula em **bloco** (`qq37-f`), como era antes de a fatia começar.
 
   PDF do Android gerado pelo `PdfDocument` real no emulador `platos-atd34`; 4 instrumentados, zero falhas.
 
@@ -205,6 +205,8 @@
   | borda esquerda + centro vertical | 0,042 mm | 0,508 mm |
   | centro da caixa de tinta | 0,042 mm | 0,508 mm |
   | **`compare.mjs` original, intocado** | **0,078 mm** | **0,496 mm** |
+
+  Medição final, já com o espaço fino da terceira impressão: **0,042 mm** de ruído contra **0,466 mm** de sinal, 11× de separação. Cada milímetro de branco a mais entre texto e fórmula isola melhor a caixa da tinta vizinha, e a medição melhora junto — o que fecha o círculo: o defeito da folha era também o defeito da métrica.
 
   Os três instrumentos passaram a dar o **mesmo número**, e o comparador original — sem uma linha minha — resolve os dois critérios com folga de 6,4×. **A mudança inteira em `compare.mjs` foi revertida**: 117 linhas a menos. Ela existia para compensar um defeito, e o defeito foi corrigido na origem.
 

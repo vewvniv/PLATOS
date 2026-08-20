@@ -155,7 +155,8 @@ deslocamento deliberado. As 117 linhas que eu tinha acrescentado foram revertida
 |---|---|---|
 | antes do conserto do espaço | 0,495 mm — falha | — |
 | depois, com instrumento trocado | 0,042 mm | 0,508 mm |
-| depois, com o comparador **original** | **0,078 mm** | **0,496 mm** |
+| depois, com o comparador **original** | 0,078 mm | 0,496 mm |
+| final, com o espaço fino da 3ª impressão | **0,042 mm** | **0,466 mm** |
 
 > **A lição, porque custou caro.** Eu tinha registrado uma "contradição não explicada": a
 > fidelidade aprovava os dois documentos a menos de 0,04 mm do mesmo mapa, o que limitaria a
@@ -209,7 +210,7 @@ renderizadores divergirem e quebrarem o OMR em silêncio (§16):
 | | fatia 1 | fatia 1.5 | após D-1.5.9 |
 |---|---|---|---|
 | Elementos comparados | 116 (4 marcadores + 112 bolhas), 3 páginas | 176 (4 marcadores + 160 bolhas + 12 fórmulas), 4 páginas | **185** (mais 9 fórmulas em linha), 4 páginas |
-| Maior divergência | **0,041 mm** | **0,042 mm**, em `qq31-f` | **0,078 mm**, em `qq26-si0-3` — uma fórmula em linha |
+| Maior divergência | **0,041 mm** | **0,042 mm**, em `qq31-f` | **0,042 mm**, em `qq37-f` |
 | Tolerância | 0,3 mm | 0,3 mm | 0,3 mm |
 
 Os 0,042 mm equivalem a cerca de um pixel a 600 dpi: é o piso da própria rasterização, não
