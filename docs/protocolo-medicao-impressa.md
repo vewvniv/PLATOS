@@ -195,3 +195,24 @@ defeitos que só a folha impressa achou, ambos de espaçamento.
 O teste que agora impede a volta afirma **posição**, e não medida: o `x` da caixa tem de ser o fim do
 texto anterior mais um espaço. Junto dele vai o par que impede o conserto de virar "sempre põe
 espaço" — quando o enunciado não tem espaço, como em `valor({{f}})`, a caixa continua encostada.
+
+### Resultado da fatia 1.6
+
+**Aprovada na terceira impressão.** O alinhamento à linha de base passou de primeira, incluindo os
+dois extremos de deslocamento — a raiz, que desce 7,5% da própria altura, e a fração, que desce
+34,5%. As duas reprovações foram de **espaçamento horizontal**: primeiro ausente, depois apertado.
+
+O ajuste final foi um **espaço fino de 1/6 do corpo** somado ao espaço da palavra, e a razão é
+tipográfica: entre duas letras o branco visível é o avanço do espaço mais as laterais dos dois
+glifos; entre uma letra e a caixa da fórmula uma dessas laterais não existe, e o mesmo avanço
+produz menos branco.
+
+> **Duas fatias, dois defeitos de espaçamento, os dois achados só no papel.** É o argumento mais
+> forte que este protocolo tem para continuar existindo. As três verificações automáticas medem
+> largura, altura e quebra de linha — e nenhuma delas se move o bastante quando falta 0,78 mm entre
+> um glifo e uma caixa, ou quando o branco de cima e o de baixo estão trocados. O olho de quem lê a
+> folha é o único oracle para julgamento tipográfico, e ele achou nas duas vezes.
+
+Uma consequência que vale registrar: o segundo achado **explicou** uma divergência de paridade que
+estava registrada como não explicada, e permitiu reverter 117 linhas de compensação em
+`compare.mjs`. Consertar a folha barateou a ferramenta.

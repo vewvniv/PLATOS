@@ -239,7 +239,29 @@
   A seção "como cada verificação foi vista falhar" registra seis, incluindo a que corrigiu uma expectativa **minha** sobre o alinhamento à linha de base, e a que mostra que forçar o deslocamento a zero deixa vermelho **só** o teste de tipografia — o de faixa passa, porque zero está na faixa.
 
   Também ficou registrado, com números, o conserto das duas ferramentas de medição e as duas coisas que continuam em aberto: a margem fina da paridade (ruído 0,216 contra sinal 0,381) e a contradição não explicada com a fidelidade.
-- [ ] 6.6 Imprimir a folha com matemática em linha e conferir a olho, seguindo `docs/protocolo-medicao-impressa.md`. Resultado: registrado se a fórmula em linha assenta na linha de base sem parecer deslocada, e se a linha alta não abre buraco visível no parágrafo.
+- [x] 6.6 Imprimir a folha com matemática em linha e conferir a olho, seguindo `docs/protocolo-medicao-impressa.md`. Resultado: registrado se a fórmula em linha assenta na linha de base sem parecer deslocada, e se a linha alta não abre buraco visível no parágrafo.
+  **Aprovada na terceira impressão.** Foram três, e as duas primeiras reprovaram por espaçamento horizontal:
+
+  | | resultado |
+  |---|---|
+  | 1ª | **reprovada** — texto e fórmula colados: `Quanto vale12 + 15ao todo?` |
+  | 2ª | espaço presente, ainda apertado |
+  | 3ª | **aprovada** |
+
+  O alinhamento à linha de base passou desde a primeira: a fórmula assenta na linha, sem flutuar
+  nem afundar, incluindo os dois extremos de deslocamento — `i-raiz`, que desce 7,5% da própria
+  altura, e `i-meio`, que desce 34,5%. A linha alta não abriu buraco no parágrafo, que era o risco
+  que o teto de duas entrelinhas existe para limitar.
+
+  **Pela segunda fatia seguida, o defeito que a impressão achou não era o que ela procurava.** Na
+  1.5 foi o espaçamento em volta da fórmula em bloco, invertido; aqui foi o espaço da fronteira,
+  ausente. Os dois de espaçamento, os dois invisíveis para toda verificação automática — porque as
+  três medem largura, altura e quebra de linha, e nenhuma delas se move o bastante com 0,78 mm a
+  menos entre um glifo e uma caixa.
+
+  E o segundo achado teve uma consequência que a impressão não podia prever: ele **explicou** a
+  divergência de paridade que eu tinha registrado como não explicada, e permitiu reverter 117
+  linhas de compensação em `compare.mjs`. Ver 6.3.
   - É a única verificação que nenhum teste automático substitui, e na fatia 1.5 foi ela que achou o defeito que nenhuma das outras podia achar. Alinhamento óptico de linha de base é exatamente o tipo de defeito sem oracle dentro do sistema.
 
 ## 7. Fora do escopo, encontrado no caminho
