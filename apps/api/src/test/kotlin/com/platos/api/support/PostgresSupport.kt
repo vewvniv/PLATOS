@@ -45,12 +45,19 @@ object PostgresSupport {
         container.isRunning
     }
 
-    /** Estado zerado entre testes. Roda como superusuario porque limpeza nao e o que se verifica. */
+    /**
+     * Estado zerado entre testes. Roda como superusuario porque limpeza nao e o que se verifica.
+     *
+     * `exam_package` recusa DELETE por gatilho (D-2a.3), e TRUNCATE nao passa por gatilho de linha.
+     * E por isso que a limpeza continua possivel sem furar a imutabilidade que os testes afirmam:
+     * o caminho que a aplicacao usa segue barrado, e o privilegio de truncar nao e dela.
+     */
     fun reset() {
         adminDataSource.connection.use { connection ->
             connection.createStatement().use { statement ->
                 statement.execute(
-                    "truncate table credit_ledger, subscription, membership, organization, app_user cascade",
+                    "truncate table exam_roster, exam_package, exam, " +
+                        "credit_ledger, subscription, membership, organization, app_user cascade",
                 )
             }
         }
@@ -116,6 +123,68 @@ object PostgresSupport {
         amount,
         reason,
     )
+
+    fun createExam(
+        organizationId: UUID,
+        shortId: String,
+        title: String = "Prova",
+        createdBy: UUID? = null,
+    ): UUID = queryOne(
+        "insert into exam (organization_id, short_id, title, created_by_user_id) " +
+            "values (?, ?, ?, ?) returning id",
+        organizationId,
+        shortId,
+        title,
+        createdBy,
+    )
+
+    /**
+     * Grava um pacote publicado. [content] entra **exatamente** como veio; e a serializacao
+     * canonica de quem publica que o hash cobre (D-2a.4).
+     */
+    fun publishPackage(
+        organizationId: UUID,
+        examId: UUID,
+        content: String,
+        contentHash: String = sha256Hex(content),
+    ): UUID = queryOne(
+        "insert into exam_package (organization_id, exam_id, content, content_hash) " +
+            "values (?, ?, ?, ?) returning id",
+        organizationId,
+        examId,
+        content,
+        contentHash,
+    )
+
+    fun addRosterEntry(
+        organizationId: UUID,
+        examId: UUID,
+        studentToken: String,
+        displayName: String,
+        classGroup: String? = null,
+        enrollmentId: String? = null,
+    ): UUID = queryOne(
+        "insert into exam_roster " +
+            "(organization_id, exam_id, student_token, display_name, class_group, enrollment_id) " +
+            "values (?, ?, ?, ?, ?, ?) returning id",
+        organizationId,
+        examId,
+        studentToken,
+        displayName,
+        classGroup,
+        enrollmentId,
+    )
+
+    /**
+     * SHA-256 pelo `MessageDigest` da JVM — oracle independente do `Sha256` do dominio KMP.
+     *
+     * Aqui interessa que o valor gravado seja o hash dos bytes gravados; conferir isso com a
+     * mesma implementacao que os produziu nao provaria nada.
+     */
+    fun sha256Hex(text: String): String =
+        java.security.MessageDigest.getInstance("SHA-256")
+            .digest(text.toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(byte) }
 
     fun asAdmin(block: (java.sql.Connection) -> Unit) {
         adminDataSource.connection.use(block)

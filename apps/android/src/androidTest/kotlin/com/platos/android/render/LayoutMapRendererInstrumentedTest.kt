@@ -3,6 +3,8 @@ package com.platos.android.render
 import android.graphics.Typeface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.platos.domain.exam.DEFAULT_VARIANT
+import com.platos.domain.exam.ExamPackage
 import com.platos.domain.layout.DrawImage
 import com.platos.domain.layout.LayoutMap
 import kotlinx.serialization.json.Json
@@ -16,7 +18,7 @@ import org.junit.runner.RunWith
 import java.io.File
 
 /**
- * Gera o PDF do lado Android a partir do golden e o exporta para o job de paridade.
+ * Gera o PDF do lado Android a partir do pacote publicado e o exporta para o job de paridade.
  *
  * Precisa de emulador ou aparelho: `PdfDocument` e `Canvas` sao implementacoes do sistema, e e
  * exatamente por isso que o teste existe — o que se quer medir e o desenho real da plataforma,
@@ -32,11 +34,21 @@ class LayoutMapRendererInstrumentedTest {
     private val context = InstrumentationRegistry.getInstrumentation().context
     private val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
 
-    private fun golden(): LayoutMap {
-        val json = context.assets.open("prova-referencia.layout.json")
+    /**
+     * A geometria sai de dentro do pacote publicado (D-2a.5), e nao mais do golden solto.
+     *
+     * O renderizador nao mudou: ele continua recebendo um `LayoutMap` e traduzindo primitiva para
+     * API nativa. O que mudou e a origem — e e ela que faz a paridade e a fidelidade, que ja
+     * existem e ja sabem falhar, passarem a julgar o artefato que o dispositivo vai receber.
+     */
+    private fun layoutDoPacote(): LayoutMap {
+        val json = context.assets.open("prova-referencia.package.json")
             .bufferedReader()
             .use { it.readText() }
-        return Json.decodeFromString(LayoutMap.serializer(), json)
+        val pacote = Json { ignoreUnknownKeys = false }
+            .decodeFromString(ExamPackage.serializer(), json)
+        return pacote.layout[DEFAULT_VARIANT]
+            ?: error("o pacote nao declara layout para a variante $DEFAULT_VARIANT")
     }
 
     /** Diretorio que sobrevive a desinstalacao do APK, porque o AGP o recolhe. */
@@ -81,7 +93,7 @@ class LayoutMapRendererInstrumentedTest {
 
     @Test
     fun geraPdfDaFixtureParaOJobDeParidade() {
-        val map = golden()
+        val map = layoutDoPacote()
         val output = File(outputDir(), "android.pdf")
 
         output.outputStream().use { stream ->
@@ -106,9 +118,9 @@ class LayoutMapRendererInstrumentedTest {
      */
     @Test
     fun recusaImprimirQuandoOsBytesDaFormulaFaltam() {
-        val map = golden()
+        val map = layoutDoPacote()
         assertTrue(
-            "o golden precisa ter formula para este teste significar algo",
+            "o pacote precisa ter formula para este teste significar algo",
             map.pages.any { page -> page.primitives.any { it is DrawImage } },
         )
 
@@ -130,14 +142,14 @@ class LayoutMapRendererInstrumentedTest {
 
     @Test
     fun desenhaUmaFormulaPorCaixaDeclarada() {
-        val map = golden()
+        val map = layoutDoPacote()
         val rasters = formulaRasters()
         val referencias = map.pages
             .flatMap { it.primitives }
             .filterIsInstance<DrawImage>()
             .map { it.reference }
 
-        assertTrue("o golden nao declara formula nenhuma", referencias.isNotEmpty())
+        assertTrue("o pacote nao declara formula nenhuma", referencias.isNotEmpty())
         for (referencia in referencias.distinct()) {
             assertTrue(
                 "o asset da formula `$referencia` nao chegou ao aparelho",
@@ -148,7 +160,7 @@ class LayoutMapRendererInstrumentedTest {
 
     @Test
     fun recusaImprimirQuandoOMapaExigeRenderizadorMaisNovo() {
-        val exigente = golden().copy(
+        val exigente = layoutDoPacote().copy(
             minRendererVersion = RendererContract.RENDERER_VERSION + 1,
         )
         val output = File(outputDir(), "nao-deve-existir.pdf")

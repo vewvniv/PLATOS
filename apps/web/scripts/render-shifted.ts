@@ -1,8 +1,9 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { renderLayoutMap } from '../src/renderer.js';
 import type { LayoutMap } from '../src/layoutMap.js';
 import { loadFontBytes, loadFormulaRasters, repoRoot } from './formulaAssets.js';
+import { loadPublishedLayout } from './examPackage.js';
 
 /**
  * Gera um PDF com deslocamento deliberado, para provar que o comparador de paridade e o medidor
@@ -19,9 +20,7 @@ import { loadFontBytes, loadFormulaRasters, repoRoot } from './formulaAssets.js'
  */
 const SHIFT_UM = 500; // 0,5 mm: acima da tolerancia de 0,3 mm da paridade
 
-const map: LayoutMap = JSON.parse(
-  await readFile(resolve(repoRoot, 'fixtures/prova-referencia.layout.json'), 'utf8'),
-);
+const map: LayoutMap = await loadPublishedLayout();
 
 let bubbles = 0;
 let markers = 0;

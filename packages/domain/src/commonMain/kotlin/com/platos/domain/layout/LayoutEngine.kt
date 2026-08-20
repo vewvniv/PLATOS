@@ -70,6 +70,12 @@ class LayoutEngine(
             pageWidth = profile.pageWidth.raw,
             pageHeight = profile.pageHeight.raw,
             fontSha256 = EmbeddedFont.sha256,
+            profile = LayoutProfileRef(
+                id = profile.id,
+                bodySize = profile.style.size.raw,
+                lineHeight = profile.style.lineHeight.raw,
+                grid = profile.grid.raw,
+            ),
             pages = pages,
             regions = listOf(region),
         )

@@ -92,6 +92,27 @@ data class Question(
      * Quem resolve referencia para bytes segue sendo o consumidor, pelo caminho unico de D-1.5.5.
      */
     val inline: List<InlineFormula> = emptyList(),
+    /**
+     * Habilidades do curriculo que a questao cobre (I1).
+     *
+     * Opcional AQUI e obrigatoria na publicacao, de proposito. O Layout Engine nao sabe o que e
+     * habilidade e nao deve saber; quem precisa da barreira e o pacote publicado, porque e dele
+     * que sai o fato que M3 vai agregar. Exigir aqui obrigaria toda questao sintetica de teste de
+     * geometria a declarar habilidade, sem nada ganhar.
+     */
+    val skills: List<ItemSkill> = emptyList(),
+    /**
+     * O TEXTO da alternativa correta, e nao a letra.
+     *
+     * A letra e derivada de `options.indexOf(answer)` na publicacao. Guardar a letra a mao deixava
+     * o gabarito poder divergir do conteudo sem ninguem ver — bastava alguem reordenar as
+     * alternativas. Guardando o valor, a divergencia deixa de ser representavel.
+     */
+    val answer: String? = null,
+    /** Como se chega a [answer]. Existe para auditoria humana: gabarito sem procedencia e chute. */
+    val why: String? = null,
+    /** Pontuacao do item. */
+    val points: Int = 1,
 )
 
 /**

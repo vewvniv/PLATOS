@@ -41,9 +41,16 @@ tasks.test {
         "platos.plans.dir",
         rootProject.layout.projectDirectory.dir("plans").asFile.absolutePath,
     )
+    // A publicacao entra por arquivo versionado (D-2a.6): a fixture e a definicao de prova, e o
+    // teste a le de onde ela ja mora, sem copia paralela que possa envelhecer.
+    systemProperty(
+        "platos.fixtures.dir",
+        rootProject.layout.projectDirectory.dir("fixtures").asFile.absolutePath,
+    )
 }
 
 dependencies {
+    implementation(project(":packages:domain"))
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.content.negotiation)
