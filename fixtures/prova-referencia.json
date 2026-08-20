@@ -25,7 +25,9 @@
           "code": "EF06MA03",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q02",
@@ -42,7 +44,9 @@
           "code": "EF06MA24",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q03",
@@ -67,7 +71,9 @@
           "code": "EF06MA07",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q04",
@@ -84,7 +90,9 @@
           "code": "EF06MA13",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q05",
@@ -101,7 +109,9 @@
           "code": "EF06MA05",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "A",
+      "points": 1
     },
     {
       "id": "q06",
@@ -118,7 +128,9 @@
           "code": "EF07MA24",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q07",
@@ -149,7 +161,9 @@
           "code": "EF07MA18",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q08",
@@ -166,7 +180,9 @@
           "code": "EF07MA02",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q09",
@@ -183,7 +199,9 @@
           "code": "EF06MA05",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q10",
@@ -200,7 +218,9 @@
           "code": "EF06MA29",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q11",
@@ -225,7 +245,9 @@
           "code": "EF06MA11",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q12",
@@ -242,7 +264,9 @@
           "code": "EF07MA35",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q13",
@@ -259,7 +283,9 @@
           "code": "EF09MA07",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q14",
@@ -276,7 +302,9 @@
           "code": "EF07MA01",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q15",
@@ -293,7 +321,9 @@
           "code": "EF07MA33",
           "coverage": "partial"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q16",
@@ -318,7 +348,9 @@
           "code": "EF08MA02",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q17",
@@ -335,7 +367,9 @@
           "code": "EF08MA11",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q18",
@@ -352,7 +386,9 @@
           "code": "EF06MA13",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q19",
@@ -369,7 +405,9 @@
           "code": "EF07MA03",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q20",
@@ -386,7 +424,9 @@
           "code": "EF06MA24",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q21",
@@ -403,7 +443,9 @@
           "code": "EF07MA01",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q22",
@@ -420,7 +462,9 @@
           "code": "EF06MA09",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q23",
@@ -445,7 +489,9 @@
           "code": "EF06MA08",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q24",
@@ -462,7 +508,9 @@
           "code": "EF06MA19",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q25",
@@ -479,7 +527,9 @@
           "code": "EF06MA03",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q26",
@@ -510,7 +560,9 @@
           "code": "EF08MA06",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q27",
@@ -527,7 +579,9 @@
           "code": "EF06MA24",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q28",
@@ -544,7 +598,9 @@
           "code": "EF07MA15",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q29",
@@ -566,7 +622,9 @@
           "code": "EF07MA04",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q30",
@@ -588,7 +646,9 @@
           "code": "EF06MA10",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q31",
@@ -610,7 +670,9 @@
           "code": "EF09MA03",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q32",
@@ -632,7 +694,9 @@
           "code": "EM13MAT508",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q33",
@@ -654,7 +718,9 @@
           "code": "EM13MAT306",
           "coverage": "partial"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q34",
@@ -676,7 +742,9 @@
           "code": "EM13MAT305",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q35",
@@ -698,7 +766,9 @@
           "code": "EM13MAT308",
           "coverage": "anchor"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q36",
@@ -720,7 +790,9 @@
           "code": "EM13MAT507",
           "coverage": "partial"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q37",
@@ -742,7 +814,9 @@
           "code": "EM13MAT301",
           "coverage": "anchor"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q38",
@@ -764,7 +838,9 @@
           "code": "EM13MAT301",
           "coverage": "anchor"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     },
     {
       "id": "q39",
@@ -786,7 +862,9 @@
           "code": "EM13MAT301",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "C",
+      "points": 1
     },
     {
       "id": "q40",
@@ -808,7 +886,9 @@
           "code": "EM13MAT302",
           "coverage": "direct"
         }
-      ]
+      ],
+      "correct": "B",
+      "points": 1
     }
   ]
 }

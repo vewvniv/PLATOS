@@ -22,12 +22,38 @@
 
 ## 2. Contrato: o pacote e o hash
 
-- [ ] 2.1 Definir `ExamPackage` no domínio KMP com `meta`, `items`, `variants`, `assignments`, `layout`, `answer_key` e `scoring` (D-2a.1, §5). Resultado: tipo serializável, sem dependência de banco ou rede.
+- [x] 2.1 Definir `ExamPackage` no domínio KMP com `meta`, `items`, `variants`, `assignments`, `layout`, `answer_key` e `scoring` (D-2a.1, §5). Resultado: tipo serializável, sem dependência de banco ou rede.
+
+  `ExamPackage` com os sete blocos de §5, mais `buildPackage()` como função pura — não lê banco, não lê relógio, não sorteia. É o que permite publicar duas vezes e obter o mesmo hash, e o que vai permitir ao dispositivo remontar e conferir na fatia 4.
+
+  Três decisões que a fatia congela:
+
+  - `PackageAssignment` traz **só** `student_token` e `variant_id`. É onde I5 é decidida, e não há campo de nome para alguém esquecer de excluir do hash.
+  - `prompt_version` e `model_id` existem e ficam nulos — I3 no contrato desde o primeiro pacote, para a fatia 6 preencher sem retrofit.
+  - `skills` é obrigatória na **publicação**, e não na entrada do Layout Engine. O engine não sabe o que é habilidade e não deve saber; quem precisa da barreira é o artefato de onde sai o fato que M3 vai agregar.
+
+  **Uma expansão de contrato que o mapeamento da BNCC obrigou.** O documento marca três questões — vetor, determinante, matriz — com cobertura *ausente*: não há habilidade BNCC para o objeto, e o código é âncora curricular. Guardar só o código apagaria a diferença, e o boletim de M3 somaria "a turma domina EM13MAT301" a partir de uma questão de matriz que não é sobre sistemas lineares. Por isso `ItemSkill` carrega `code` **e** `coverage`.
   - `assignments[]` traz `student_token` e `variant_id`, e **nada mais** — é onde I5 é decidida.
-- [ ] 2.2 Calcular o `content_hash` sobre a serialização canônica que o `LayoutMap` já usa (D-2a.4). Resultado: cobre "Republicar a mesma prova dá o mesmo hash" e "Mudança no conteúdo muda o hash".
+- [x] 2.2 Calcular o `content_hash` sobre a serialização canônica que o `LayoutMap` já usa (D-2a.4). Resultado: cobre "Republicar a mesma prova dá o mesmo hash" e "Mudança no conteúdo muda o hash".
+
+  SHA-256 em Kotlin puro (D-2a.7), sobre a serialização canônica que o `LayoutMap` já usa. Sem dependência nova: `MessageDigest` não existe em Kotlin/JS, e `QrEncoder` e `FontProgram` são precedente pelo mesmo motivo.
+
+  **O hash da fixture é afirmado como literal em `commonTest`:** `855fbc21…`. Os três alvos o calculam igual ou ficam vermelhos. Não é redundante com o golden — o golden cobre a geometria, este cobre o artefato publicado inteiro, incluindo itens, habilidades e gabarito.
+
+  `Sha256Test` confere contra os vetores do FIPS 180-4 e contra o `crypto` do Node. Pegou um erro **meu** na primeira execução: dos três valores de borda que escrevi de memória, um estava errado, e o vermelho apontou o valor esperado, não o código.
+
+  Cobre "Republicar a mesma prova dá o mesmo hash" e "Mudança no conteúdo muda o hash" — este último com dois ângulos, enunciado e **gabarito**: sem o segundo, a correção poderia ser adulterada sem deixar rastro no hash.
   - Afirmar o hash nos **três alvos**: se ele divergisse entre JVM, Node e Android, o pacote deixaria de ser verificável no dispositivo que o consome.
 - [ ] 2.3 Declarar o perfil tipográfico no cabeçalho do layout (ADR-0004). Resultado: cobre "Perfil declarado no pacote" e "Perfis diferentes são distinguíveis".
-- [ ] 2.4 Validar coerência interna antes de qualquer gravação. Resultado: cobre os três cenários de "Pacote incoerente é recusado", cada um com o caso positivo ao lado.
+- [x] 2.4 Validar coerência interna antes de qualquer gravação. Resultado: cobre os três cenários de "Pacote incoerente é recusado", cada um com o caso positivo ao lado.
+
+  Sete recusas antes de qualquer gravação: item sem habilidade, identificador repetido, posição apontando item inexistente, atribuição apontando variante inexistente, item sem gabarito, gabarito órfão, e layout declarando questões diferentes dos itens.
+
+  Com o caso positivo ao lado — `o pacote da fixture e coerente` —, sem o qual as recusas poderiam estar recusando tudo.
+
+  **Dois testes meus estavam errados e o vermelho mostrou por quê.** Um chamava `buildPackage`, que já valida, e a exceção escapava antes do ponto medido. O outro removia um item e disparava a recusa da **variante**, não a do layout — passaria pelo motivo errado. Agora o segundo remove o item, a posição e o gabarito juntos, de modo que só a divergência de layout reste.
+
+  Também cobre "O pacote não carrega nome de aluno": a varredura é sobre o **JSON gravado**, e não sobre o tipo, porque um campo acrescentado por engano aparece no JSON antes de aparecer em qualquer revisão de código.
 - [ ] 2.5 Regravar o golden e registrar aqui o antes e o depois. Resultado: mudança auditável, com **uma causa só** — o campo de perfil, e nada mais.
   - Nenhuma outra mudança de geometria entra nesta fatia. Se a contagem de páginas ou a atribuição bloco→página se mexer, algo está errado.
 

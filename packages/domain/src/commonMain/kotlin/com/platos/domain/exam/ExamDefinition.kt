@@ -101,6 +101,10 @@ data class Question(
      * geometria a declarar habilidade, sem nada ganhar.
      */
     val skills: List<ItemSkill> = emptyList(),
+    /** Letra da alternativa correta. A publicacao exige; o Layout Engine ignora. */
+    val correct: String? = null,
+    /** Pontuacao do item. */
+    val points: Int = 1,
 )
 
 /**
