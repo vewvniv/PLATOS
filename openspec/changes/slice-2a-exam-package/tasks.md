@@ -1,6 +1,24 @@
 ## 1. Base de comparação
 
-- [ ] 1.1 Registrar os números atuais antes de tocar em qualquer coisa: hash e tamanho do golden, paridade, fidelidade nos dois PDFs e contagem da suíte por alvo. Resultado: valores anotados aqui — a fatia altera o golden de propósito, então a base precisa existir antes.
+- [x] 1.1 Registrar os números atuais antes de tocar em qualquer coisa: hash e tamanho do golden, paridade, fidelidade nos dois PDFs e contagem da suíte por alvo. Resultado: valores anotados aqui — a fatia altera o golden de propósito, então a base precisa existir antes.
+  Medido em 2026-08-20, com `./gradlew build :packages:domain:testAndroidHostTest --rerun-tasks`.
+
+  | Grandeza | Valor |
+  |---|---|
+  | `fixtures/prova-referencia.layout.json` | sha256 `7cbf40c9c785b8f653b7b15be241c1144be54913259c93e0e388c4bba1939a9e`, 69 864 bytes |
+  | Paridade web × Android | 185 de 185 elementos, 4 páginas, maior divergência **0,042 mm** em `qq37-f` |
+  | Fidelidade do PDF web | 116 verificações, maior desvio **0,039 mm** |
+
+  | Alvo | Testes | Falhas |
+  |---|---|---|
+  | `packages/domain` JVM | 165 | 0 |
+  | `packages/domain` Node/JS | 161 | 0 |
+  | `packages/domain` Android (host) | 161 | 0 |
+  | `apps/api` | 69 | 0 |
+
+  Nenhuma falha pré-existente. Docker disponível, então os testes de `apps/api` rodam contra
+  Postgres real desde o começo desta fatia — diferente da 1.5, onde a guarda de RLS teve de
+  esperar o CI.
 
 ## 2. Contrato: o pacote e o hash
 

@@ -69,6 +69,30 @@ A fixture atual vira a entrada da publicação. Não há interface de autoria, e
 
 Autoria é a fatia 6 (op-log) e a 7 (blueprint). Antecipar tabela de item aqui seria construir para um pipeline que ainda não existe — o mesmo erro que D-1.5.2 evitou ao não integrar a conversão de fórmula com uma publicação inexistente.
 
+### D-2a.7 — O SHA-256 é escrito aqui, e não tomado de uma biblioteca
+
+O `content_hash` precisa ser calculável nos **três alvos**: o servidor o produz, e o dispositivo que
+recebe o pacote precisa poder verificá-lo. `java.security.MessageDigest` não existe em Kotlin/JS, e
+uma dependência multiplataforma de criptografia exigiria justificativa por uma função de cem linhas
+cujo resultado é fixado por norma.
+
+A base já tem precedente pelo mesmo motivo: `QrEncoder` e `FontProgram` são implementações próprias
+porque o valor precisa ser idêntico nos três alvos, e a única forma de garantir isso é haver um
+caminho só.
+
+A correção não depende de confiança na implementação. `Sha256Test` confere contra os vetores
+publicados do FIPS 180-4 — **oracle independente de qualquer linha deste repositório** — mais os
+valores de borda de preenchimento (55, 56 e 64 bytes) obtidos do `crypto` do Node, que é uma segunda
+implementação independente.
+
+*Isso já se pagou na primeira execução:* dos três valores de borda que escrevi de memória, um estava
+errado. O teste ficou vermelho apontando o **valor esperado**, e não o código — que estava certo
+desde o início. Foi por isso que os valores passaram a vir de um oracle em vez da minha memória.
+
+*Alternativa descartada:* calcular o hash só no servidor, com `MessageDigest`. Mais simples hoje e
+inviável na fatia 4, quando o dispositivo precisar verificar o pacote que puxou — e aí a
+implementação teria de nascer assim mesmo, com um pacote publicado já dependendo do formato.
+
 ## Risks / Trade-offs
 
 **Primeira fatia a tocar `apps/api` desde a 0** → migration, RLS, jOOQ e repositório de uma vez. Mitigado por seguir o padrão já estabelecido: as tabelas novas caem sob a guarda de RLS derivada do catálogo, que reprova sozinha se alguma nascer sem proteção.
