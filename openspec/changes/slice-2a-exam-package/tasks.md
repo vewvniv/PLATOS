@@ -334,5 +334,15 @@ a próxima verificação decorativa.
 
 ## 7. Registro
 
-- [ ] 7.1 Registrar em `docs/adr/` o que a fatia decidiu e ainda não estava em ADR, se houver. Resultado: nenhuma decisão nova só no código.
-- [ ] 7.2 Atualizar §16 e o bloco Aberto de §17: os itens cuja fatia-limite era a 2a saem da lista ou mudam de estado. Resultado: a lista de adiados encolhe quando o prazo chega, em vez de crescer.
+- [x] 7.1 Registrar em `docs/adr/` o que a fatia decidiu e ainda não estava em ADR, se houver. Resultado: nenhuma decisão nova só no código.
+
+  Duas, e as duas são de armazenamento — a fatia levou o pacote do contrato ao disco, e é aí que aparece decisão que nenhum ADR anterior cobria:
+
+  - **ADR-0008 — o pacote é armazenado como texto canônico, não como `jsonb`.** `jsonb` guarda árvore normalizada, não os bytes recebidos. Com ele nada quebraria na publicação; a falha apareceria na fatia 4, no único lugar onde o pacote é verificado, e a correção óbvia seria a errada — rehashear no servidor, transformando o hash num carimbo do armazenamento.
+  - **ADR-0009 — uma prova publicada tem um pacote, e corrigir é publicar prova nova.** A razão não vem da modelagem, vem do papel: o QR carrega `short_id` e não tem onde carregar versão de pacote (§8). Com dois pacotes por prova, o OMR leria bolhas da publicação errada **em silêncio**, porque coordenada normalizada ao quad continua sendo coordenada válida.
+
+- [x] 7.2 Atualizar §16 e o bloco Aberto de §17: os itens cuja fatia-limite era a 2a saem da lista ou mudam de estado. Resultado: a lista de adiados encolhe quando o prazo chega, em vez de crescer.
+
+  - **D53 e D54** entram no registro de decisões, apontando para os dois ADRs.
+  - **Saiu da lista de Aberto:** a parametrização de `Sheet`, entregue na 1.6 como `LayoutProfile`, com o campo de perfil entrando na 2a — as duas metades do ADR-0004 cumpridas dentro do prazo que a lista registrava. `CaptureGeometry` não foi parametrizada, e isso ficou dito como decisão e não como pendência: ela está amarrada às tolerâncias de OMR do ADR-0001, e um teste afirma que perfil nenhum a altera.
+  - **Mudou de estado em §16:** o risco de divergência entre renderizadores era descrito como caro "depois da 3". A partir desta fatia já existe geometria publicada e hasheada, e os dois renderizadores desenham a partir dela — divergir passa a quebrar OMR sobre artefato imutável, e não sobre arquivo de trabalho.

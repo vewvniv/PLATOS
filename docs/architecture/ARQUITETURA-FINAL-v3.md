@@ -483,7 +483,7 @@ ser barato. Tabela separada, e não colunas na de cima, porque cinco colunas de 
 
 | Risco | Fatia-limite | O que encarece depois dela | Dono |
 |---|---|---|---|
-| Divergência entre renderizadores | contínuo, verificado a cada CI | Depois da 3, divergir quebra OMR sobre geometria já publicada e hasheada | mantenedor |
+| Divergência entre renderizadores | contínuo, verificado a cada CI | **A partir da 2a** já existe geometria publicada e hasheada, e os dois renderizadores desenham a partir dela; divergir passa a quebrar OMR sobre artefato imutável, e não sobre arquivo de trabalho | mantenedor |
 | Acurácia em manuscrito | **5** (medir antes de construir a 8) | Construir a 8 sem o número é construir sobre suposição; o critério de reprovação precisa existir antes (ADR-0007) | mantenedor |
 | Impressão dos ArUcos | **2b** | Depois que houver folha distribuída, corrigir marcador significa reimprimir | mantenedor |
 | Custo de IA | **6** | Depois da geração em volume, caching e quota viram retrofit sobre uso real | mantenedor |
@@ -521,6 +521,8 @@ ser barato. Tabela separada, e não colunas na de cima, porque cinco colunas de 
 | **D50** | Artefato imutável nunca contém dado pessoal direto (I5). Finalidade e classe de retenção por tabela ficam como exigência de ADR, não como invariante. | ADR-0006 |
 | **D51** | Critério de aprovação de toda medição que decide é registrado antes da primeira execução. | ADR-0007 |
 | **D52** | O branco em volta da fórmula em bloco é derivado da transição de texto, assimétrico, e não varia com a altura da fórmula. | D-1.5.9 (fatia 1.5) |
+| **D53** | O pacote publicado é armazenado como texto canônico, e não como `jsonb`: o hash é sobre os bytes, e `jsonb` guarda árvore normalizada. | ADR-0008 |
+| **D54** | Uma prova publicada tem exatamente um pacote; corrigir prova publicada é publicar prova nova, com `short_id` próprio. O QR impresso não carrega identificador de pacote (§8). | ADR-0009 |
 
 **Aberto** — cada item com o ponto em que deixa de ser barato. Um item sem essa coluna volta a flutuar, que foi o que aconteceu com a LGPD.
 
@@ -532,9 +534,9 @@ ser barato. Tabela separada, e não colunas na de cima, porque cinco colunas de 
 | Garantia executável de que o recorte discursivo não contém cabeçalho | **5** | A moldura já exclui o enunciado por geometria (§8), mas nada afirma isso; o nome do aluno é impresso na folha | mantenedor |
 | Injeção de prompt manuscrita pelo aluno, no eval set | **5** | Validação de schema garante forma, não conteúdo: resposta adversarial produz JSON válido com nota errada | mantenedor |
 | Fórmula em bloco seguida de mais enunciado | **1.6+** | Exige o corpo da questão virar sequência de blocos — contrato maior que `InlineBox`, e não sai de graça junto com ele | mantenedor |
-| Parametrização de `Sheet` e `CaptureGeometry` (LayoutProfile) | **1.6** | O campo já entra na 2a (ADR-0004); o parâmetro pode vir depois, mas depois da 1.6 disputa espaço com a medição já estabilizada | mantenedor |
-
 Três itens desta lista não viraram ADR de propósito — unicidade de `skill`, `subscription.origin` e a garantia de recorte. São decisões de um campo ou de um cenário de spec, e um ADR por coluna de tabela esvazia o instrumento. Ficam aqui, com data-limite e dono, que é o que faltava.
+
+**Saiu da lista ao fechar a 2a.** A parametrização de `Sheet` foi entregue na 1.6, como `LayoutProfile`, e o campo de perfil entrou no `LayoutMap` na 2a (ADR-0004) — as duas metades cumpridas dentro do prazo que a lista registrava. `CaptureGeometry` **não** foi parametrizada, e isso é decisão e não pendência: geometria de bolha está amarrada às tolerâncias de OMR do ADR-0001 e só se mexe com evidência de captura sob outra escala. Um teste afirma que perfil nenhum a altera.
 
 ---
 
