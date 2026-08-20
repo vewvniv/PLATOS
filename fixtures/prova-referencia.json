@@ -5,12 +5,20 @@
     {
       "id": "q01",
       "kind": "objective",
-      "statement": "Qual e o resultado de 12 + 15?",
+      "statement": "Quanto vale {{i-soma}} ao todo?",
       "options": [
         "25",
         "27",
         "29",
         "32"
+      ],
+      "inline": [
+        {
+          "reference": "i-soma",
+          "width": 10795,
+          "height": 2498,
+          "baseline_offset": 274
+        }
       ]
     },
     {
@@ -27,12 +35,20 @@
     {
       "id": "q03",
       "kind": "objective",
-      "statement": "Qual fracao e equivalente a um meio?",
+      "statement": "Qual fracao e equivalente a {{i-meio}}?",
       "options": [
         "2/5",
         "3/6",
         "4/9",
         "5/12"
+      ],
+      "inline": [
+        {
+          "reference": "i-meio",
+          "width": 3133,
+          "height": 6773,
+          "baseline_offset": 2291
+        }
       ]
     },
     {
@@ -71,12 +87,26 @@
     {
       "id": "q07",
       "kind": "objective",
-      "statement": "Qual e o valor de x na equacao 3x = 21?",
+      "statement": "Resolva {{i-equacao}} e depois confirme a identidade {{i-larga}} para o valor encontrado.",
       "options": [
         "3",
         "6",
         "7",
         "9"
+      ],
+      "inline": [
+        {
+          "reference": "i-equacao",
+          "width": 11430,
+          "height": 2498,
+          "baseline_offset": 274
+        },
+        {
+          "reference": "i-larga",
+          "width": 35052,
+          "height": 3810,
+          "baseline_offset": 840
+        }
       ]
     },
     {
@@ -115,12 +145,20 @@
     {
       "id": "q11",
       "kind": "objective",
-      "statement": "Quanto e 2 elevado a quinta potencia?",
+      "statement": "Quanto e {{i-potencia}}?",
       "options": [
         "16",
         "25",
         "32",
         "64"
+      ],
+      "inline": [
+        {
+          "reference": "i-potencia",
+          "width": 3133,
+          "height": 2963,
+          "baseline_offset": 0
+        }
       ]
     },
     {
@@ -170,12 +208,20 @@
     {
       "id": "q16",
       "kind": "objective",
-      "statement": "Quanto e a raiz quadrada de 144?",
+      "statement": "Calcule a raiz quadrada de cento e quarenta e quatro, isto e, {{i-raiz}}",
       "options": [
         "11",
         "12",
         "13",
         "14"
+      ],
+      "inline": [
+        {
+          "reference": "i-raiz",
+          "width": 7874,
+          "height": 3556,
+          "baseline_offset": 155
+        }
       ]
     },
     {
@@ -247,12 +293,20 @@
     {
       "id": "q23",
       "kind": "objective",
-      "statement": "Quanto e 0,25 escrito como fracao?",
+      "statement": "Quanto e {{i-decimal}} escrito como fracao?",
       "options": [
         "1/2",
         "1/3",
         "1/4",
         "1/5"
+      ],
+      "inline": [
+        {
+          "reference": "i-decimal",
+          "width": 5969,
+          "height": 2879,
+          "baseline_offset": 649
+        }
       ]
     },
     {
@@ -280,12 +334,26 @@
     {
       "id": "q26",
       "kind": "objective",
-      "statement": "Se x = 3, quanto vale 2x ao quadrado?",
+      "statement": "Se {{i-x-vale}}, quanto vale {{i-dobro}}?",
       "options": [
         "12",
         "18",
         "24",
         "36"
+      ],
+      "inline": [
+        {
+          "reference": "i-x-vale",
+          "width": 8043,
+          "height": 2498,
+          "baseline_offset": 274
+        },
+        {
+          "reference": "i-dobro",
+          "width": 5038,
+          "height": 3006,
+          "baseline_offset": 37
+        }
       ]
     },
     {

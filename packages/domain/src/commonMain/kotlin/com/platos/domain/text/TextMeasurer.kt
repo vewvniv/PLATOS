@@ -30,17 +30,80 @@ data class TextStyle(
     }
 }
 
-/** Uma linha ja quebrada, com a largura que ela ocupa. */
+/**
+ * Um pedaco de conteudo a medir: palavras ou uma caixa atomica (D-1.6.3).
+ *
+ * Tipo proprio do pacote `text` de proposito. A caixa vem de formula em linha, mas a medicao
+ * nao precisa saber disso — e nao deve: ela empacota caixas, como o Layout Engine.
+ */
+sealed interface TextPiece {
+
+    /** Texto corrido, quebravel em espacos. */
+    data class Words(val text: String) : TextPiece
+
+    /** Caixa indivisivel, alinhada a linha de base pelo proprio deslocamento. */
+    data class Box(
+        val reference: String,
+        val width: Um,
+        val height: Um,
+        /** Quanto da caixa fica abaixo da linha de base. */
+        val baselineOffset: Um,
+    ) : TextPiece {
+        val ascent: Um get() = height - baselineOffset
+        val descent: Um get() = baselineOffset
+    }
+}
+
+/** Um trecho ja posicionado dentro de uma linha, com o deslocamento resolvido. */
+sealed interface LineRun {
+    /** Deslocamento horizontal desde o inicio da linha. */
+    val x: Um
+    val width: Um
+
+    data class Text(override val x: Um, override val width: Um, val text: String) : LineRun
+
+    data class Box(
+        override val x: Um,
+        override val width: Um,
+        val reference: String,
+        val height: Um,
+        val baselineOffset: Um,
+    ) : LineRun
+}
+
+/**
+ * Uma linha ja quebrada: os trechos que a compoem e o quanto ela ocupa acima e abaixo da
+ * **unica** linha de base que todos compartilham (D-1.6.3).
+ *
+ * [ascent] e [descent] existem para que uma formula mais alta que o texto faca a linha crescer
+ * sem que ninguem precise decidir posicao depois. Uma linha so de texto tem `ascent` igual a
+ * entrelinha e `descent` zero, que e exatamente a aritmetica que o engine ja fazia antes desta
+ * fatia — e por isso o perfil padrao continua reproduzindo o golden byte a byte.
+ */
 data class MeasuredLine(
-    val text: String,
+    val runs: List<LineRun>,
     val width: Um,
-)
+    val ascent: Um,
+    val descent: Um,
+) {
+    val height: Um get() = ascent + descent
+
+    /** O texto da linha, sem as caixas. Existe para diagnostico e para teste. */
+    val text: String get() = runs.filterIsInstance<LineRun.Text>().joinToString("") { it.text }
+}
 
 /** Bloco de texto medido: linhas quebradas e a altura total que elas ocupam. */
 data class MeasuredText(
     val lines: List<MeasuredLine>,
-    val height: Um,
 ) {
+    /**
+     * Soma das alturas das linhas, e **nao** entrelinha vezes numero de linhas.
+     *
+     * A multiplicacao valia enquanto toda linha tinha a mesma altura. Uma formula em linha mais
+     * alta que o texto quebra essa suposicao, e ela estava embutida na paginacao inteira.
+     */
+    val height: Um get() = lines.fold(Um.ZERO) { total, line -> total + line.height }
+
     val widest: Um get() = lines.maxOfOrNull { it.width } ?: Um.ZERO
 }
 
@@ -75,36 +138,135 @@ class TextMeasurer(private val font: FontProgram) {
      * sozinha na linha e transborda: reportar transbordo e problema de quem valida o layout, e
      * partir a palavra em silencio seria pior que o transbordo.
      */
-    fun measure(text: String, style: TextStyle, maxWidth: Um): MeasuredText {
+    fun measure(text: String, style: TextStyle, maxWidth: Um): MeasuredText =
+        measure(listOf(TextPiece.Words(text)), style, maxWidth)
+
+    /**
+     * Quebra uma sequencia de pedacos — texto e caixas — em linhas (D-1.6.3).
+     *
+     * Uma caixa e **indivisivel**: ela ocupa largura como uma palavra ocuparia e nunca e partida
+     * entre duas linhas.
+     *
+     * O texto continua sendo medido em pedacos acumulados, e nao palavra a palavra somando o
+     * espaco: e o par de kerning na juncao que faz a diferenca, e medir de outro jeito mudaria a
+     * largura de linhas que nao tem formula nenhuma. Uma caixa **encerra** o trecho de texto
+     * corrente, porque ela quebra a sequencia de glifos de qualquer forma.
+     */
+    fun measure(pieces: List<TextPiece>, style: TextStyle, maxWidth: Um): MeasuredText {
         require(maxWidth > Um.ZERO) { "largura disponivel precisa ser positiva, veio $maxWidth" }
 
         val lines = mutableListOf<MeasuredLine>()
-        for (paragraph in text.split('\n')) {
-            val words = paragraph.split(' ').filter { it.isNotEmpty() }
-            if (words.isEmpty()) {
-                lines += MeasuredLine("", Um.ZERO)
-                continue
+        var runs = mutableListOf<LineRun>()
+        var cursor = Um.ZERO
+        // Trecho de texto em construcao: o texto acumulado e onde ele comeca na linha.
+        var runText = StringBuilder()
+        var runStart = Um.ZERO
+        // Espaco da fronteira entre texto e caixa: o espaco da palavra MAIS um espaco fino.
+        //
+        // A soma nao e enfeite. Entre duas letras, o branco que se ve e o avanco do espaco mais as
+        // laterais dos dois glifos vizinhos. Entre uma letra e a caixa da formula uma dessas
+        // laterais nao existe — o raster comeca praticamente na borda declarada —, e o mesmo avanco
+        // produz menos branco. O espaco fino de 1/6 do corpo e a unidade que a composicao
+        // tradicional usa para exatamente esse ajuste, e sai do corpo, entao acompanha o perfil.
+        val espaco = width(" ", style)
+        val espacoFino = style.size.divFloor(6)
+        val fronteira = espaco + espacoFino
+
+        fun fecharTrecho() {
+            if (runText.isNotEmpty()) {
+                val largura = width(runText.toString(), style)
+                runs += LineRun.Text(runStart, largura, runText.toString())
+                cursor = runStart + largura
+                runText = StringBuilder()
             }
-            var current = StringBuilder()
-            var currentWidth = Um.ZERO
-            for (word in words) {
-                val candidate = if (current.isEmpty()) word else "$current $word"
-                val candidateWidth = width(candidate, style)
-                if (current.isNotEmpty() && candidateWidth > maxWidth) {
-                    lines += MeasuredLine(current.toString(), currentWidth)
-                    current = StringBuilder(word)
-                    currentWidth = width(word, style)
-                } else {
-                    current = StringBuilder(candidate)
-                    currentWidth = candidateWidth
-                }
-            }
-            lines += MeasuredLine(current.toString(), currentWidth)
+            runStart = cursor
         }
 
-        return MeasuredText(lines = lines, height = style.lineHeight * lines.size)
-    }
+        fun fecharLinha() {
+            fecharTrecho()
+            val ascent = runs.fold(style.lineHeight) { maior, run ->
+                val a = if (run is LineRun.Box) run.height - run.baselineOffset else style.lineHeight
+                if (a > maior) a else maior
+            }
+            val descent = runs.fold(Um.ZERO) { maior, run ->
+                val d = if (run is LineRun.Box) run.baselineOffset else Um.ZERO
+                if (d > maior) d else maior
+            }
+            lines += MeasuredLine(runs = runs.toList(), width = cursor, ascent = ascent, descent = descent)
+            runs = mutableListOf()
+            cursor = Um.ZERO
+            runStart = Um.ZERO
+        }
 
+        for ((index, piece) in pieces.withIndex()) {
+            when (piece) {
+                is TextPiece.Words -> {
+                    val paragraphs = piece.text.split('\n')
+                    for ((p, paragraph) in paragraphs.withIndex()) {
+                        if (p > 0) fecharLinha()
+                        // O espaco da FRONTEIRA com uma caixa precisa sobreviver, e `split` o come.
+                        // Dentro do trecho os espacos voltam porque as palavras sao rejuntadas com
+                        // " "; na borda nao ha juncao, e sem isto a folha sai com
+                        // "Quanto vale12 + 15ao todo?" — texto e formula colados.
+                        //
+                        // O espaco entra como avanco do cursor, e nao como espaco no comeco ou no
+                        // fim da string desenhada: assim o `DrawText` nao carrega espaco nas
+                        // pontas e o kerning dentro do trecho continua o de antes.
+                        val comecaComEspaco = paragraph.startsWith(" ")
+                        val terminaComEspaco = paragraph.endsWith(" ")
+                        val words = paragraph.split(' ').filter { it.isNotEmpty() }
+
+                        if (comecaComEspaco && runs.isNotEmpty() && runText.isEmpty()) {
+                            cursor += fronteira
+                            runStart = cursor
+                        }
+
+                        for (word in words) {
+                            val candidate = if (runText.isEmpty()) word else "$runText $word"
+                            val candidateWidth = width(candidate, style)
+                            if (runText.isNotEmpty() && runStart + candidateWidth > maxWidth) {
+                                fecharLinha()
+                                runText = StringBuilder(word)
+                            } else if (runText.isEmpty() && runs.isNotEmpty() &&
+                                runStart + candidateWidth > maxWidth
+                            ) {
+                                // A linha ja tem caixa e a palavra nao cabe depois dela.
+                                fecharLinha()
+                                runText = StringBuilder(word)
+                            } else {
+                                runText = StringBuilder(candidate)
+                            }
+                        }
+
+                        if (terminaComEspaco && words.isNotEmpty()) {
+                            fecharTrecho()
+                            cursor += fronteira
+                            runStart = cursor
+                        }
+                    }
+                }
+                is TextPiece.Box -> {
+                    fecharTrecho()
+                    if (runs.isNotEmpty() && cursor + piece.width > maxWidth) {
+                        fecharLinha()
+                    }
+                    runs += LineRun.Box(
+                        x = cursor,
+                        width = piece.width,
+                        reference = piece.reference,
+                        height = piece.height,
+                        baselineOffset = piece.baselineOffset,
+                    )
+                    cursor += piece.width
+                    runStart = cursor
+                }
+            }
+            if (index == pieces.lastIndex) fecharLinha()
+        }
+
+        if (lines.isEmpty()) lines += MeasuredLine(emptyList(), Um.ZERO, style.lineHeight, Um.ZERO)
+        return MeasuredText(lines)
+    }
     /**
      * Converte unidades de fonte para micrometros com arredondamento meio-para-cima declarado.
      *

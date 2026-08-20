@@ -84,10 +84,10 @@ class BlockFormulaTest {
         assertTrue(com.block.height > sem.block.height, "a formula precisa reservar espaco proprio")
         val crescimento = com.block.height - sem.block.height
         assertTrue(
-            crescimento.isMultipleOf(Sheet.GRID),
+            crescimento.isMultipleOf(LayoutProfile.DEFAULT.grid),
             "o crescimento do bloco saiu fora da grade: $crescimento",
         )
-        assertTrue(com.block.height.isMultipleOf(Sheet.GRID))
+        assertTrue(com.block.height.isMultipleOf(LayoutProfile.DEFAULT.grid))
     }
 
     // --- Fórmula não é reescalada ---
@@ -131,7 +131,7 @@ class BlockFormulaTest {
         val vaos = alturas.map { altura ->
             val content = QuestionBlockBuilder(measurer).build(questao("q1", formula(height = altura)), 1)
             val formula = assertNotNull(content.formula)
-            assertTrue(content.block.height.isMultipleOf(Sheet.GRID), "o bloco precisa cair na grade")
+            assertTrue(content.block.height.isMultipleOf(LayoutProfile.DEFAULT.grid), "o bloco precisa cair na grade")
             formula.spaceAbove to formula.spaceBelow
         }
         assertEquals(1, vaos.toSet().size, "os vaos nao podem variar com a altura da formula")
@@ -150,7 +150,7 @@ class BlockFormulaTest {
 
     @Test
     fun `formula mais larga que a coluna impede a emissao do mapa`() {
-        val larga = formula(width = QuestionBlockBuilder.TEXT_WIDTH + Um(1))
+        val larga = formula(width = QuestionBlockBuilder.textWidth(LayoutProfile.DEFAULT) + Um(1))
         val erro = assertFailsWith<LayoutException> {
             engine.layout(provaDe(4).let { prova ->
                 prova.copy(
@@ -166,7 +166,7 @@ class BlockFormulaTest {
 
     @Test
     fun `formula com exatamente a largura da coluna e aceita`() {
-        val justa = formula(width = QuestionBlockBuilder.TEXT_WIDTH)
+        val justa = formula(width = QuestionBlockBuilder.textWidth(LayoutProfile.DEFAULT))
         val map = engine.layout(
             provaDe(4).let { prova ->
                 prova.copy(
@@ -177,7 +177,7 @@ class BlockFormulaTest {
             },
         )
         val imagem = assertNotNull(imagemDe(map, "q1"))
-        assertEquals(QuestionBlockBuilder.TEXT_WIDTH.raw, imagem.width)
+        assertEquals(QuestionBlockBuilder.textWidth(LayoutProfile.DEFAULT).raw, imagem.width)
     }
 
     // --- Layout não depende do conteúdo matemático ---
@@ -283,7 +283,10 @@ class BlockFormulaTest {
     // --- Entrada não suportada ---
 
     @Test
-    fun `formula em linha continua recusada com mensagem propria`() {
+    fun `formula em linha declarada como recurso embutido aponta o caminho certo`() {
+        // A fatia 1.6 tirou a recusa de formula em linha e deu forma propria a ela. Declara-la como
+        // recurso embutido segue recusado, mas por ser o caminho errado — e a mensagem precisa
+        // dizer isso, senao manda quem le esperar por uma fatia que ja chegou.
         val comInline = prova(
             questao("q1").copy(
                 assets = listOf(QuestionAsset(kind = "inline_formula", reference = "f-x")),
@@ -291,8 +294,9 @@ class BlockFormulaTest {
             questao("q2"),
         )
         val erro = assertFailsWith<UnsupportedContentException> { engine.layout(comInline) }
-        assertContains(erro.message!!, "formula em linha")
         assertContains(erro.message!!, "q1")
+        assertContains(erro.message!!, "marcador")
+        assertContains(erro.message!!, "inline")
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.platos.domain.exam.requireSupported
 import com.platos.domain.geometry.Ppm
 import com.platos.domain.geometry.Um
 import com.platos.domain.text.EmbeddedFont
+import com.platos.domain.text.LineRun
 import com.platos.domain.text.TextMeasurer
 import com.platos.domain.text.TextStyle
 
@@ -30,17 +31,20 @@ private data class BubbleGrid(
  */
 class LayoutEngine(
     private val measurer: TextMeasurer = TextMeasurer(EmbeddedFont.program),
-    private val style: TextStyle = TextStyle.BODY,
+    private val profile: LayoutProfile = LayoutProfile.DEFAULT,
 ) {
+
+    private val style: TextStyle get() = profile.style
 
     fun layout(exam: ExamDefinition): LayoutMap {
         exam.requireSupported()
 
         val grid = gridFor(exam)
-        val regionHeight = snapToGrid(TOP_BAND + grid.height + BOTTOM_CLEARANCE)
+        val regionHeight = profile.snapToGrid(TOP_BAND + grid.height + BOTTOM_CLEARANCE)
 
-        val contents = QuestionBlockBuilder(measurer, style).build(exam)
+        val contents = QuestionBlockBuilder(measurer, profile).build(exam)
         val pagination = Paginator(
+            profile = profile,
             reservedOnFirstPage = regionHeight + SPACE_AFTER_REGION,
         ).paginate(contents.map { it.block })
 
@@ -63,8 +67,8 @@ class LayoutEngine(
             layoutEngineVersion = LayoutMap.ENGINE_VERSION,
             minRendererVersion = LayoutMap.MIN_RENDERER_VERSION,
             examId = exam.id,
-            pageWidth = Sheet.WIDTH.raw,
-            pageHeight = Sheet.HEIGHT.raw,
+            pageWidth = profile.pageWidth.raw,
+            pageHeight = profile.pageHeight.raw,
             fontSha256 = EmbeddedFont.sha256,
             pages = pages,
             regions = listOf(region),
@@ -82,7 +86,7 @@ class LayoutEngine(
         val optionCount = exam.questions.maxOf { it.options.size }
         val columnWidth = CaptureGeometry.LABEL_WIDTH + CaptureGeometry.BUBBLE_PITCH_H * optionCount
 
-        val availableWidth = Sheet.CONTENT_WIDTH -
+        val availableWidth = profile.contentWidth -
             (CaptureGeometry.MARKER_SIDE + CaptureGeometry.QUIET_ZONE) * 2
         val availableHeight = CaptureGeometry.MAX_REGION_HEIGHT - TOP_BAND - BOTTOM_CLEARANCE
 
@@ -105,9 +109,9 @@ class LayoutEngine(
         regionHeight: Um,
         primitives: MutableList<Primitive>,
     ): ScannableRegion {
-        val left = Sheet.MARGIN_SIDE
-        val top = Sheet.MARGIN_TOP
-        val right = left + Sheet.CONTENT_WIDTH
+        val left = profile.marginSide
+        val top = profile.marginTop
+        val right = left + profile.contentWidth
         val bottom = top + regionHeight
         val marker = CaptureGeometry.MARKER_SIDE
 
@@ -115,7 +119,7 @@ class LayoutEngine(
         // devolve com mais estabilidade, e e a ele que tudo dentro da regiao e normalizado.
         val quadX = left + marker.divFloor(2)
         val quadY = top + marker.divFloor(2)
-        val quadWidth = Sheet.CONTENT_WIDTH - marker
+        val quadWidth = profile.contentWidth - marker
         val quadHeight = regionHeight - marker
 
         val markerIds = CaptureGeometry.markerIdsOf(REGION_INDEX)
@@ -141,7 +145,7 @@ class LayoutEngine(
         val payload = qrPayloadOf(exam.id, REGION_INDEX)
         val qrMatrix = QrEncoder.encode(payload)
         val qrSide = CaptureGeometry.QR_SIDE
-        val qrX = left + (Sheet.CONTENT_WIDTH - qrSide).divFloor(2)
+        val qrX = left + (profile.contentWidth - qrSide).divFloor(2)
         // O QR comeca na linha do quadrilatero, e nao no topo da regiao: o quadrilatero passa pelos
         // *centros* dos marcadores, entao qualquer coisa acima dele normalizaria para v negativo.
         val qrY = quadY
@@ -221,7 +225,7 @@ class LayoutEngine(
         placement: Placement,
         primitives: MutableList<Primitive>,
     ) {
-        val columnLeft = Sheet.columnLeft(placement.column)
+        val columnLeft = profile.columnLeft(placement.column)
         val textLeft = columnLeft + QuestionBlockBuilder.NUMBER_GUTTER
         var baseline = placement.top + style.lineHeight
 
@@ -233,16 +237,46 @@ class LayoutEngine(
             text = "${content.number}.",
         )
 
+        // Uma linha pode ter mais de um trecho — texto e caixa — e todos compartilham a **mesma**
+        // linha de base (D-1.6.3). O cursor anda pelo topo das linhas; a linha de base de cada uma
+        // sai da ascendente dela, e nao de uma entrelinha fixa, porque uma linha com formula e mais
+        // alta que as vizinhas.
+        var cursor = placement.top
+        var lastBaseline = placement.top
         for ((index, line) in content.statement.lines.withIndex()) {
-            primitives += DrawText(
-                id = "q${content.questionId}-s$index",
-                x = textLeft.raw,
-                baseline = baseline.raw,
-                size = style.size.raw,
-                text = line.text,
-            )
-            baseline += style.lineHeight
+            cursor += line.ascent
+            lastBaseline = cursor
+            for ((runIndex, run) in line.runs.withIndex()) {
+                // Uma linha com trecho unico de texto mantem o identificador de sempre. Sem isso,
+                // toda questao da fixture mudaria de identificador e o golden desta fatia
+                // misturaria a formula em linha com uma renomeacao em massa.
+                val suffix = if (line.runs.size == 1) "$index" else "$index-$runIndex"
+                when (run) {
+                    is LineRun.Text -> primitives += DrawText(
+                        id = "q${content.questionId}-s$suffix",
+                        x = (textLeft + run.x).raw,
+                        baseline = lastBaseline.raw,
+                        size = style.size.raw,
+                        text = run.text,
+                    )
+
+                    is LineRun.Box -> primitives += DrawImage(
+                        id = "q${content.questionId}-si$suffix",
+                        x = (textLeft + run.x).raw,
+                        // A unica conversao linha-de-base -> topo do desenho em linha: o que fica
+                        // acima da linha de base e `height - baselineOffset`.
+                        y = (lastBaseline - (run.height - run.baselineOffset)).raw,
+                        width = run.width.raw,
+                        height = run.height.raw,
+                        reference = run.reference,
+                    )
+                }
+            }
+            cursor += line.descent
         }
+        // `advanceAfterStatement` conta a partir da linha fantasma — uma entrelinha alem da ultima
+        // linha de base —, que e o que um texto seguinte consumiria com a ascendente dele.
+        baseline = lastBaseline + style.lineHeight
         // A formula fica entre a ultima linha do enunciado e a primeira alternativa. O engine nao
         // sabe o que ha dentro dela: posiciona a caixa que a conversao mediu e segue (D-1.5.3).
         //
