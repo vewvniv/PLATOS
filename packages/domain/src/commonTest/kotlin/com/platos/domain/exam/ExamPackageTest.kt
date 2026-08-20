@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
  */
 class ExamPackageTest {
 
-    private val HASH_DA_FIXTURE = "855fbc211a5d223fb70cb3b7677249fbde527deb9a93201b529c9a5150a07321"
+    private val HASH_DA_FIXTURE = "34469b917aa2acd146241d3d42943799a747e13f0db42014a9413661f235b954"
 
     private val exam: ExamDefinition = Json.decodeFromString(
         ExamDefinition.serializer(),
@@ -61,9 +61,11 @@ class ExamPackageTest {
         )
         assertTrue(comEnunciadoDiferente.buildPackage().contentHash() != original)
 
+        // Trocar a resposta por outra alternativa da mesma questao: o conteudo e o mesmo, so o
+        // gabarito muda. E o caso que o hash precisa pegar.
         val comGabaritoDiferente = exam.copy(
             questions = exam.questions.mapIndexed { i, q ->
-                if (i == 0) q.copy(correct = if (q.correct == "A") "B" else "A") else q
+                if (i == 0) q.copy(answer = q.options.first { it != q.answer }) else q
             },
         )
         assertTrue(
@@ -145,7 +147,7 @@ class ExamPackageTest {
     @Test
     fun `item sem gabarito impede a publicacao`() {
         val semGabarito = exam.copy(
-            questions = exam.questions.mapIndexed { i, q -> if (i == 7) q.copy(correct = null) else q },
+            questions = exam.questions.mapIndexed { i, q -> if (i == 7) q.copy(answer = null) else q },
         )
         val erro = assertFailsWith<ExamPackageException> { semGabarito.buildPackage() }
         assertContains(erro.message!!, exam.questions[7].id)

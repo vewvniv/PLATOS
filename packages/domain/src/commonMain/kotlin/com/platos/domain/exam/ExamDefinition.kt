@@ -101,8 +101,16 @@ data class Question(
      * geometria a declarar habilidade, sem nada ganhar.
      */
     val skills: List<ItemSkill> = emptyList(),
-    /** Letra da alternativa correta. A publicacao exige; o Layout Engine ignora. */
-    val correct: String? = null,
+    /**
+     * O TEXTO da alternativa correta, e nao a letra.
+     *
+     * A letra e derivada de `options.indexOf(answer)` na publicacao. Guardar a letra a mao deixava
+     * o gabarito poder divergir do conteudo sem ninguem ver — bastava alguem reordenar as
+     * alternativas. Guardando o valor, a divergencia deixa de ser representavel.
+     */
+    val answer: String? = null,
+    /** Como se chega a [answer]. Existe para auditoria humana: gabarito sem procedencia e chute. */
+    val why: String? = null,
     /** Pontuacao do item. */
     val points: Int = 1,
 )

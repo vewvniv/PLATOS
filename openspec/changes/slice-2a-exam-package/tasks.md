@@ -57,6 +57,60 @@
 - [ ] 2.5 Regravar o golden e registrar aqui o antes e o depois. Resultado: mudança auditável, com **uma causa só** — o campo de perfil, e nada mais.
   - Nenhuma outra mudança de geometria entra nesta fatia. Se a contagem de páginas ou a atribuição bloco→página se mexer, algo está errado.
 
+## 2b. Correção do gabarito da fixture
+
+Feito antes de seguir para 2.3, porque relatar defeito não é corrigi-lo. Os dois problemas foram
+levantados por mim ao fechar a 2.1 e ficaram como observação — que é exatamente o hábito que produz
+a próxima verificação decorativa.
+
+- [x] 2b.1 O gabarito deixa de ser letra escrita à mão e passa a ser **derivado**. Resultado: a
+  divergência entre letra e conteúdo deixa de ser representável.
+
+  A fixture declara `answer` — o **texto** da alternativa correta — e `why`, como se chega nele. A
+  letra é computada de `options.indexOf(answer)` na publicação. Antes eram 40 letras cujas
+  derivações viviam num arquivo temporário fora do repositório: se alguém perguntasse por que `q37`
+  era C, o repositório não respondia. Gabarito sem procedência é chute, e esta base não aceita isso
+  nem para medir 0,04 mm.
+
+  A publicação recusa resposta que não esteja entre as alternativas, ou que apareça duas vezes —
+  esta última porque alternativa repetida torna a bolha certa ambígua.
+
+- [x] 2b.2 Rebalancear a posição da alternativa correta. Resultado: as quatro bolhas passam a ser
+  exercitáveis pelo OMR.
+
+  A distribuição era **A=1, B=18, C=21, D=0**. Nenhuma resposta certa caía na última alternativa,
+  então a fatia 3 poderia estar lendo a coluna errada sem uma única questão acusar.
+
+  A regra é determinística: a alternativa correta da questão `i` fica na posição `i mod 4`.
+  Rotacionar preserva o conjunto de alternativas e qual delas é a correta — muda só a posição, que é
+  arbitrária numa fixture e decisiva para a captura. Resultado: **10, 10, 10 e 10**.
+
+  Um teste afirma a regra, e não só a distribuição: distribuição igual poderia vir de sorteio, e
+  sorteio faria a fixture mudar a cada execução, com o golden junto.
+
+- [x] 2b.3 Regravar o golden e **provar** que só o texto mudou. Resultado: mudança com uma causa e
+  com escopo verificado.
+
+  | | antes | depois |
+  |---|---|---|
+  | golden | `7cbf40c9…` | `f01f0751…` |
+  | hash do pacote | `855fbc21…` | `34469b91…` |
+  | elementos de geometria | 806 | **806, idênticos byte a byte** |
+
+  A geometria foi extraída dos dois goldens — identificador e posição de cada primitiva, sem o
+  texto — e comparada: **nenhuma diferença**. A rotação moveu letras, não posições. Isso não foi
+  presumido a partir de "a altura do bloco soma alternativas medidas em separado"; foi medido.
+
+- [x] 2b.4 Ver as guardas novas falharem. Resultado: cada uma reage ao defeito que afirma cobrir.
+
+  | defeito introduzido | quem acusa |
+  |---|---|
+  | rotação de uma questão desfeita | regra determinística, distribuição, e a letra do pacote |
+  | justificativa removida | "toda questão declara resposta e justificativa" |
+  | resposta fora das alternativas | "aparece exatamente uma vez" e a recusa de publicação |
+
+  Três alvos verdes depois de restaurar: JVM 191, Node 187, Android host 187.
+
 ## 3. Persistência
 
 - [ ] 3.1 Migration com `exam`, `exam_package` e `exam_roster`, chaveadas por `organization_id`, com RLS habilitada e forçada. Resultado: as três nascem cobertas pela guarda derivada do catálogo.

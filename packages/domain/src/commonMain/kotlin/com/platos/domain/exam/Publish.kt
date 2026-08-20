@@ -35,8 +35,22 @@ fun ExamDefinition.buildPackage(
         )
     }
 
+    // A letra e COMPUTADA do texto declarado. Se a alternativa correta nao estiver entre as
+    // opcoes, ou estiver duas vezes, a publicacao falha aqui — antes de existir pacote.
     val answerKey = questions.mapNotNull { question ->
-        question.correct?.let { AnswerKeyEntry(itemId = question.id, correct = it, points = question.points) }
+        val answer = question.answer ?: return@mapNotNull null
+        val ocorrencias = question.options.count { it == answer }
+        if (ocorrencias != 1) {
+            throw ExamPackageException(
+                "questao `${question.id}` declara a resposta `$answer`, que aparece $ocorrencias " +
+                    "vezes entre as alternativas ${question.options}; precisa aparecer exatamente uma",
+            )
+        }
+        AnswerKeyEntry(
+            itemId = question.id,
+            correct = LETRAS[question.options.indexOf(answer)].toString(),
+            points = question.points,
+        )
     }
 
     val pacote = ExamPackage(
@@ -67,3 +81,5 @@ fun ExamDefinition.buildPackage(
 }
 
 const val DEFAULT_VARIANT = "v1"
+
+private const val LETRAS = "ABCDE"
