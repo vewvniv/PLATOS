@@ -147,6 +147,26 @@ data class Page(
  * nunca do PDF. Todos os numeros sao inteiros em micrometros ou em partes por milhao, o que torna
  * a serializacao estavel byte a byte e pronta para a fatia 2 tirar hash.
  */
+/**
+ * O perfil que produziu esta geometria (ADR-0004).
+ *
+ * O cabecalho ja declarava a fonte por hash, mas nao a tipografia: duas provas com corpos
+ * diferentes produziam cabecalhos indistinguiveis. Enquanto havia um perfil so isso era invisivel;
+ * a partir do momento em que existe pacote publicado e hasheado, um mapa antigo deixaria de ser
+ * reconstituivel — nao daria para saber sob que corpo ele foi calculado.
+ *
+ * Traz o identificador **e** os valores que o definem. So o identificador obrigaria quem le a ter
+ * a tabela de perfis da epoca; so os valores nao diriam qual perfil era, e dois perfis podem
+ * coincidir em corpo e diferir no resto.
+ */
+@Serializable
+data class LayoutProfileRef(
+    val id: String,
+    @SerialName("body_size") val bodySize: Int,
+    @SerialName("line_height") val lineHeight: Int,
+    val grid: Int,
+)
+
 @Serializable
 data class LayoutMap(
     @SerialName("layout_engine_version") val layoutEngineVersion: Int,
@@ -155,6 +175,7 @@ data class LayoutMap(
     @SerialName("page_width") val pageWidth: Int,
     @SerialName("page_height") val pageHeight: Int,
     @SerialName("font_sha256") val fontSha256: String,
+    val profile: LayoutProfileRef,
     val pages: List<Page>,
     val regions: List<ScannableRegion>,
 ) {

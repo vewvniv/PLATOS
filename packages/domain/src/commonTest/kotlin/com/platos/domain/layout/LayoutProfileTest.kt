@@ -119,6 +119,49 @@ class LayoutProfileTest {
         )
     }
 
+    // --- ADR-0004: o perfil viaja declarado no mapa ---
+
+    @Test
+    fun `o mapa declara o perfil que o produziu`() {
+        val mapa = LayoutEngine().layout(exam)
+        assertEquals(LayoutProfile.DEFAULT.id, mapa.profile.id)
+        assertEquals(LayoutProfile.DEFAULT.style.size.raw, mapa.profile.bodySize)
+        assertEquals(LayoutProfile.DEFAULT.style.lineHeight.raw, mapa.profile.lineHeight)
+        assertEquals(LayoutProfile.DEFAULT.grid.raw, mapa.profile.grid)
+    }
+
+    @Test
+    fun `perfis diferentes ficam distinguiveis pelo cabecalho`() {
+        // O ponto do ADR-0004: distinguir sem precisar inferir a partir da geometria. Um mapa
+        // publicado e hasheado precisa dizer sob que tipografia foi calculado, senao reconstitui-lo
+        // depois vira adivinhacao.
+        val ampliado = LayoutProfile.DEFAULT.copy(
+            id = "a4-2col-ampliado",
+            style = LayoutProfile.DEFAULT.style.copy(
+                size = LayoutProfile.DEFAULT.style.size * 2,
+                lineHeight = LayoutProfile.DEFAULT.style.lineHeight * 2,
+            ),
+            inlineHeightCeiling = LayoutProfile.DEFAULT.style.lineHeight * 4,
+        )
+        val padrao = LayoutEngine().layout(exam).profile
+        val maior = LayoutEngine(profile = ampliado).layout(exam).profile
+
+        assertNotEquals(padrao.id, maior.id)
+        assertNotEquals(padrao.bodySize, maior.bodySize)
+        assertEquals(padrao.grid, maior.grid, "so a tipografia mudou; a grade e a mesma")
+    }
+
+    @Test
+    fun `o identificador sozinho nao bastaria`() {
+        // Dois perfis podem coincidir no identificador por descuido de quem os cria e diferir no
+        // resto; e podem coincidir no corpo e diferir na grade. Por isso o cabecalho traz os dois.
+        val mesmaIdOutraGrade = LayoutProfile.DEFAULT.copy(grid = Um.mm(5))
+        val a = LayoutEngine().layout(exam).profile
+        val b = LayoutEngine(profile = mesmaIdOutraGrade).layout(exam).profile
+        assertEquals(a.id, b.id)
+        assertNotEquals(a.grid, b.grid, "identificador igual, geometria diferente: os valores denunciam")
+    }
+
     // --- guardas do próprio perfil ---
 
     @Test

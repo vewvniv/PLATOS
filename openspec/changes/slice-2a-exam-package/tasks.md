@@ -44,7 +44,17 @@
 
   Cobre "Republicar a mesma prova dá o mesmo hash" e "Mudança no conteúdo muda o hash" — este último com dois ângulos, enunciado e **gabarito**: sem o segundo, a correção poderia ser adulterada sem deixar rastro no hash.
   - Afirmar o hash nos **três alvos**: se ele divergisse entre JVM, Node e Android, o pacote deixaria de ser verificável no dispositivo que o consome.
-- [ ] 2.3 Declarar o perfil tipográfico no cabeçalho do layout (ADR-0004). Resultado: cobre "Perfil declarado no pacote" e "Perfis diferentes são distinguíveis".
+- [x] 2.3 Declarar o perfil tipográfico no cabeçalho do layout (ADR-0004). Resultado: cobre "Perfil declarado no pacote" e "Perfis diferentes são distinguíveis".
+
+  O cabeçalho passa a trazer `profile`, com o identificador **e** os valores que o definem:
+
+  ```json
+  {"id":"a4-2col-9v5pt","body_size":3351,"line_height":4691,"grid":3000}
+  ```
+
+  Os dois, e não um. Só o identificador obrigaria quem lê a ter a tabela de perfis da época; só os valores não diriam qual perfil era. E há um caso que sozinho fecha o argumento, com teste próprio: dois perfis podem ter o **mesmo identificador** e grades diferentes — os valores denunciam, o identificador não.
+
+  Enquanto houve um perfil só isso era invisível. A partir do momento em que existe pacote publicado e hasheado, um mapa antigo deixaria de ser reconstituível: não haveria como saber sob que corpo ele foi calculado. É o que o ADR-0004 chamou de "a parte cara não é o parâmetro, é a ausência do campo".
 - [x] 2.4 Validar coerência interna antes de qualquer gravação. Resultado: cobre os três cenários de "Pacote incoerente é recusado", cada um com o caso positivo ao lado.
 
   Sete recusas antes de qualquer gravação: item sem habilidade, identificador repetido, posição apontando item inexistente, atribuição apontando variante inexistente, item sem gabarito, gabarito órfão, e layout declarando questões diferentes dos itens.
@@ -54,7 +64,18 @@
   **Dois testes meus estavam errados e o vermelho mostrou por quê.** Um chamava `buildPackage`, que já valida, e a exceção escapava antes do ponto medido. O outro removia um item e disparava a recusa da **variante**, não a do layout — passaria pelo motivo errado. Agora o segundo remove o item, a posição e o gabarito juntos, de modo que só a divergência de layout reste.
 
   Também cobre "O pacote não carrega nome de aluno": a varredura é sobre o **JSON gravado**, e não sobre o tipo, porque um campo acrescentado por engano aparece no JSON antes de aparecer em qualquer revisão de código.
-- [ ] 2.5 Regravar o golden e registrar aqui o antes e o depois. Resultado: mudança auditável, com **uma causa só** — o campo de perfil, e nada mais.
+- [x] 2.5 Regravar o golden e registrar aqui o antes e o depois. Resultado: mudança auditável, com **uma causa só** — o campo de perfil, e nada mais.
+
+  | | antes | depois |
+  |---|---|---|
+  | golden | `f01f0751…` | `ceaf67cc…` |
+  | hash do pacote | `34469b91…` | `61c96f4c…` |
+
+  **A causa única foi provada, e não afirmada.** Os dois goldens foram comparados removendo apenas o campo novo do mais recente: o resto do mapa é **idêntico caractere a caractere**. Nenhuma página se moveu, nenhum bloco trocou de coluna, nenhuma primitiva mudou de posição ou de texto.
+
+  É a segunda auditoria deste tipo nesta fatia. Na 2b.3, a comparação foi de geometria — 806 elementos, para separar "mudou o que está escrito" de "mudou onde está escrito". Aqui foi do mapa inteiro menos o campo acrescentado, porque a afirmação a provar era mais forte: nada além do campo mudou.
+
+  Fidelidade do PDF regenerado: 116 verificações, 0,039 mm — o mesmo patamar da base da tarefa 1.1.
   - Nenhuma outra mudança de geometria entra nesta fatia. Se a contagem de páginas ou a atribuição bloco→página se mexer, algo está errado.
 
 ## 2b. Correção do gabarito da fixture
