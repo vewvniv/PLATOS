@@ -217,11 +217,50 @@ a próxima verificação decorativa.
 
 ## 4. Publicação
 
-- [ ] 4.1 Publicar a prova fixa: montar, validar, hashear, gravar. Resultado: um pacote real no banco, a partir da fixture versionada.
-- [ ] 4.2 Testar que o pacote gravado não traz nome, turma nem matrícula. Resultado: cobre "O pacote não carrega nome de aluno".
-  - A varredura é sobre o JSON gravado, e não sobre o tipo: um campo acrescentado por engano aparece no JSON antes de aparecer em qualquer revisão de código.
-- [ ] 4.3 Testar que corrigir o roster não muda o hash do pacote. Resultado: cobre "Mudar o roster não invalida o pacote".
-- [ ] 4.4 Recusar republicação sobre pacote existente, com erro identificável. Resultado: corrigir prova publicada é publicar pacote novo, como D-2a.3 exige.
+- [x] 4.1 Publicar a prova fixa: montar, validar, hashear, gravar. Resultado: um pacote real no banco, a partir da fixture versionada.
+
+  `ExamPublication` em `apps/api`. A montagem é do domínio KMP e é função pura; aqui só se grava — `apps/api` passa a depender de `packages:domain`, que é a primeira vez que servidor e renderizadores leem o mesmo contrato do mesmo lugar.
+
+  **O hash gravado é o mesmo literal que `ExamPackageTest` afirma nos três alvos** — `61c96f4c…`, repetido de propósito do outro lado da fronteira de módulo. Se o servidor gravasse outro, o pacote deixaria de ser verificável no dispositivo que o consome, e a divergência só apareceria na fatia 4, com pacote já distribuído.
+
+  E o teste não compara o hash com o que a publicação devolveu — isso seria comparar a origem consigo mesma. Ele **recalcula o SHA-256 dos bytes da coluna**, com o `MessageDigest` da JVM, que é o que o dispositivo vai fazer ao receber o pacote.
+
+  Duas decisões de implementação que o teste sustenta:
+
+  - **Monta e valida antes de abrir a transação.** "Nenhum pacote parcial é gravado" deixa de depender do rollback: quando a primeira linha é escrita, o pacote já passou por `requireCoherent()`.
+  - **Sem `select` prévio por `short_id`.** Um `select` antes do `insert` deixaria janela entre checagem e gravação, e daria uma resposta mais bonita e menos verdadeira. Quem decide é a restrição do banco; o código só traduz `23505` — e **só** `23505`, porque traduzir a classe 23 inteira diria "prova já publicada" para um `short_id` fora do formato.
+
+- [x] 4.2 Testar que o pacote gravado não traz nome, turma nem matrícula. Resultado: cobre "O pacote não carrega nome de aluno".
+
+  Publica com dois alunos e varre o **JSON gravado**: nome, turma e matrícula ausentes, token presente, e as duas linhas no roster. A varredura é sobre o artefato, e não sobre o tipo — é no artefato que o dado seria distribuído.
+
+  **Visto falhar.** Trocando `PackageAssignment(it.studentToken, …)` por `it.displayName` — o erro de uma letra que basta para violar I5 —, só este teste ficou vermelho:
+
+  ```
+  nome `Zoraide Buarque` dentro do pacote
+  ```
+
+- [x] 4.3 Testar que corrigir o roster não muda o hash do pacote. Resultado: cobre "Mudar o roster não invalida o pacote".
+
+  Corrige o nome de uma aluna e afirma três coisas: a correção aconteceu de fato, o hash não mudou e o conteúdo não mudou. Sem a primeira, o teste passaria com um `update` que não pegou nenhuma linha — verde por não ter feito nada.
+
+- [x] 4.4 Recusar republicação sobre pacote existente, com erro identificável. Resultado: corrigir prova publicada é publicar pacote novo, como D-2a.3 exige.
+
+  `ExamAlreadyPublishedException`, com o `short_id` dentro. A segunda publicação não deixa rastro: uma prova, um pacote, e o título continua o da primeira.
+
+  **Visto falhar, e o vermelho disse mais que a asserção.** Removendo `unique (short_id)`, a segunda publicação passou — e devolveu **o mesmo `content_hash`** da primeira, em outra prova:
+
+  ```
+  Expected an exception of class ExamAlreadyPublishedException to be thrown,
+  but was completed successfully with the result:
+  PublishedPackage(examId=01a02090-…, contentHash=61c96f4c…)
+  ```
+
+  Duas provas distintas com artefato idêntico e `short_id` idêntico é exatamente a ambiguidade que a captura da fatia 3 não teria como resolver: o QR carrega `short_id` e nada mais.
+
+  **Uma verificação que passou de primeira e precisou ser desafiada.** Os seis testes deste grupo passaram na primeira execução, o que nesta base é motivo de desconfiança e não de comemoração. Três defeitos deliberados depois, cada um derrubou **exatamente** o teste que afirma cobri-lo, e nenhum outro. O terceiro é o mais instrutivo: gravar um único espaço a mais no conteúdo — JSON ainda válido, semanticamente idêntico — foi acusado só pela conferência do hash contra os bytes da coluna.
+
+  `apps/api`: **89 testes, zero falhas** — eram 83.
 
 ## 5. Renderização a partir do pacote
 
