@@ -89,6 +89,59 @@ class InlineFormulaTest {
         assertEquals(1, largo.lines.size)
     }
 
+    // --- Espaço na fronteira entre texto e caixa ---
+
+    @Test
+    fun `o espaco antes e depois da caixa sobrevive`() {
+        // Achado na folha IMPRESSA: saia "Quanto vale12 + 15ao todo?", com texto e formula colados.
+        // A causa era `split(' ')` comendo o espaco da fronteira — dentro do trecho os espacos
+        // voltam porque as palavras sao rejuntadas com " ", mas na borda com a caixa nao ha juncao.
+        //
+        // Nenhum teste pegava isso porque todos mediam largura, altura e quebra, e o espaco de
+        // fronteira nao muda nenhuma das tres o bastante para reprovar. Este afirma a posicao.
+        val espaco = measurer.width(" ", style)
+        val medido = measurer.measure(
+            listOf(TextPiece.Words("Quanto vale "), caixa(), TextPiece.Words(" ao todo?")),
+            style,
+            Um.mm(200),
+        )
+
+        val linha = medido.lines.single()
+        val antes = linha.runs[0] as LineRun.Text
+        val box = linha.runs[1] as LineRun.Box
+        val depois = linha.runs[2] as LineRun.Text
+
+        assertEquals("Quanto vale", antes.text, "o espaco nao pode ficar dentro do texto desenhado")
+        assertEquals("ao todo?", depois.text)
+        assertEquals(
+            antes.x + antes.width + espaco,
+            box.x,
+            "falta o espaco entre o texto e a formula",
+        )
+        assertEquals(
+            box.x + box.width + espaco,
+            depois.x,
+            "falta o espaco entre a formula e o texto seguinte",
+        )
+    }
+
+    @Test
+    fun `sem espaco no enunciado a caixa encosta no texto`() {
+        // O par que impede o conserto de virar "sempre poe espaco": quando o enunciado NAO tem
+        // espaco, a caixa continua encostada. Sem isto, `(x{{f}})` ganharia espaco que ninguem pediu.
+        val medido = measurer.measure(
+            listOf(TextPiece.Words("valor("), caixa(), TextPiece.Words(")")),
+            style,
+            Um.mm(200),
+        )
+        val linha = medido.lines.single()
+        val antes = linha.runs[0] as LineRun.Text
+        val box = linha.runs[1] as LineRun.Box
+        val depois = linha.runs[2] as LineRun.Text
+        assertEquals(antes.x + antes.width, box.x)
+        assertEquals(box.x + box.width, depois.x)
+    }
+
     // --- Fórmula não é partida entre linhas ---
 
     @Test

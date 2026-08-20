@@ -161,6 +161,7 @@ class TextMeasurer(private val font: FontProgram) {
         // Trecho de texto em construcao: o texto acumulado e onde ele comeca na linha.
         var runText = StringBuilder()
         var runStart = Um.ZERO
+        val espaco = width(" ", style)
 
         fun fecharTrecho() {
             if (runText.isNotEmpty()) {
@@ -194,7 +195,23 @@ class TextMeasurer(private val font: FontProgram) {
                     val paragraphs = piece.text.split('\n')
                     for ((p, paragraph) in paragraphs.withIndex()) {
                         if (p > 0) fecharLinha()
+                        // O espaco da FRONTEIRA com uma caixa precisa sobreviver, e `split` o come.
+                        // Dentro do trecho os espacos voltam porque as palavras sao rejuntadas com
+                        // " "; na borda nao ha juncao, e sem isto a folha sai com
+                        // "Quanto vale12 + 15ao todo?" — texto e formula colados.
+                        //
+                        // O espaco entra como avanco do cursor, e nao como espaco no comeco ou no
+                        // fim da string desenhada: assim o `DrawText` nao carrega espaco nas
+                        // pontas e o kerning dentro do trecho continua o de antes.
+                        val comecaComEspaco = paragraph.startsWith(" ")
+                        val terminaComEspaco = paragraph.endsWith(" ")
                         val words = paragraph.split(' ').filter { it.isNotEmpty() }
+
+                        if (comecaComEspaco && runs.isNotEmpty() && runText.isEmpty()) {
+                            cursor += espaco
+                            runStart = cursor
+                        }
+
                         for (word in words) {
                             val candidate = if (runText.isEmpty()) word else "$runText $word"
                             val candidateWidth = width(candidate, style)
@@ -211,9 +228,14 @@ class TextMeasurer(private val font: FontProgram) {
                                 runText = StringBuilder(candidate)
                             }
                         }
+
+                        if (terminaComEspaco && words.isNotEmpty()) {
+                            fecharTrecho()
+                            cursor += espaco
+                            runStart = cursor
+                        }
                     }
                 }
-
                 is TextPiece.Box -> {
                     fecharTrecho()
                     if (runs.isNotEmpty() && cursor + piece.width > maxWidth) {
