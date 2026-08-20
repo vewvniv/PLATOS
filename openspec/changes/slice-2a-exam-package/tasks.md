@@ -299,12 +299,36 @@ a próxima verificação decorativa.
 
 ## 6. Verificação
 
-- [ ] 6.1 Rodar a suíte completa nos três alvos, mais `./gradlew build`. Resultado: golden novo estável byte a byte em JVM, Node e Android.
-- [ ] 6.2 Medir fidelidade dos dois PDFs derivados do pacote. Resultado: dentro de 0,05 mm, comparado com a base da tarefa 1.1.
-- [ ] 6.3 Medir paridade web × Android com os documentos derivados do pacote. Resultado: dentro de 0,3 mm; cobre "Divergência entre plataformas continua barrada".
-- [ ] 6.4 Provar que a verificação continua capaz de falhar, com o deslocamento deliberado sobre o layout **do pacote**. Resultado: as duas ferramentas saem com código 1.
-  - A janela de medição já foi conferida para bloco e para linha. O que muda aqui é a origem do mapa, então a conferência é de que o deslocamento ainda **chega** ao documento.
-- [ ] 6.5 Atualizar `docs/cobertura-*.md` com os cenários novos e como cada verificação foi vista falhar. Resultado: nenhum cenário da spec sem verificação.
+- [x] 6.1 Rodar a suíte completa nos três alvos, mais `./gradlew build`. Resultado: golden novo estável byte a byte em JVM, Node e Android.
+
+  | alvo | testes | falhas |
+  |---|---|---|
+  | `packages/domain` JVM | 197 | 0 |
+  | `packages/domain` Node/JS | 192 | 0 |
+  | `packages/domain` Android (host) | 192 | 0 |
+  | `apps/api` (Postgres real) | 89 | 0 |
+  | `apps/web` · `tools/math` | 12 · 17 | 0 |
+
+  Rodado com `--rerun-tasks`: contagem de cache não é contagem.
+
+- [x] 6.2 Medir fidelidade dos dois PDFs derivados do pacote. Resultado: dentro de 0,05 mm, comparado com a base da tarefa 1.1.
+
+  116 verificações em cada documento. Web **0,039 mm** (marcador 2, borda superior); Android **0,022 mm** (fórmula `qq30-f`, altura da tinta). O mesmo patamar da base da 1.1.
+
+- [x] 6.3 Medir paridade web × Android com os documentos derivados do pacote. Resultado: dentro de 0,3 mm; cobre "Divergência entre plataformas continua barrada".
+
+  **185 de 185 elementos**, 4 páginas, maior divergência **0,042 mm** em `qq37-f` — o piso da rasterização, contra tolerância de 0,3. Idêntico ao da base: trocar a origem do mapa não mexeu em geometria nenhuma.
+
+- [x] 6.4 Provar que a verificação continua capaz de falhar, com o deslocamento deliberado sobre o layout **do pacote**. Resultado: as duas ferramentas saem com código 1.
+
+  `render-shifted.ts` passou a ler do pacote pelo mesmo `loadPublishedLayout()` do renderizador — se continuasse lendo o golden, estaria provando a falsificabilidade de um caminho que ninguém imprime. As duas ferramentas saíram com código 1, acusando os quatro elementos deslocados.
+
+  **E uma conferência quase virou falso vermelho.** Rodei o comparador com o diretório errado; ele saiu com código 1 por não achar o arquivo, e código 1 é exatamente o que se espera de uma recusa legítima. Refeito do diretório certo, a recusa veio com os quatro elementos nomeados. Código de saída sem a mensagem junto não é evidência.
+
+- [x] 6.5 Atualizar `docs/cobertura-*.md` com os cenários novos e como cada verificação foi vista falhar. Resultado: nenhum cenário da spec sem verificação.
+
+  `docs/cobertura-fatia-2a.md`: os 13 cenários de `exam-package`, todos cobertos, e a tabela dos seis defeitos deliberados com a mensagem que cada um produziu.
+
 - [ ] 6.6 Imprimir a folha derivada do pacote e conferir a olho. Resultado: registrado.
   - **Duas fatias seguidas, dois defeitos de espaçamento que só o papel achou** — e o segundo explicou uma divergência de métrica que eu tratava como problema de ferramenta. Enquanto o Layout Engine estiver mudando, esta tarefa não é formalidade.
 
