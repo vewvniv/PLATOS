@@ -1,13 +1,14 @@
 package com.platos.domain.layout
 
 import com.platos.domain.exam.ExamDefinition
+import com.platos.domain.exam.buildPackage
 import com.platos.domain.fixtures.Fixtures
 import kotlinx.serialization.json.Json
 import java.io.File
 import kotlin.test.Test
 
 /**
- * Regrava o golden do `LayoutMap` quando pedido explicitamente:
+ * Regrava os artefatos versionados quando pedido explicitamente:
  * `./gradlew :packages:domain:jvmTest -Dplatos.golden.write=true`.
  *
  * Fica atras de uma flag de proposito. Um golden que se regrava sozinho nao detecta nada — ele
@@ -16,16 +17,42 @@ import kotlin.test.Test
  */
 class GoldenWriterTest {
 
+    private val exam: ExamDefinition = Json { ignoreUnknownKeys = false }
+        .decodeFromString(ExamDefinition.serializer(), Fixtures.PROVA_REFERENCIA_JSON)
+
     @Test
     fun `regrava o golden apenas quando solicitado`() {
         if (System.getProperty("platos.golden.write") != "true") return
         val destination = File(System.getProperty("platos.golden.path"))
 
-        val exam = Json { ignoreUnknownKeys = false }
-            .decodeFromString(ExamDefinition.serializer(), Fixtures.PROVA_REFERENCIA_JSON)
         val map = LayoutEngine().layout(exam)
 
         destination.writeText(map.toCanonicalJson())
         println("golden regravado: ${destination.absolutePath} (${destination.length()} bytes)")
+    }
+
+    /**
+     * O pacote publicado, versionado ao lado do golden.
+     *
+     * E de dentro dele que os dois renderizadores passam a extrair a geometria (D-2a.5). Sem
+     * consumidor, o pacote seria um artefato que nao tem como estar errado; com ele, a paridade e a
+     * fidelidade — que ja existem e ja sabem falhar — passam a julgar o pacote sem uma linha de
+     * verificacao nova.
+     *
+     * Sem atribuicoes: a fixture nao tem roster, e token de aluno nao e coisa de arquivo
+     * versionado. E o mesmo pacote cujo hash `ExamPackageTest` afirma nos tres alvos.
+     */
+    @Test
+    fun `regrava o pacote publicado apenas quando solicitado`() {
+        if (System.getProperty("platos.golden.write") != "true") return
+        val destination = File(System.getProperty("platos.package.path"))
+
+        val pacote = exam.buildPackage()
+
+        destination.writeText(pacote.toCanonicalJson())
+        println(
+            "pacote regravado: ${destination.absolutePath} (${destination.length()} bytes, " +
+                "hash ${pacote.contentHash()})",
+        )
     }
 }

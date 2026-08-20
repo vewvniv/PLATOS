@@ -264,9 +264,38 @@ a próxima verificação decorativa.
 
 ## 5. Renderização a partir do pacote
 
-- [ ] 5.1 `render-fixture.ts` passa a extrair o `LayoutMap` do pacote (D-2a.5). Resultado: cobre "PDF vem do pacote" no web.
-- [ ] 5.2 O teste instrumentado do Android passa a fazer o mesmo. Resultado: cobre o mesmo cenário no Android.
-- [ ] 5.3 Confirmar que nenhum renderizador ganhou lógica nova. Resultado: se algum precisou mudar de comportamento — e não só de origem do mapa —, o desenho de D-2a.1 está errado e a tarefa reprova.
+- [x] 5.1 `render-fixture.ts` passa a extrair o `LayoutMap` do pacote (D-2a.5). Resultado: cobre "PDF vem do pacote" no web.
+
+  O pacote publicado passa a ser artefato versionado: `fixtures/prova-referencia.package.json`, regravado pela mesma flag do golden (`-Dplatos.golden.write=true`). E há uma propriedade que ele ganha de graça, e que vale registrar:
+
+  ```
+  sha256(fixtures/prova-referencia.package.json) = 61c96f4c…  ← o content_hash do pacote
+  ```
+
+  O hash do **arquivo** é o `content_hash` que o banco grava e que os três alvos afirmam. Não é coincidência: o arquivo é exatamente a serialização canônica sobre a qual o hash é calculado. Conferir o artefato versionado é um `sha256sum`.
+
+  `loadPublishedLayout()` é um caminho só, usado por `render-fixture.ts` e por `render-shifted.ts` — se o gerador do deslocamento continuasse lendo o golden, a falsificabilidade estaria provando outra coisa que não o que se imprime.
+
+- [x] 5.2 O teste instrumentado do Android passa a fazer o mesmo. Resultado: cobre o mesmo cenário no Android.
+
+  `layoutDoPacote()` no lugar de `golden()`, lendo `prova-referencia.package.json` dos assets versionados. O APK de teste foi aberto e o asset hasheado: `61c96f4c…`, o mesmo do repositório e o mesmo do banco.
+
+  **Uma guarda nova, porque a fatia abriu uma fresta.** Os renderizadores desenham a partir do pacote; a paridade e a fidelidade medem contra o golden. Se os dois arquivos pudessem divergir, as ferramentas passariam a julgar uma geometria que ninguém imprime — e continuariam verdes, porque continuariam funcionando perfeitamente, só que sobre o artefato errado. `PacoteVersionadoTest`, em `commonTest`, afirma nos três alvos que o layout dentro do pacote é o golden **byte a byte**, e que o pacote versionado é o que a publicação produz hoje.
+
+- [x] 5.3 Confirmar que nenhum renderizador ganhou lógica nova. Resultado: se algum precisou mudar de comportamento — e não só de origem do mapa —, o desenho de D-2a.1 está errado e a tarefa reprova.
+
+  | verificação | resultado |
+  |---|---|
+  | `git diff` em `apps/web/src`, `apps/android/src/main`, `commonMain` | **vazio** |
+  | paridade web × Android | 185 de 185, 0,042 mm em `qq37-f` |
+  | fidelidade web · Android | 116 verificações cada; 0,039 mm e 0,022 mm |
+  | deslocamento deliberado | as duas ferramentas com código 1 |
+
+  Os números são **os mesmos** de antes da mudança, dígito a dígito. Só a origem do mapa mudou.
+
+  **O oráculo óbvio não existia, e descobrir isso valeu a tarefa.** A intenção era comparar o `web.pdf` antes e depois byte a byte. Ele mudou — e mudou também entre **duas execuções seguidas com a mesma entrada**: dois renders consecutivos deram hashes diferentes, com a diferença dentro de um stream comprimido, na forma de um timestamp embutido pelo `pdf-lib`.
+
+  Ou seja: **o hash do PDF nunca serviu, e nunca servirá, de golden.** Se eu tivesse comparado só uma vez, teria lido "o PDF mudou" como regressão de geometria e ido caçar um defeito que não existe. Quem responde "nada mudou" aqui é a rasterização — fidelidade e paridade —, e o `git diff` dos renderizadores.
 
 ## 6. Verificação
 

@@ -25,6 +25,7 @@ val embedFixtures = tasks.register<EmbedFixturesTask>("embedFixtures") {
     files.from(
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.json"),
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.layout.json"),
+        rootProject.layout.projectDirectory.file("fixtures/prova-referencia.package.json"),
         rootProject.layout.projectDirectory.file("fixtures/formulas.manifest.json"),
     )
     packageName.set("com.platos.domain.fixtures")
@@ -116,6 +117,13 @@ tasks.withType<Test>().configureEach {
     systemProperty(
         "platos.golden.path",
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.layout.json")
+            .asFile.absolutePath,
+    )
+    // O pacote publicado tambem e artefato versionado a partir da fatia 2a: e dele que os dois
+    // renderizadores extraem a geometria (D-2a.5), e nao mais do golden solto.
+    systemProperty(
+        "platos.package.path",
+        rootProject.layout.projectDirectory.file("fixtures/prova-referencia.package.json")
             .asFile.absolutePath,
     )
 }
