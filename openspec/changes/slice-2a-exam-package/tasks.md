@@ -78,6 +78,27 @@
   Fidelidade do PDF regenerado: 116 verificações, 0,039 mm — o mesmo patamar da base da tarefa 1.1.
   - Nenhuma outra mudança de geometria entra nesta fatia. Se a contagem de páginas ou a atribuição bloco→página se mexer, algo está errado.
 
+- [x] 2.6 Fechar a paridade web × Android no golden novo, sem esperar o fim da fatia. Resultado: o
+  `android.pdf` volta a ser do golden vigente, e a divergência não fica em janela aberta.
+
+  | verificação | resultado |
+  |---|---|
+  | golden dentro do APK de teste | `ceaf67cc…` — **o mesmo** de `fixtures/` |
+  | paridade web × Android | **185 de 185**, 4 páginas, 0,042 mm em `qq37-f` (tolerância 0,3) |
+  | fidelidade web · Android | 116 verificações cada; 0,039 mm e **0,022 mm** |
+  | deslocamento deliberado | as duas ferramentas saíram com código 1 |
+
+  **O golden empacotado foi conferido, e não o carimbo do arquivo.** A 2b.5 mostrou que a fidelidade
+  passa com um PDF velho contra um golden novo, porque a geometria não mudou. Aqui o risco era o
+  mesmo com outra roupa: um APK guardando o asset da execução anterior daria "paridade OK" sobre o
+  mapa errado. Então o `prova-referencia.layout.json` foi extraído de dentro do
+  `android-debug-androidTest.apk` e hasheado — bate com o de `fixtures/`. É o que autoriza dizer que
+  este `android.pdf` nasceu do golden desta tarefa.
+
+  A cadência é decisão registrada: **paridade fecha a cada regravação do golden**, e não agrupada na
+  verificação final. Custa ciclos de emulador; em troca, nenhuma divergência geométrica fica viva
+  entre dois goldens sem alguém ter olhado.
+
 ## 2b. Correção do gabarito da fixture
 
 Feito antes de seguir para 2.3, porque relatar defeito não é corrigi-lo. Os dois problemas foram
