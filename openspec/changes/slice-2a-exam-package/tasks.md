@@ -111,6 +111,28 @@ a próxima verificação decorativa.
 
   Três alvos verdes depois de restaurar: JVM 191, Node 187, Android host 187.
 
+- [x] 2b.5 Reverificar tudo com o layout corrigido, antes de seguir. Resultado: base limpa e medida,
+  e não presumida.
+
+  | verificação | resultado |
+  |---|---|
+  | `./gradlew build` + alvo Android | verde |
+  | `packages/domain` JVM · Node · Android host | 191 · 187 · 187, zero falhas |
+  | `apps/api` (Postgres real) | 69, zero falhas |
+  | `apps/web` · `tools/math` | 12 · 17, zero falhas |
+  | fidelidade web · Android | 116 verificações cada; 0,039 mm e 0,022 mm |
+  | paridade web × Android | **185 de 185, 0,042 mm** em `qq37-f` |
+  | deslocamento deliberado | acusado nos quatro elementos |
+
+  **Uma coisa apareceu ao verificar, e vale mais que o resultado.** A fidelidade passou com o PDF
+  **desatualizado** contra o golden novo. Não é contradição: ela mede posição de marcador, bolha e
+  fórmula, e a geometria não mudou — só o texto das alternativas. Ela não olha conteúdo de texto.
+
+  Ou seja: **nem a fidelidade nem a paridade notariam que as alternativas trocaram de letra.** Quem
+  pega isso é o golden, e só ele. Contentar-se com "fidelidade OK" teria declarado verificado um
+  artefato velho — o falso verde de sempre, com roupa nova. Não é defeito das ferramentas, é o
+  escopo delas; fica dito porque a intuição natural é achar que "as três passaram" cobre tudo.
+
 ## 3. Persistência
 
 - [ ] 3.1 Migration com `exam`, `exam_package` e `exam_roster`, chaveadas por `organization_id`, com RLS habilitada e forçada. Resultado: as três nascem cobertas pela guarda derivada do catálogo.
