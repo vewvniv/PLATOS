@@ -92,6 +92,15 @@ data class Question(
      * Quem resolve referencia para bytes segue sendo o consumidor, pelo caminho unico de D-1.5.5.
      */
     val inline: List<InlineFormula> = emptyList(),
+    /**
+     * Habilidades do curriculo que a questao cobre (I1).
+     *
+     * Opcional AQUI e obrigatoria na publicacao, de proposito. O Layout Engine nao sabe o que e
+     * habilidade e nao deve saber; quem precisa da barreira e o pacote publicado, porque e dele
+     * que sai o fato que M3 vai agregar. Exigir aqui obrigaria toda questao sintetica de teste de
+     * geometria a declarar habilidade, sem nada ganhar.
+     */
+    val skills: List<ItemSkill> = emptyList(),
 )
 
 /**

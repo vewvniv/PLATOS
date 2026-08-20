@@ -19,6 +19,12 @@
           "height": 2498,
           "baseline_offset": 274
         }
+      ],
+      "skills": [
+        {
+          "code": "EF06MA03",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -30,6 +36,12 @@
         "26 cm2",
         "40 cm2",
         "45 cm2"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA24",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -49,6 +61,12 @@
           "height": 6773,
           "baseline_offset": 2291
         }
+      ],
+      "skills": [
+        {
+          "code": "EF06MA07",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -60,6 +78,12 @@
         "45",
         "60",
         "75"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA13",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -71,6 +95,12 @@
         "12",
         "13",
         "15"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA05",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -82,6 +112,12 @@
         "180 graus",
         "270 graus",
         "360 graus"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA24",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -107,6 +143,12 @@
           "height": 3810,
           "baseline_offset": 840
         }
+      ],
+      "skills": [
+        {
+          "code": "EF07MA18",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -118,6 +160,12 @@
         "60 reais",
         "65 reais",
         "70 reais"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA02",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -129,6 +177,12 @@
         "234",
         "345",
         "457"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA05",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -140,6 +194,12 @@
         "21 cm",
         "28 cm",
         "49 cm"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA29",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -159,6 +219,12 @@
           "height": 2963,
           "baseline_offset": 0
         }
+      ],
+      "skills": [
+        {
+          "code": "EF06MA11",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -170,6 +236,12 @@
         "8",
         "9",
         "12"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA35",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -181,6 +253,12 @@
         "70 km/h",
         "80 km/h",
         "90 km/h"
+      ],
+      "skills": [
+        {
+          "code": "EF09MA07",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -192,6 +270,12 @@
         "3",
         "6",
         "9"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA01",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -203,6 +287,12 @@
         "10 cm",
         "15 cm",
         "25 cm"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA33",
+          "coverage": "partial"
+        }
       ]
     },
     {
@@ -222,6 +312,12 @@
           "height": 3556,
           "baseline_offset": 155
         }
+      ],
+      "skills": [
+        {
+          "code": "EF08MA02",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -233,6 +329,12 @@
         "24",
         "32",
         "36"
+      ],
+      "skills": [
+        {
+          "code": "EF08MA11",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -244,6 +346,12 @@
         "22",
         "24",
         "26"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA13",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -255,6 +363,12 @@
         "5",
         "19",
         "menos 19"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA03",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -266,6 +380,12 @@
         "100",
         "1000",
         "10000"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA24",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -277,6 +397,12 @@
         "10",
         "12",
         "24"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA01",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -288,6 +414,12 @@
         "15",
         "20",
         "30"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA09",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -307,6 +439,12 @@
           "height": 2879,
           "baseline_offset": 649
         }
+      ],
+      "skills": [
+        {
+          "code": "EF06MA08",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -318,6 +456,12 @@
         "isosceles",
         "equilatero",
         "retangulo"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA19",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -329,6 +473,12 @@
         "25",
         "30",
         "40"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA03",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -354,6 +504,12 @@
           "height": 3006,
           "baseline_offset": 37
         }
+      ],
+      "skills": [
+        {
+          "code": "EF08MA06",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -365,6 +521,12 @@
         "130",
         "150",
         "180"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA24",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -376,6 +538,12 @@
         "16",
         "18",
         "20"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA15",
+          "coverage": "direct"
+        }
       ]
     },
     {
@@ -392,7 +560,13 @@
         "reference": "f-aritmetica",
         "width": 25866,
         "height": 3344
-      }
+      },
+      "skills": [
+        {
+          "code": "EF07MA04",
+          "coverage": "direct"
+        }
+      ]
     },
     {
       "id": "q30",
@@ -408,7 +582,13 @@
         "reference": "f-fracoes",
         "width": 10414,
         "height": 6900
-      }
+      },
+      "skills": [
+        {
+          "code": "EF06MA10",
+          "coverage": "direct"
+        }
+      ]
     },
     {
       "id": "q31",
@@ -424,7 +604,13 @@
         "reference": "f-raizes",
         "width": 18203,
         "height": 3683
-      }
+      },
+      "skills": [
+        {
+          "code": "EF09MA03",
+          "coverage": "direct"
+        }
+      ]
     },
     {
       "id": "q32",
@@ -440,7 +626,13 @@
         "reference": "f-potencias",
         "width": 20616,
         "height": 3598
-      }
+      },
+      "skills": [
+        {
+          "code": "EM13MAT508",
+          "coverage": "direct"
+        }
+      ]
     },
     {
       "id": "q33",
@@ -456,7 +648,13 @@
         "reference": "f-trigonometria",
         "width": 26035,
         "height": 3217
-      }
+      },
+      "skills": [
+        {
+          "code": "EM13MAT306",
+          "coverage": "partial"
+        }
+      ]
     },
     {
       "id": "q34",
@@ -472,7 +670,13 @@
         "reference": "f-logaritmo",
         "width": 16044,
         "height": 3133
-      }
+      },
+      "skills": [
+        {
+          "code": "EM13MAT305",
+          "coverage": "direct"
+        }
+      ]
     },
     {
       "id": "q35",
@@ -488,7 +692,13 @@
         "reference": "f-vetor",
         "width": 44027,
         "height": 4572
-      }
+      },
+      "skills": [
+        {
+          "code": "EM13MAT308",
+          "coverage": "anchor"
+        }
+      ]
     },
     {
       "id": "q36",
@@ -504,7 +714,13 @@
         "reference": "f-somatorio",
         "width": 24892,
         "height": 9398
-      }
+      },
+      "skills": [
+        {
+          "code": "EM13MAT507",
+          "coverage": "partial"
+        }
+      ]
     },
     {
       "id": "q37",
@@ -520,7 +736,13 @@
         "reference": "f-matriz2",
         "width": 8932,
         "height": 8043
-      }
+      },
+      "skills": [
+        {
+          "code": "EM13MAT301",
+          "coverage": "anchor"
+        }
+      ]
     },
     {
       "id": "q38",
@@ -536,7 +758,13 @@
         "reference": "f-matriz3",
         "width": 17611,
         "height": 12742
-      }
+      },
+      "skills": [
+        {
+          "code": "EM13MAT301",
+          "coverage": "anchor"
+        }
+      ]
     },
     {
       "id": "q39",
@@ -552,7 +780,13 @@
         "reference": "f-sistema",
         "width": 17992,
         "height": 8043
-      }
+      },
+      "skills": [
+        {
+          "code": "EM13MAT301",
+          "coverage": "direct"
+        }
+      ]
     },
     {
       "id": "q40",
@@ -568,7 +802,13 @@
         "reference": "f-bhaskara",
         "width": 30776,
         "height": 7832
-      }
+      },
+      "skills": [
+        {
+          "code": "EM13MAT302",
+          "coverage": "direct"
+        }
+      ]
     }
   ]
 }
