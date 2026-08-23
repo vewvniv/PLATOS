@@ -110,6 +110,33 @@ class LayoutMapRendererInstrumentedTest {
     }
 
     /**
+     * A folha de teste de impressao, desenhada pelo `PdfDocument` real (D-2b.7).
+     *
+     * Ela vai para a paridade junto com a prova. Sem isto, a folha que **aprova uma impressora**
+     * seria o unico documento do projeto que ninguem compara entre plataformas — e um professor
+     * poderia aprovar a impressora por uma folha desenhada de um jeito e imprimir a prova
+     * desenhada de outro.
+     */
+    @Test
+    fun geraPdfDaFolhaDeTesteParaOJobDeParidade() {
+        val json = context.assets.open("folha-de-teste.layout.json")
+            .bufferedReader()
+            .use { it.readText() }
+        val folha = Json { ignoreUnknownKeys = false }
+            .decodeFromString(LayoutMap.serializer(), json)
+
+        val output = File(outputDir(), "android-teste.pdf")
+        // A folha de teste nao tem formula: nenhum raster e necessario, e passar um mapa vazio e a
+        // afirmacao de que ela nao depende de recurso externo nenhum.
+        output.outputStream().use { stream ->
+            LayoutMapRenderer(embeddedTypeface(), emptyMap()).render(folha, stream)
+        }
+
+        assertTrue("o PDF da folha de teste nao foi escrito", output.exists())
+        assertTrue("o PDF da folha de teste saiu vazio", output.length() > 1_000)
+    }
+
+    /**
      * Cobre "Bytes ausentes" no `PdfDocument` real, e nao so na guarda.
      *
      * A guarda ja e verificada em teste local de JVM; o que so o emulador mostra e que a recusa

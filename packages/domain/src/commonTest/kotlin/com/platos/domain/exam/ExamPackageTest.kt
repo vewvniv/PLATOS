@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
  */
 class ExamPackageTest {
 
-    private val HASH_DA_FIXTURE = "61c96f4c146341c3d8bcdc116f2f4f4949efc55112205ab52bcc8e3df950613c"
+    private val HASH_DA_FIXTURE = "26612ad52b0cb967309f49354e9858c501ad7a1b0c7b46db874c05d348e6909a"
 
     private val exam: ExamDefinition = Json.decodeFromString(
         ExamDefinition.serializer(),

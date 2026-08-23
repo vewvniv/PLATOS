@@ -76,13 +76,32 @@ class LayoutMapRenderer(
     private fun draw(canvas: Canvas, primitive: Primitive) {
         RendererContract.assertDrawable(primitive) { it in imageBytes }
         when (primitive) {
-            is DrawRect -> canvas.drawRect(
-                pt(primitive.x),
-                pt(primitive.y),
-                pt(primitive.x + primitive.width),
-                pt(primitive.y + primitive.height),
-                strokePaint(primitive.stroke),
-            )
+            is DrawRect -> {
+                // A trama vai primeiro e o traco por cima, para o contorno nao ser comido pelo
+                // preenchimento. Ate a fatia 2b este ramo ignorava `fill` por completo: o web
+                // preenchia, o Android nao, e a paridade nao tinha como ver — ela compara
+                // centroides de marcador e bolha, e faixa ausente nao move nenhum deles.
+                primitive.fill?.let { fill ->
+                    canvas.drawRect(
+                        pt(primitive.x),
+                        pt(primitive.y),
+                        pt(primitive.x + primitive.width),
+                        pt(primitive.y + primitive.height),
+                        fillPaint(fill),
+                    )
+                }
+                // Traco zero e **sem traco**: `strokeWidth = 0` no Android desenha hairline de um
+                // pixel, que poria contorno em volta de uma faixa que deveria ser so trama.
+                if (primitive.stroke > 0) {
+                    canvas.drawRect(
+                        pt(primitive.x),
+                        pt(primitive.y),
+                        pt(primitive.x + primitive.width),
+                        pt(primitive.y + primitive.height),
+                        strokePaint(primitive.stroke),
+                    )
+                }
+            }
 
             is DrawCircle -> canvas.drawCircle(
                 pt(primitive.centerX),
@@ -95,7 +114,7 @@ class LayoutMapRenderer(
                 primitive.text,
                 pt(primitive.x),
                 pt(primitive.baseline),
-                textPaint(primitive.size),
+                textPaint(primitive.size, primitive.tone),
             )
 
             is DrawAruco -> drawModuleGrid(
@@ -191,11 +210,29 @@ class LayoutMapRenderer(
         isDither = false
     }
 
-    private fun textPaint(sizeUm: Int) = Paint().apply {
+    private fun textPaint(sizeUm: Int, tone: Int?) = Paint().apply {
         isAntiAlias = true
         style = Paint.Style.FILL
-        color = android.graphics.Color.BLACK
+        color = grayOf(tone)
         typeface = this@LayoutMapRenderer.typeface
         textSize = pt(sizeUm)
+    }
+
+    private fun fillPaint(permille: Int) = Paint().apply {
+        isAntiAlias = false
+        style = Paint.Style.FILL
+        color = grayOf(permille)
+    }
+
+    /**
+     * Permilagem de preto -> cinza de 8 bits (D-2b.1).
+     *
+     * Nulo e preto pleno, como o contrato declara. O renderizador nao escolhe tom: ele converte o
+     * que o mapa mandou, e a conversao e a mesma do `grayOf` do web.
+     */
+    private fun grayOf(permille: Int?): Int {
+        if (permille == null) return android.graphics.Color.BLACK
+        val level = ((1000 - permille) * 255 + 500) / 1000
+        return android.graphics.Color.rgb(level, level, level)
     }
 }

@@ -26,6 +26,7 @@ val embedFixtures = tasks.register<EmbedFixturesTask>("embedFixtures") {
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.json"),
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.layout.json"),
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.package.json"),
+        rootProject.layout.projectDirectory.file("fixtures/folha-de-teste.layout.json"),
         rootProject.layout.projectDirectory.file("fixtures/formulas.manifest.json"),
     )
     packageName.set("com.platos.domain.fixtures")
@@ -124,6 +125,13 @@ tasks.withType<Test>().configureEach {
     systemProperty(
         "platos.package.path",
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.package.json")
+            .asFile.absolutePath,
+    )
+    // A folha de teste de impressao e artefato versionado pelo mesmo motivo do golden: e dela que
+    // os dois renderizadores desenham o documento que aprova ou reprova uma impressora (D-2b.7).
+    systemProperty(
+        "platos.testsheet.path",
+        rootProject.layout.projectDirectory.file("fixtures/folha-de-teste.layout.json")
             .asFile.absolutePath,
     )
 }

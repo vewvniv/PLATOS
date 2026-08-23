@@ -8,6 +8,7 @@ import com.platos.domain.geometry.Ppm
 import com.platos.domain.geometry.Um
 import com.platos.domain.text.EmbeddedFont
 import com.platos.domain.text.LineRun
+import com.platos.domain.text.MeasuredText
 import com.platos.domain.text.TextMeasurer
 import com.platos.domain.text.TextStyle
 
@@ -41,22 +42,34 @@ class LayoutEngine(
 
         val grid = gridFor(exam)
         val regionHeight = profile.snapToGrid(TOP_BAND + grid.height + BOTTOM_CLEARANCE)
+        val header = measureHeader(exam)
 
         val contents = QuestionBlockBuilder(measurer, profile).build(exam)
         val pagination = Paginator(
             profile = profile,
-            reservedOnFirstPage = regionHeight + SPACE_AFTER_REGION,
+            reservedOnFirstPage = header.height + regionHeight + SPACE_AFTER_REGION,
         ).paginate(contents.map { it.block })
 
         val byId = contents.associateBy { it.questionId }
         val primitivesByPage = mutableMapOf<Int, MutableList<Primitive>>()
         fun page(index: Int) = primitivesByPage.getOrPut(index) { mutableListOf() }
 
-        val region = buildAnswerBlock(exam, grid, regionHeight, page(0))
+        emitHeader(header, page(0))
+        val region = buildAnswerBlock(
+            exam = exam,
+            grid = grid,
+            regionHeight = regionHeight,
+            top = profile.marginTop + header.height,
+            primitives = page(0),
+        )
 
         for (placement in pagination.placements) {
             val content = byId.getValue(placement.blockId)
             emitQuestion(content, placement, page(placement.page))
+        }
+
+        for (index in 0 until pagination.pageCount) {
+            emitFooter(index, pagination.pageCount, page(index))
         }
 
         val pages = (0 until pagination.pageCount).map { index ->
@@ -109,14 +122,92 @@ class LayoutEngine(
         )
     }
 
+    /**
+     * O cabecalho da folha, ja medido (§7).
+     *
+     * Medir antes de emitir e obrigatorio: a altura do cabecalho entra na reserva da primeira
+     * pagina, e reserva calculada por um caminho e desenho feito por outro divergem em silencio —
+     * e a divergencia so aparece na folha impressa.
+     */
+    private class Header(
+        val title: MeasuredText,
+        val instruction: MeasuredText,
+        val titleStyle: TextStyle,
+        val height: Um,
+    )
+
+    private fun measureHeader(exam: ExamDefinition): Header {
+        val titleStyle = TextStyle(
+            size = (style.size * 3).divFloor(2),
+            lineHeight = (style.lineHeight * 3).divFloor(2),
+        )
+        val title = measurer.measure(exam.title, titleStyle, profile.contentWidth)
+        val instruction = measurer.measure(FILL_INSTRUCTION, style, profile.contentWidth)
+        return Header(
+            title = title,
+            instruction = instruction,
+            titleStyle = titleStyle,
+            height = profile.snapToGrid(title.height + instruction.height + HEADER_GAP),
+        )
+    }
+
+    private fun emitHeader(header: Header, primitives: MutableList<Primitive>) {
+        val left = profile.marginSide
+        var baseline = profile.marginTop
+
+        for ((index, line) in header.title.lines.withIndex()) {
+            baseline += line.ascent
+            primitives += DrawText(
+                id = "hd-t$index",
+                x = left.raw,
+                baseline = baseline.raw,
+                size = header.titleStyle.size.raw,
+                text = line.text,
+            )
+            baseline += line.descent
+        }
+        for ((index, line) in header.instruction.lines.withIndex()) {
+            baseline += line.ascent
+            primitives += DrawText(
+                id = "hd-i$index",
+                x = left.raw,
+                baseline = baseline.raw,
+                size = style.size.raw,
+                text = line.text,
+            )
+            baseline += line.descent
+        }
+    }
+
+    /**
+     * Rodape com a posicao e o total de paginas, centrado dentro da margem inferior.
+     *
+     * Fica **abaixo** da area de conteudo, e nao dentro dela: a margem inferior existe e estava
+     * vazia. Centrar exige saber a largura do texto, e quem sabe medir e o mesmo medidor que o
+     * resto da folha usa — nao o renderizador.
+     */
+    private fun emitFooter(index: Int, pageCount: Int, primitives: MutableList<Primitive>) {
+        val text = "Página ${index + 1} de $pageCount"
+        val width = measurer.width(text, style)
+        val left = profile.marginSide + (profile.contentWidth - width).divFloor(2)
+        val baseline = profile.pageHeight - profile.marginBottom + FOOTER_DROP
+        primitives += DrawText(
+            id = "ft-p$index",
+            x = left.raw,
+            baseline = baseline.raw,
+            size = style.size.raw,
+            text = text,
+        )
+    }
+
     private fun buildAnswerBlock(
         exam: ExamDefinition,
         grid: BubbleGrid,
         regionHeight: Um,
+        top: Um,
         primitives: MutableList<Primitive>,
     ): ScannableRegion {
         val left = profile.marginSide
-        val top = profile.marginTop
         val right = left + profile.contentWidth
         val bottom = top + regionHeight
         val marker = CaptureGeometry.MARKER_SIDE
@@ -170,6 +261,8 @@ class LayoutEngine(
         val radius = CaptureGeometry.BUBBLE_DIAMETER.divFloor(2)
         val bubbles = mutableListOf<Bubble>()
 
+        emitBands(exam, grid, bubbleLeft, bubbleTop, primitives)
+
         exam.questions.forEachIndexed { index, question ->
             val column = index / grid.rows
             val row = index % grid.rows
@@ -198,6 +291,26 @@ class LayoutEngine(
                     diameter = CaptureGeometry.BUBBLE_DIAMETER.raw,
                     stroke = CaptureGeometry.BUBBLE_STROKE.raw,
                 )
+                // A letra dentro do circulo (§7): e ela que impede o aluno de contar colunas para
+                // saber onde marcar, que e de onde vem o salto de linha. Cinza porque a bolha e
+                // medida por tinta: ela precisa ser legivel sem ser confundida com resposta, e o
+                // quanto de tinta ela pode gastar e o orcamento que o mapa declara.
+                val letterSize = (style.size * 2).divFloor(3)
+                val letterWidth = measurer.width(
+                    letter,
+                    TextStyle(size = letterSize, lineHeight = letterSize),
+                )
+                primitives += DrawText(
+                    id = "r$REGION_INDEX-l${question.id}-$letter",
+                    x = (centerX - letterWidth.divFloor(2)).raw,
+                    // Meia altura de maiuscula acima do centro. A fonte nao expoe `capHeight`, e
+                    // 33% do corpo e a aproximacao usual para serifada; o que decide se ela esta
+                    // centrada e a folha impressa, nao esta constante.
+                    baseline = (centerY + (letterSize * 33).divFloor(100)).raw,
+                    size = letterSize.raw,
+                    text = letter,
+                    tone = LETTER_TONE,
+                )
                 bubbles += Bubble(
                     questionId = question.id,
                     option = letter,
@@ -224,6 +337,69 @@ class LayoutEngine(
             ),
             bubbles = bubbles,
         )
+    }
+
+    /**
+     * Faixa alternada sob grupos de questoes (§7).
+     *
+     * A mitigacao do erro de transcricao e um conjunto, e este e o pedaco que da ao olho um ponto
+     * de retorno: sem grupo visivel, o aluno que perde a linha so descobre no fim. A faixa vai
+     * **antes** das bolhas na lista de primitivas, porque quem desenha depois fica por cima.
+     */
+    private fun emitBands(
+        exam: ExamDefinition,
+        grid: BubbleGrid,
+        bubbleLeft: Um,
+        bubbleTop: Um,
+        primitives: MutableList<Primitive>,
+    ) {
+        for (column in 0 until grid.columns) {
+            val firstQuestion = column * grid.rows
+            val rowsInColumn = minOf(grid.rows, exam.questions.size - firstQuestion)
+            if (rowsInColumn <= 0) continue
+            // O tamanho do grupo e por **coluna**, e nao da grade: a ultima coluna costuma ter
+            // menos linhas, e agrupa-la pelo tamanho das outras deixaria uma sobra de uma ou duas
+            // linhas no fim — que nao e grupo, e o inverso do que §7 pede.
+            val groupSize = groupSizeFor(rowsInColumn)
+
+            var row = 0
+            var group = 0
+            while (row < rowsInColumn) {
+                val rowsInGroup = minOf(groupSize, rowsInColumn - row)
+                if (group % 2 == 1) {
+                    primitives += DrawRect(
+                        id = "r$REGION_INDEX-f$column-$group",
+                        x = (
+                            bubbleLeft +
+                                (grid.columnWidth + CaptureGeometry.BUBBLE_COLUMN_GAP) * column
+                            ).raw,
+                        y = (bubbleTop + CaptureGeometry.BUBBLE_PITCH_V * row).raw,
+                        width = grid.columnWidth.raw,
+                        height = (CaptureGeometry.BUBBLE_PITCH_V * rowsInGroup).raw,
+                        stroke = 0,
+                        fill = BAND_TONE,
+                    )
+                }
+                row += rowsInGroup
+                group += 1
+            }
+        }
+    }
+
+    /**
+     * Tamanho de grupo que deixa **todos** os grupos entre 3 e 5 linhas (§7).
+     *
+     * O maior tamanho que ou divide exato, ou deixa um resto que ainda e grupo legitimo. Sem esta
+     * conta, um gabarito de 11 linhas em grupos de 5 terminaria com um grupo de 1 — que nao e
+     * agrupamento, e uma sobra.
+     */
+    private fun groupSizeFor(rows: Int): Int {
+        if (rows < MIN_GROUP) return rows
+        for (size in MAX_GROUP downTo MIN_GROUP) {
+            val rest = rows % size
+            if (rest == 0 || rest >= MIN_GROUP) return size
+        }
+        return MIN_GROUP
     }
 
     private fun emitQuestion(
@@ -332,6 +508,39 @@ class LayoutEngine(
         private const val REGION_INDEX = 0
         private const val MAX_BUBBLE_COLUMNS = 6
         private val SPACE_AFTER_REGION = Um.mm(6)
+
+        /**
+         * Instrucao de preenchimento impressa na folha (§7).
+         *
+         * Ela nao e enfeite: bolha preenchida pela metade e a resposta que o OMR le como duvida, e
+         * lapis reflete diferente de tinta na captura monocromatica. O texto fica aqui, e nao na
+         * definicao da prova, porque e propriedade da folha — quem escreve a prova nao escolhe
+         * como ela e lida.
+         */
+        private const val FILL_INSTRUCTION =
+            "Preencha todo o círculo da alternativa com caneta preta ou azul escura. " +
+                "Não use lápis e não rasure."
+
+        /**
+         * Respiro entre a ultima linha do cabecalho e o primeiro marcador.
+         *
+         * Zona de silencio mais um passo da grade: o minimo de §7 e um modulo, e o passo a mais
+         * cobre a descendente da ultima linha, que desce abaixo da linha de base.
+         */
+        private val HEADER_GAP = CaptureGeometry.QUIET_ZONE + Um.mm(3)
+
+        /** Do fim da area de conteudo ate a linha de base do rodape, dentro da margem inferior. */
+        private val FOOTER_DROP = Um.mm(6)
+
+        /** Trama da faixa alternada: 4,5% de preto (§7), em permilagem. */
+        private const val BAND_TONE = 45
+
+        /** Tom da letra dentro do circulo. Legivel, e longe do que uma caneta deixa. */
+        private const val LETTER_TONE = 400
+
+        /** Grupo de questoes no gabarito: de 3 a 5 linhas (§7). */
+        private const val MIN_GROUP = 3
+        private const val MAX_GROUP = 5
 
         /**
          * Do topo da regiao ate a primeira linha de bolhas.

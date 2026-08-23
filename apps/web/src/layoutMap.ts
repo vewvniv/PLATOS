@@ -13,6 +13,7 @@ export interface DrawRect {
   width: number;
   height: number;
   stroke: number;
+  /** Preenchimento em permilagem de preto, 0 a 1000. Nulo e sem preenchimento (D-2b.1). */
   fill: number | null;
 }
 
@@ -32,6 +33,8 @@ export interface DrawText {
   baseline: number;
   size: number;
   text: string;
+  /** Tom em permilagem de preto, 0 a 1000. Nulo e preto pleno (D-2b.1). */
+  tone: number | null;
 }
 
 export interface DrawImage {

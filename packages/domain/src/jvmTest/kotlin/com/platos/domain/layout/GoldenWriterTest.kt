@@ -55,4 +55,22 @@ class GoldenWriterTest {
                 "hash ${pacote.contentHash()})",
         )
     }
+
+    /**
+     * A folha de teste de impressao, versionada ao lado do golden.
+     *
+     * Ela nao vem de prova nenhuma: e um `LayoutMap` proprio, calculado pelas mesmas primitivas e
+     * pela mesma `CaptureGeometry`. Versiona-la e o que permite aos dois renderizadores desenharem
+     * exatamente a mesma folha, e as ferramentas medirem o que saiu.
+     */
+    @Test
+    fun `regrava a folha de teste de impressao apenas quando solicitado`() {
+        if (System.getProperty("platos.golden.write") != "true") return
+        val destination = File(System.getProperty("platos.testsheet.path"))
+
+        val folha = PrintTestSheet().layout()
+
+        destination.writeText(folha.toCanonicalJson())
+        println("folha de teste regravada: ${destination.absolutePath} (${destination.length()} bytes)")
+    }
 }
