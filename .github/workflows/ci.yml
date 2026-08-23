@@ -108,10 +108,48 @@ jobs:
         working-directory: tools/parity
         run: node fidelidade.mjs ../../build/parity/web.pdf ../../fixtures/prova-referencia.layout.json
 
+      # D-2b.7: a folha que reprova uma impressora sai do mesmo caminho da prova, e e medida pelas
+      # mesmas ferramentas. Uma folha de teste desenhada por fora nao aprovaria nada.
+      - name: Gerar a folha de teste de impressao
+        working-directory: apps/web
+        run: npx tsx scripts/render-test-sheet.ts
+
+      - name: Fidelidade dimensional da folha de teste
+        working-directory: tools/parity
+        run: node fidelidade.mjs ../../build/parity/teste-web.pdf ../../fixtures/folha-de-teste.layout.json
+
+      # ADR-0010: tinta decorativa dentro da bolha, teto de trama e monocromia, medidos sobre o
+      # documento. Nenhum dos tres tem oracle no mapa — o que o OMR le e tinta.
+      - name: Tinta do documento da prova
+        working-directory: tools/parity
+        run: node tinta.mjs ../../build/parity/web.pdf ../../fixtures/prova-referencia.layout.json
+
+      - name: Tinta da folha de teste
+        working-directory: tools/parity
+        run: node tinta.mjs ../../build/parity/teste-web.pdf ../../fixtures/folha-de-teste.layout.json
+
+      # Os defeitos de tinta nao quebram golden, fidelidade nem paridade: eles chegariam ao papel
+      # com a suite inteira no verde. Por isso a medicao precisa ser vista falhando a cada CI.
+      - name: A medicao de tinta continua capaz de falhar
+        run: |
+          cd apps/web && npx tsx scripts/render-inked.ts
+          cd ../../tools/parity
+          for defeito in tinta-faixa tinta-cor; do
+            if node tinta.mjs ../../build/parity/$defeito.pdf \
+                 ../../fixtures/prova-referencia.layout.json; then
+              echo "::error::a medicao de tinta aceitou o defeito deliberado $defeito"
+              exit 1
+            fi
+          done
+          echo "a medicao de tinta acusou os dois defeitos, como deve"
+
       - uses: actions/upload-artifact@v7
         with:
           name: pdf-web
-          path: build/parity/web.pdf
+          path: |
+            build/parity/web.pdf
+            build/parity/teste-web.pdf
+            build/parity/tinta-sem-faixa.pdf
 
   # §16: "se o teste de paridade nao existir, vira o maior risco do projeto". Fica em job separado
   # porque o emulador domina o tempo do pipeline, e nao deve atrasar o retorno do build do servidor.
@@ -135,7 +173,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Baixar PDF do web
+      - name: Baixar PDFs do web
         uses: actions/download-artifact@v8
         with:
           name: pdf-web
@@ -178,12 +216,14 @@ jobs:
       # O AGP desinstala os APKs ao fim da execucao, entao nao adianta puxar de `filesDir` depois:
       # o diretorio vai junto. O teste grava no `additionalTestOutputDir`, que o proprio AGP
       # recolhe para `build/outputs/` antes de desinstalar.
-      - name: Recolher o PDF do Android
+      - name: Recolher os PDFs do Android
         run: |
           mkdir -p build/parity
-          find apps/android/build/outputs/connected_android_test_additional_output \
-            -name android.pdf -exec cp {} build/parity/android.pdf \;
-          test -s build/parity/android.pdf
+          for nome in android.pdf android-teste.pdf; do
+            find apps/android/build/outputs/connected_android_test_additional_output \
+              -name $nome -exec cp {} build/parity/$nome \;
+            test -s build/parity/$nome
+          done
 
       - name: Instalar o comparador
         working-directory: tools/parity
@@ -198,6 +238,35 @@ jobs:
       - name: Comparar centroides com tolerancia de 0,3 mm
         working-directory: tools/parity
         run: node compare.mjs ../../build/parity/web.pdf ../../build/parity/android.pdf ../../fixtures/prova-referencia.layout.json
+
+      # A folha de teste passa pelas mesmas guardas da prova. Sem isto, o unico documento do
+      # projeto que ninguem compara entre plataformas seria justamente o que **aprova uma
+      # impressora** — e o professor aprovaria por uma folha e imprimiria outra.
+      - name: Fidelidade da folha de teste no Android
+        working-directory: tools/parity
+        run: node fidelidade.mjs ../../build/parity/android-teste.pdf ../../fixtures/folha-de-teste.layout.json
+
+      - name: Paridade da folha de teste
+        working-directory: tools/parity
+        run: node compare.mjs ../../build/parity/teste-web.pdf ../../build/parity/android-teste.pdf ../../fixtures/folha-de-teste.layout.json
+
+      - name: Tinta dos documentos do Android
+        working-directory: tools/parity
+        run: |
+          node tinta.mjs ../../build/parity/android.pdf ../../fixtures/prova-referencia.layout.json
+          node tinta.mjs ../../build/parity/android-teste.pdf ../../fixtures/folha-de-teste.layout.json
+
+      # A faixa ausente e o defeito que o Android carregou desde a fatia 1 sem ninguem ver: ele nao
+      # move centroide nenhum. Quem o pega e a comparacao de trama, e so ela.
+      - name: A paridade enxerga trama, e nao so posicao
+        working-directory: tools/parity
+        run: |
+          if node compare.mjs ../../build/parity/web.pdf ../../build/parity/tinta-sem-faixa.pdf \
+               ../../fixtures/prova-referencia.layout.json; then
+            echo "::error::a paridade aceitou um documento sem as faixas do gabarito"
+            exit 1
+          fi
+          echo "a paridade acusou a faixa ausente, como deve"
 
       # Uma verificacao que nunca falha e pior que nenhuma, e esta base ja produziu tres: uma
       # janela que alcancava o vizinho, um `NaN` que passava em qualquer tolerancia, e uma janela
