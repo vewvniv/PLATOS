@@ -17,6 +17,15 @@ import { readFileSync } from 'node:fs';
 const DPI = 600;
 const TOLERANCE_MM = 0.3;
 
+/** Recuo da janela de medicao de trama, para dentro da borda do retangulo. */
+const TINT_INSET_UM = 300;
+
+/** Divergencia de cobertura admitida entre os dois documentos, em fracao de preto. */
+const TINT_TOLERANCE = 0.01;
+
+/** Distancia admitida entre a trama medida e a declarada no mapa, em fracao de preto. */
+const TINT_VS_DECLARED = 0.02;
+
 /** Folga da janela de medicao da formula, de cada lado. Ver `targetsOf`. */
 const WINDOW_SLACK_UM = 1_000;
 const MM_PER_PX = 25.4 / DPI;
@@ -59,7 +68,7 @@ function rasterize(path) {
  * Um elemento deslocado alem da janela nao produz centroide — e isso conta como falha, que e o
  * comportamento certo.
  */
-function centroidIn(page, centerXpx, centerYpx, halfWidthPx, halfHeightPx = halfWidthPx) {
+function centroidIn(page, centerXpx, centerYpx, halfWidthPx, halfHeightPx, darknessFloor) {
   const x0 = Math.max(0, Math.floor(centerXpx - halfWidthPx));
   const x1 = Math.min(page.width - 1, Math.ceil(centerXpx + halfWidthPx));
   const y0 = Math.max(0, Math.floor(centerYpx - halfHeightPx));
@@ -72,7 +81,7 @@ function centroidIn(page, centerXpx, centerYpx, halfWidthPx, halfHeightPx = half
     for (let x = x0; x <= x1; x += 1) {
       // 0 e preto, 255 e branco: o peso e o quanto o pixel esta escuro.
       const darkness = 255 - page.pixels[y * page.width + x];
-      if (darkness <= 8) continue;
+      if (darkness <= darknessFloor) continue;
       weight += darkness;
       sumX += x * darkness;
       sumY += y * darkness;
@@ -83,6 +92,89 @@ function centroidIn(page, centerXpx, centerYpx, halfWidthPx, halfHeightPx = half
   const y = sumY / weight;
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   return { x, y, weight };
+}
+
+/**
+ * Nivel da **trama** dentro de um retangulo, de 0 (papel) a 1 (preto pleno).
+ *
+ * Moda dos valores de pixel, e nao media: a faixa do gabarito passa por baixo das bolhas, das
+ * letras e dos numeros, e a media da area leria a trama somada a tinta preta desenhada em cima —
+ * 13% para uma trama de 4,5%. A pergunta e "qual e o nivel da trama", e essa e a moda.
+ *
+ * A janela e recuada para dentro porque a borda de um retangulo rasterizado tem antialiasing.
+ */
+function tintLevelIn(page, rectPx) {
+  const inset = Math.max(1, Math.round(umToPx(TINT_INSET_UM)));
+  const x0 = Math.max(0, Math.ceil(rectPx.x + inset));
+  const y0 = Math.max(0, Math.ceil(rectPx.y + inset));
+  const x1 = Math.min(page.width - 1, Math.floor(rectPx.x + rectPx.width - inset));
+  const y1 = Math.min(page.height - 1, Math.floor(rectPx.y + rectPx.height - inset));
+  if (x1 < x0 || y1 < y0) return null;
+
+  const histogram = new Int32Array(256);
+  let count = 0;
+  for (let y = y0; y <= y1; y += 1) {
+    for (let x = x0; x <= x1; x += 1) {
+      histogram[page.pixels[y * page.width + x]] += 1;
+      count += 1;
+    }
+  }
+  if (count === 0) return null;
+  let mode = 0;
+  for (let value = 1; value < 256; value += 1) {
+    if (histogram[value] > histogram[mode]) mode = value;
+  }
+  const level = (255 - mode) / 255;
+  // `NaN > tolerancia` e falso e passaria calado, como ja aconteceu nesta base.
+  return Number.isFinite(level) ? level : null;
+}
+
+/**
+ * Retangulos com trama declarada (D-2b.5).
+ *
+ * Ate a fatia 2b nenhum mapa emitia `fill`, e o renderizador Android **ignorava** o campo: o web
+ * preenchia, o Android nao, e as 185 comparacoes de centroide continuavam verdes porque faixa
+ * ausente nao move marcador nem bolha. Quem mede trama tem de olhar tinta chapada, e nao posicao.
+ */
+function tintTargetsOf(map) {
+  const targets = [];
+  for (const page of map.pages) {
+    for (const primitive of page.primitives) {
+      if (primitive.type !== 'rect') continue;
+      if (primitive.fill === null || primitive.fill === undefined) continue;
+      targets.push({
+        id: primitive.id,
+        page: page.index,
+        declared: primitive.fill / 1000,
+        rectUm: {
+          x: primitive.x,
+          y: primitive.y,
+          width: primitive.width,
+          height: primitive.height,
+        },
+      });
+    }
+  }
+  return targets;
+}
+
+/**
+ * Piso de escuridao do centroide: acima de **toda** tinta decorativa (D-2b.4).
+ *
+ * O piso e o teto de tom que o mapa declara para decoracao, e nao um numero escolhido aqui. E a
+ * definicao operante de "decorativo": tinta que a paridade enxerga nao e decoracao, e geometria.
+ *
+ * Ate a fatia 2b o piso era 8 de 255 e nenhum mapa tinha decoracao. Com a folha de §7, a faixa de
+ * 4,5% rasteriza com escuridao 11 e a letra dentro do circulo com 102: as duas entrariam no
+ * centroide da bolha e o deslocariam — e o deslocamento seria lido como divergencia entre
+ * renderizadores, ou pior, mascararia uma.
+ */
+function darknessFloorOf(map) {
+  const declared = map.regions
+    .map((region) => region.ink_budget?.decorative_tone_max)
+    .filter((tone) => typeof tone === 'number');
+  if (declared.length === 0) return 8;
+  return Math.ceil((Math.max(...declared) * 255) / 1000);
 }
 
 /** Elementos cuja posicao o teste confere: marcadores e bolhas. */
@@ -168,6 +260,7 @@ function compare(webPath, androidPath, mapPath) {
     }
   }
 
+  const darknessFloor = darknessFloorOf(map);
   const targets = targetsOf(map);
   let worst = { id: null, mm: 0 };
   let measured = 0;
@@ -183,8 +276,8 @@ function compare(webPath, androidPath, mapPath) {
     const half = umToPx(target.halfWindowUm);
     const halfY = umToPx(target.halfHeightUm ?? target.halfWindowUm);
 
-    const a = centroidIn(webPage, cx, cy, half, halfY);
-    const b = centroidIn(androidPage, cx, cy, half, halfY);
+    const a = centroidIn(webPage, cx, cy, half, halfY, darknessFloor);
+    const b = centroidIn(androidPage, cx, cy, half, halfY, darknessFloor);
     if (!a || !b) {
       missing.push(`${target.id} (${!a ? 'web' : 'android'} sem tinta na janela)`);
       continue;
@@ -213,12 +306,62 @@ function compare(webPath, androidPath, mapPath) {
     problems.push(`elementos nao encontrados no raster: ${missing.slice(0, 10).join(', ')}`);
   }
 
+  // Trama: cobertura, e nao posicao. Comparada entre os dois documentos **e** contra o que o mapa
+  // declara — sem a segunda metade, uma faixa que sumisse dos dois lados passaria com diferenca
+  // zero, que e exatamente o modo de falha que esta comparacao existe para pegar.
+  const tintTargets = tintTargetsOf(map);
+  let worstTint = { id: null, delta: 0 };
+  for (const target of tintTargets) {
+    const webPage = web[target.page];
+    const androidPage = android[target.page];
+    if (!webPage || !androidPage) continue;
+
+    const rectPx = {
+      x: umToPx(target.rectUm.x),
+      y: umToPx(target.rectUm.y),
+      width: umToPx(target.rectUm.width),
+      height: umToPx(target.rectUm.height),
+    };
+    const a = tintLevelIn(webPage, rectPx);
+    const b = tintLevelIn(androidPage, rectPx);
+    if (a === null || b === null) {
+      problems.push(`trama ${target.id}: janela de medicao vazia ou nao finita`);
+      continue;
+    }
+
+    const delta = Math.abs(a - b);
+    if (delta > worstTint.delta) worstTint = { id: target.id, delta };
+    if (delta > TINT_TOLERANCE) {
+      problems.push(
+        `trama ${target.id} divergiu ${(delta * 100).toFixed(2)} pontos de cobertura ` +
+          `(web ${(a * 100).toFixed(2)}%, android ${(b * 100).toFixed(2)}%)`,
+      );
+    }
+    for (const [lado, medida] of [['web', a], ['android', b]]) {
+      if (Math.abs(medida - target.declared) > TINT_VS_DECLARED) {
+        problems.push(
+          `trama ${target.id} no ${lado} mediu ${(medida * 100).toFixed(2)}% e o mapa ` +
+            `declara ${(target.declared * 100).toFixed(2)}%`,
+        );
+      }
+    }
+  }
+
   console.log(`rasterizador unico: mupdf a ${DPI} dpi (${MM_PER_PX.toFixed(4)} mm/px)`);
+  console.log(`piso de escuridao do centroide: ${darknessFloor} de 255`);
   console.log(`paginas: ${web.length} | elementos comparados: ${measured} de ${targets.length}`);
   console.log(
     `maior divergencia: ${worst.mm.toFixed(3)} mm` +
       (worst.id ? ` em ${worst.id}` : '') +
       ` | tolerancia ${TOLERANCE_MM} mm | folga ${(TOLERANCE_MM - worst.mm).toFixed(3)} mm`,
+  );
+  console.log(
+    `tramas comparadas: ${tintTargets.length}` +
+      (tintTargets.length > 0
+        ? ` | maior divergencia ${(worstTint.delta * 100).toFixed(2)} pontos` +
+          (worstTint.id ? ` em ${worstTint.id}` : '') +
+          ` | tolerancia ${(TINT_TOLERANCE * 100).toFixed(2)} pontos`
+        : ''),
   );
 
   if (problems.length > 0) {

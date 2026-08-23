@@ -1,6 +1,7 @@
 package com.platos.domain.layout
 
 import com.platos.domain.geometry.Ppm
+import com.platos.domain.geometry.Um
 
 /** Resultado da validacao do mapa. */
 sealed interface ValidationResult {
@@ -71,6 +72,28 @@ fun LayoutMap.validate(): ValidationResult {
                         "${primitive.x}+${primitive.width} x ${primitive.y}+${primitive.height}"
                 }
             }
+            // Tinta fora da faixa nao tem desenho possivel, e trama chapada acima do teto de §7 e
+            // o que borra na impressora de escola — e o que some para o OMR se ela for fraca. O
+            // teto vale para area chapada, e nao para o tom de um glifo: a letra dentro do circulo
+            // e texto, nao trama.
+            when (primitive) {
+                is DrawRect -> primitive.fill?.let { fill ->
+                    if (fill !in 0..LayoutMap.TONE_FULL) {
+                        problems += "trama de `${primitive.id}` fora da faixa de permilagem: $fill"
+                    } else if (fill > LayoutMap.FLAT_TONE_CEILING) {
+                        problems += "trama de `${primitive.id}` acima do teto de " +
+                            "${LayoutMap.FLAT_TONE_CEILING} por mil: $fill"
+                    }
+                }
+
+                is DrawText -> primitive.tone?.let { tone ->
+                    if (tone !in 0..LayoutMap.TONE_FULL) {
+                        problems += "tom de `${primitive.id}` fora da faixa de permilagem: $tone"
+                    }
+                }
+
+                else -> Unit
+            }
         }
     }
 
@@ -116,6 +139,8 @@ fun LayoutMap.validate(): ValidationResult {
         }
     }
 
+    checkInkBudget(problems)
+
     for (first in regions.indices) {
         for (second in first + 1 until regions.size) {
             val a = regions[first]
@@ -128,6 +153,123 @@ fun LayoutMap.validate(): ValidationResult {
 
     return if (problems.isEmpty()) ValidationResult.Valid else ValidationResult.Invalid(problems)
 }
+
+/**
+ * O que a validacao consegue **provar** sobre tinta decorativa dentro das bolhas (ADR-0010,
+ * D-2b.3.1).
+ *
+ * Ela nao rasteriza, e o programa de fonte desta base le avanco e espacamento — nao o contorno do
+ * glifo. O unico limite superior que daria para calcular para uma letra e "a caixa inteira e
+ * tinta", e medido na folha de referencia esse limite da 20,4% para bolhas cuja tinta real e 7,2%:
+ * recusaria a folha que o raster aprova. Quem julga cobertura e o documento rasterizado.
+ *
+ * O que sobra aqui e exato e barato, e pega o erro grosso:
+ *
+ * - **trama chapada** sobre uma bolha contribui exatamente com o proprio valor, entao trama acima
+ *   do orcamento estoura o orcamento sozinha, sem estimativa nenhuma;
+ * - **elemento decorativo opaco** dentro de uma bolha e defeito qualquer que seja a area — preto
+ *   pleno dentro do disco que o OMR mede nao e decoracao.
+ */
+private fun LayoutMap.checkInkBudget(problems: MutableList<String>) {
+    for (region in regions) {
+        val budget = region.inkBudget
+        if (budget.decorativeMax !in 0..LayoutMap.TONE_FULL ||
+            budget.decorativeToneMax !in 0..LayoutMap.TONE_FULL ||
+            budget.thresholdFloor !in 0..LayoutMap.TONE_FULL ||
+            budget.thresholdCeiling !in 0..LayoutMap.TONE_FULL ||
+            budget.thresholdFloor >= budget.thresholdCeiling
+        ) {
+            problems += "regiao ${region.index} declara orcamento de tinta incoerente: $budget"
+            continue
+        }
+        if (budget.decorativeMax >= budget.thresholdFloor) {
+            problems += "regiao ${region.index}: o orcamento decorativo " +
+                "(${budget.decorativeMax}) invade o corredor do limiar, que comeca em " +
+                "${budget.thresholdFloor}"
+        }
+
+        val page = pages.firstOrNull { it.index == region.page } ?: continue
+        val radius = Um(bubbleRadiusOf(page))
+        if (radius <= Um.ZERO) continue
+
+        for (bubble in region.bubbles) {
+            val centerX = Um(region.quadX + scale(bubble.u, region.quadWidth))
+            val centerY = Um(region.quadY + scale(bubble.v, region.quadHeight))
+
+            for (primitive in page.primitives) {
+                when (primitive) {
+                    is DrawRect -> {
+                        val fill = primitive.fill ?: continue
+                        if (!touchesBubble(primitive, centerX, centerY, radius)) continue
+                        if (fill > budget.decorativeMax) {
+                            problems += "bolha ${bubble.questionId}/${bubble.option} recebe a " +
+                                "trama `${primitive.id}` de $fill por mil, acima do orcamento " +
+                                "decorativo de ${budget.decorativeMax}"
+                        }
+                    }
+
+                    is DrawText -> {
+                        if (!touchesBubble(primitive, centerX, centerY, radius)) continue
+                        val tone = primitive.tone
+                        if (tone == null) {
+                            problems += "bolha ${bubble.questionId}/${bubble.option} tem o texto " +
+                                "`${primitive.id}` em preto pleno dentro dela"
+                        } else if (tone > budget.decorativeToneMax) {
+                            problems += "bolha ${bubble.questionId}/${bubble.option} tem o texto " +
+                                "`${primitive.id}` com tom $tone, acima do teto decorativo de " +
+                                "${budget.decorativeToneMax}"
+                        }
+                    }
+
+                    else -> Unit
+                }
+            }
+        }
+    }
+}
+
+/** Raio da bolha desenhada na pagina, para saber o que cai dentro dela. */
+private fun bubbleRadiusOf(page: Page): Int =
+    page.primitives.filterIsInstance<DrawCircle>().minOfOrNull { it.diameter / 2 } ?: 0
+
+/** Desnormaliza uma coordenada em ppm de volta para micrometros sobre o lado do quadrilatero. */
+private fun scale(ppm: Int, extent: Int): Int =
+    ((ppm.toLong() * extent.toLong() + Ppm.ONE.raw / 2) / Ppm.ONE.raw).toInt()
+
+/**
+ * Verdadeiro quando a caixa da primitiva alcanca o disco da bolha.
+ *
+ * Para texto a caixa e a do avanco pelo corpo, generosa de proposito: aqui interessa **nao deixar
+ * passar** um elemento que caia dentro da bolha, e nao medir o quanto ele ocupa.
+ */
+private fun touchesBubble(primitive: Primitive, centerX: Um, centerY: Um, radius: Um): Boolean {
+    val (left, top, right, bottom) = when (primitive) {
+        is DrawRect -> Quad(
+            primitive.x,
+            primitive.y,
+            primitive.x + primitive.width,
+            primitive.y + primitive.height,
+        )
+
+        is DrawText -> Quad(
+            primitive.x,
+            primitive.baseline - primitive.size,
+            // Sem medir texto aqui: o avanco maximo de um glifo cabe no corpo com folga, e uma
+            // caixa larga demais so torna a guarda mais conservadora.
+            primitive.x + primitive.size * primitive.text.length,
+            primitive.baseline + primitive.size / 4,
+        )
+
+        else -> return false
+    }
+    val overlapsHorizontally =
+        left <= (centerX + radius).raw && right >= (centerX - radius).raw
+    val overlapsVertically =
+        top <= (centerY + radius).raw && bottom >= (centerY - radius).raw
+    return overlapsHorizontally && overlapsVertically
+}
+
+private data class Quad(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
 private fun overlaps(a: ScannableRegion, b: ScannableRegion): Boolean {
     val separatedHorizontally =

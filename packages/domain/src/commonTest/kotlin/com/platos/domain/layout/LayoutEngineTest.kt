@@ -7,6 +7,9 @@ import com.platos.domain.exam.QuestionKind
 import com.platos.domain.exam.UnsupportedContentException
 import com.platos.domain.geometry.Ppm
 import com.platos.domain.geometry.Um
+import com.platos.domain.text.EmbeddedFont
+import com.platos.domain.text.TextMeasurer
+import com.platos.domain.text.TextStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -15,6 +18,7 @@ import kotlin.test.assertTrue
 class LayoutEngineTest {
 
     private val engine = LayoutEngine()
+    private val measurer = TextMeasurer(EmbeddedFont.program)
 
     private fun prova(questionCount: Int = 12) = ExamDefinition(
         id = "prova-teste",
@@ -53,11 +57,23 @@ class LayoutEngineTest {
         assertEquals("answer_block", region.kind)
         assertEquals(0, region.page)
         assertEquals(0, region.index)
-        // O topo do quadrilatero fica meio marcador abaixo do topo da regiao, que comeca na
-        // margem superior.
-        assertEquals(
-            (LayoutProfile.DEFAULT.marginTop + CaptureGeometry.MARKER_SIDE.divFloor(2)).raw,
-            region.quadY,
+
+        // A regiao deixou de encostar na margem superior quando o cabecalho entrou (fatia 2b), e o
+        // que importa continua valendo: ela esta na pagina 1 e **antes de qualquer questao**. E
+        // por isso que a pilha objetiva e escaneada sem folhear (§7), e nao pela distancia ate a
+        // borda do papel. Afirmar a constante de novo so registraria a aritmetica do dia.
+        val topoDoMarcador = region.quadY - CaptureGeometry.MARKER_SIDE.divFloor(2).raw
+        assertTrue(
+            topoDoMarcador >= LayoutProfile.DEFAULT.marginTop.raw,
+            "regiao acima da margem superior: $topoDoMarcador",
+        )
+        val questoes = map.pages[0].primitives.filter { it.id.startsWith("q") }
+        assertTrue(questoes.isNotEmpty(), "a pagina 1 deveria ter questoes")
+        val primeiraQuestao = questoes.minOf { inkBoxOf(it, measurer).top }
+        assertTrue(
+            region.quadY + region.quadHeight <= primeiraQuestao,
+            "a regiao invade a primeira questao: regiao termina em " +
+                "${region.quadY + region.quadHeight}, questao comeca em $primeiraQuestao",
         )
     }
 
@@ -83,27 +99,205 @@ class LayoutEngineTest {
     }
 
     @Test
-    fun `zona de silencio dos marcadores fica livre de bolhas`() {
+    fun `zona de silencio dos marcadores fica livre de qualquer tinta`() {
+        // Ate a fatia 2b este teste olhava so bolhas, porque so bolhas chegavam perto. Com
+        // cabecalho e faixa na folha, texto e trama passaram a poder invadir — e um marcador com
+        // traco alheio na zona de silencio e a causa mais comum de captura que nao fecha (§16).
         val map = engine.layout(prova())
-        val arucos = map.pages[0].primitives.filterIsInstance<DrawAruco>()
-        val circles = map.pages[0].primitives.filterIsInstance<DrawCircle>()
         val quiet = CaptureGeometry.QUIET_ZONE.raw
-        val radius = CaptureGeometry.BUBBLE_DIAMETER.raw / 2
 
-        for (aruco in arucos) {
-            for (circle in circles) {
-                val separatedHorizontally =
-                    circle.centerX + radius <= aruco.x - quiet ||
-                        circle.centerX - radius >= aruco.x + aruco.side + quiet
-                val separatedVertically =
-                    circle.centerY + radius <= aruco.y - quiet ||
-                        circle.centerY - radius >= aruco.y + aruco.side + quiet
+        for (page in map.pages) {
+            val arucos = page.primitives.filterIsInstance<DrawAruco>()
+            for (aruco in arucos) {
+                for (primitive in page.primitives) {
+                    if (primitive is DrawAruco) continue
+                    assertTrue(
+                        clearsQuietZone(primitive, aruco, quiet, measurer),
+                        "`${primitive.id}` invade a zona de silencio do marcador " +
+                            "${aruco.markerId}: tinta em ${inkBoxOf(primitive, measurer)}, " +
+                            "marcador em ${aruco.x}+${aruco.side} x ${aruco.y}+${aruco.side}",
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `cabecalho traz titulo e instrucao de preenchimento acima da regiao`() {
+        val map = engine.layout(prova())
+        val cabecalho = map.pages[0].primitives.filterIsInstance<DrawText>()
+            .filter { it.id.startsWith("hd-") }
+        assertTrue(cabecalho.isNotEmpty(), "a folha saiu sem cabecalho")
+
+        val titulo = cabecalho.filter { it.id.startsWith("hd-t") }
+        val instrucao = cabecalho.filter { it.id.startsWith("hd-i") }
+        assertEquals("Prova de teste", titulo.joinToString(" ") { it.text }.trim())
+        // A instrucao existe para o OMR, e nao para enfeitar: bolha preenchida pela metade e a
+        // resposta que a leitura optica le como duvida.
+        val texto = instrucao.joinToString(" ") { it.text }
+        assertTrue(texto.contains("Preencha"), texto)
+        assertTrue(texto.contains("caneta"), texto)
+
+        // O titulo e maior que o corpo, e a instrucao e do corpo.
+        assertTrue(titulo.all { it.size > LayoutProfile.DEFAULT.style.size.raw })
+        assertTrue(instrucao.all { it.size == LayoutProfile.DEFAULT.style.size.raw })
+
+        // Tudo do cabecalho fica acima do primeiro marcador.
+        val topoDoMarcador = map.pages[0].primitives.filterIsInstance<DrawAruco>().minOf { it.y }
+        assertTrue(
+            cabecalho.all { it.baseline <= topoDoMarcador },
+            "cabecalho invade a regiao de gabarito",
+        )
+    }
+
+    @Test
+    fun `nada e desenhado dentro da faixa reservada ao grampo`() {
+        val map = engine.layout(prova())
+        val grampo = LayoutProfile.DEFAULT.stapleReserve.raw
+
+        for (page in map.pages) {
+            for (primitive in page.primitives) {
                 assertTrue(
-                    separatedHorizontally || separatedVertically,
-                    "bolha ${circle.id} invade a zona de silencio do marcador ${aruco.markerId}",
+                    inkBoxOf(primitive, measurer).top >= grampo,
+                    "`${primitive.id}` entra na faixa do grampo: topo em " +
+                        "${inkBoxOf(primitive, measurer).top}, grampo ate $grampo",
                 )
             }
         }
+    }
+
+    @Test
+    fun `rodape numera todas as paginas dentro da margem inferior`() {
+        val map = engine.layout(prova(questionCount = 24))
+        assertTrue(map.pages.size > 1, "esta prova deveria passar de uma pagina")
+
+        val fimDoConteudo = LayoutProfile.DEFAULT.pageHeight.raw -
+            LayoutProfile.DEFAULT.marginBottom.raw
+
+        for (page in map.pages) {
+            val rodape = page.primitives.filterIsInstance<DrawText>()
+                .single { it.id.startsWith("ft-") }
+            assertEquals("Página ${page.index + 1} de ${map.pages.size}", rodape.text)
+            // Dentro da margem inferior: abaixo do fim do conteudo e acima da borda do papel.
+            assertTrue(
+                inkBoxOf(rodape, measurer).top >= fimDoConteudo,
+                "rodape da pagina ${page.index} invade a area de conteudo",
+            )
+            assertTrue(
+                inkBoxOf(rodape, measurer).bottom <= LayoutProfile.DEFAULT.pageHeight.raw,
+                "rodape da pagina ${page.index} sai do papel",
+            )
+        }
+    }
+
+    @Test
+    fun `gabarito agrupa as linhas em grupos de 3 a 5 e alterna a faixa`() {
+        for (questionCount in 6..30) {
+            val map = engine.layout(prova(questionCount))
+            val faixas = map.pages[0].primitives.filterIsInstance<DrawRect>()
+                .filter { it.id.startsWith("r0-f") }
+            assertTrue(faixas.isNotEmpty(), "gabarito de $questionCount questoes saiu sem faixa")
+
+            for (faixa in faixas) {
+                assertEquals(45, faixa.fill, "trama fora dos 4,5% de §7 em ${faixa.id}")
+                val linhas = faixa.height / CaptureGeometry.BUBBLE_PITCH_V.raw
+                assertTrue(
+                    linhas in 3..5,
+                    "faixa ${faixa.id} cobre $linhas linhas, fora da faixa de 3 a 5",
+                )
+                assertEquals(
+                    0,
+                    faixa.height % CaptureGeometry.BUBBLE_PITCH_V.raw,
+                    "faixa ${faixa.id} nao fecha em linhas inteiras",
+                )
+            }
+
+            // Alternancia: duas faixas nunca sao grupos vizinhos da mesma coluna.
+            val porColuna = faixas.groupBy { it.id.substringAfter("r0-f").substringBefore("-") }
+            for ((coluna, daColuna) in porColuna) {
+                val grupos = daColuna.map { it.id.substringAfterLast("-").toInt() }.sorted()
+                for (index in 1 until grupos.size) {
+                    assertTrue(
+                        grupos[index] - grupos[index - 1] >= 2,
+                        "coluna $coluna tem faixa em grupos vizinhos: $grupos",
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `letra da alternativa fica dentro do circulo e mais clara que o corpo`() {
+        val map = engine.layout(prova())
+        val circulos = map.pages[0].primitives.filterIsInstance<DrawCircle>()
+            .associateBy { it.id.removePrefix("r0-b") }
+        val letras = map.pages[0].primitives.filterIsInstance<DrawText>()
+            .filter { it.id.startsWith("r0-l") }
+        assertEquals(circulos.size, letras.size, "faltou letra em alguma bolha")
+
+        for (letra in letras) {
+            val circulo = circulos.getValue(letra.id.removePrefix("r0-l"))
+            assertEquals(circulo.id.substringAfterLast("-"), letra.text)
+
+            // Mais clara que o corpo, que e preto pleno.
+            assertTrue(letra.tone != null && letra.tone!! < LayoutMap.TONE_FULL, "letra opaca")
+
+            // Dentro do circulo: a caixa da letra cabe no diametro interno, descontado o traco.
+            val box = inkBoxOf(letra, measurer)
+            val raio = circulo.diameter / 2 - circulo.stroke
+            assertTrue(
+                box.left >= circulo.centerX - raio && box.right <= circulo.centerX + raio,
+                "letra ${letra.id} vaza do circulo na horizontal: $box",
+            )
+            assertTrue(
+                box.top >= circulo.centerY - raio && box.bottom <= circulo.centerY + raio,
+                "letra ${letra.id} vaza do circulo na vertical: $box",
+            )
+        }
+    }
+
+    @Test
+    fun `toda bolha declarada coincide com o circulo desenhado`() {
+        // O OMR le a coordenada **declarada**; o aluno marca o circulo **desenhado**. Se os dois
+        // se separassem, a folha pareceria correta e a leitura sairia deslocada — e nenhuma outra
+        // verificacao desta base olharia os dois lados ao mesmo tempo. E tambem o que reprova a
+        // decoracao desta fatia se ela empurrar geometria: faixa e letra nao podem mover nada.
+        val map = engine.layout(prova())
+        val region = map.regions.single()
+        val circulos = map.pages[0].primitives.filterIsInstance<DrawCircle>()
+            .associateBy { it.id.removePrefix("r0-b") }
+        assertEquals(circulos.size, region.bubbles.size)
+
+        for (bubble in region.bubbles) {
+            val circulo = circulos.getValue("${bubble.questionId}-${bubble.option}")
+            assertEquals(
+                Ppm.of(Um(circulo.centerX - region.quadX), Um(region.quadWidth)).raw,
+                bubble.u,
+                "bolha ${bubble.questionId}/${bubble.option} declarada fora do circulo em u",
+            )
+            assertEquals(
+                Ppm.of(Um(circulo.centerY - region.quadY), Um(region.quadHeight)).raw,
+                bubble.v,
+                "bolha ${bubble.questionId}/${bubble.option} declarada fora do circulo em v",
+            )
+        }
+    }
+
+    @Test
+    fun `todo caractere impresso tem glifo na fonte embarcada`() {
+        // `glyphOf` devolve `.notdef` para o que a fonte nao cobre, **sem reclamar**: o texto sai
+        // medido, o mapa sai valido e o defeito aparece so no papel, como um retangulo vazio no
+        // lugar da letra. A folha ganhou acento nesta fatia — antes dela, nenhum texto emitido
+        // pelo engine tinha um.
+        val map = engine.layout(prova())
+        val font = EmbeddedFont.program
+        val semGlifo = map.pages
+            .flatMap { it.primitives }
+            .filterIsInstance<DrawText>()
+            .flatMap { it.text.toList() }
+            .filter { font.glyphOf(it.code) == 0 }
+            .toSet()
+        assertEquals(emptySet(), semGlifo, "caracteres sem glifo na fonte embarcada")
     }
 
     @Test

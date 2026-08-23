@@ -50,6 +50,11 @@ seguinte sai encolhida junto, inclusive as que parecem certas por arredondamento
 Se der fora da faixa: volte ao passo 2, desligue explicitamente qualquer ajuste de escala e
 reimprima. Não continue com uma folha escalada.
 
+**Este portão é da sessão de medição, não da impressora.** Ele existe porque 3.2 a 3.7 comparam
+régua com valor nominal, e isso exige 100%. A pergunta "esta impressora está apta a imprimir a
+prova?" é outra, tem outro critério — ±5%, por ADR-0001 — e quem a responde é a folha de teste de
+3.5. Uma folha a 97% está apta a virar prova e é imprópria para as medidas abaixo.
+
 ### 3.1 Medidas
 
 | # | O que medir | Esperado | Aceitável |
@@ -68,6 +73,45 @@ Referência conferida sobre o próprio PDF, rasterizado a 1200 dpi: largura impr
 margem esquerda 15,01 mm, margem superior 14,03 mm, lado do ArUco 13,99 mm, diâmetro externo da
 bolha 4,42 mm, passo horizontal 5,20 mm, passo vertical 6,00 mm. Divergência acima da faixa
 aceitável é da impressão, não do layout.
+
+## 3.5 A folha de teste de impressão (fatia 2b)
+
+Acrescentada ao abrir a fatia 2b. **Esta é a seção que responde "esta impressora serve?", e ela vem
+antes de tudo o que está acima.** O restante do protocolo mede o sistema; esta parte mede a
+impressora, que é o que §16 põe como risco desta fatia — depois que há folha distribuída, corrigir
+marcador significa reimprimir.
+
+```bash
+cd apps/web && npx tsx scripts/render-test-sheet.ts
+# saída: build/parity/teste-web.pdf — uma página
+```
+
+Imprima com os mesmos ajustes do passo 2 e confira as cinco linhas **impressas na própria folha**.
+Elas não estão repetidas aqui de propósito: quem confere está com o papel na mão, e um critério que
+mora no repositório é um critério que ninguém lê na hora.
+
+O que a folha traz, e por quê:
+
+| Elemento | Para quê |
+|---|---|
+| Vão de referência de 180,0 mm | Portão de escala, o mesmo do passo 3.1 — a maior distância da folha, onde a régua é mais confiável |
+| Quatro ArUcos de 14 mm | A geometria de captura real, nos mesmos números da prova |
+| QR | Decodificação sob o toner desta impressora |
+| Amostras de trama a 4,5% e 8% | Trama que some é toner fraco; trama chapada é toner pesado — as duas quebram o gabarito de formas diferentes |
+| Cinco bolhas com a letra dentro | Círculo de 4,2 mm fechado, e letra legível sem parecer marcação |
+
+**Reprovou em qualquer linha, a impressora não está apta.** Não imprima a turma; troque o toner,
+desligue qualquer ajuste de escala e repita.
+
+Sobre a linha 1, que é a que mais confunde: a faixa é de ±5% porque ADR-0001 mediu impressoras
+reais errando de −3,4% a +4,7% com o driver em 100%, e a homografia da fatia 3 absorve isso. Ela
+**aprova** o encolhimento de ~3% que "ajustar à página" causa de A4 para A4, e **reprova** o erro
+que de fato quebra a captura: A4 impresso em bandeja Letter, que encolhe 5,9% e mede 169,3 mm.
+
+Uma propriedade que vale saber: a folha de teste é um `LayoutMap` calculado pelo mesmo engine, com
+as mesmas primitivas e a mesma `CaptureGeometry` da prova, e passa pelas mesmas verificações
+automáticas — fidelidade, paridade entre plataformas e tinta. Ela não é um desenho paralelo. Uma
+folha que aprovasse a impressora por um caminho que a prova não percorre não aprovaria nada.
 
 ## 4. Inspecionar os marcadores
 
@@ -216,3 +260,60 @@ produz menos branco.
 Uma consequência que vale registrar: o segundo achado **explicou** uma divergência de paridade que
 estava registrada como não explicada, e permitiu reverter 117 linhas de compensação em
 `compare.mjs`. Consertar a folha barateou a ferramenta.
+
+## 9. Tinta decorativa e trama (fatia 2b)
+
+A folha ganhou tinta que não é traço: a faixa alternada de 4,5% sob os grupos de questões e a letra
+da alternativa em cinza dentro do círculo (§7). As duas existem contra o salto de linha, e as duas
+põem tinta **dentro da bolha que o OMR vai medir** — por isso ADR-0010 lhes dá orçamento.
+
+O que a máquina já garante, e não precisa ser conferido a olho: a cobertura de tinta de cada bolha
+não respondida (máximo medido: 7,24%, orçamento 12%), o teto de trama de 8%, e a ausência de
+qualquer pixel colorido. `node tools/parity/tinta.mjs <pdf> <layout.json>` roda isso em segundos e
+está no CI.
+
+O que **só o papel decide**, e é o que se confere aqui:
+
+- A faixa aparece? Trama de 4,5% é clara de propósito; numa impressora com toner fraco ela pode
+  sumir, e aí a mitigação do salto de linha deixou de existir sem ninguém avisar.
+- A faixa atrapalha? Se ela competir com o texto ou escurecer a bolha a ponto de dar dúvida sobre
+  o que está marcado, ela cede — a folha é cosmética, a leitura não é (ADR-0010).
+- A letra dentro do círculo é legível **e** claramente não é uma marcação? As duas coisas ao mesmo
+  tempo. Legível demais vira resposta; clara demais some.
+
+Ajuste, quando necessário, é no tom ou na trama, dentro do orçamento, com regravação do golden por
+essa causa — como as fatias 1.5 e 1.6 fizeram com espaçamento.
+
+## 10. Medir a folha depois de preenchida (fatia 2b)
+
+O passo 9 confere tinta impressa. Este confere a tinta que o **aluno** põe, e é o único jeito de
+saber se o piso de 50% de ADR-0010 sobrevive a uma caneta real.
+
+```bash
+# preencha bolhas a caneta na folha impressa, digitalize em qualquer resolução
+node tools/parity/papel.mjs <digitalizacao.jpg> fixtures/prova-referencia.layout.json
+```
+
+**O dpi da digitalização não precisa ser conhecido, e não deve ser informado.** A escala sai dos
+quatro ArUcos achados na própria imagem; cobertura é razão. Um scanner que não deixa escolher nem
+ver a resolução serve.
+
+O que a ferramenta responde, e o que cada resposta significa:
+
+| Saída | Para quê |
+|---|---|
+| `caneta: … min X%` | O piso de ADR-0010. Abaixo de 50%, é a decoração que cede — tom da letra, trama da faixa, letra fora do círculo, nessa ordem |
+| `vazias: … max Y%` | O orçamento decorativo **no papel**, que é maior que no PDF: toner e scanner engordam glifo e trama |
+| `corredor observado` | O vão entre as duas nuvens. É o que a fatia 3 herda para pôr o limiar do OMR, e ele precisa conter o corredor declarado de 20% a 40% |
+| `196 modulos conferidos` | Os 7×7 módulos dos quatro marcadores, comparados com o mapa. É a conferência 2 da folha de teste feita por máquina — borrão que una dois módulos, ou falha branca dentro de um preto, troca um bit |
+
+**A escala da impressão sem régua.** Se a folha inteira couber na digitalização, com as bordas do
+papel visíveis, a razão entre o vão dos centros de marcador e a largura do papel dá a escala sem
+depender de dpi nem de régua: A4 tem 210 mm quer o scanner saiba disso ou não. Na impressão de
+referência de 2026-08-22 isso deu 96,6% e 97,3% nas duas folhas, contra 97,2% da régua — dentro do
+±5% que ADR-0001 declara normal.
+
+**Cuidado com o §3.0.** Aquele portão pede 179–181 mm porque as medidas de régua de 3.2 a 3.7
+comparam com valores nominais, e numa folha a 97% todas saem encolhidas junto. Ele **não** é
+critério de aptidão da impressora — esse é o da folha de teste (±5%, ADR-0001). Uma folha a 97%
+está apta a virar prova e é imprópria para conferir o lado do marcador com régua.

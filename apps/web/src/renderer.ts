@@ -23,8 +23,9 @@ function flipY(map: LayoutMap, um: number): number {
 
 const BLACK = rgb(0, 0, 0);
 
-function grayOf(percent: number) {
-  const level = 1 - percent / 100;
+/** Tom e trama chegam em permilagem de preto, 0 a 1000 (D-2b.1). */
+function grayOf(permille: number) {
+  const level = 1 - permille / 1000;
   return rgb(level, level, level);
 }
 
@@ -68,7 +69,10 @@ function drawPrimitive(
         width: umToPt(primitive.width),
         height: umToPt(primitive.height),
         borderWidth: umToPt(primitive.stroke),
-        borderColor: BLACK,
+        // Traco zero e **sem traco**, e nao traco fino: largura 0 em PDF significa "a linha mais
+        // fina que o dispositivo consegue", que a 600 dpi vira um pixel de contorno em volta de
+        // uma faixa que deveria ser so trama. O Android tem a mesma armadilha com `strokeWidth`.
+        borderColor: primitive.stroke === 0 ? undefined : BLACK,
         color: primitive.fill === null ? undefined : grayOf(primitive.fill),
       });
       return;
@@ -89,7 +93,8 @@ function drawPrimitive(
         y: flipY(map, primitive.baseline),
         size: umToPt(primitive.size),
         font,
-        color: BLACK,
+        // Tom nulo e preto pleno. Quem escolhe e o mapa: o renderizador nao arbitra cinza.
+        color: primitive.tone === null ? BLACK : grayOf(primitive.tone),
       });
       return;
 

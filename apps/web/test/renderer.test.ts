@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { renderLayoutMap } from '../src/renderer.js';
@@ -24,6 +24,33 @@ async function golden(): Promise<LayoutMap> {
 
 const fontBytes = loadFontBytes;
 const rasters = loadFormulaRasters;
+
+/**
+ * Operadores dos fluxos de conteudo do documento, ja descomprimidos.
+ *
+ * O tom nao aparece na estrutura do PDF — ele e um operador `rg` dentro do fluxo, e o fluxo sai
+ * comprimido. Sem descomprimir, um teste de tom estaria afirmando sobre bytes opacos.
+ */
+async function contentOps(pdf: Uint8Array): Promise<string> {
+  const reopened = await PDFDocument.load(pdf);
+  let ops = '';
+  for (const [, object] of reopened.context.enumerateIndirectObjects()) {
+    if (object instanceof PDFRawStream) {
+      try {
+        const decoded = Buffer.from(decodePDFRawStream(object).decode()).toString('latin1');
+        if (decoded.includes(' rg')) ops += `${decoded}\n`;
+      } catch {
+        // Fluxo que nao e de conteudo (fonte, imagem): nao interessa aqui.
+      }
+    }
+  }
+  return ops;
+}
+
+/** Uma folha de uma pagina so com as primitivas dadas, herdando o cabecalho do golden. */
+async function folhaCom(primitives: LayoutMap['pages'][number]['primitives']): Promise<LayoutMap> {
+  return { ...(await golden()), pages: [{ index: 0, primitives }], regions: [] };
+}
 
 describe('guarda de versao do renderizador', () => {
   it('recusa imprimir quando o mapa exige renderizador mais novo', async () => {
@@ -167,5 +194,47 @@ describe('formula em bloco', () => {
     }
     // O que ele tem de fazer: embutir o PNG que veio pronto.
     expect(source).toMatch(/embedPng/);
+  });
+});
+
+describe('tom e trama', () => {
+  it('desenha o tom declarado, e nao um cinza proprio', async () => {
+    const map = await folhaCom([
+      { type: 'text', id: 't-tom', x: 20_000, baseline: 30_000, size: 3_351, text: 'A', tone: 450 },
+      { type: 'text', id: 't-preto', x: 30_000, baseline: 30_000, size: 3_351, text: 'B', tone: null },
+    ]);
+    const ops = await contentOps(await renderLayoutMap(map, await fontBytes()));
+
+    // 450 por mil de preto = 0,55 de claridade. O numero sai do mapa; se o renderizador
+    // escolhesse o cinza, ele nao teria como acertar exatamente este valor.
+    expect(ops).toMatch(/0\.55 0\.55 0\.55 rg/);
+    // Tom nulo continua preto pleno, sem o renderizador arbitrar nada.
+    expect(ops).toMatch(/0 0 0 rg/);
+  });
+
+  it('desenha a trama declarada na mesma escala, sem contorno quando o traco e zero', async () => {
+    const map = await folhaCom([
+      {
+        type: 'rect',
+        id: 'faixa',
+        x: 15_000,
+        y: 20_000,
+        width: 100_000,
+        height: 6_000,
+        stroke: 0,
+        fill: 45,
+      },
+    ]);
+    const ops = await contentOps(await renderLayoutMap(map, await fontBytes()));
+
+    // 45 por mil = 0,955 de claridade. E a trama de 4,5% que §7 pede, que porcentagem inteira nao
+    // representa — se a escala tivesse ficado em porcentagem, este numero seria 0,55.
+    expect(ops).toMatch(/0\.955 0\.955 0\.955 rg/);
+    // Traco zero e sem traco: nao ha operador de contorno nem cor de contorno no fluxo. Largura 0
+    // em PDF significa "a linha mais fina do dispositivo", que poria um pixel preto em volta de
+    // uma faixa que deve ser so trama.
+    expect(ops).not.toMatch(/ RG/);
+    expect(ops).not.toMatch(/\nS\n/);
+    expect(ops).not.toMatch(/\nB\n/);
   });
 });

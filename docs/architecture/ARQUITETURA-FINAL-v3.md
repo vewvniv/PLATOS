@@ -444,7 +444,7 @@ CLAUDE.md
 | 1.5 | Renderização matemática **em bloco** (LaTeX/MathML → SVG → raster) | Exatas antes de gerar conteúdo de exatas |
 | **1.6** | **Matemática em linha · `InlineBox` com largura, altura e `baseline_offset` na medição de texto** | **O caso predominante das exatas — bloqueadora da fatia 6** |
 | **2a** | **Um pacote real: `ExamPackage` publicado · validação server-side · PDF nos dois alvos** | **O contrato do pacote, provado pelo menor artefato que pode reprová-lo** |
-| 2b | Prova fixa completa · marcadores de captura · qualidade de impressão | Escopo original da 2 |
+| **2b** | **Folha completa · cabeçalho e instrução de preenchimento · mitigação do erro de transcrição · orçamento de tinta na região escaneável · folha de teste de impressão** | **A qualidade de impressão, provada pelo que ela consegue reprovar** |
 | 3 | Captura por região · ArUco → homografia → QR → OMR normalizado · nota objetiva offline · escaneamento em lote | **Produto já usável e vendável no Basic, sem gastar um token** |
 | 4 | Sync · outbox · gate de pré-voo · modo degradado | Modelo offline |
 | 5 | Regiões discursivas · completude · deviants · correção manual · **corpus de medição** | D1 sem IA, e os dados para decidir §9 |
@@ -470,7 +470,7 @@ Ficaram deliberadamente **fora** da 2a três itens que uma versão anterior dest
 |---|---|
 | **Divergência entre renderizadores** | Neutralizado por medição própria + normalização + fonte embarcada + guarda de versão + paridade em CI. **Se o teste de paridade não existir, vira o maior risco do projeto.** |
 | **Acurácia em manuscrito** | Maior risco não-arquitetural. Não se resolve por arquitetura — meça na fatia 5 antes de construir a 8. |
-| **Impressão dos ArUcos** | São 4 por questão discursiva, não 4 por prova: muito mais superfície sujeita a toner fraco. Marcador ≥ 12 mm e folha de teste de impressão no onboarding. |
+| **Impressão dos ArUcos** | São 4 por questão discursiva, não 4 por prova: muito mais superfície sujeita a toner fraco. Marcador ≥ 12 mm e folha de teste de impressão no onboarding. **Entregue na 2b:** marcador de 14 mm e uma folha de teste que é um `LayoutMap` do mesmo engine, com o critério de aprovação impresso nela, sujeita às mesmas guardas da prova. |
 | **Custo de IA** | Contido por design: Basic não inclui correção por IA; caching corta 37% de graça; quota por plano limita o teto. |
 | **LGPD com dados de menores** | Único item ainda sem encaminhamento. Imagens de manuscrito, notas e identificação de menores exigem base legal, retenção definida e contrato de operador com a escola. **Gatilho: fim da fatia 3**, quando o primeiro piloto com turma real põe dado de menor no sistema — e não "antes do primeiro contrato", que é mais tarde e induz a folga que não existe. Some-se que o Basic é *self-serve*: não há escola para figurar como controladora, e professor pessoa física operando dado de menor numa SaaS comercial é figura ambígua. É o produto de lançamento, então a ambiguidade chega junto com o primeiro cliente. A separação do roster (§5) habilita de graça um modo sem identificação nominal — aluno como número ou apelido —, que é a mitigação que compra tempo até haver parecer jurídico. |
 | **Um mantenedor, quatro módulos** | Mitigado pelas fatias verticais e por I1–I5: o escopo cresce sem que o núcleo precise ser reescrito. |
@@ -485,7 +485,7 @@ ser barato. Tabela separada, e não colunas na de cima, porque cinco colunas de 
 |---|---|---|---|
 | Divergência entre renderizadores | contínuo, verificado a cada CI | **A partir da 2a** já existe geometria publicada e hasheada, e os dois renderizadores desenham a partir dela; divergir passa a quebrar OMR sobre artefato imutável, e não sobre arquivo de trabalho | mantenedor |
 | Acurácia em manuscrito | **5** (medir antes de construir a 8) | Construir a 8 sem o número é construir sobre suposição; o critério de reprovação precisa existir antes (ADR-0007) | mantenedor |
-| Impressão dos ArUcos | **2b** | Depois que houver folha distribuída, corrigir marcador significa reimprimir | mantenedor |
+| Impressão dos ArUcos | **2b — alcançada** | A folha de teste de impressão existe desde a 2b e reprova uma impressora antes da primeira turma; o que encarece agora é folha já distribuída, e a mitigação é anterior a ela | mantenedor |
 | Custo de IA | **6** | Depois da geração em volume, caching e quota viram retrofit sobre uso real | mantenedor |
 | **LGPD com dados de menores** | **3** (primeiro piloto com turma real) | Depois do primeiro dado real de menor, a correção envolve dado já coletado — e o Basic é self-serve, sem escola controladora (ADR-0006) | mantenedor + parecer jurídico externo, que **não** tem dono técnico |
 | Um mantenedor, quatro módulos | contínuo | — | mantenedor |
@@ -523,6 +523,8 @@ ser barato. Tabela separada, e não colunas na de cima, porque cinco colunas de 
 | **D52** | O branco em volta da fórmula em bloco é derivado da transição de texto, assimétrico, e não varia com a altura da fórmula. | D-1.5.9 (fatia 1.5) |
 | **D53** | O pacote publicado é armazenado como texto canônico, e não como `jsonb`: o hash é sobre os bytes, e `jsonb` guarda árvore normalizada. | ADR-0008 |
 | **D54** | Uma prova publicada tem exatamente um pacote; corrigir prova publicada é publicar prova nova, com `short_id` próprio. O QR impresso não carrega identificador de pacote (§8). | ADR-0009 |
+| **D55** | Tinta decorativa dentro de região escaneável tem orçamento declarado no artefato publicado: cobertura ≤ 12% na bolha não respondida, caneta ≥ 50%, corredor de 20% a 40% para o limiar do OMR. Se a medição reprovar, a decoração cede. | ADR-0010 |
+| **D56** | Tom e trama são fração de preto em permilagem, declarados no `LayoutMap`; renderizador não escolhe tom. Quem julga cobertura de tinta é o documento rasterizado, e não a validação sem renderizar — o programa de fonte não conhece o contorno do glifo. | D-2b.1, D-2b.3.1 (fatia 2b) |
 
 **Aberto** — cada item com o ponto em que deixa de ser barato. Um item sem essa coluna volta a flutuar, que foi o que aconteceu com a LGPD.
 
