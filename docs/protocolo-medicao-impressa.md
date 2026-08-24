@@ -317,3 +317,56 @@ referência de 2026-08-22 isso deu 96,6% e 97,3% nas duas folhas, contra 97,2% d
 comparam com valores nominais, e numa folha a 97% todas saem encolhidas junto. Ele **não** é
 critério de aptidão da impressora — esse é o da folha de teste (±5%, ADR-0001). Uma folha a 97%
 está apta a virar prova e é imprópria para conferir o lado do marcador com régua.
+
+### As digitalizações versionadas (fatia 3a)
+
+A conferência de papel da fatia 2b foi feita sobre uma folha impressa em **2026-08-22** por
+terceiro, a pedido, e digitalizada no equipamento que essa pessoa tinha — sem controle sobre o dpi,
+que o aparelho não permitia escolher nem exibir. As 40 questões foram preenchidas a caneta, uma
+alternativa por questão. **A folha física não está mais disponível.**
+
+As duas imagens ficaram versionadas em `fixtures/`:
+
+| Arquivo | O que é |
+|---|---|
+| `prova-referencia.digitalizacao.jpg` | a prova de referência preenchida, 2160×3026 |
+| `folha-de-teste.digitalizacao.jpg` | a folha de teste de impressão, 2160×3067, uma bolha preenchida |
+| `*.papel.json` | o que `papel.mjs` mediu em cada uma: cantos dos marcadores e cobertura bolha a bolha |
+
+Elas não estão ali por conveniência de teste. Sem elas, os **51,61%** que
+`docs/cobertura-fatia-2b.md` afirma seriam um número sem como ser repetido — a folha acabou, e o
+dpi nunca foi conhecido. Enquanto não houver corpus fotografado, estas duas imagens são a única
+evidência de papel que o repositório tem.
+
+Duas propriedades da impressão que valem saber antes de usá-las como referência: ela saiu a **~97%
+de escala** (aprovada por ADR-0001, ver §3.5) e o scanner **comprime a faixa dinâmica** — o papel lê
+233 de 255 e o miolo preto de um ArUco lê 83, de modo que toner pleno rende no máximo 64% de
+cobertura nesta imagem.
+
+### Duas implementações, e por que as duas continuam existindo (fatia 3a)
+
+Desde a fatia 3a existe uma segunda medição, oficial, em Kotlin: `SheetReader` no `apps/android`.
+Ela percorre o pipeline de §8 inteiro — ArUcos, homografia, retificação, QR, cobertura — e é a que
+vai para o aparelho do professor. `papel.mjs` **não** foi aposentado, e a razão é que ele é a única
+coisa que confere a outra por um caminho independente.
+
+| | `papel.mjs` | `SheetReader` |
+|---|---|---|
+| Linguagem | JavaScript | Kotlin |
+| Acha ArUco por | componentes conexos sobre limiar | contorno e dicionário, no OpenCV |
+| Mede sobre | a imagem original, amostrando um círculo | a região retificada |
+| Onde roda | linha de comando, sobre um arquivo | aparelho e emulador |
+
+As duas concordam dentro de **20‰** na folha de referência, e a diferença não é ruído: é a distância
+entre os dois métodos. Onde mais importa — a bolha `q22/A`, o rabisco mais fraco da folha — elas dão
+514‰ e 516‰.
+
+Para medir uma digitalização nova pela ferramenta de linha de comando, o comando continua o de §10.
+Para conferir que a implementação oficial concorda com ela, o caminho é o teste instrumentado
+`SheetReaderInstrumentedTest`, que roda no emulador.
+
+**Uma propriedade que a fatia 3a acrescentou e que o CI vigia:** as fixtures derivadas da
+digitalização — os dois `.papel.json` e o `prova-referencia.recorte.pgm` — são regeneradas a cada
+execução e comparadas com as versionadas. Se a imagem e o vetor de referência deixarem de
+corresponder, o job falha; sem isso, os testes do OMR continuariam verdes comparando com uma
+referência que não descreve mais a folha.
