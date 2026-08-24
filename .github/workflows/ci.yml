@@ -143,6 +143,22 @@ jobs:
           done
           echo "a medicao de tinta acusou os dois defeitos, como deve"
 
+      # As tres fixtures derivadas da digitalizacao — o vetor de referencia e o recorte retificado
+      # — sao geradas por ferramenta e versionadas. Nada as verificava: se a imagem e o vetor
+      # deixassem de corresponder, os testes do OMR continuariam verdes comparando com uma
+      # referencia que nao descreve mais a folha. Mesmo padrao de "conversao de formula esta em
+      # dia", acima.
+      - name: As fixtures da digitalizacao estao em dia
+        working-directory: tools/parity
+        run: |
+          node papel.mjs ../../fixtures/prova-referencia.digitalizacao.jpg                ../../fixtures/prova-referencia.layout.json --json /tmp/prova.papel.json > /dev/null
+          node papel.mjs ../../fixtures/folha-de-teste.digitalizacao.jpg                ../../fixtures/folha-de-teste.layout.json --json /tmp/teste.papel.json > /dev/null
+          node recorte.mjs ../../fixtures/prova-referencia.digitalizacao.jpg                ../../fixtures/prova-referencia.layout.json /tmp/prova.recorte.pgm > /dev/null
+          diff -u ../../fixtures/prova-referencia.papel.json /tmp/prova.papel.json
+          diff -u ../../fixtures/folha-de-teste.papel.json /tmp/teste.papel.json
+          cmp ../../fixtures/prova-referencia.recorte.pgm /tmp/prova.recorte.pgm
+          echo "as fixtures derivadas batem com a digitalizacao versionada"
+
       - uses: actions/upload-artifact@v7
         with:
           name: pdf-web
@@ -199,17 +215,20 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      # O teste instrumentado gera o PDF pelo `PdfDocument` real do Android. E o desenho da
-      # plataforma que precisa ser medido; um duble nao provaria nada.
-      - name: PDF do Android no emulador
+      # Dois grupos de teste rodam aqui, e os dois precisam da plataforma de verdade. O
+      # renderizador gera o PDF pelo `PdfDocument` real do Android — um duble nao provaria nada. E
+      # a captura da fatia 3a usa OpenCV e ZXing-C++, que sao nativos e so existem no aparelho
+      # (§13): deteccao de ArUco, homografia, retificacao e decodificacao do QR.
+      - name: Renderizador e captura no emulador
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
           target: aosp_atd
           arch: x86_64
           profile: pixel_6
-          # O padrao pede 7,4 GB; o teste escreve um PDF de ~146 KB.
-          disk-size: 4096M
+          # O padrao pede 7,4 GB. Subiu de 4 GB para 6 quando a fatia 3a entrou: o APK de debug
+          # passou a carregar os `.so` do OpenCV nas quatro ABIs, e sozinho da 143 MB.
+          disk-size: 6144M
           disable-animations: true
           script: ./gradlew :apps:android:connectedDebugAndroidTest
 
