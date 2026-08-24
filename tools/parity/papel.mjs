@@ -1,5 +1,5 @@
 import * as mupdf from 'mupdf';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 /**
  * Tinta na folha **digitalizada**: cobertura da bolha preenchida a caneta (ADR-0010, tarefa 8.3).
@@ -14,12 +14,27 @@ import { readFileSync } from 'node:fs';
  * digitalizacao nao precisa ser conhecido**, porque cobertura e razao e a escala sai dos
  * marcadores.
  *
- * Uso: node papel.mjs <digitalizacao.jpg> <layout.json> [indice-da-regiao]
+ * Uso: node papel.mjs <digitalizacao.jpg> <layout.json> [indice-da-regiao] [--json <saida>]
+ *
+ * `--json` grava o que esta ferramenta mediu — cantos dos marcadores e cobertura bolha a bolha —
+ * para que outra implementacao possa ser conferida contra ela. E o unico papel que ela tem depois
+ * da fatia 2b: **oracle independente**, em outra linguagem, sobre papel que nao existe mais.
  */
 
-const [, , imagePath, mapPath, regionArg] = process.argv;
+const argv = process.argv.slice(2);
+let jsonPath = null;
+const jsonFlag = argv.indexOf('--json');
+if (jsonFlag !== -1) {
+  jsonPath = argv[jsonFlag + 1];
+  if (!jsonPath) {
+    console.error('--json exige um caminho de saida');
+    process.exit(2);
+  }
+  argv.splice(jsonFlag, 2);
+}
+const [imagePath, mapPath, regionArg] = argv;
 if (!imagePath || !mapPath) {
-  console.error('uso: node papel.mjs <digitalizacao.jpg> <layout.json> [indice-da-regiao]');
+  console.error('uso: node papel.mjs <digitalizacao.jpg> <layout.json> [indice-da-regiao] [--json <saida>]');
   process.exit(2);
 }
 
@@ -435,6 +450,34 @@ function stats(list) {
 const pen = stats(marked);
 const blank = stats(blanks);
 const pct = (v) => `${(v * 100).toFixed(2)}%`;
+
+if (jsonPath !== null) {
+  // Seis casas: a cobertura vai de 0 a 1, entao seis casas guardam mais resolucao do que qualquer
+  // tolerancia razoavel vai comparar, e o arquivo continua legivel por gente.
+  const round = (v) => Number(v.toFixed(6));
+  writeFileSync(
+    jsonPath,
+    `${JSON.stringify(
+      {
+        ferramenta: 'papel.mjs',
+        imagem: imagePath.split(/[\\/]/).pop(),
+        largura: W,
+        altura: H,
+        regiao: region.index,
+        // Cantos na ordem tl, tr, bl, br — a mesma do quadrilatero da regiao.
+        cantos: quad.map((p) => ({ x: round(p.x), y: round(p.y) })),
+        raio_px: round(radiusPx),
+        // A medicao e feita na imagem **nao** retificada, amostrando um circulo. E o que torna a
+        // comparacao com a implementacao oficial uma comparacao com tolerancia, e nao igualdade.
+        metodo: 'circulo na imagem original, branco local por percentil',
+        bolhas: measured.map((b) => ({ id: b.id, cobertura: round(b.value) })),
+      },
+      null,
+      1,
+    )}\n`,
+  );
+  console.log(`medicao gravada em ${jsonPath}`);
+}
 const markerSide = cornerOrder.reduce((acc, c) => acc + (corners[c].w + corners[c].h) / 2, 0) / 4;
 
 console.log(`imagem: ${W}x${H} px`);

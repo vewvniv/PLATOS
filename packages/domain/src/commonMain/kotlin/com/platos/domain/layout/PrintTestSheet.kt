@@ -2,6 +2,7 @@ package com.platos.domain.layout
 
 import com.platos.domain.capture.CaptureGeometry
 import com.platos.domain.capture.QrEncoder
+import com.platos.domain.capture.QrPayload
 import com.platos.domain.geometry.Ppm
 import com.platos.domain.geometry.Um
 import com.platos.domain.text.EmbeddedFont
@@ -320,31 +321,7 @@ class PrintTestSheet(
                 "outra impressora.",
         )
 
-        /**
-         * Payload do QR, na forma definitiva de §8.
-         *
-         * Sem aluno e sem variante, como a prova fixa: os dois campos ficam vazios em vez de
-         * inventados.
-         */
-        fun qrPayload(): String {
-            val body = "$SHEET_ID...0"
-            return "$body.${crc16(body)}"
-        }
-
-        /** CRC-16/CCITT-FALSE, o mesmo do QR da prova (D6). */
-        private fun crc16(text: String): String {
-            var crc = 0xFFFF
-            for (byte in text.encodeToByteArray()) {
-                crc = crc xor ((byte.toInt() and 0xFF) shl 8)
-                repeat(8) {
-                    crc = if (crc and 0x8000 != 0) {
-                        ((crc shl 1) xor 0x1021) and 0xFFFF
-                    } else {
-                        (crc shl 1) and 0xFFFF
-                    }
-                }
-            }
-            return crc.toString(16).uppercase().padStart(4, '0')
-        }
+        /** Payload do QR, na forma definitiva de §8. A regra mora em [QrPayload]. */
+        fun qrPayload(): String = QrPayload.of(SHEET_ID, 0)
     }
 }

@@ -2,6 +2,7 @@ package com.platos.domain.layout
 
 import com.platos.domain.capture.CaptureGeometry
 import com.platos.domain.capture.QrEncoder
+import com.platos.domain.capture.QrPayload
 import com.platos.domain.exam.ExamDefinition
 import com.platos.domain.exam.requireSupported
 import com.platos.domain.geometry.Ppm
@@ -554,32 +555,8 @@ class LayoutEngine(
         /** Da ultima linha de bolhas ate o fim da regiao, livrando os marcadores de baixo. */
         private val BOTTOM_CLEARANCE = CaptureGeometry.MARKER_SIDE + CaptureGeometry.QUIET_ZONE
 
-        /**
-         * Payload do QR da regiao.
-         *
-         * §8 define `{exam_short_id}.{student_token}.{variant}.{region_idx}.{crc}`. Nesta fatia nao
-         * existem `exam_assignment` nem variantes — sao fatia 7 —, entao os dois campos ausentes
-         * ficam vazios em vez de inventados, e a forma do payload ja e a definitiva.
-         */
-        fun qrPayloadOf(examId: String, regionIndex: Int): String {
-            val body = "$examId...$regionIndex"
-            return "$body.${crc16(body)}"
-        }
-
-        /** CRC-16/CCITT-FALSE, para que o QR detecte leitura corrompida (D6). */
-        private fun crc16(text: String): String {
-            var crc = 0xFFFF
-            for (byte in text.encodeToByteArray()) {
-                crc = crc xor ((byte.toInt() and 0xFF) shl 8)
-                repeat(8) {
-                    crc = if (crc and 0x8000 != 0) {
-                        ((crc shl 1) xor 0x1021) and 0xFFFF
-                    } else {
-                        (crc shl 1) and 0xFFFF
-                    }
-                }
-            }
-            return crc.toString(16).uppercase().padStart(4, '0')
-        }
+        /** Payload do QR da regiao. A regra mora em [QrPayload], junto do leitor dela. */
+        fun qrPayloadOf(examId: String, regionIndex: Int): String =
+            QrPayload.of(examId, regionIndex)
     }
 }
