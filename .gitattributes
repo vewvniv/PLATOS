@@ -10,3 +10,10 @@
 # aqui a aposta nao vale: D-1.5.1 depende de os dois renderizadores desenharem *os mesmos bytes*, e
 # uma conversao de fim de linha aplicada por engano corromperia o PNG sem aviso.
 *.png binary
+
+# Digitalizacoes da conferencia de papel e o recorte em cinza cru que sai delas. Mesmo argumento do
+# PNG, e aqui ele pesa mais: a folha fisica nao existe mais, entao estes arquivos sao o unico
+# registro da medicao da fatia 2b. Um byte 0x0D convertido corromperia a prova sem aviso.
+*.jpg binary
+*.jpeg binary
+*.pgm binary

@@ -1,0 +1,49 @@
+{
+ "ferramenta": "papel.mjs",
+ "imagem": "folha-de-teste.digitalizacao.jpg",
+ "largura": 2160,
+ "altura": 3067,
+ "regiao": 0,
+ "cantos": [
+  {
+   "x": 284.5,
+   "y": 426.5
+  },
+  {
+   "x": 1939.5,
+   "y": 420.5
+  },
+  {
+   "x": 279.5,
+   "y": 732
+  },
+  {
+   "x": 1941,
+   "y": 726.5
+  }
+ ],
+ "raio_px": 18.661952,
+ "metodo": "circulo na imagem original, branco local por percentil",
+ "bolhas": [
+  {
+   "id": "teste/A",
+   "cobertura": 0.058215
+  },
+  {
+   "id": "teste/B",
+   "cobertura": 0.079612
+  },
+  {
+   "id": "teste/C",
+   "cobertura": 0.062463
+  },
+  {
+   "id": "teste/D",
+   "cobertura": 0.085092
+  },
+  {
+   "id": "teste/E",
+   "cobertura": 0.571485
+  }
+ ]
+}
