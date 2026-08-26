@@ -20,16 +20,16 @@
 
 ## 4. Nota objetiva
 
-- [ ] 4.1 Criar `packages/domain/.../scoring/` com a apuração contra `answer_key`, `points`, `scoring.max_score` e `variants[].positions`, resolvendo a variante que o payload do QR declara. Resultado: nota apurada em memória, sem persistência.
-- [ ] 4.2 Implementar as recusas: variante ausente do pacote e conjunto de questões divergente do que a variante declara. Resultado: os dois cenários da spec passam com mensagem que nomeia a divergência.
-- [ ] 4.3 Implementar o fechamento da nota: em branco vale zero e é definitivo; múltipla marcação e indecisa entram na lista de pendências, e a nota não é declarada fechada. Resultado: o resultado traz pontuação apurada, máximo da prova e máximo em disputa.
-- [ ] 4.4 Testar a nota contra o `answer_key` da fixture de referência, com uma folha toda correta, uma toda errada e uma mista. Resultado: os três valores batem com a conta feita à mão sobre o gabarito.
-- [ ] 4.5 Ver falhar: trocar uma resposta do gabarito da fixture e confirmar que a nota muda; marcar duas bolhas numa questão e confirmar que a nota deixa de fechar. Reverter e registrar em `docs/cobertura-fatia-3b.md`.
-- [ ] 4.6 Testar determinismo e ausência de efeito: mesma entrada duas vezes, resultado idêntico, leitura e pacote inalterados.
+- [x] 4.1 Criar `packages/domain/.../scoring/` com a apuração contra `answer_key`, `points` e `scoring.max_score`, casando cada resposta lida com a entrada de gabarito do item. O `LayoutMap` da variante já resolveu posição em item na publicação (`LayoutEngine.kt:315`, `Publish.kt:70`), e a apuração não o refaz. Resultado: nota apurada em memória, sem persistência.
+- [x] 4.2 Implementar as recusas: variante ausente do pacote; payload sem variante com pacote de mais de uma; conjunto de itens divergente do que a variante declara em `positions`; e item sem entrada no gabarito. Resultado: os quatro cenários de recusa da spec passam com mensagem que nomeia a divergência.
+- [x] 4.3 Implementar o fechamento da nota: em branco vale zero e é definitivo; múltipla marcação e indecisa entram na lista de pendências, e a nota não é declarada fechada. Resultado: o resultado traz pontuação apurada, máximo da prova e máximo em disputa.
+- [x] 4.4 Testar a nota contra o `answer_key` da fixture de referência, com uma folha toda correta, uma toda errada e uma mista, mais o caso de payload sem variante contra o pacote de uma variante só. Resultado: os valores batem com a conta feita à mão sobre o gabarito.
+- [x] 4.5 Ver falhar: trocar uma resposta do gabarito da fixture e confirmar que a nota muda; marcar duas bolhas numa questão e confirmar que a nota deixa de fechar. Reverter e registrar em `docs/cobertura-fatia-3b.md`.
+- [x] 4.6 Testar determinismo e ausência de efeito: mesma entrada duas vezes, resultado idêntico, leitura e pacote inalterados.
 
 ## 5. Ligar a leitura à interpretação
 
-- [ ] 5.1 Fazer `SheetReader` devolver a leitura interpretada mantendo a cobertura de cada bolha recuperável ao lado do veredito. Resultado: o cenário "a cobertura sobrevive ao veredito" passa.
+- [x] 5.1 Fazer `SheetReader` devolver a leitura interpretada mantendo a cobertura de cada bolha recuperável ao lado do veredito. Resultado: o cenário "a cobertura sobrevive ao veredito" passa.
 - [ ] 5.2 Confirmar que os testes instrumentados da 3a continuam verdes sobre as digitalizações versionadas. Resultado: `:apps:android:connectedDebugAndroidTest` passa sem mudança de expectativa de medição.
 
 ## 6. O corpus — depende do mantenedor

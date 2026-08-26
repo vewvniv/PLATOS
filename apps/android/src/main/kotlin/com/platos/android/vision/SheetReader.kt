@@ -2,7 +2,10 @@ package com.platos.android.vision
 
 import com.platos.android.omr.BubbleMeter
 import com.platos.android.omr.MeterOutcome
+import com.platos.domain.capture.InterpretationOutcome
 import com.platos.domain.capture.OmrReading
+import com.platos.domain.capture.OmrThreshold
+import com.platos.domain.capture.SheetInterpreter
 import com.platos.domain.layout.LayoutMap
 import com.platos.domain.layout.ScannableRegion
 import org.opencv.core.Mat
@@ -20,8 +23,13 @@ import org.opencv.core.Mat
  * ele esta; as bolhas so sao medidas depois de a identidade da folha fechar, porque medir uma
  * folha que nao se sabe de quem e produz numero sem dono.
  *
- * **Nao ha limiar aqui, e nao ha nota.** A saida e cobertura por bolha; quem interpreta e o
- * scoring, depois que a fatia do corpus escolher o limiar dentro do corredor que ADR-0010 reservou.
+ * **[read] mede e nao interpreta**, e continua assim: a saida dele e cobertura por bolha. Quem
+ * quer resposta chama [readInterpreted], que acrescenta o veredito sem esconder a medicao —
+ * `InterpretedReading` carrega as duas.
+ *
+ * O limiar nao e escolha deste arquivo nem constante dele: ele **entra por parametro**, apurado
+ * sobre o corpus fotografado pela regra de ADR-0011, e a folha declara o corredor em que ele
+ * precisa cair.
  *
  * A leitura e local e sem efeito: nada nela toca rede, disco ou estado. Ver `OmrReading`.
  */
@@ -45,4 +53,18 @@ object SheetReader {
             is MeterOutcome.Measured -> OmrReading.Read(payload, measured.measurements)
         }
     }
+
+    /**
+     * O mesmo pipeline, seguido da interpretacao: veredito por bolha e resposta por questao.
+     *
+     * A interpretacao mora no dominio e nao aqui, porque ela nao toca imagem — recebe inteiros e o
+     * corredor que o mapa declara. Este metodo e so a composicao dos dois lados da fronteira que a
+     * fatia 3a desenhou: o adaptador acha, o nucleo puro decide.
+     */
+    fun readInterpreted(
+        gray: Mat,
+        map: LayoutMap,
+        region: ScannableRegion,
+        threshold: OmrThreshold,
+    ): InterpretationOutcome = SheetInterpreter.interpret(read(gray, map, region), region, threshold)
 }
