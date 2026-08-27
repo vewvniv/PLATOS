@@ -42,7 +42,7 @@ object SheetReader {
             is DetectionOutcome.Rectified -> detection
         }
 
-        val qr = RegionQrReader.read(rectified.region, region, rectified.detectedMarkerIds)
+        val qr = RegionQrReader.read(rectified.qrCanvas, rectified.detectedMarkerIds)
         val payload = when (qr) {
             is QrOutcome.Failed -> return OmrReading.Rejected(qr.reason)
             is QrOutcome.Read -> qr.payload

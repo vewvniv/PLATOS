@@ -101,6 +101,62 @@ A correção é dupla, de propósito. A recusa por repetição fecha a porta; um
 soma que passe do máximo junto com as pendências. Uma é sobre a folha, e recusa; a outra é sobre o
 programa, e lança.
 
+## O defeito que o corpus encontrou na fatia 3a
+
+O QR fica encostado na borda superior do quadrilátero dos marcadores — `qr.v` é zero no `LayoutMap`
+—, então a região retificada começava exatamente no topo dele e a **zona de silêncio** que o padrão
+QR exige ficava fora da imagem. A decodificação dependia de a homografia deixar um ou dois pixels de
+folga.
+
+Medido no corpus, antes da correção:
+
+| Foto | 1ª linha escura do QR | Decodifica? |
+|---|---|---|
+| prova-frontal | `y = 0` | não |
+| prova-sombra | `y = 0` | não |
+| prova-angulo | `y = 2` | sim |
+
+Dois pixels separavam uma folha legível de uma folha recusada.
+
+**Por que a fatia 3a não viu.** A digitalização de mesa da 2b cai do lado sortudo, e é a única
+imagem que a 3a tinha. Todos os testes de QR daquela fatia continuam verdes com a sangria
+desligada — inclusive `le_o_qr_da_regiao_retificada`, que decodifica de verdade e afirma o payload
+inteiro. Um teste que exercita o caminho certo, sobre a fixture certa, e ainda assim não pode
+reprovar o defeito.
+
+**A correção** é um canvas próprio para o QR, retificado com 4 mm de sangria, em `RegionDetector`.
+A região que produz cobertura não muda em um pixel: nenhum número desta fatia se move, nenhum
+golden muda, o hash do pacote fica igual. A folha não é tocada — o QR na folha continua onde está.
+
+| Defeito introduzido | Quem acusou | O que os outros disseram |
+|---|---|---|
+| `QR_BLEED_MM = 0` | `o_canvas_do_qr_tem_zona_de_silencio_em_volta`, com `o QR comeca em y=0`, mais **as seis fotos do corpus**, que param de decodificar — inclusive a angulada, que antes passava por sorte | os testes de QR da 3a sobre a digitalização de mesa seguiram **verdes**: é exatamente essa a razão de o defeito ter atravessado a fatia inteira |
+
+O teste novo afirma a **folga**, e não a decodificação. Afirmar que decodifica seria repetir o que a
+3a já afirmava — e que continuava verdadeiro com o defeito no lugar.
+
+## A tolerância entre as duas implementações, na câmera
+
+§10 do protocolo registra **20‰** entre `papel.mjs` e o `SheetReader` na digitalização de mesa. Foto
+de câmera afasta os dois um pouco mais. Medido sobre as 330 bolhas das quatro fotos que as duas
+implementações conseguem ler:
+
+| mediana | p95 | p99 | máximo |
+|---|---|---|---|
+| 6‰ | 17‰ | 25‰ | 29‰ |
+
+O teto por bolha ficou em **30‰**, e a divergência tem explicação de método e não de defeito:
+`papel.mjs` amostra o círculo na imagem original, o `SheetReader` retifica antes de amostrar, e a
+reamostragem suaviza. O viés confirma — o `SheetReader` lê a bolha escura 5‰ mais clara.
+
+**Um teto por bolha sozinho não bastaria**, e isso foi verificado: as duas implementações divergindo
+29‰ em *toda* bolha passariam por ele. Por isso há uma segunda guarda, sobre a **mediana** por foto,
+com teto de 12‰ contra os 6–7‰ observados.
+
+| Defeito introduzido | Quem acusou | O que os outros disseram |
+|---|---|---|
+| `+15‰` constante em toda medição de `BubbleMeter` | a guarda da mediana, em **três** das quatro fotos, com `mediana de 14‰ … teto 12‰` | o teto por bolha só reagiu numa foto — sozinho, ele teria deixado o viés passar em três |
+
 ## Como cada verificação crítica foi vista falhar
 
 ### Veredito de bolha e corredor (tarefa 2.4)

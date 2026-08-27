@@ -31,6 +31,8 @@
 
 - [x] 5.1 Fazer `SheetReader` devolver a leitura interpretada mantendo a cobertura de cada bolha recuperável ao lado do veredito. Resultado: o cenário "a cobertura sobrevive ao veredito" passa.
 - [x] 5.2 Confirmar que os testes instrumentados da 3a continuam verdes sobre as digitalizações versionadas. Resultado: `:apps:android:connectedDebugAndroidTest` passa sem mudança de expectativa de medição.
+- [x] 5.3 **Acrescentada durante a execução.** Corrigir a zona de silêncio do QR: `qr.v` é zero no mapa, a região retificada começava no topo do QR, e a decodificação dependia de a homografia deixar um ou dois pixels de folga. `RegionDetector` passa a retificar um canvas próprio para o QR, com 4 mm de sangria, sem tocar na geometria que produz cobertura. Resultado: as seis fotos do corpus decodificam; sem a sangria, nenhuma decodifica.
+- [x] 5.4 Ver falhar: `QR_BLEED_MM = 0` derruba `o_canvas_do_qr_tem_zona_de_silencio_em_volta` com `y=0` e faz as seis fotos do corpus pararem de decodificar — enquanto a digitalização de mesa da 2b segue verde, que é por que a fatia 3a não viu o defeito. Registrado em `docs/cobertura-fatia-3b.md`.
 
 ## 6. O corpus — depende do mantenedor
 
