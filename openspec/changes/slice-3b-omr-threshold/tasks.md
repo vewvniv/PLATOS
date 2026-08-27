@@ -30,7 +30,7 @@
 ## 5. Ligar a leitura à interpretação
 
 - [x] 5.1 Fazer `SheetReader` devolver a leitura interpretada mantendo a cobertura de cada bolha recuperável ao lado do veredito. Resultado: o cenário "a cobertura sobrevive ao veredito" passa.
-- [ ] 5.2 Confirmar que os testes instrumentados da 3a continuam verdes sobre as digitalizações versionadas. Resultado: `:apps:android:connectedDebugAndroidTest` passa sem mudança de expectativa de medição.
+- [x] 5.2 Confirmar que os testes instrumentados da 3a continuam verdes sobre as digitalizações versionadas. Resultado: `:apps:android:connectedDebugAndroidTest` passa sem mudança de expectativa de medição.
 
 ## 6. O corpus — depende do mantenedor
 

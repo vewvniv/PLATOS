@@ -137,6 +137,24 @@ class SheetInterpreterTest {
     }
 
     @Test
+    fun `medicao repetida da mesma bolha e recusada`() {
+        // Comparar conjuntos nao ve repeticao: um `Set` de 161 medicoes com `q01/A` duas vezes tem
+        // os mesmos 160 elementos do declarado. A questao repetida ganharia uma quinta bolha, e
+        // duas marcadas iguais virariam multipla marcacao — uma pendencia inventada pela leitura.
+        val repetida = folhaCom("A").let {
+            it.copy(measurements = it.measurements + it.measurements.first())
+        }
+
+        val motivo = rejected(SheetInterpreter.interpret(repetida, region, limiar))
+
+        assertTrue(motivo.contains("repetida"), "a mensagem precisa dizer que ha repeticao: $motivo")
+        assertTrue(
+            motivo.contains(region.bubbles.first().questionId),
+            "a mensagem precisa nomear a bolha repetida: $motivo",
+        )
+    }
+
+    @Test
     fun `a mesma leitura interpretada duas vezes da o mesmo resultado`() {
         val leitura = folhaCom("D")
 

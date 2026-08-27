@@ -44,6 +44,17 @@ data class ObjectiveScore(
     val pending: List<PendingQuestion>,
 ) {
 
+    init {
+        // A segunda guarda do mesmo erro, e ela existe por experiencia desta fatia: a conferencia
+        // por conjunto deixava passar resposta repetida, e a nota saia 41 de 40 — bem-formada,
+        // plausivel e errada. Uma nota fora da escala nao e folha ruim, e defeito de quem apura,
+        // entao aqui e excecao e nao recusa.
+        require(points in 0..maxScore) { "nota $points fora de 0..$maxScore" }
+        require(points + pending.sumOf { it.points } <= maxScore) {
+            "nota $points mais ${pending.sumOf { it.points }} em disputa passam de $maxScore"
+        }
+    }
+
     /** Quanto ainda depende das pendencias. */
     val pointsAtStake: Int get() = pending.sumOf { it.points }
 
@@ -87,6 +98,16 @@ object ObjectiveScoring {
     ): ScoringOutcome {
         val variant = resolveVariant(examPackage, payload)
             ?: return ScoringOutcome.Rejected(variantRejection(examPackage, payload))
+
+        // Repeticao antes de conjunto: `Set` nao ve resposta duplicada, e o conjunto continuaria
+        // batendo com a variante enquanto o laco somaria o item duas vezes. A nota passaria de
+        // `max_score` sem nada acusar.
+        val repetidos = answers.groupingBy { it.questionId }.eachCount().filterValues { it > 1 }.keys
+        if (repetidos.isNotEmpty()) {
+            return ScoringOutcome.Rejected(
+                "item com resposta repetida: " + repetidos.sorted().joinToString(", "),
+            )
+        }
 
         val declared = variant.positions.values.toSet()
         val read = answers.map { it.questionId }.toSet()

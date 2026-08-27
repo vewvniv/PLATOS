@@ -53,6 +53,20 @@ object SheetInterpreter {
         // A medicao da 3a ja garante que o conjunto medido e o declarado. A conferencia aqui e
         // contra regressao de composicao: se um dia a leitura entregar um subconjunto, a resposta
         // que sumisse viraria "em branco" no scoring — e em branco vale zero, em silencio.
+        //
+        // **Repeticao antes de conjunto**, e nesta ordem: `Set` nao ve repeticao. Uma medicao
+        // duplicada deixa o conjunto identico ao declarado, e a questao afetada ganha uma bolha a
+        // mais — duas marcadas iguais viram multipla marcacao, uma pendencia que a leitura
+        // inventou. Conferir so o conjunto passaria por isso calado.
+        val repetidas = read.measurements.groupingBy { it.id }.eachCount()
+            .filterValues { it > 1 }.keys
+        if (repetidas.isNotEmpty()) {
+            return InterpretationOutcome.Rejected(
+                "bolha repetida na medicao da regiao ${region.index}: " +
+                    repetidas.sorted().joinToString(", "),
+            )
+        }
+
         val declared = region.bubbles.map { "${it.questionId}/${it.option}" }.toSet()
         val measured = read.measurements.map { it.id }.toSet()
         if (measured != declared) {

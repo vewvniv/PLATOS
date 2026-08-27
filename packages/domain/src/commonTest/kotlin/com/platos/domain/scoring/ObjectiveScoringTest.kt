@@ -8,6 +8,7 @@ import com.platos.domain.fixtures.Fixtures
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -237,6 +238,55 @@ class ObjectiveScoringTest {
         val alterado = scored(ObjectiveScoring.score(gabaritoAlterado, payload, respostas)).points
 
         assertEquals(original - 1, alterado, "trocar uma letra do gabarito tem de valer um ponto")
+    }
+
+    @Test
+    fun `resposta repetida para o mesmo item e recusada`() {
+        // O mesmo furo do conjunto, do lado da nota, e aqui ele custa ponto: 41 respostas com
+        // `q01` duas vezes tem o mesmo conjunto de 40 itens, e a soma passaria de `max_score`.
+        val repetida = todasCorretas() + todasCorretas().first()
+
+        val motivo = rejected(ObjectiveScoring.score(pacote, payload, repetida))
+
+        assertTrue(motivo.contains("repetid"), "a mensagem precisa dizer que ha repeticao: $motivo")
+        assertTrue(motivo.contains(itens.first()), "a mensagem precisa nomear o item: $motivo")
+    }
+
+    @Test
+    fun `nota fora da escala nao e representavel`() {
+        // A segunda guarda do furo que a auditoria encontrou. A conferencia por conjunto deixava
+        // passar resposta repetida e a nota saia 41 de 40 — bem-formada, plausivel e errada. A
+        // recusa por repeticao fecha a porta; este `require` fecha a janela, para o proximo
+        // caminho que produza soma fora da escala.
+        assertFailsWith<IllegalArgumentException> {
+            ObjectiveScore("hash", "v1", points = 41, maxScore = 40, pending = emptyList())
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ObjectiveScore("hash", "v1", points = -1, maxScore = 40, pending = emptyList())
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ObjectiveScore(
+                "hash",
+                "v1",
+                points = 40,
+                maxScore = 40,
+                pending = listOf(PendingQuestion("q01", PendingReason.INDECISA, 1)),
+            )
+        }
+    }
+
+    @Test
+    fun `nota no limite da escala e valida`() {
+        // O par positivo: zero, o maximo, e a soma que fecha exatamente no maximo com pendencia.
+        ObjectiveScore("hash", "v1", points = 0, maxScore = 40, pending = emptyList())
+        ObjectiveScore("hash", "v1", points = 40, maxScore = 40, pending = emptyList())
+        ObjectiveScore(
+            "hash",
+            "v1",
+            points = 39,
+            maxScore = 40,
+            pending = listOf(PendingQuestion("q01", PendingReason.INDECISA, 1)),
+        )
     }
 
     @Test
