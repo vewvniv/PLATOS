@@ -1,71 +1,11 @@
-## Purpose
+## RENAMED Requirements
 
-Ler uma folha capturada contra o `LayoutMap` que a gerou: identificar a região pelos marcadores, retificá-la, confirmar pelo QR de qual folha e de qual região ela é, e medir quanta tinta há dentro de cada bolha declarada, e dizer o que cada bolha e cada questão respondem. A capacidade vai da imagem até a resposta; quem a transforma em nota é o `scoring`.
+### Requirement: A grandeza medida é a cobertura
 
-## Requirements
+- FROM: `### Requirement: A grandeza medida é a cobertura, e a leitura não a interpreta`
+- TO: `### Requirement: A grandeza medida é a cobertura`
 
-### Requirement: A geometria da leitura vem do `LayoutMap`, nunca da imagem
-
-A leitura SHALL derivar a posição de cada bolha das coordenadas normalizadas que o `LayoutMap` declara para a região, projetadas pelos quatro marcadores encontrados na captura. A leitura SHALL NOT inferir posição de bolha por detecção de círculo, por espaçamento regular presumido, nem por qualquer propriedade medida na própria imagem.
-
-Uma captura cujos marcadores detectados não correspondam aos `marker_ids` declarados pela região SHALL ser recusada, identificando os IDs esperados e os encontrados.
-
-#### Scenario: Bolhas vêm do mapa
-
-- **WHEN** uma captura de uma folha é lida contra o `LayoutMap` que a gerou
-- **THEN** cada bolha medida corresponde a uma bolha declarada na região, e o conjunto medido é exatamente o conjunto declarado
-
-#### Scenario: Folha de outra prova sob estes marcadores
-
-- **WHEN** uma captura é lida contra um `LayoutMap` cuja região declara outros `marker_ids`
-- **THEN** a leitura é recusada e a mensagem identifica os identificadores esperados e os encontrados
-
-#### Scenario: Marcador faltando
-
-- **WHEN** uma captura apresenta menos de quatro marcadores da região
-- **THEN** a leitura é recusada por geometria insuficiente, e nenhuma medição parcial é entregue
-
-### Requirement: A captura é retificada antes de ser medida
-
-A leitura SHALL construir a transformação projetiva a partir dos quatro marcadores e SHALL medir a tinta sobre a região já retificada, e não sobre a imagem em perspectiva.
-
-A leitura SHALL recusar uma captura cujo erro de reprojeção dos quatro marcadores exceda a tolerância declarada, porque geometria que não fecha produz medição que não significa nada.
-
-#### Scenario: Captura em perspectiva
-
-- **WHEN** uma folha é capturada em ângulo e lida
-- **THEN** a cobertura medida em cada bolha é equivalente à medida sobre a mesma folha capturada de frente, dentro da tolerância declarada
-
-#### Scenario: Geometria que não fecha
-
-- **WHEN** os quatro marcadores detectados produzem erro de reprojeção acima da tolerância
-- **THEN** a leitura é recusada e informa o erro medido
-
-### Requirement: A captura se identifica pelo QR, e a identificação é redundante
-
-O payload do QR SHALL ter codec único: o mesmo componente que o constrói para a folha SHALL lê-lo de volta da captura. A leitura SHALL recusar payload cujo CRC não confira.
-
-A leitura SHALL conferir o `region_idx` do payload contra os identificadores dos marcadores encontrados, e SHALL recusar a captura quando divergirem — a redundância existe para que a atribuição não dependa de um único canal.
-
-#### Scenario: Payload íntegro
-
-- **WHEN** o QR de uma captura é decodificado
-- **THEN** o payload é aceito, e dele saem a prova, o aluno, a variante e o índice da região
-
-#### Scenario: CRC não confere
-
-- **WHEN** o payload decodificado tem CRC divergente do conteúdo
-- **THEN** a leitura é recusada e nenhuma medição é atribuída a essa folha
-
-#### Scenario: QR de outra região
-
-- **WHEN** o `region_idx` do payload não corresponde aos identificadores dos marcadores encontrados
-- **THEN** a leitura é recusada e a mensagem identifica a divergência
-
-#### Scenario: Ida e volta do payload
-
-- **WHEN** um payload é construído para uma região e lido de volta
-- **THEN** os campos recuperados são exatamente os declarados, e o CRC confere
+## MODIFIED Requirements
 
 ### Requirement: A grandeza medida é a cobertura
 
@@ -99,6 +39,8 @@ Cobertura não finita, janela de medição vazia ou janela fora da imagem SHALL 
 
 - **WHEN** uma captura tem iluminação irregular, com o papel visivelmente mais escuro numa parte da região
 - **THEN** a cobertura das bolhas vazias nessa parte permanece comparável à das demais, porque a normalização é contra o branco local
+
+## ADDED Requirements
 
 ### Requirement: O veredito de bolha usa um limiar validado contra o corredor que a folha declara
 
@@ -164,19 +106,3 @@ Nenhum destes resultados SHALL ser produzido por omissão: questão ausente da s
 
 - **WHEN** uma captura válida é lida
 - **THEN** cada questão declarada na região aparece uma única vez no resultado
-
-### Requirement: A leitura é local, determinística e sem efeito
-
-A leitura SHALL funcionar sem rede, contra o `LayoutMap` do pacote em cache.
-
-A mesma captura lida duas vezes contra o mesmo `LayoutMap` SHALL produzir exatamente a mesma medição. A leitura SHALL NOT alterar a captura, o `LayoutMap` nem qualquer estado persistido.
-
-#### Scenario: Leitura repetida
-
-- **WHEN** a mesma captura é lida duas vezes contra o mesmo `LayoutMap`
-- **THEN** as duas medições são idênticas
-
-#### Scenario: Sem rede
-
-- **WHEN** a leitura ocorre com o aparelho offline
-- **THEN** ela conclui normalmente, porque nada nela depende de rede

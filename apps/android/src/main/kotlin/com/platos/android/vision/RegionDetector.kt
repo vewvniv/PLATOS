@@ -26,6 +26,19 @@ sealed interface DetectionOutcome {
      */
     data class Rectified(
         val region: RectifiedRegion,
+        /**
+         * A vizinhanca do QR, retificada a parte e **com sangria**.
+         *
+         * Existe porque o QR encosta na borda do quadrilatero: `qr.v` e zero no mapa da prova, e
+         * [region] comeca exatamente no topo dele. A zona de silencio que o padrao QR exige para
+         * ser decodificado fica, entao, fora da imagem — e o decodificador acerta ou erra conforme
+         * a homografia deixe um ou dois pixels de folga. Medido no corpus da 3b: decodifica quando
+         * a primeira linha escura cai em `y = 2` e falha quando cai em `y = 0`.
+         *
+         * Este canvas nao participa de medicao nenhuma. [region] continua sendo a fonte unica da
+         * cobertura, byte a byte como antes — a sangria existiria para o QR ou nao existiria.
+         */
+        val qrCanvas: RectifiedRegion,
         val reprojectionErrorPx: Double,
         /** Identificadores realmente achados na captura, para a redundancia de §8. */
         val detectedMarkerIds: List<Int>,
@@ -62,6 +75,19 @@ object RegionDetector {
 
     /** Resolucao da regiao retificada, em pixels por milimetro. A mesma da fixture versionada. */
     const val PX_PER_MM = 10
+
+    /**
+     * Sangria em volta do QR, em milimetros, no canvas que so ele usa.
+     *
+     * O padrao QR pede zona de silencio de quatro modulos. Na folha da prova o QR tem 20 mm com 29
+     * modulos por lado, entao quatro modulos sao cerca de 2,8 mm. Quatro milimetros cobrem isso com
+     * folga e continuam dentro do papel: o QR fica centrado entre os dois marcadores de cima, e ha
+     * margem de sobra em volta dele na folha impressa.
+     */
+    private const val QR_BLEED_MM = 4
+
+    /** Partes por milhao: a normalizacao em que o mapa declara posicao dentro do quadrilatero. */
+    private const val PPM = 1_000_000L
 
     /**
      * Teto do erro de reprojecao dos cantos, em pixels da imagem de origem.
@@ -191,9 +217,58 @@ object RegionDetector {
 
         return DetectionOutcome.Rectified(
             region = RectifiedRegion(width, height, pixels),
+            qrCanvas = rectifyQr(gray, homography, region, width, height),
             reprojectionErrorPx = error,
             detectedMarkerIds = ordered,
         )
+    }
+
+    /**
+     * Retifica so a vizinhanca do QR, com [QR_BLEED_MM] de sangria em volta.
+     *
+     * A homografia leva a captura ao quadrado unitario do quadrilatero. Recortar um sub-retangulo
+     * desse quadrado e escalar para um canvas proprio e multiplicacao de linhas, igual ao que a
+     * retificacao principal ja faz — nao ha warp novo sobre a folha inteira, so sobre um retangulo
+     * de poucos milimetros.
+     *
+     * A sangria pode sair do quadrilatero, e **deve**: e exatamente o que estava faltando. O
+     * `warpPerspective` amostra fora do quadrilatero sem reclamar, e o que cai fora do papel vira
+     * borda preta, que nao atrapalha o decodificador.
+     */
+    private fun rectifyQr(
+        gray: Mat,
+        homography: Mat,
+        region: ScannableRegion,
+        width: Int,
+        height: Int,
+    ): RectifiedRegion {
+        // Sangria expressa na mesma normalizacao do mapa: partes por milhao do lado do quadrilatero.
+        val bleedU = (QR_BLEED_MM * PX_PER_MM).toLong() * PPM / width
+        val bleedV = (QR_BLEED_MM * PX_PER_MM).toLong() * PPM / height
+        val u0 = (region.qr.u - bleedU).toDouble() / PPM
+        val v0 = (region.qr.v - bleedV).toDouble() / PPM
+        val u1 = (region.qr.u + region.qr.uSize + bleedU).toDouble() / PPM
+        val v1 = (region.qr.v + region.qr.vSize + bleedV).toDouble() / PPM
+
+        val canvasW = ((u1 - u0) * width).toInt().coerceAtLeast(1)
+        val canvasH = ((v1 - v0) * height).toInt().coerceAtLeast(1)
+
+        val cut = homography.clone()
+        for (col in 0 until 3) {
+            val h0 = homography.get(0, col)[0]
+            val h1 = homography.get(1, col)[0]
+            val h2 = homography.get(2, col)[0]
+            cut.put(0, col, (h0 - u0 * h2) * canvasW / (u1 - u0))
+            cut.put(1, col, (h1 - v0 * h2) * canvasH / (v1 - v0))
+        }
+
+        val out = Mat()
+        Imgproc.warpPerspective(gray, out, cut, Size(canvasW.toDouble(), canvasH.toDouble()), Imgproc.INTER_LINEAR)
+        val gray8 = Mat()
+        out.convertTo(gray8, CvType.CV_8UC1)
+        val buffer = ByteArray(canvasW * canvasH)
+        gray8.get(0, 0, buffer)
+        return RectifiedRegion(canvasW, canvasH, buffer)
     }
 
     private fun centerOf(quad: List<Point>): Point =

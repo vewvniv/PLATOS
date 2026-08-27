@@ -1,0 +1,49 @@
+{
+ "ferramenta": "papel.mjs",
+ "imagem": "corpus-3b-teste-frontal.jpg",
+ "largura": 3072,
+ "altura": 4096,
+ "regiao": 0,
+ "cantos": [
+  {
+   "x": 497,
+   "y": 657.5
+  },
+  {
+   "x": 2590,
+   "y": 617.5
+  },
+  {
+   "x": 499.5,
+   "y": 1043.5
+  },
+  {
+   "x": 2599,
+   "y": 1008
+  }
+ ],
+ "raio_px": 23.6467,
+ "metodo": "circulo na imagem original, branco local por percentil",
+ "bolhas": [
+  {
+   "id": "teste/A",
+   "cobertura": 0.103857
+  },
+  {
+   "id": "teste/B",
+   "cobertura": 0.110831
+  },
+  {
+   "id": "teste/C",
+   "cobertura": 0.104749
+  },
+  {
+   "id": "teste/D",
+   "cobertura": 0.857813
+  },
+  {
+   "id": "teste/E",
+   "cobertura": 0.122483
+  }
+ ]
+}

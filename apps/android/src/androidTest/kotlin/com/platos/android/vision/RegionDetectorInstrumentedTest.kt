@@ -176,7 +176,7 @@ class RegionDetectorInstrumentedTest {
         val centros = RegionDetector.markerCentersFor(capture(PROVA), map, region)
         assertTrue("nao achei os marcadores", centros != null)
 
-        val outcome = RegionQrReader.read(resultado.region, region, region.markerIds)
+        val outcome = RegionQrReader.read(resultado.qrCanvas, region.markerIds)
         val lido = outcome as? QrOutcome.Read
             ?: throw AssertionError("esperava payload, veio $outcome")
 
@@ -193,7 +193,7 @@ class RegionDetectorInstrumentedTest {
         // regiao 0 usa os marcadores 0..3; fingir que a captura trouxe 4..7 tem de reprovar, e e
         // exatamente o caso da folha de outra regiao na pilha.
         val resultado = rectified(PROVA)
-        val outcome = RegionQrReader.read(resultado.region, region, listOf(4, 5, 6, 7))
+        val outcome = RegionQrReader.read(resultado.qrCanvas, listOf(4, 5, 6, 7))
 
         val falha = outcome as? QrOutcome.Failed
             ?: throw AssertionError("esperava recusa, veio $outcome")
@@ -205,29 +205,55 @@ class RegionDetectorInstrumentedTest {
 
     @Test
     fun regiao_sem_qr_na_roi_declarada_e_recusada() {
-        // A ROI e apagada: o decodificador tem de dizer que nao achou, e nao devolver o QR de
-        // outro lugar do quadro.
-        val original = rectified(PROVA).region
-        val apagado = ByteArray(original.width * original.height)
-        for (y in 0 until original.height) {
-            for (x in 0 until original.width) {
-                val naRoi = x > original.width * 0.4 && x < original.width * 0.6 &&
-                    y < original.height * 0.25
-                apagado[y * original.width + x] =
-                    (if (naRoi) 255 else original.luminanceAt(x, y)).toByte()
-            }
-        }
+        // O canvas do QR e apagado: o decodificador tem de dizer que nao achou, e nao devolver o
+        // QR de outro lugar do quadro.
+        val original = rectified(PROVA).qrCanvas
+        val apagado = ByteArray(original.width * original.height) { 255.toByte() }
 
         val outcome = RegionQrReader.read(
             com.platos.android.omr.RectifiedRegion(original.width, original.height, apagado),
-            region,
             region.markerIds,
         )
         assertTrue("esperava recusa, veio $outcome", outcome is QrOutcome.Failed)
     }
 
+    @Test
+    fun o_canvas_do_qr_tem_zona_de_silencio_em_volta() {
+        // O defeito que o corpus da fatia 3b encontrou, virado teste. O QR encosta na borda de
+        // cima do quadrilatero — `qr.v` e zero no mapa —, entao a regiao retificada comecava
+        // exatamente no topo dele e a zona de silencio ficava de fora. Decodificava ou nao conforme
+        // a homografia deixasse um ou dois pixels de folga: no corpus, `y = 2` lia e `y = 0` nao.
+        //
+        // A afirmacao e sobre a **folga**, e nao sobre decodificar: decodificar ja e afirmado por
+        // `le_o_qr_da_regiao_retificada`, e continuaria verde nesta folha mesmo sem sangria nenhuma,
+        // que e como o defeito passou despercebido pela fatia 3a inteira.
+        val canvas = rectified(PROVA).qrCanvas
+
+        var primeiraLinhaEscura = -1
+        for (y in 0 until canvas.height) {
+            if ((0 until canvas.width).any { canvas.luminanceAt(it, y) < 128 }) {
+                primeiraLinhaEscura = y
+                break
+            }
+        }
+
+        assertTrue(
+            "o QR comeca em y=$primeiraLinhaEscura: sem zona de silencio acima dele",
+            primeiraLinhaEscura >= MODULOS_DE_SILENCIO_PX,
+        )
+    }
+
     private companion object {
         const val PROVA = "prova-referencia.digitalizacao.jpg"
+
+        /**
+         * Zona de silencio minima exigida, em pixels do canvas do QR.
+         *
+         * O padrao QR pede quatro modulos. O QR da prova tem 20 mm com 29 modulos, e o canvas sai a
+         * 10 px/mm: quatro modulos sao 2,8 mm, ou 28 px. Vinte e cinco deixa margem para o residuo
+         * da homografia sem aceitar a folga de dois pixels que o corpus flagrou.
+         */
+        const val MODULOS_DE_SILENCIO_PX = 25
 
         /**
          * Distancia admitida entre o centro achado pelo OpenCV e o achado por `papel.mjs`.

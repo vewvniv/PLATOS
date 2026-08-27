@@ -370,3 +370,88 @@ digitalização — os dois `.papel.json` e o `prova-referencia.recorte.pgm` —
 execução e comparadas com as versionadas. Se a imagem e o vetor de referência deixarem de
 corresponder, o job falha; sem isso, os testes do OMR continuariam verdes comparando com uma
 referência que não descreve mais a folha.
+
+---
+
+## 11. O corpus do limiar do OMR (fatia 3b)
+
+O passo 10 mediu **uma** folha preenchida, num scanner, para saber se o piso de 50% de ADR-0010
+sobrevive a uma caneta real. Este passo produz o corpus que **escolhe o limiar** — e o critério que
+ele tem de satisfazer está fixado em ADR-0011, escrito antes da primeira foto.
+
+**Leia ADR-0011 antes de fotografar.** Ele diz o que aprova, o que reprova e o que acontece se
+reprovar. Fotografar primeiro e ler depois anula o motivo de o critério existir.
+
+### 11.1 Por que câmera de celular, e não scanner
+
+§321 registra a propriedade que desqualifica o scanner para este uso: ele comprime a faixa
+dinâmica. Naquelas digitalizações o papel lê 233 de 255 e o miolo preto de um ArUco lê 83, de modo
+que toner pleno rende no máximo 64% de cobertura. Os 51,61% da caneta e os 7,24% da decoração
+nasceram nessa escala.
+
+O produto lê por câmera de celular. Outra faixa dinâmica, outro branco, sombra própria, e
+perspectiva. Repetir o corpus em scanner confirmaria o número no meio em que ele não será usado.
+
+### 11.2 O que imprimir
+
+Duas folhas da prova de referência — 40 questões de 4 alternativas, 320 bolhas por folha.
+
+```bash
+cd apps/web && npx tsx scripts/render-fixture.ts   # saída: build/parity/web.pdf
+```
+
+Antes, imprima a folha de teste de impressão de §3.5 e confira a escala. Uma folha fora do ±5% de
+ADR-0001 não serve de corpus: ela mede a impressora, não o limiar.
+
+### 11.3 Como preencher
+
+**As bolhas que decidem** — uma alternativa por questão, em cada folha, preenchidas *conforme a
+instrução impressa na própria folha*. São 80 bolhas, e são elas que formam o `C` de ADR-0011. As
+240 restantes ficam vazias e formam o `V`.
+
+**As bolhas que não decidem** — num subconjunto declarado, preencha de propósito de leve: traço que
+não fecha o círculo, risco em vez de preenchimento. Anote quais são. Elas são medidas e registradas,
+e **ficam fora do critério**, pela razão que ADR-0011 dá.
+
+Anote, para cada folha, qual alternativa foi marcada em cada questão. Esse é o gabarito do corpus, e
+é o oracle da nota — ele não passa por nenhum código desta fatia.
+
+**Não há dado de aluno no corpus, nem por acidente:** o payload do QR carrega `student_token`
+**vazio** até a fatia 7 (§8), e `assignments` do pacote de referência é uma lista vazia. Não existe
+campo onde um aluno real caberia.
+
+### 11.4 Como fotografar
+
+Três condições, cada uma sobre as duas folhas — seis fotos no mínimo:
+
+| Condição | O que ela testa |
+|---|---|
+| Luz de ambiente frontal, folha plana | O caso bom. Se o limiar não separar aqui, não separa em lugar nenhum |
+| Sombra parcial atravessando a região | A normalização contra o branco local, que §8 e a spec de `capture-omr` exigem |
+| Ângulo de 20 a 30 graus | A homografia e a retificação, com a bolha longe da câmera |
+
+Os quatro marcadores da região precisam aparecer inteiros em toda foto — sem eles não há geometria,
+e a leitura recusa antes de medir. Sem flash: o reflexo especular no papel é branco estourado, que a
+normalização lê como papel e a bolha embaixo dele some.
+
+Não informe nem se preocupe com resolução: a escala sai dos ArUcos, e cobertura é razão.
+
+### 11.5 Medir
+
+```bash
+# a implementação de referência, independente, em linha de comando
+node tools/parity/papel.mjs <foto.jpg> fixtures/prova-referencia.layout.json
+```
+
+A implementação oficial — `SheetReader` — mede as mesmas fotos pelo teste instrumentado, no
+emulador ou no aparelho. As duas precisam concordar dentro de **20‰**, que é a distância entre os
+dois métodos medida na folha de referência (§10, fim). Divergência maior é investigada **antes** de
+qualquer número ser aceito: as duas medindo o mesmo errado é o único modo de falha que o oracle
+independente não pega, e discordância é o sinal de que ele está funcionando.
+
+### 11.6 Registrar
+
+Em `docs/cobertura-fatia-3b.md`: `V`, `C`, o vão, o `T` calculado pela regra de ADR-0011, quantas
+bolhas, quantas fotos, em que condições, com que aparelho e com que impressora. As fotos ficam
+versionadas em `fixtures/`, como as digitalizações da 2b — pela mesma razão: sem elas o número não
+pode ser reexaminado, e uma folha de papel não sobrevive a duas fatias.

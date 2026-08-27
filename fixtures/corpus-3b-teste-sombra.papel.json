@@ -1,0 +1,49 @@
+{
+ "ferramenta": "papel.mjs",
+ "imagem": "corpus-3b-teste-sombra.jpg",
+ "largura": 3072,
+ "altura": 4096,
+ "regiao": 0,
+ "cantos": [
+  {
+   "x": 552,
+   "y": 647
+  },
+  {
+   "x": 2595.5,
+   "y": 774.5
+  },
+  {
+   "x": 537,
+   "y": 1036.5
+  },
+  {
+   "x": 2589.5,
+   "y": 1145
+  }
+ ],
+ "raio_px": 23.144168,
+ "metodo": "circulo na imagem original, branco local por percentil",
+ "bolhas": [
+  {
+   "id": "teste/A",
+   "cobertura": 0.111139
+  },
+  {
+   "id": "teste/B",
+   "cobertura": 0.134667
+  },
+  {
+   "id": "teste/C",
+   "cobertura": 0.130105
+  },
+  {
+   "id": "teste/D",
+   "cobertura": 0.759019
+  },
+  {
+   "id": "teste/E",
+   "cobertura": 0.149782
+  }
+ ]
+}

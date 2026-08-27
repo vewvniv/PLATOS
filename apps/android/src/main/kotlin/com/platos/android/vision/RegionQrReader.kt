@@ -36,9 +36,6 @@ sealed interface QrOutcome {
  */
 object RegionQrReader {
 
-    /** Folga em volta da ROI declarada, para absorver o residuo da homografia. */
-    private const val MARGIN_PX = 8
-
     private val reader = BarcodeReader(
         BarcodeReader.Options().apply {
             // So QR. Aceitar outros formatos convidaria a decodificar um code-128 impresso na
@@ -59,28 +56,21 @@ object RegionQrReader {
      * decodifique errado, ou uma folha de outra regiao na pilha, e pego por essa divergencia.
      */
     fun read(
-        image: RectifiedRegion,
-        region: ScannableRegion,
+        canvas: RectifiedRegion,
         detectedMarkerIds: List<Int>,
     ): QrOutcome {
-        val left = (region.qr.u.toLong() * image.width / PPM).toInt() - MARGIN_PX
-        val top = (region.qr.v.toLong() * image.height / PPM).toInt() - MARGIN_PX
-        val right = ((region.qr.u + region.qr.uSize).toLong() * image.width / PPM).toInt() + MARGIN_PX
-        val bottom = ((region.qr.v + region.qr.vSize).toLong() * image.height / PPM).toInt() + MARGIN_PX
-
-        val roi = Rect(
-            left.coerceIn(0, image.width - 1),
-            top.coerceIn(0, image.height - 1),
-            right.coerceIn(1, image.width),
-            bottom.coerceIn(1, image.height),
-        )
+        // O canvas **e** a vizinhanca do QR: `RegionDetector` ja o recortou do mapa e lhe deu a
+        // sangria que a zona de silencio exige. Nao ha ROI a calcular aqui, e e essa a mudanca —
+        // antes esta funcao recortava a ROI de dentro da regiao inteira, e no topo do quadrilatero
+        // nao havia de onde tirar margem.
+        val roi = Rect(0, 0, canvas.width, canvas.height)
         if (roi.width() < MIN_ROI_PX || roi.height() < MIN_ROI_PX) {
             return QrOutcome.Failed(
                 "a ROI do QR saiu em ${roi.width()}x${roi.height()} px, pequena demais para decodificar",
             )
         }
 
-        val results = runCatching { reader.read(bitmapOf(image), roi, 0) }
+        val results = runCatching { reader.read(bitmapOf(canvas), roi, 0) }
             .getOrElse { return QrOutcome.Failed("o decodificador falhou: ${it.message}") }
         val text = results.firstOrNull()?.text
             ?: return QrOutcome.Failed("nenhum QR decodificado na ROI que o mapa declara")
