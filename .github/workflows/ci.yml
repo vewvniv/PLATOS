@@ -143,6 +143,21 @@ jobs:
           done
           echo "a medicao de tinta acusou os dois defeitos, como deve"
 
+      # O limiar do OMR aparece em tres registros que nao se conhecem: a constante do aplicativo, o
+      # ADR-0011 e o corredor que cada folha declara. Divergir entre eles nao quebra teste nenhum —
+      # compila, o golden nao muda, o hash do pacote continua igual, e a folha segue sendo lida com
+      # o numero errado. Mesma familia da medicao de tinta, e por isso tambem vista falhar a cada CI.
+      - name: O limiar do OMR concorda nos tres registros
+        run: node tools/parity/limiar.mjs
+
+      - name: A verificacao do limiar continua capaz de falhar
+        run: |
+          if node tools/parity/limiar.mjs --esperado 450 > /dev/null 2>&1; then
+            echo "::error::a verificacao do limiar aceitou 450, fora do corredor de ADR-0010"
+            exit 1
+          fi
+          echo "a verificacao do limiar acusou o numero fora do corredor, como deve"
+
       # As tres fixtures derivadas da digitalizacao — o vetor de referencia e o recorte retificado
       # — sao geradas por ferramenta e versionadas. Nada as verificava: se a imagem e o vetor
       # deixassem de corresponder, os testes do OMR continuariam verdes comparando com uma

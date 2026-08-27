@@ -15,9 +15,9 @@ cobrir primeiro. Não existe `Int` não finito, então `NaN > tolerância` não 
 aqui. A guarda contra medição não finita continua sendo da camada de baixo, onde o `Double` existe,
 e a 3a já a tem em `BubbleMeter`.
 
-> **Estado:** os grupos 1 a 5 das tarefas estão fechados. O limiar ainda **não** existe como
-> constante do aplicativo: ele entra por parâmetro em todo lugar, e o número sai do corpus
-> fotografado pela regra de ADR-0011. O que depende do corpus está na última seção.
+> **Estado:** a fatia está fechada. O limiar é `OmrThreshold.MEDIDO_NA_FATIA_3B` — **400‰ com
+> margem de 50‰** —, apurado sobre o corpus fotografado pela regra que ADR-0011 fixou antes da
+> primeira foto.
 
 ## `capture-omr` — 14 cenários, 14 cobertos
 
@@ -100,6 +100,55 @@ A correção é dupla, de propósito. A recusa por repetição fecha a porta; um
 `ObjectiveScore` fecha a janela, tornando não representável uma nota fora de `0..max_score` ou uma
 soma que passe do máximo junto com as pendências. Uma é sobre a folha, e recusa; a outra é sobre o
 programa, e lança.
+
+## O resultado do corpus (ADR-0011, tarefa 7.5)
+
+O que o ADR-0011 manda registrar mesmo quando aprova, para que o número possa ser reexaminado.
+
+**O corpus.** Duas folhas da prova de referência e a folha de teste de impressão, impressas na
+mesma impressora, fotografadas com a câmera de um aparelho MediaTek em três condições cada — luz
+frontal, sombra e ângulo. Nove fotos, das quais **sete** são lidas de ponta a ponta pelo pipeline de
+produção.
+
+**As classes.** A folha 1 tem 28 bolhas preenchidas conforme a instrução e 12 preenchidas de
+propósito de leve, que ADR-0011 mantém fora do critério. A folha 2 tem 40 conformes. A folha de
+teste tem 1. São **69 traços distintos conformes** e 12 fracos, dentro dos 80 que o ADR declarou.
+
+**Os números, medidos pelo `SheetReader` — a grandeza que ADR-0011 declara:**
+
+| | Valor | Onde |
+|---|---|---|
+| `V` — maior cobertura entre as vazias | **220‰** | `prova1-sombra q36/D` |
+| `C` — menor cobertura entre as bem preenchidas | **649‰** | `teste-angulo teste/D` |
+| Vão entre as duas nuvens | **429‰** | |
+| `T = (V + C) / 2` | 435‰ → **400‰** | restrito ao teto do corredor de ADR-0010 |
+
+127 medições de bolha conforme (649 a 894‰), 36 de bolha fraca (294 a 651‰), 492 de bolha vazia
+(até 220‰).
+
+**Aprova:** `V ≤ T − M` → 220 ≤ 350 ✓ · `C ≥ T + M` → 649 ≥ 450 ✓
+
+**O corredor é que está apertando, e por cima.** O ponto médio pedia 435 e o teto de ADR-0010 o
+trouxe para 400. A folha e a câmera separam melhor do que o ADR previu — o contrário do risco que
+ele existia para cobrir.
+
+**A classe observacional, sob `T = 400`:** das 36 medições de bolha preenchida de leve, 23 leem como
+marcada, 7 como indecisa e 6 como vazia. Quem preenche fraco tem a resposta lida como branco em um
+caso a cada seis. É informação para a fatia da câmera orientar o aluno, e não reprovação: ADR-0011
+mantém essa classe fora do critério porque a folha manda preencher o círculo inteiro.
+
+**Uma ressalva sobre o gabarito da folha 2.** O registro em papel das 40 letras não veio; as classes
+dela foram derivadas da própria medição, tomando por marcada a bolha mais escura de cada questão.
+Isso seria circular se a separação fosse apertada — e não é: dentro de cada questão a bolha marcada
+mede 678 a 864‰ e a segunda mais escura no máximo 136‰, uma folga mínima de **599‰**. As duas fotos
+da folha 2 produzem as mesmas 40 letras, independentemente. Nenhum erro de classificação é
+representável nessa margem.
+
+**Duas fotos ficaram de fora da leitura oficial**, por resolução: o QR tem 14 mm e cerca de 29
+módulos, e abaixo de ~11 px por milímetro de papel o decodificador desiste. Medido pelo lado do
+ArUco, que tem 14 mm conhecidos — as legíveis vão de 11,4 a 12,9 px/mm, e as duas recusadas ficam em
+9,3 e abaixo. O limite está afirmado em `CorpusInstrumentedTest.foto_distante_demais_e_recusada_no_qr`,
+e é o número que a fatia da câmera herda para guiar o enquadramento.
 
 ## O defeito que o corpus encontrou na fatia 3a
 
@@ -214,11 +263,25 @@ caso positivo — folha toda correta tirando 40 — é compatível com uma apura
 olhar o gabarito. Sem um teste que **mude o gabarito** e exija que a nota mude junto, a suíte
 inteira aceitaria uma nota que ignora a resposta certa.
 
+## O limiar, nos três registros que não se conhecem
+
+O número que decide se uma bolha está marcada aparece em três lugares: a constante do aplicativo em
+`OmrThreshold.MEDIDO_NA_FATIA_3B`, a margem declarada em ADR-0011, e o corredor que cada folha
+publicada traz no `ink_budget`. **Divergir entre eles não quebra teste nenhum** — compila, o golden
+não muda, o hash do pacote continua igual, e a folha segue sendo lida com o número errado.
+
+`tools/parity/limiar.mjs` confere os três, por um caminho que não compartilha uma linha com o Kotlin
+nem com o engine, e o CI o roda duas vezes: uma para conferir, outra forçando 450 para provar que a
+conferência continua capaz de reprovar.
+
+| Defeito introduzido | Quem acusou |
+|---|---|
+| `--esperado 450` | os três: divergência com o registro do corpus, e o corredor de cada uma das duas folhas |
+
 ## O que ainda não está verificado, e por quê
 
 | O que | Por quê |
 |---|---|
-| O limiar `T` e a margem `M` como constantes do aplicativo | Não existem. O número sai do corpus fotografado pela regra de ADR-0011, e fixá-lo antes é o que ADR-0007 proíbe. Até lá cada teste passa o seu, e nenhum deles é o do produto |
-| O corredor de 200 a 400 sob câmera | É o que o corpus existe para medir. A digitalização versionada é de scanner, com faixa dinâmica comprimida (§321 do protocolo): ela prova a composição, não o meio |
-| A nota sobre uma folha fotografada | Tarefa 8.3, depois do corpus |
-| O passo de CI que prova que a verificação do limiar continua capaz de falhar | Tarefa 8.4, depois de `T` existir |
+| O limiar sob outros aparelhos e outras impressoras | O corpus é de um celular e uma impressora. A fatia da câmera, que verá muitos, herda a obrigação de reexaminar `V` e `C` — e mudar o número exigirá ADR novo, como ADR-0007 determina |
+| O gabarito em papel da folha 2 | Não veio. As classes dela saíram da medição, com folga de 599‰ dentro de cada questão e as duas fotos concordando letra a letra — não é circular nessa margem, mas é um registro a menos |
+| A leitura abaixo de ~11 px/mm | Está afirmada como **limite**, e não resolvida. Guiar o enquadramento é da fatia da câmera |

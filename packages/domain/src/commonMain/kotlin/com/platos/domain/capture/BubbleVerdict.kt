@@ -67,6 +67,33 @@ data class OmrThreshold(val value: Int, val margin: Int) {
     fun judge(measurement: OmrMeasurement): BubbleJudgement =
         BubbleJudgement(measurement, verdictFor(measurement.coveragePerMille))
 
+    companion object {
+
+        /**
+         * O limiar e a margem que a fatia 3b mediu, pela regra fixada em ADR-0011.
+         *
+         * `T = (V + C) / 2`, restrito ao corredor de ADR-0010, com `M = 50` permilagem. Sobre o
+         * corpus fotografado — duas folhas da prova e a folha de teste, sete fotos de camera lidas
+         * de ponta a ponta, 127 medicoes de bolha preenchida conforme a instrucao e 492 de bolha
+         * vazia:
+         *
+         * | | valor | onde |
+         * |---|---|---|
+         * | `V`, maior cobertura entre as vazias | **220‰** | `prova1-sombra q36/D` |
+         * | `C`, menor cobertura entre as bem preenchidas | **649‰** | `teste-angulo teste/D` |
+         * | vao entre as duas nuvens | **429‰** | |
+         * | `T = (V + C) / 2` | 435‰, **restrito a 400** | o teto do corredor de ADR-0010 |
+         *
+         * Aprovou: `V <= T - M` (220 <= 350) e `C >= T + M` (649 <= ... 649 >= 450).
+         *
+         * **O ponto medio queria 435 e o corredor o puxou para 400.** A folha e a camera separam
+         * melhor do que ADR-0010 previu, e o teto e que esta apertando — nao o contrario. Mudar
+         * este numero, ou o corredor, exige ADR novo que registre a medicao que motivou, como
+         * ADR-0007 determina.
+         */
+        val MEDIDO_NA_FATIA_3B = OmrThreshold(value = 400, margin = 50)
+    }
+
     /**
      * Confere se este limiar cabe no corredor que a folha declara.
      *

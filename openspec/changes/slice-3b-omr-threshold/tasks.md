@@ -36,31 +36,31 @@
 
 ## 6. O corpus — depende do mantenedor
 
-- [ ] 6.1 Imprimir duas folhas da prova de referência com roster sintético, na mesma impressora da conferência de papel se possível. Resultado: duas folhas físicas, e a escala conferida pela folha de teste de impressão.
-- [ ] 6.2 Preencher a caneta, uma alternativa por questão, conforme a instrução impressa na folha. Resultado: 80 bolhas da classe que decide o critério.
-- [ ] 6.3 Preencher de propósito de leve um subconjunto declarado, fora do critério. Resultado: bolhas da classe observacional, identificadas como tal.
-- [ ] 6.4 Fotografar com câmera de celular nas três condições do protocolo: luz frontal, sombra parcial sobre a região, ângulo de 20 a 30 graus. Resultado: no mínimo seis fotos.
-- [ ] 6.5 Versionar as fotos em `fixtures/`, resolvendo o formato e o tamanho conforme a questão aberta do `design.md`. Resultado: corpus reproduzível a partir do repositório.
+- [x] 6.1 Imprimir duas folhas da prova de referência com roster sintético, na mesma impressora da conferência de papel se possível. Resultado: duas folhas físicas, e a escala conferida pela folha de teste de impressão.
+- [x] 6.2 Preencher a caneta, uma alternativa por questão, conforme a instrução impressa na folha. Resultado: 80 bolhas da classe que decide o critério.
+- [x] 6.3 Preencher de propósito de leve um subconjunto declarado, fora do critério. Resultado: bolhas da classe observacional, identificadas como tal.
+- [x] 6.4 Fotografar com câmera de celular nas três condições do protocolo: luz frontal, sombra parcial sobre a região, ângulo de 20 a 30 graus. Resultado: no mínimo seis fotos.
+- [x] 6.5 Versionar as fotos em `fixtures/`, resolvendo o formato e o tamanho conforme a questão aberta do `design.md`. Resultado: corpus reproduzível a partir do repositório.
 
 ## 7. Medir o corpus e fixar o limiar
 
-- [ ] 7.1 Medir todas as fotos com o `SheetReader` e registrar cobertura bolha a bolha. Resultado: a tabela bruta, versionada ao lado das fotos.
-- [ ] 7.2 Medir as mesmas fotos com `tools/parity/papel.mjs` e comparar. Resultado: as duas implementações concordam dentro da tolerância, ou a divergência é investigada antes de qualquer número ser aceito.
-- [ ] 7.3 Apurar `V`, `C` e o vão, e aplicar a regra do ADR-0011 para obter `T`. Resultado: um número, derivado por aritmética declarada antes da medição.
-- [ ] 7.4 Confrontar com o critério: aprova ou reprova. Se reprovar, parar e executar a ordem de ADR-0010 — tom da letra, trama da faixa, letra fora do círculo — reimprimindo e voltando a 6.1, e aditar o ADR-0011 com o resultado obtido.
-- [ ] 7.5 Registrar em `docs/cobertura-fatia-3b.md`: `V`, `C`, o vão, `T`, quantas bolhas, quantas fotos, em que condições e com que aparelho.
+- [x] 7.1 Medir todas as fotos com o `SheetReader` e registrar cobertura bolha a bolha. Resultado: a tabela bruta, versionada ao lado das fotos.
+- [x] 7.2 Medir as mesmas fotos com `tools/parity/papel.mjs` e comparar. Resultado: as duas implementações concordam dentro da tolerância, ou a divergência é investigada antes de qualquer número ser aceito.
+- [x] 7.3 Apurar `V`, `C` e o vão, e aplicar a regra do ADR-0011 para obter `T`. Resultado: um número, derivado por aritmética declarada antes da medição.
+- [x] 7.4 Confrontar com o critério: aprova ou reprova. Se reprovar, parar e executar a ordem de ADR-0010 — tom da letra, trama da faixa, letra fora do círculo — reimprimindo e voltando a 6.1, e aditar o ADR-0011 com o resultado obtido.
+- [x] 7.5 Registrar em `docs/cobertura-fatia-3b.md`: `V`, `C`, o vão, `T`, quantas bolhas, quantas fotos, em que condições e com que aparelho.
 
 ## 8. Fechar a fatia
 
-- [ ] 8.1 Declarar `T` e `M` como constantes do aplicativo, substituindo os parâmetros de teste. Resultado: a leitura real usa o número medido, e a validação contra o corredor passa a valer sobre ele.
-- [ ] 8.2 Ver falhar: mover `T` um passo além do corredor da folha de referência e confirmar que a leitura recusa; reverter. Registrar.
-- [ ] 8.3 Medir uma das fotos do corpus de ponta a ponta, da imagem à nota, e conferir a nota contra o gabarito apurado à mão a partir do que foi preenchido em 6.2. Resultado: o oracle da nota não passa por nenhum código desta fatia.
-- [ ] 8.4 Acrescentar ao CI um passo que prova que a verificação do limiar continua capaz de falhar, no mesmo espírito do passo "A medicao de tinta continua capaz de falhar" que já existe.
-- [ ] 8.5 Completar `docs/cobertura-fatia-3b.md` com como cada verificação foi vista falhar, e não só que ela passa.
+- [x] 8.1 Declarar `T` e `M` como constantes do aplicativo, substituindo os parâmetros de teste. Resultado: a leitura real usa o número medido, e a validação contra o corredor passa a valer sobre ele.
+- [x] 8.2 Ver falhar: mover `T` um passo além do corredor da folha de referência e confirmar que a leitura recusa; reverter. Registrar.
+- [x] 8.3 Medir uma das fotos do corpus de ponta a ponta, da imagem à nota, e conferir a nota contra o gabarito apurado à mão a partir do que foi preenchido em 6.2. Resultado: o oracle da nota não passa por nenhum código desta fatia.
+- [x] 8.4 Acrescentar ao CI um passo que prova que a verificação do limiar continua capaz de falhar, no mesmo espírito do passo "A medicao de tinta continua capaz de falhar" que já existe.
+- [x] 8.5 Completar `docs/cobertura-fatia-3b.md` com como cada verificação foi vista falhar, e não só que ela passa.
 
 ## 9. Verificação final
 
-- [ ] 9.1 Rodar `./gradlew build` e `./gradlew :packages:domain:testAndroidHostTest`. Resultado: verde.
-- [ ] 9.2 Rodar `./gradlew :apps:android:connectedDebugAndroidTest` em aparelho ou emulador. Resultado: verde, incluindo os testes da 3a.
-- [ ] 9.3 Rodar `openspec validate slice-3b-omr-threshold --strict`. Resultado: válido.
-- [ ] 9.4 Conferir que nenhum golden e nenhum hash de pacote mudou — salvo se 7.4 reprovou, caso em que a mudança de folha é commit de contrato separado, anterior aos consumidores.
+- [x] 9.1 Rodar `./gradlew build` e `./gradlew :packages:domain:testAndroidHostTest`. Resultado: verde.
+- [x] 9.2 Rodar `./gradlew :apps:android:connectedDebugAndroidTest` em aparelho ou emulador. Resultado: verde, incluindo os testes da 3a.
+- [x] 9.3 Rodar `openspec validate slice-3b-omr-threshold --strict`. Resultado: válido.
+- [x] 9.4 Conferir que nenhum golden e nenhum hash de pacote mudou — salvo se 7.4 reprovou, caso em que a mudança de folha é commit de contrato separado, anterior aos consumidores.

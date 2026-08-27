@@ -11,10 +11,12 @@ import kotlin.test.assertTrue
 /**
  * O veredito de bolha, nas bordas.
  *
- * O limiar destes testes e **de teste**: 300 com margem 50, escolhido por estar no meio do
- * corredor de ADR-0010 e nao por medicao nenhuma. O numero que o aplicativo usa sai do corpus
- * fotografado, pela regra de ADR-0011, e so entra no codigo na tarefa 8.1 — antes disso qualquer
- * constante aqui seria o limiar escolhido sem dados que ADR-0007 proibe.
+ * O limiar da maioria destes testes e **de teste**: 300 com margem 50, escolhido por estar no meio
+ * do corredor de ADR-0010 e nao por medicao nenhuma. Ele existe para exercitar as bordas sem
+ * depender do numero do produto.
+ *
+ * O numero do produto e [OmrThreshold.MEDIDO_NA_FATIA_3B], que saiu do corpus fotografado pela
+ * regra de ADR-0011, e tem dois testes proprios no meio deste arquivo.
  */
 class BubbleVerdictTest {
 
@@ -77,6 +79,28 @@ class BubbleVerdictTest {
         assertFailsWith<IllegalArgumentException> { OmrThreshold(value = t, margin = -1) }
         assertFailsWith<IllegalArgumentException> { OmrThreshold(value = 20, margin = 50) }
         assertFailsWith<IllegalArgumentException> { OmrThreshold(value = 980, margin = 50) }
+    }
+
+    @Test
+    fun `o limiar medido na fatia 3b cabe no corredor que ADR-0010 reservou`() {
+        // A guarda do numero que o corpus produziu. Ele nasce de `T = (V + C) / 2` restrito ao
+        // corredor, e o ponto medio observado foi 435 — o teto de ADR-0010 e que o trouxe para 400.
+        val medido = OmrThreshold.MEDIDO_NA_FATIA_3B
+
+        assertEquals(400, medido.value)
+        assertEquals(50, medido.margin)
+        assertNull(medido.validateAgainst(InkBudget.DEFAULT))
+    }
+
+    @Test
+    fun `o limiar medido separa as duas nuvens do corpus com folga`() {
+        // `V = 220` e `C = 649`, medidos sobre as sete fotos de camera. O criterio de ADR-0011
+        // exige `V <= T - M` e `C >= T + M`; este teste afirma isso sobre os numeros que sairam,
+        // para que mexer no limiar sem mexer no ADR fique vermelho.
+        val medido = OmrThreshold.MEDIDO_NA_FATIA_3B
+
+        assertEquals(BubbleVerdict.VAZIA, medido.verdictFor(220), "V do corpus")
+        assertEquals(BubbleVerdict.MARCADA, medido.verdictFor(649), "C do corpus")
     }
 
     @Test
