@@ -32,7 +32,7 @@ Mudar o modo de uma organização SHALL NOT alterar nenhum pacote publicado nem 
 #### Scenario: O modo declarado é recuperável
 
 - **WHEN** o roster de uma prova é consultado
-- **THEN** o modo de identificação sob o qual aqueles dados foram cadastrados é recuperável junto deles
+- **THEN** o modo de identificação em que a organização opera é recuperável junto dos dados do roster
 
 #### Scenario: Trocar de modo não toca no artefato publicado
 

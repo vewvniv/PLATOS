@@ -73,12 +73,27 @@ object PostgresSupport {
             displayName,
         )
 
-    fun createOrganization(kind: String = "school", name: String = "Org", createdBy: UUID? = null): UUID =
+    /**
+     * Organizacao de teste.
+     *
+     * [identificationMode] fica em `coded` por padrao porque e o padrao do schema (ADR-0012), e um
+     * ajudante que mentisse sobre isso esconderia justamente o comportamento que a fatia introduziu.
+     * Quem precisa de nome civil, turma ou matricula pede `nominal` explicitamente — que e o mesmo
+     * que a aplicacao tera de fazer.
+     */
+    fun createOrganization(
+        kind: String = "school",
+        name: String = "Org",
+        createdBy: UUID? = null,
+        identificationMode: String = "coded",
+    ): UUID =
         queryOne(
-            "insert into organization (kind, name, created_by_user_id) values (?, ?, ?) returning id",
+            "insert into organization (kind, name, created_by_user_id, identification_mode) " +
+                "values (?, ?, ?, ?) returning id",
             kind,
             name,
             createdBy,
+            identificationMode,
         )
 
     fun addMembership(userId: UUID, organizationId: UUID, role: String = "teacher"): UUID =
@@ -164,15 +179,20 @@ object PostgresSupport {
         classGroup: String? = null,
         enrollmentId: String? = null,
     ): UUID = queryOne(
+        // O modo vem da organizacao, como na aplicacao (ADR-0012): a chave estrangeira composta so
+        // aceita a linha se os dois lados concordarem, entao o ajudante nao pode inventar o valor.
         "insert into exam_roster " +
-            "(organization_id, exam_id, student_token, display_name, class_group, enrollment_id) " +
-            "values (?, ?, ?, ?, ?, ?) returning id",
+            "(organization_id, exam_id, student_token, display_name, class_group, enrollment_id, " +
+            " identification_mode) " +
+            "select ?, ?, ?, ?, ?, ?, o.identification_mode from organization o where o.id = ? " +
+            "returning id",
         organizationId,
         examId,
         studentToken,
         displayName,
         classGroup,
         enrollmentId,
+        organizationId,
     )
 
     /**

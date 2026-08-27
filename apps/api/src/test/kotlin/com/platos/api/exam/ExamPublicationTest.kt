@@ -54,7 +54,10 @@ class ExamPublicationTest {
         PostgresSupport.reset()
 
         usuario = PostgresSupport.createUser("sub-publicacao")
-        org = PostgresSupport.createOrganization(name = "Escola")
+        // Modo nominal: estes testes existem para provar que nome, turma e matricula ficam
+        // fora do artefato imutavel, e para isso precisam existir. ADR-0012 faz o padrao ser
+        // `coded`, que recusa matricula.
+        org = PostgresSupport.createOrganization(name = "Escola", identificationMode = "nominal")
         PostgresSupport.addMembership(usuario, org, "teacher")
         publicacao = ExamPublication(PostgresSupport.tenancy)
     }
@@ -94,6 +97,58 @@ class ExamPublicationTest {
 
         // E o dado pessoal esta onde deve: no roster, que pode mudar e ser apagado.
         assertEquals(2, contar("select count(*) from exam_roster"))
+    }
+
+    @Test
+    fun `roster com matricula em organizacao codificada e recusado com frase`() {
+        // ADR-0012. A recusa vem do `check` no banco, e a aplicacao a traduz: quem vai escrever a
+        // tela precisa saber qual modo esta em vigor e qual campo foi recusado, e nao receber
+        // "violates check constraint" para interpretar.
+        val codificada = PostgresSupport.createOrganization(name = "Escola B")
+        PostgresSupport.addMembership(usuario, codificada, "teacher")
+
+        val erro = assertFailsWith<RosterIdentificationModeException> {
+            publicacao.publish(
+                usuario,
+                codificada,
+                definicao,
+                title = "Prova de referencia",
+                roster = turma,
+            )
+        }
+
+        assertEquals("coded", erro.mode)
+        assertEquals("enrollment_id", erro.field)
+        assertTrue(erro.message.orEmpty().contains("coded"), "a frase precisa nomear o modo")
+        assertTrue(
+            erro.message.orEmpty().contains("enrollment_id"),
+            "a frase precisa nomear o campo recusado",
+        )
+    }
+
+    @Test
+    fun `trocar o modo de identificacao nao muda o hash do pacote`() {
+        // O roster vive fora do artefato imutavel (ADR-0002), e mudar a postura da organizacao e
+        // mexer no roster. Se o hash se movesse aqui, a separacao nao estaria valendo.
+        publicacao.publish(usuario, org, definicao, title = "Prova de referencia", roster = turma)
+        val hashAntes = coluna("content_hash")
+
+        PostgresSupport.asAdmin { conexao ->
+            conexao.prepareStatement(
+                "update exam_roster set enrollment_id = null where organization_id = ?",
+            ).use { comando ->
+                comando.setObject(1, org)
+                comando.execute()
+            }
+            conexao.prepareStatement(
+                "update organization set identification_mode = 'coded' where id = ?",
+            ).use { comando ->
+                comando.setObject(1, org)
+                comando.execute()
+            }
+        }
+
+        assertEquals(hashAntes, coluna("content_hash"), "o hash do pacote se moveu")
     }
 
     @Test
