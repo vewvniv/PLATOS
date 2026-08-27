@@ -73,9 +73,32 @@ const isJpeg = /\.jpe?g$/i.test(imagePath);
 const declaredSize = isJpeg ? jpegSize(bytes) : null;
 
 const doc = mupdf.Document.openDocument(bytes, isJpeg ? 'image/jpeg' : 'image/png');
-const pixmap = doc
-  .loadPage(0)
-  .toPixmap(mupdf.Matrix.scale(96 / 72, 96 / 72), mupdf.ColorSpace.DeviceGray, false, true);
+const page = doc.loadPage(0);
+
+/**
+ * Escala que devolve **exatamente** os pixels do arquivo.
+ *
+ * O 96/72 fixo que estava aqui so acerta quando a imagem declara 96 dpi — que e o caso das
+ * digitalizacoes da 2b, e nao o das fotos de celular: as do corpus da 3b declaram 144 dpi e 72
+ * dpi, e o fator fixo reamostrava as duas, uma para baixo e outra para cima. Medir cobertura sobre
+ * pixel interpolado nao explode; ele so muda o numero, que e a forma cara de errar aqui.
+ *
+ * A pagina que o mupdf monta para uma imagem tem largura em pontos = pixels / dpi * 72. Dividir o
+ * tamanho declarado no SOF por essa largura da a escala que reconstroi 1:1, qualquer que seja o
+ * dpi. A guarda logo abaixo continua existindo: ela agora afirma que esta conta fechou.
+ */
+const bounds = page.getBounds();
+const pageWidthPt = bounds[2] - bounds[0];
+const pageHeightPt = bounds[3] - bounds[1];
+const scale = declaredSize
+  ? [declaredSize.width / pageWidthPt, declaredSize.height / pageHeightPt]
+  : [96 / 72, 96 / 72];
+const pixmap = page.toPixmap(
+  mupdf.Matrix.scale(scale[0], scale[1]),
+  mupdf.ColorSpace.DeviceGray,
+  false,
+  true,
+);
 
 const W = pixmap.getWidth();
 const H = pixmap.getHeight();
