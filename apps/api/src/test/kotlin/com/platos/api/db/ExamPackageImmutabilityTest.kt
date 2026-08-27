@@ -37,7 +37,10 @@ class ExamPackageImmutabilityTest {
         PostgresSupport.reset()
 
         usuario = PostgresSupport.createUser("sub-imutabilidade")
-        org = PostgresSupport.createOrganization(name = "Escola")
+        // Modo nominal: estes testes existem para provar que nome, turma e matricula ficam
+        // fora do artefato imutavel, e para isso precisam existir. ADR-0012 faz o padrao ser
+        // `coded`, que recusa matricula.
+        org = PostgresSupport.createOrganization(name = "Escola", identificationMode = "nominal")
         PostgresSupport.addMembership(usuario, org, "teacher")
 
         prova = PostgresSupport.createExam(org, shortId = "prova-x", title = "Prova X")

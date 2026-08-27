@@ -4,6 +4,7 @@ import com.platos.api.db.Tenancy
 import com.platos.api.db.generated.tables.references.EXAM
 import com.platos.api.db.generated.tables.references.EXAM_PACKAGE
 import com.platos.api.db.generated.tables.references.EXAM_ROSTER
+import com.platos.api.db.generated.tables.references.ORGANIZATION
 import com.platos.domain.exam.DEFAULT_VARIANT
 import com.platos.domain.exam.ExamDefinition
 import com.platos.domain.exam.PackageAssignment
@@ -23,6 +24,21 @@ data class RosterEntry(
     val displayName: String,
     val classGroup: String? = null,
     val enrollmentId: String? = null,
+)
+
+/**
+ * O roster trouxe dado que o modo de identificacao da organizacao nao admite (ADR-0012).
+ *
+ * Existe para que a recusa chegue ao chamador como frase, e nao como violacao de `check` crua: quem
+ * vai escrever a tela precisa saber qual modo esta em vigor e qual campo foi recusado.
+ */
+class RosterIdentificationModeException(
+    val mode: String,
+    val field: String,
+    cause: Throwable? = null,
+) : RuntimeException(
+    "a organizacao opera em modo de identificacao '$mode', que nao admite `$field` no roster",
+    cause,
 )
 
 /** A prova ja tem pacote publicado. Corrigi-la e publicar prova nova, com hash proprio (D-2a.3). */
@@ -126,21 +142,44 @@ class ExamPublication(private val tenancy: Tenancy) {
         throw ExamAlreadyPublishedException(examId.toString(), violacao)
     }
 
+    /**
+     * Insere o roster carimbando o modo de identificacao da organizacao (ADR-0012).
+     *
+     * O modo e lido **na mesma transacao** e gravado em cada linha. Nao e conveniencia: a chave
+     * estrangeira composta com `organization (id, identification_mode)` so aceita a linha se os dois
+     * lados concordarem, entao carimbar aqui e o que torna a regra verificavel pelo armazenamento em
+     * vez de por confianca na aplicacao.
+     *
+     * A traducao do `check` para excecao existe porque o chamador e a tela: violacao de restricao
+     * crua nao diz qual modo esta em vigor nem qual campo foi recusado.
+     */
     private fun inserirRoster(
         ctx: DSLContext,
         organizationId: UUID,
         examId: UUID,
         roster: List<RosterEntry>,
     ) {
-        for (aluno in roster) {
-            ctx.insertInto(EXAM_ROSTER)
-                .set(EXAM_ROSTER.ORGANIZATION_ID, organizationId)
-                .set(EXAM_ROSTER.EXAM_ID, examId)
-                .set(EXAM_ROSTER.STUDENT_TOKEN, aluno.studentToken)
-                .set(EXAM_ROSTER.DISPLAY_NAME, aluno.displayName)
-                .set(EXAM_ROSTER.CLASS_GROUP, aluno.classGroup)
-                .set(EXAM_ROSTER.ENROLLMENT_ID, aluno.enrollmentId)
-                .execute()
+        val modo = ctx.select(ORGANIZATION.IDENTIFICATION_MODE)
+            .from(ORGANIZATION)
+            .where(ORGANIZATION.ID.eq(organizationId))
+            .fetchSingle()
+            .value1()!!
+
+        try {
+            for (aluno in roster) {
+                ctx.insertInto(EXAM_ROSTER)
+                    .set(EXAM_ROSTER.ORGANIZATION_ID, organizationId)
+                    .set(EXAM_ROSTER.EXAM_ID, examId)
+                    .set(EXAM_ROSTER.STUDENT_TOKEN, aluno.studentToken)
+                    .set(EXAM_ROSTER.DISPLAY_NAME, aluno.displayName)
+                    .set(EXAM_ROSTER.CLASS_GROUP, aluno.classGroup)
+                    .set(EXAM_ROSTER.ENROLLMENT_ID, aluno.enrollmentId)
+                    .set(EXAM_ROSTER.IDENTIFICATION_MODE, modo)
+                    .execute()
+            }
+        } catch (violacao: IntegrityConstraintViolationException) {
+            if (sqlStateOf(violacao) != CHECK_VIOLATION) throw violacao
+            throw RosterIdentificationModeException(modo, "enrollment_id", violacao)
         }
     }
 
@@ -152,5 +191,6 @@ class ExamPublication(private val tenancy: Tenancy) {
 
     private companion object {
         const val UNIQUE_VIOLATION = "23505"
+        const val CHECK_VIOLATION = "23514"
     }
 }
