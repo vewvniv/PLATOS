@@ -84,6 +84,12 @@ object RegionDetector {
      * 1,9 mm. Quatro milimetros cobrem isso com folga e continuam dentro do papel: o QR fica
      * centrado entre os dois marcadores de cima, e ha margem de sobra em volta dele na folha
      * impressa.
+     *
+     * Os 29 modulos valem para o payload desta prova, e nao para sempre: `QrEncoder.versionFor`
+     * escolhe a versao pelo tamanho dos dados, e o lado em modulos e `17 + 4 * versao`. Um
+     * `exam_short_id` mais longo empurra para a versao seguinte — e isso **folga** a sangria em vez
+     * de aperta-la, porque o QR continua com 14 mm e mais modulos deixam cada modulo menor. Quatro
+     * milimetros cobrem quatro modulos de qualquer versao daqui para cima.
      */
     private const val QR_BLEED_MM = 4
 
