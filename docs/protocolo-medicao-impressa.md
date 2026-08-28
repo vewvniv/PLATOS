@@ -455,3 +455,85 @@ Em `docs/cobertura-fatia-3b.md`: `V`, `C`, o vão, o `T` calculado pela regra de
 bolhas, quantas fotos, em que condições, com que aparelho e com que impressora. As fotos ficam
 versionadas em `fixtures/`, como as digitalizações da 2b — pela mesma razão: sem elas o número não
 pode ser reexaminado, e uma folha de papel não sobrevive a duas fatias.
+
+## 12. Conferir a captura ao vivo, em aparelho (fatia 3c)
+
+O que segue não é medição: é o roteiro da parte desta base que **nenhum teste alcança**. O teste
+instrumentado não aponta a câmera para papel, e o que sobra — o ciclo de vida do CameraX, o preview
+e a tela — só se verifica com o aparelho na mão e a folha impressa na mesa. Escrever o roteiro é o
+que impede que "conferi e funcionou" seja a evidência.
+
+### 12.1 Preparar
+
+```bash
+./gradlew :apps:android:assembleDebug
+adb install -r apps/android/build/outputs/apk/debug/android-debug.apk
+```
+
+O aplicativo carrega o pacote da prova de referência embutido como asset. Imprima a folha da prova
+de referência pelo mesmo caminho de §11.2. A folha precisa ser **desta** prova — mas não conte com a
+recusa por identificador para avisar quando não for: ver §12.5.
+
+### 12.2 A leitura fecha
+
+Aponte para a folha preenchida, à distância em que os quatro marcadores aparecem inteiros. Anote
+**quanto tempo até a nota aparecer**. É o número que decide se a fatia 3d pode manter a câmera
+aberta por trinta folhas seguidas, e ele não existe em teste nenhum.
+
+### 12.3 Os dois momentos são distinguíveis
+
+Com a câmera longe do papel, a faixa diz que está procurando.
+
+O segundo momento **precisa ser provocado de propósito**, e a fatia 3c descobriu isso na mão: luz
+baixa, tremor e ângulo forte não servem: todos falham **cedo**, na detecção dos marcadores ou na
+reprojeção, e caem em "procurando" igual. Para chegar em "achei a folha e não consegui ler" a
+geometria tem de fechar e a leitura tem de falhar depois dela.
+
+Cole um **post-it sobre o QR** — um quadrado de 14 mm centrado na largura da página, começando a
+39 mm da borda de cima — deixando os quatro ArUcos inteiramente visíveis, e aponte a uma distância
+que normalmente lê. A faixa tem de dizer que achou a folha e não conseguiu ler, com o motivo que o
+pipeline produziu. Tire o post-it sem mexer no enquadramento: a leitura fecha sozinha, o que
+confirma que o estado é transitório e a análise não parou.
+
+**Anote a que distância a leitura deixa de fechar neste aparelho.** É dado para quem for
+investigar, e não regra: a fatia 3b mediu o corpus inteiro e mostrou que resolução não prevê
+decodificação.
+
+### 12.4 A folha B não mostra a nota da folha A
+
+Escaneie uma folha, toque em escanear outra, escaneie a segunda. A nota tem de trocar. É o defeito
+mais caro da fatia — plausível na tela, invisível para quem lê — e o teste que o cobre roda na JVM;
+este passo confere que o encanamento entre a câmera e a sessão não o reintroduz.
+
+### 12.5 A folha de outra prova é recusada — e a folha de teste **não serve** para conferir isso
+
+Conferido em aparelho na fatia 3c, e o resultado foi outro: a folha de teste de impressão para em
+"procurando a folha", e não em recusa. Ela declara um quadrilátero de 31 mm de altura contra os
+85 mm da prova; a reprojeção dos cantos dos marcadores estoura o teto de 6 px e a detecção falha
+**antes** do QR, então o `exam_short_id` nunca é comparado.
+
+A recusa por identidade existe e está verificada na JVM. O que não existe é oráculo físico para
+ela: seria preciso imprimir uma segunda prova com região do mesmo tipo. Enquanto não houver, este
+passo não tem como ser executado — e escrever isso é melhor do que executá-lo e ler "procurando"
+como se fosse recusa.
+
+### 12.6 Luz e inclinação: a degradação tem de aparecer como pendência
+
+Incline a folha com força, e depois deixe luz bater direto sobre ela — janela, lâmpada, o brilho
+que aparece no preview. Escaneie e **confira a nota contra o papel, questão por questão**.
+
+O que se procura aqui não é a nota bater: sob essas condições ela não bate mesmo, porque bolha
+marcada perde cobertura. O que se procura é **a nota errada nunca aparecer sozinha**. Toda vez que
+o número não bater, tem de haver pendência na tela, e a nota não pode estar apresentada como
+fechada. Nota errada e limpa é o defeito; nota errada com pendência é o corredor de ADR-0011
+funcionando.
+
+Na fatia 3c, num Poco X8 Pro, nunca apareceu nota errada sem pendência — em dezenas de repetições
+sobre seis folhas. Anote quantas pendências por folha: é o custo de revisão à mão, e a fatia 3d
+precisa desse número.
+
+### 12.7 Registrar
+
+Em `docs/cobertura-fatia-3c.md`: o que fechou, o que não fechou, o tempo até a leitura, a distância
+em que ela deixa de fechar, o aparelho, e **se alguma nota fechou errada**. **Inclusive quando o resultado for ruim** — se a leitura
+ao vivo não fechar em condição de sala de aula, isso é resultado da fatia, e não fracasso dela.
