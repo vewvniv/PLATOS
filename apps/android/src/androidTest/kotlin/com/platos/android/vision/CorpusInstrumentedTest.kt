@@ -165,26 +165,22 @@ class CorpusInstrumentedTest {
     }
 
     @Test
-    fun foto_distante_demais_e_recusada_no_qr() {
-        // Nao e defeito, e limite: o QR tem 14 mm e cerca de 29 modulos por lado, entao cada modulo
-        // e 0,48 mm. Abaixo de mais ou menos 11 px por milimetro de papel nao sobra pixel suficiente
-        // por modulo, e o decodificador desiste. Medido neste corpus pelo lado do ArUco, que tem
-        // 14 mm conhecidos:
+    fun as_duas_fotos_sem_qr_seguem_recusadas() {
+        // Duas das nove fotos do corpus nao passam do QR. **Por que, nao se sabe** — e este teste
+        // nao afirma causa nenhuma. Ele afirma o fato: hoje elas sao recusadas, e recusadas no QR.
         //
-        // | foto | px/mm | QR |
-        // |---|---|---|
-        // | prova1-frontal, prova1-sombra, teste-frontal, teste-sombra | 12,7 a 12,9 | le |
-        // | prova2-c | 11,4 | le |
-        // | prova2-a | 9,3 | recusa |
+        // O registro anterior dizia "distantes demais", com um limite de mais ou menos 11 px por
+        // milimetro de papel. A fatia 3c mediu a resolucao das nove e desmentiu isso: `prova2-b`
+        // falha a 11,47 px/mm e `prova1-angulo` le a 9,83. As faixas se sobrepoem, e nao existe
+        // limiar de resolucao que separe as duas colunas. Ver `docs/cobertura-fatia-3b.md`, secao
+        // "As duas fotos que o QR nao decodifica".
         //
-        // O teste existe para que o limite seja **afirmado** em vez de descoberto de novo: a fatia
-        // da camera precisa guiar o enquadramento, e este e o numero que ela herda. Se um dia a
-        // leitura melhorar e passar a ler estas duas, este teste fica vermelho — e ai a mudanca e
-        // deliberada, e o numero acima e atualizado junto.
-        for (foto in DISTANTES) {
+        // O teste continua valendo pelo que sempre verificou de fato: se a leitura melhorar e
+        // passar a ler estas duas, ele fica vermelho, e a mudanca e deliberada.
+        for (foto in SEM_QR) {
             val leitura = SheetReader.read(cinza("$foto.jpg"), prova, prova.regions.single())
             val recusa = leitura as? OmrReading.Rejected
-                ?: throw AssertionError("$foto: esperava recusa por resolucao, veio $leitura")
+                ?: throw AssertionError("$foto: esperava recusa no QR, veio $leitura")
             assertTrue(
                 "$foto: recusou por outro motivo — ${recusa.reason}",
                 recusa.reason.contains("QR"),
@@ -252,8 +248,8 @@ class CorpusInstrumentedTest {
             "corpus-3b-teste-frontal", "corpus-3b-teste-sombra", "corpus-3b-teste-angulo",
         )
 
-        /** As duas fotos distantes demais para o QR. Ver [foto_distante_demais_e_recusada_no_qr]. */
-        val DISTANTES = listOf("corpus-3b-prova2-a", "corpus-3b-prova2-b")
+        /** As duas fotos cujo QR nao decodifica. Ver [as_duas_fotos_sem_qr_seguem_recusadas]. */
+        val SEM_QR = listOf("corpus-3b-prova2-a", "corpus-3b-prova2-b")
 
         /**
          * Distancia admitida por bolha entre `papel.mjs` e o `SheetReader`, em foto de camera.

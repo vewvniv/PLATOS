@@ -144,11 +144,58 @@ mede 678 a 864‰ e a segunda mais escura no máximo 136‰, uma folga mínima d
 da folha 2 produzem as mesmas 40 letras, independentemente. Nenhum erro de classificação é
 representável nessa margem.
 
-**Duas fotos ficaram de fora da leitura oficial**, por resolução: o QR tem 14 mm e cerca de 29
-módulos, e abaixo de ~11 px por milímetro de papel o decodificador desiste. Medido pelo lado do
-ArUco, que tem 14 mm conhecidos — as legíveis vão de 11,4 a 12,9 px/mm, e as duas recusadas ficam em
-9,3 e abaixo. O limite está afirmado em `CorpusInstrumentedTest.foto_distante_demais_e_recusada_no_qr`,
-e é o número que a fatia da câmera herda para guiar o enquadramento.
+**Duas fotos ficaram de fora da leitura oficial**: `prova2-a` e `prova2-b` são recusadas no QR. Por
+que, não se sabe — ver a seção seguinte, que corrige o que este parágrafo afirmava.
+
+## As duas fotos que o QR não decodifica
+
+> **Correção de 2026-08-28, apurada na fatia 3c.** Esta seção dizia que as duas fotos ficaram de
+> fora **por resolução**, e afirmava um limite de ~11 px por milímetro de papel — número que a 3c
+> herdaria como orientação de enquadramento na tela. A afirmação não sobreviveu à medição das nove
+> fotos, e está retirada. O que segue é o registro corrigido.
+
+O número original saiu do subconjunto que `papel.mjs` mede: **cinco** das nove fotos, e nenhuma das
+duas anguladas de câmera entre elas. Nesse subconjunto a separação parecia limpa. Medida a resolução
+sobre o papel das **nove**, contra o que o pipeline de produção faz com cada uma:
+
+| Foto | px/mm | Leitura |
+|---|---|---|
+| prova1-frontal | 12,61 | lê |
+| prova1-sombra | 12,51 | lê |
+| **prova1-angulo** | **9,83** | **lê** |
+| prova2-a | 9,32 | recusa |
+| **prova2-b** | **11,47** | **recusa** |
+| prova2-c | 11,17 | lê |
+| teste-frontal | 12,57 | lê |
+| teste-sombra | 12,24 | lê |
+| teste-angulo | 10,27 | lê |
+
+**Não existe limiar de resolução que separe as duas colunas.** `prova2-b` falha a 11,47 e
+`prova1-angulo` lê a 9,83 — as faixas se sobrepõem, e nenhum corte as separa.
+
+**Nem o formato separa.** As três fotos da folha 2 são as únicas 3060×3060 recomprimidas do corpus,
+contra 3072×4096 originais das outras seis, e `prova2-c` lê enquanto `prova2-a` e `prova2-b` não.
+Tamanho e recompressão eram a hipótese seguinte, e elas não sobrevivem ao terceiro caso. O que de
+fato decide a decodificação **não está medido**, e fica assim: trocar uma explicação não medida por
+outra é exatamente o que produziu o erro que esta seção corrige.
+
+**Como a resolução foi medida, e por que o código não ficou na árvore.** Pelo lado dos quatro ArUcos
+detectados contra os 14 mm que `CaptureGeometry.MARKER_SIDE` declara, conferida contra um oracle que
+não compartilha detector: o vão entre os centros de marcador que `papel.mjs` acha por componentes
+conexos em JavaScript. Os dois concordam dentro de **0,6 px/mm** nas cinco fotos que ambos medem. O
+código que produzia o número saiu junto com a orientação por resolução, porque sem consumidor ele
+seria número que ninguém lê; ele volta no dia em que uma fatia medir o que prevê a decodificação.
+
+`CorpusInstrumentedTest.as_duas_fotos_sem_qr_seguem_recusadas` afirma o **fato** — as duas são
+recusadas, e recusadas no QR — e não afirma mais causa nenhuma. Se a leitura melhorar e passar a
+ler estas duas, ele fica vermelho, e a mudança é deliberada.
+
+**Como o erro passou.** Nenhum teste ficou vermelho, e nenhum ficaria: o teste afirmava a recusa
+daquelas duas fotos, que é verdade, e a causa vivia só no comentário e neste documento. É a mesma
+forma de falha que a seção **O defeito que o corpus encontrou na fatia 3a** registra sobre a zona de
+silêncio do QR — verificação verde sobre a fixture que não distingue —, aqui numa forma nova: **a prosa afirmava mais do que a
+verificação sustentava.** O que a 3c mudou não foi o código medido, foi a amostra: nove fotos em vez
+de cinco.
 
 ## O defeito que o corpus encontrou na fatia 3a
 
@@ -284,4 +331,4 @@ conferência continua capaz de reprovar.
 |---|---|
 | O limiar sob outros aparelhos e outras impressoras | O corpus é de um celular e uma impressora. A fatia da câmera, que verá muitos, herda a obrigação de reexaminar `V` e `C` — e mudar o número exigirá ADR novo, como ADR-0007 determina |
 | O gabarito em papel da folha 2 | Não veio. As classes dela saíram da medição, com folga de 599‰ dentro de cada questão e as duas fotos concordando letra a letra — não é circular nessa margem, mas é um registro a menos |
-| A leitura abaixo de ~11 px/mm | Está afirmada como **limite**, e não resolvida. Guiar o enquadramento é da fatia da câmera |
+| O que faz o QR de `prova2-a` e `prova2-b` não decodificar | Não é resolução, e não é tamanho de arquivo — as duas hipóteses foram medidas e caíram. Nove fotos são amostra pequena demais para concluir, e investigar é fatia própria, não nota de rodapé desta |
