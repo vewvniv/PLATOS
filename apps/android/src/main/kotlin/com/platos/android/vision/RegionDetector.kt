@@ -79,10 +79,11 @@ object RegionDetector {
     /**
      * Sangria em volta do QR, em milimetros, no canvas que so ele usa.
      *
-     * O padrao QR pede zona de silencio de quatro modulos. Na folha da prova o QR tem 20 mm com 29
-     * modulos por lado, entao quatro modulos sao cerca de 2,8 mm. Quatro milimetros cobrem isso com
-     * folga e continuam dentro do papel: o QR fica centrado entre os dois marcadores de cima, e ha
-     * margem de sobra em volta dele na folha impressa.
+     * O padrao QR pede zona de silencio de quatro modulos. Na folha da prova o QR tem 14 mm
+     * (`CaptureGeometry.QR_SIDE`) com 29 modulos por lado, entao quatro modulos sao cerca de
+     * 1,9 mm. Quatro milimetros cobrem isso com folga e continuam dentro do papel: o QR fica
+     * centrado entre os dois marcadores de cima, e ha margem de sobra em volta dele na folha
+     * impressa.
      */
     private const val QR_BLEED_MM = 4
 

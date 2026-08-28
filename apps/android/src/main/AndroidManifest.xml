@@ -1,5 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Fatia 1: o modulo existe para desenhar o LayoutMap. Sem camera, sem rede, sem tela. -->
-    <application android:label="PLATOS" />
+
+    <!--
+      Fatia 3c: o modulo deixa de ser biblioteca e vira aplicativo.
+
+      A camera e requisito de hardware, e nao opcional: sem ela nao ha o que este aplicativo faca.
+      O tema e o da plataforma porque o Compose desenha tudo — uma pasta `res/` so para declarar um
+      tema seria peso sem uso.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="true" />
+
+    <application
+        android:label="PLATOS"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <activity
+            android:name=".scan.ScanActivity"
+            android:exported="true"
+            android:label="PLATOS"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
 </manifest>

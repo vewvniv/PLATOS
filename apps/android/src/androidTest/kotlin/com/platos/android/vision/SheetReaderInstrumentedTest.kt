@@ -23,7 +23,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.opencv.android.OpenCVLoader
 import org.opencv.android.Utils
+import org.opencv.core.CvType
 import org.opencv.core.Mat
+import org.opencv.core.Scalar
 import org.opencv.imgproc.Imgproc
 
 /**
@@ -48,10 +50,12 @@ class SheetReaderInstrumentedTest {
         assertTrue("o OpenCV nativo nao carregou", OpenCVLoader.initLocal())
     }
 
-    private fun capture(): Mat {
-        val bytes = context.assets.open(PROVA).use { it.readBytes() }
+    private fun capture(): Mat = assetGray(PROVA)
+
+    private fun assetGray(nome: String): Mat {
+        val bytes = context.assets.open(nome).use { it.readBytes() }
         val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-            ?: throw AssertionError("nao consegui decodificar $PROVA")
+            ?: throw AssertionError("nao consegui decodificar $nome")
         val colorido = Mat()
         Utils.bitmapToMat(bitmap, colorido)
         val gray = Mat()
@@ -256,6 +260,62 @@ class SheetReaderInstrumentedTest {
         val recusa = leitura as? InterpretationOutcome.Rejected
             ?: throw AssertionError("esperava recusa, veio $leitura")
         assertTrue("o motivo precisa nomear o corredor: ${recusa.reason}", recusa.reason.contains("180"))
+    }
+
+    /**
+     * O estagio em que o pipeline parou, que e o que separa "ainda nao achei folha" de "achei a
+     * folha e nao consegui ler".
+     *
+     * Os tres casos vem do proprio corpus e da propria folha, e nao de simulacao: papel liso sem
+     * marcador nenhum, uma foto do corpus da 3b que o QR nao decodifica, e a folha boa contra um
+     * corredor que exclui o limiar. Sao os tres estagios de §8 em que a leitura pode parar.
+     */
+    @Test
+    fun quadro_sem_marcador_nenhum_para_no_primeiro_estagio() {
+        val liso = Mat(1_200, 1_600, CvType.CV_8UC1, Scalar(235.0))
+
+        val resultado = SheetReader.analyze(liso, map, region, LIMIAR_DE_TESTE)
+
+        assertTrue("esperava NoSheet, veio $resultado", resultado is FrameOutcome.NoSheet)
+    }
+
+    @Test
+    fun folha_achada_com_qr_ilegivel_para_no_segundo_estagio() {
+        // `corpus-3b-prova2-a`: os quatro ArUcos sao achados — foi assim que a 3b mediu a resolucao
+        // dela — e o QR nao decodifica. E exatamente o caso que a tela precisa distinguir do quadro
+        // vazio: a folha esta enquadrada, e insistir mais um quadro pode fechar.
+        val foto = assetGray("corpus-3b-prova2-a.jpg")
+
+        val resultado = SheetReader.analyze(foto, map, region, LIMIAR_DE_TESTE)
+
+        val naoLida = resultado as? FrameOutcome.NotRead
+            ?: throw AssertionError("esperava NotRead, veio $resultado")
+        assertTrue("o motivo tem de vir do pipeline: ${naoLida.reason}", naoLida.reason.contains("QR"))
+    }
+
+    @Test
+    fun folha_lida_com_corredor_que_exclui_o_limiar_para_no_terceiro_estagio() {
+        val outroCorredor = region.copy(
+            inkBudget = region.inkBudget.copy(thresholdFloor = 100, thresholdCeiling = 180),
+        )
+
+        val resultado = SheetReader.analyze(capture(), map, outroCorredor, LIMIAR_DE_TESTE)
+
+        // Nao e `NotRead`: repetir o quadro da o mesmo resultado, porque a recusa e sobre o par
+        // folha-leitor. Cair no estagio anterior deixaria a tela pedindo insistencia inutil.
+        val ilegivel = resultado as? FrameOutcome.Unreadable
+            ?: throw AssertionError("esperava Unreadable, veio $resultado")
+        assertTrue("o motivo precisa nomear o corredor: ${ilegivel.reason}", ilegivel.reason.contains("180"))
+    }
+
+    @Test
+    fun folha_boa_fecha_e_carrega_a_leitura_interpretada() {
+        val resultado = SheetReader.analyze(capture(), map, region, LIMIAR_DE_TESTE)
+
+        val lida = resultado as? FrameOutcome.Read
+            ?: throw AssertionError("esperava Read, veio $resultado")
+        assertEquals("prova-referencia-slice-1", lida.reading.payload.examShortId)
+        assertEquals(region.bubbles.size, lida.reading.judgements.size)
     }
 
     private companion object {
