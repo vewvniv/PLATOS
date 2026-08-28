@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
@@ -14,6 +15,10 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildFeatures {
+        compose = true
     }
 
     compileOptions {
@@ -58,6 +63,41 @@ android {
     }
 }
 
+/**
+ * O pacote de referencia entra como asset do aplicativo.
+ *
+ * Copia, e nao `assets.directories.add(fixtures)`: montar `fixtures/` inteiro embutiria os 60 MB do
+ * corpus fotografado no APK. O `androidTest` monta a pasta toda porque as fotos sao o oracle dele;
+ * o aplicativo precisa de um arquivo.
+ *
+ * A origem e provisoria e esta dita aqui: ate a fatia 4 trazer o pull de referencia imutavel, o
+ * pacote so pode chegar ao aparelho embarcado no proprio APK.
+ */
+abstract class EmbedPackageTask : DefaultTask() {
+    @get:InputFile
+    abstract val source: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun run() {
+        val destino = outputDir.get().asFile
+        destino.mkdirs()
+        source.get().asFile.copyTo(destino.resolve("prova-referencia.package.json"), overwrite = true)
+    }
+}
+
+val embedPackage = tasks.register<EmbedPackageTask>("embedPackage") {
+    source.set(rootProject.layout.projectDirectory.file("fixtures/prova-referencia.package.json"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(embedPackage, EmbedPackageTask::outputDir)
+    }
+}
+
 kotlin {
     // O bytecode Java do AGP sai em 11; o Kotlin precisa acompanhar, senao o build recusa a
     // combinacao antes de compilar qualquer linha.
@@ -71,6 +111,17 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.opencv)
     implementation(libs.zxingcpp)
+
+    // Fatia 3c: o modulo deixa de ser biblioteca e vira aplicativo.
+    implementation(platform(libs.compose.bom))
+    implementation(libs.compose.ui)
+    implementation(libs.compose.material3)
+    implementation(libs.activity.compose)
+    implementation(libs.lifecycle.runtime.compose)
+    implementation(libs.camerax.core)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

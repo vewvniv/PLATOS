@@ -35,13 +35,18 @@ import org.opencv.core.Mat
  */
 object SheetReader {
 
-    fun read(gray: Mat, map: LayoutMap, region: ScannableRegion): OmrReading {
-        val detection = RegionDetector.detect(gray, map, region)
-        val rectified = when (detection) {
-            is DetectionOutcome.Failed -> return OmrReading.Rejected(detection.reason)
-            is DetectionOutcome.Rectified -> detection
+    fun read(gray: Mat, map: LayoutMap, region: ScannableRegion): OmrReading =
+        when (val detection = RegionDetector.detect(gray, map, region)) {
+            is DetectionOutcome.Failed -> OmrReading.Rejected(detection.reason)
+            is DetectionOutcome.Rectified -> readFrom(detection, map, region)
         }
 
+    /** Do quadrilatero ja desempenado ate as medicoes: QR primeiro, bolhas depois. */
+    private fun readFrom(
+        rectified: DetectionOutcome.Rectified,
+        map: LayoutMap,
+        region: ScannableRegion,
+    ): OmrReading {
         val qr = RegionQrReader.read(rectified.qrCanvas, rectified.detectedMarkerIds)
         val payload = when (qr) {
             is QrOutcome.Failed -> return OmrReading.Rejected(qr.reason)
@@ -51,6 +56,39 @@ object SheetReader {
         return when (val measured = BubbleMeter.measure(map, region, rectified.region)) {
             is MeterOutcome.Failed -> OmrReading.Rejected(measured.reason)
             is MeterOutcome.Measured -> OmrReading.Read(payload, measured.measurements)
+        }
+    }
+
+    /**
+     * O mesmo pipeline, com o **estagio em que ele parou** preservado (fatia 3c).
+     *
+     * A diferenca para [readInterpreted] nao esta no que e feito — e a mesma sequencia, nas mesmas
+     * funcoes —, e sim no que sobrevive ao retorno. `OmrReading.Rejected` diz que a folha nao foi
+     * lida; [FrameOutcome] diz **onde** ela parou, que e o que separa "ainda nao achei folha" de
+     * "achei a folha e nao consegui ler". Ver [FrameOutcome].
+     *
+     * A decomposicao nao duplica nada: [read] e esta funcao chamam o mesmo [readFrom].
+     */
+    fun analyze(
+        gray: Mat,
+        map: LayoutMap,
+        region: ScannableRegion,
+        threshold: OmrThreshold,
+    ): FrameOutcome {
+        val detection = RegionDetector.detect(gray, map, region)
+        val rectified = when (detection) {
+            is DetectionOutcome.Failed -> return FrameOutcome.NoSheet(detection.reason)
+            is DetectionOutcome.Rectified -> detection
+        }
+
+        val reading = when (val lida = readFrom(rectified, map, region)) {
+            is OmrReading.Rejected -> return FrameOutcome.NotRead(lida.reason)
+            is OmrReading.Read -> lida
+        }
+
+        return when (val interpretada = SheetInterpreter.interpret(reading, region, threshold)) {
+            is InterpretationOutcome.Rejected -> FrameOutcome.Unreadable(interpretada.reason)
+            is InterpretationOutcome.Interpreted -> FrameOutcome.Read(interpretada.reading)
         }
     }
 
