@@ -1,7 +1,12 @@
 [versions]
 kotlin = "2.4.10"
 agp = "9.3.1"
-ktor = "3.2.0"
+# 3.2.1, e nao 3.2.0: `ktor-client-core-jvm` 3.2.0 **nao passa pelo D8**. Ele tem um campo chamado
+# `use streaming syntax` — com espacos — em `io.ktor.client.plugins.Messages`, e nome com espaco e
+# ilegal em DEX abaixo da versao 040. O sintoma e `Error while dexing`, na montagem do APK, e nao na
+# compilacao. Bug do Ktor, corrigido no primeiro patch; 3.2.1 e o menor salto que dexa.
+# Uma versao so para servidor e aparelho e o que a decisao 2 pede, e por isso o servidor sobe junto.
+ktor = "3.2.1"
 jooq = "3.20.3"
 kotlinx-serialization = "1.8.1"
 kaml = "0.83.0"
@@ -64,6 +69,13 @@ camerax-core = { module = "androidx.camera:camera-core", version.ref = "camerax"
 camerax-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 camerax-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
 camerax-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+
+# Cliente HTTP do aparelho (fatia 4a-zero, tarefa 2.1). Mesma versao do Ktor do servidor: a
+# decisao 2 pede **uma** pilha HTTP no projeto, e `version.ref = "ktor"` e o que impede as duas
+# pontas de divergirem sem ninguem perceber. OkHttp e o engine porque e o que existe no Android.
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
