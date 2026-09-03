@@ -258,11 +258,50 @@ com um cenário para cada. Engolir o desconhecido transformaria defeito de progr
 sessão", e o sintoma seria o professor reautenticando para sempre sem nada dizer por quê. É o mesmo
 critério de `retornoDe`, que deixa `JsonConvertException` subir em vez de chamá-la de "sem rede".
 
+### A credencial em repouso, no aparelho (tarefa 4.6)
+
+Os dois cenários de credencial em repouso da spec, rodados no `platos-atd34` (API 34, `aosp_atd`,
+x86_64), em 2026-09-03. Eles não rodam na JVM: `EncryptedSharedPreferences` exige o Keystore, e
+"está cifrado" só se afirma lendo o que foi gravado.
+
+**Procurar um token e não achar passa por vários motivos errados** — a busca olhando no lugar
+errado, nada tendo sido gravado, o arquivo ainda não tendo chegado ao disco. Por isso o teste grava
+duas coisas: a credencial, que deve sumir, e o identificador da organização, que é preferência e
+fica em claro de propósito. Achar o segundo é o que prova que a busca alcança os arquivos e sabe
+ler o que há neles; só depois disso não achar o primeiro significa alguma coisa. Esperar pelo
+identificador também é o que sincroniza o teste com o `apply()`, que grava fora da linha de
+execução.
+
+Quatro mutações, todas revertidas:
+
+| Mutação | O que ficou vermelho |
+|---|---|
+| Sessão guardada em claro, confiando só no sandbox | `o token aparece como texto legivel no armazenamento` |
+| Token guardado em Base64 | `o token aparece apenas codificado em Base64, que nao protege nada` |
+| `allowBackup` de volta para `true` | `FLAG_ALLOW_BACKUP esta ligada`, `expected:<0> but was:<32768>` |
+| A busca varrendo `cacheDir` em vez de `dataDir` | a **guarda**: `a busca nao achou nem o identificador da organizacao` |
+
+As duas últimas linhas são as que valem.
+
+A de Base64 existe porque a busca pelo token cru aprovaria um token apenas codificado, e para quem
+lê o resultado do teste isso seria indistinguível de cifragem. Ela ficou vermelha **sozinha** — a
+afirmação sobre texto legível passou na mesma rodada —, o que mostra que as duas cobrem defeitos
+diferentes e nenhuma é sobra da outra.
+
+A última é a que impede o teste de ser vazio. Com a busca apontada para o diretório errado, a
+afirmação sobre o token passaria sem nada ter sido examinado, e o cenário ficaria verde para
+sempre, dizendo nada. Foi a guarda que acusou, e não o token — que é exatamente o desenho: é a
+terceira vez nesta base que uma janela de medição mal apontada produz verde falso, e a primeira em
+que a janela foi verificada antes de o resultado ser usado.
+
+`FLAG_ALLOW_BACKUP` é afirmada como flag, e não como lista de arquivos excluídos, porque é a flag
+que o sistema consulta. Regra que lista arquivos silencia quando alguém acrescenta o terceiro.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
 |---|---|
-| A cifragem em repouso, de verdade | O tratamento de corrupção é verificado na JVM, mas que o token **fique cifrado** só se afirma lendo o armazenamento num aparelho: `EncryptedSharedPreferences` exige Keystore. É a tarefa 4.6, e ela precisa de emulador |
+| A cifragem em repouso **fora do emulador** | Fechada no `platos-atd34` (tarefa 4.6), com quatro mutações. Num aparelho real o Keystore é respaldado por hardware, e no emulador não — o que muda é a força da chave, e não onde o token é gravado, que é o que o teste afirma. A conferência em aparelho é a seção 6 |
 | O adaptador da API contra o servidor de verdade | `ApiPlatosTest` usa `MockEngine`, e o corpo que ele responde é literal escrito à mão a partir do contrato — não do servidor rodando. O que fecha isso é a tarefa 6.1 |
 | O **corpo de sucesso** da autenticação | O probe entra com senha errada de propósito, então nenhuma rodada autenticou. Os nomes de campo do DTO vêm da documentação do Supabase, não de medição desta base. Fecha na tarefa 6.1 |
 | O adaptador contra o servidor real, no CI | O probe é **pulado** no runner: não há `local.properties`, então não há projeto para medir. Ele é o instrumento da seção 6, e a classificação de falha é verificada na JVM por `AutenticacaoSupabaseTest` |
