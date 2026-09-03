@@ -39,7 +39,19 @@ object PostgresSupport {
     val tenancy: Tenancy by lazy { Tenancy(appDataSource) }
 
     const val APP_ROLE = "app_backend"
-    const val APP_ROLE_PASSWORD = "app_backend"
+
+    /**
+     * Sorteada a cada execucao, e nao constante.
+     *
+     * A migration de papeis deixou de trazer senha: ela declara o papel e os atributos que
+     * importam para RLS, e a credencial fica de fora do que e versionado. Quem define a senha aqui
+     * e o proprio suporte de teste, depois de aplicar as migrations.
+     *
+     * Sortear em vez de fixar nao e paranoia: uma constante voltaria a ser uma senha conhecida
+     * escrita no repositorio, so que num arquivo diferente. Sorteada, ela nao serve para nada fora
+     * desta JVM, e o container morre com ela.
+     */
+    val APP_ROLE_PASSWORD: String = UUID.randomUUID().toString()
 
     fun start() {
         container.isRunning
@@ -239,6 +251,13 @@ object PostgresSupport {
         ).use { connection ->
             connection.createStatement().use { statement ->
                 migrations.forEach { statement.execute(it.readText()) }
+                // A migration cria `app_backend` sem senha de proposito, entao a credencial e
+                // dada aqui -- exatamente como quem opera o banco faz em producao. Sem esta
+                // linha, `appDataSource` nao conecta, e a suite inteira cai na primeira assercao
+                // de isolamento em vez de num erro de configuracao.
+                statement.execute(
+                    "alter role $APP_ROLE with login password '$APP_ROLE_PASSWORD'",
+                )
             }
         }
     }

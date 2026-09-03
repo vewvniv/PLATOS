@@ -12,9 +12,21 @@ begin
         create role app_owner nologin nosuperuser nobypassrls nocreatedb;
     end if;
 
+    -- Sem senha, e de proposito. A migration declara o que e permanente e auditavel -- que o
+    -- papel existe, que tem LOGIN, e que nao tem SUPERUSER nem BYPASSRLS -- e nao a credencial.
+    --
+    -- Uma senha literal aqui seria versionada, igual em toda instalacao e conhecida por quem
+    -- lesse o repositorio. Num Postgres efemero de teste isso e inofensivo; num banco alcancavel
+    -- pela internet e um papel com LOGIN e senha publicada, e o mesmo arquivo alimenta os dois.
+    --
+    -- Quem define a senha e quem opera o banco:
+    --     alter role app_backend with login password '<senha>';
+    -- Nos testes, quem faz isso e `PostgresSupport`, com valor sorteado a cada execucao.
+    --
+    -- Papel com LOGIN e sem senha nao conecta por senha. Entao ambiente onde ninguem definiu uma
+    -- falha ao conectar, alto, em vez de ficar acessivel com uma senha que qualquer um conhece.
     if not exists (select 1 from pg_roles where rolname = 'app_backend') then
-        create role app_backend login nosuperuser nobypassrls nocreatedb nocreaterole
-            password 'app_backend';
+        create role app_backend login nosuperuser nobypassrls nocreatedb nocreaterole;
     end if;
 end
 $$;
