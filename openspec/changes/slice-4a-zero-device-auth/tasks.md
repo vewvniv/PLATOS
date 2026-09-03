@@ -32,7 +32,7 @@
 - [ ] 5.1 Tela de entrada em Compose: e-mail, senha, e a faixa de motivo em cada um dos três estados de falha.
 - [ ] 5.2 Tela de escolha de organização, apresentada só quando houver mais de uma.
 - [ ] 5.3 Tela de trabalho mostrando o nome da organização ativa e oferecendo sair, com a navegação para o escaneamento.
-- [ ] 5.0 Mover `android.permission.INTERNET` do manifesto de `debug` para o principal. Hoje ela existe só em `debug`, declarada pelo probe, enquanto o adaptador de entrada já vive em `main`: um APK de release tem o código de rede e não tem a permissão. Sem tela que a use isso não se manifesta, e é justamente por isso que precisa estar escrito aqui — quando a tela chegar, a falha seria `SocketException: EPERM`, que o classificador apresenta como "sem rede".
+- [x] 5.0 Mover `android.permission.INTERNET` do manifesto de `debug` para o principal. Feito, e o defeito foi **medido antes**: o manifesto mesclado de release trazia `CAMERA` e `DUMP` e não `INTERNET`; depois da mudança traz as três, e o `debug` continua com ela por herança, então o probe segue funcionando. O manifesto de `debug` foi removido — a permissão era todo o conteúdo dele.
 - [ ] 5.4 A entrada vira o `Activity` de lançamento; `ScanActivity` passa a ser alcançada a partir da tela de trabalho e continua com o `assets.open` provisório. Resultado: abrir o aplicativo sem sessão não alcança escaneamento nenhum.
 
 ## 6. Conferência em aparelho — depende do mantenedor

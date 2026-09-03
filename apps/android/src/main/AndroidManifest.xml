@@ -12,6 +12,18 @@
     <uses-feature android:name="android.hardware.camera.any" android:required="true" />
 
     <!--
+      Fatia 4a-zero, tarefa 5.0. A permissao vivia so no manifesto de `debug`, declarada pelo probe
+      da tarefa 1.1, enquanto o adaptador de entrada ja vivia em `main`: um APK de release tinha o
+      codigo de rede e nao tinha a permissao.
+
+      Sem tela que alcancasse a rede isso nao se manifestava. Com a entrada, a falha seria
+      `SocketException: EPERM` — que e `IOException`, e portanto `SemRede` para o classificador da
+      decisao 8. O professor leria "precisa de rede" com a rede funcionando, e o sintoma nao
+      apontaria para a causa em lugar nenhum.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
       Fatia 4a-zero, decisao 4: o backup automatico e desabilitado.
 
       E a diferenca entre "outro aplicativo nao le" e "o dado nao sai do aparelho": so a
