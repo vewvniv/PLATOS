@@ -40,50 +40,57 @@ as oito migrations aplicadas, conectada como `app_backend`, `GET /health` respon
 ## Antes de tudo: o schema ainda não existe no Supabase
 
 As migrations em `supabase/migrations/` **nunca foram aplicadas ao projeto real**. Elas rodam em
-Postgres efêmero, no `generateJooq` e nos testes; não há `supabase/config.toml`, e o projeto nunca
-foi vinculado à CLI. No painel, *Database* aparece sem tabela nenhuma — e não é engano de quem
-olha, é o estado do projeto. (O Supabase também não lista bancos: cada projeto **é** um banco
-`postgres`.)
+Postgres efêmero, no `generateJooq` e nos testes. No painel, *Database* aparece sem tabela nenhuma —
+e não é engano de quem olha, é o estado do projeto. (O Supabase também não lista bancos: cada
+projeto **é** um banco `postgres`.)
 
-Nada nas migrations é específico do Supabase: a RLS decide por `current_setting('app.current_user_id')`,
-e não por `auth.uid()`. Elas são Postgres comum, e por isso o mesmo SQL que roda nos testes serve
-aqui.
+Nada nas migrations é específico do Supabase: a RLS decide por
+`current_setting('app.current_user_id')`, e não por `auth.uid()`. São Postgres comum, e por isso o
+mesmo SQL que roda nos testes serve aqui.
 
-### Aplicar
+### Aplicar, pela CLI
 
-Pelo **SQL Editor** do painel, colando cada arquivo, **na ordem de `0001` a `0008`**. Sem instalar
-nada, e é o caminho mais seguro para uma vez só. Ou, com `psql`, usando a conexão **direta** (porta
-5432, não o pooler — DDL não deve passar por PgBouncer):
+O repositório está configurado para a CLI: existe `supabase/config.toml`, e os arquivos usam o
+formato de versão que ela espera — `20260813223817_uuid_v7.sql` e assim por diante.
 
 ```bash
-export PGPASSWORD='<senha do postgres>'
-for m in supabase/migrations/*.sql; do
-  echo "== $m"
-  psql "postgresql://postgres@<host>:5432/postgres" -v ON_ERROR_STOP=1 -f "$m" || break
-done
+supabase login
+supabase link --project-ref <ref do projeto>
+supabase db push
 ```
 
-`ON_ERROR_STOP=1` não é enfeite: sem ele o `psql` segue depois de um erro, e o schema fica pela
-metade sem que nada avise.
+O `link` guarda a referência do projeto em `supabase/.temp/`, que já está no `.gitignore` do
+diretório — a referência do **seu** projeto não é versionada, e `config.toml` traz só o nome local.
 
-### Trocar a senha do `app_backend` na mesma sessão
+**Não aplique à mão se pretende usar a CLI.** O `db push` decide o que aplicar pela tabela
+`supabase_migrations.schema_migrations`; um schema criado pelo SQL Editor deixa essa tabela vazia, e
+o `push` seguinte tentaria recriar tudo e falharia com "already exists". Se isso acontecer, o
+conserto é `supabase migration repair --status applied <versão>` para cada uma — mais trabalho do
+que fazer certo da primeira vez.
 
-`0002_roles.sql` cria o papel com `password 'app_backend'` — senha igual ao nome. Isso existe para
-o Postgres efêmero dos testes, onde não há o que proteger. **Num banco alcançável pela internet é
-exposição**, e o papel tem `LOGIN`. Troque imediatamente após aplicar, antes de qualquer outra
-coisa:
+### Definir a senha do `app_backend`
+
+A migration cria o papel **sem senha**, de propósito: ela declara o que é permanente e auditável —
+que o papel existe, que tem `LOGIN`, e que não tem `SUPERUSER` nem `BYPASSRLS` —, e não a
+credencial. Senha literal em migration seria versionada, igual em toda instalação, e conhecida por
+quem lesse o repositório.
+
+Papel com `LOGIN` e sem senha não conecta por senha. Então um ambiente onde ninguém definiu uma
+falha ao conectar, alto, em vez de ficar acessível com uma senha que qualquer um conhece. Defina:
 
 ```sql
 alter role app_backend with login password '<senha forte>';
 ```
 
-Essa é a senha que vai em `DATABASE_PASSWORD`.
+Essa é a senha que vai em `DATABASE_PASSWORD`. Nos testes, quem faz esse mesmo `alter` é
+`PostgresSupport`, com valor sorteado a cada execução; e `MigracoesSemCredencialTest` falha o build
+se alguma migration voltar a trazer senha literal.
 
 ### Conferir que a chave anônima não enxerga dado de domínio
 
 As oito tabelas têm RLS habilitada **e** `force row level security`, e as migrations não concedem
-nada a `anon` nem a `authenticated` — esses papéis nem são mencionados. O `force` importa porque
-faz a política valer inclusive para o dono da tabela.
+nada a `anon` nem a `authenticated` — esses papéis nem são mencionados. O `force` importa porque faz
+a política valer inclusive para o dono da tabela.
 
 Vale conferir mesmo assim, porque o Supabase aplica privilégios padrão a tabelas novas em `public`:
 
@@ -115,12 +122,7 @@ A API conecta como `app_backend`, papel sem `SUPERUSER` e sem `BYPASSRLS` (D-0.2
 superusuário desligaria RLS em silêncio, e `ConnectionRoleTest` falha o build justamente para
 impedir que isso passe.
 
-O papel é criado por `supabase/migrations/0002_roles.sql`. A **senha é sua** — defina uma no
-Supabase antes do primeiro deploy:
-
-```sql
-alter role app_backend with login password '<senha forte>';
-```
+O papel é criado pela migration `..._roles.sql`, e a senha é definida por você — ver acima.
 
 ## Roteiro
 
