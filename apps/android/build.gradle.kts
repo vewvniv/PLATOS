@@ -1,5 +1,6 @@
 // O import e obrigatorio: no Kotlin DSL do Gradle, `java` resolve para a extensao do plugin Java e
 // sombreia o pacote, entao `java.util.Properties` nao compila.
+import com.android.build.api.variant.BuildConfigField
 import java.util.Properties
 
 plugins {
@@ -24,31 +25,24 @@ val propriedadesLocais = Properties().apply {
  * **Ausente falha o build, e nao vira string vazia.** Um valor vazio compila, instala e so quebra
  * na primeira chamada de rede, com erro que fala de rede e nao de configuracao — que e a forma de
  * ambiente errado passar em silencio (decisao 6).
+ *
+ * **Resolvida por `Provider`, e nao em tempo de configuracao.** O Gradle configura todo projeto do
+ * build, entao uma exigencia avaliada aqui derrubava `:apps:api:installDist` e ate
+ * `:apps:api:test` — builds que nao produzem APK nenhum. Aconteceu: o workflow que publica a
+ * imagem da API quebrou por falta de configuracao do Android. Dentro de um `Provider`, o valor so
+ * e lido quando a geracao do `BuildConfig` roda, e ai a exigencia vale para quem realmente monta
+ * o aplicativo.
  */
-val configFaltando = mutableListOf<String>()
-val configInvalida = mutableListOf<String>()
-
-fun exigirConfig(chave: String, ambiente: String): String {
-    val bruto = (findProperty(chave) as String?)?.takeIf { it.isNotBlank() }
+fun valorDeConfig(chave: String, ambiente: String): String? =
+    (findProperty(chave) as String?)?.takeIf { it.isNotBlank() }
         ?: System.getenv(ambiente)?.takeIf { it.isNotBlank() }
         ?: propriedadesLocais.getProperty(chave)?.takeIf { it.isNotBlank() }
-    if (bruto == null) {
-        configFaltando += "$chave  (ou a variavel de ambiente $ambiente)"
-        return ""
-    }
-    val valor = bruto.trim()
-    // Aspas quebrariam o literal gerado em `BuildConfig`, e o erro sairia como falha de compilacao
-    // de codigo gerado, que nao aponta para a causa.
-    if (valor.contains('"') || valor.contains('\\')) {
-        configInvalida += "$chave: nao pode conter aspas nem barra invertida"
-    }
-    return valor
-}
 
 /**
- * URL exigida, conferida e normalizada.
+ * Os tres de uma vez, e nao um a um: quem clona o repositorio deve ver a lista inteira do que
+ * falta, e nao descobrir mais um a cada tentativa.
  *
- * `https` obrigatorio porque `targetSdk 35` recusa trafego em claro antes de abrir soquete, e a
+ * `https` e obrigatorio porque `targetSdk 35` recusa trafego em claro antes de abrir soquete, e a
  * falha sairia como `UnknownServiceException: CLEARTEXT ... not permitted` — politica de rede
  * disfarcada de falha de transporte, que o classificador apresentaria como "sem rede".
  *
@@ -56,46 +50,68 @@ fun exigirConfig(chave: String, ambiente: String): String {
  * viraria `https://projeto//auth/v1/...`, que alguns servidores aceitam e outros nao — defeito que
  * depende do servidor e nao aparece em teste.
  */
-fun exigirUrl(chave: String, ambiente: String): String {
-    val valor = exigirConfig(chave, ambiente)
-    if (valor.isEmpty()) return valor
-    if (!valor.startsWith("https://")) {
-        configInvalida += "$chave: precisa comecar com https:// (veio \"$valor\")"
-        return valor
+fun configuracaoDoAplicativo(): Map<String, String> {
+    val faltando = mutableListOf<String>()
+    val invalida = mutableListOf<String>()
+
+    fun exigir(chave: String, ambiente: String, url: Boolean): String {
+        val bruto = valorDeConfig(chave, ambiente)
+        if (bruto == null) {
+            faltando += "$chave  (ou a variavel de ambiente $ambiente)"
+            return ""
+        }
+        val valor = bruto.trim()
+        // Aspas quebrariam o literal gerado em `BuildConfig`, e o erro sairia como falha de
+        // compilacao de codigo gerado, que nao aponta para a causa.
+        if (valor.contains('"') || valor.contains('\\')) {
+            invalida += "$chave: nao pode conter aspas nem barra invertida"
+            return valor
+        }
+        if (!url) return valor
+        if (!valor.startsWith("https://")) {
+            invalida += "$chave: precisa comecar com https:// (veio \"$valor\")"
+            return valor
+        }
+        return valor.trimEnd('/')
     }
-    return valor.trimEnd('/')
-}
 
-val supabaseUrl = exigirUrl("platos.supabaseUrl", "PLATOS_SUPABASE_URL")
-val supabaseAnonKey = exigirConfig("platos.supabaseAnonKey", "PLATOS_SUPABASE_ANON_KEY")
-val apiUrl = exigirUrl("platos.apiUrl", "PLATOS_API_URL")
-
-if (configFaltando.isNotEmpty() || configInvalida.isNotEmpty()) {
-    error(
-        buildString {
-            appendLine("Configuracao do aplicativo Android incompleta.")
-            if (configFaltando.isNotEmpty()) {
-                appendLine()
-                appendLine("Faltando:")
-                configFaltando.forEach { appendLine("  - $it") }
-            }
-            if (configInvalida.isNotEmpty()) {
-                appendLine()
-                appendLine("Invalido:")
-                configInvalida.forEach { appendLine("  - $it") }
-            }
-            appendLine()
-            appendLine("Acrescente em `local.properties`, na raiz do repositorio (ja ignorado pelo git):")
-            appendLine("  platos.supabaseUrl=https://<projeto>.supabase.co")
-            appendLine("  platos.supabaseAnonKey=<a chave anonima do projeto>")
-            appendLine("  platos.apiUrl=https://<host da api>")
-            appendLine()
-            append("A chave anonima e publica por desenho — quem autoriza e RLS mais JWT. ")
-            appendLine("Ela nao e versionada porque o ambiente muda, e valor embutido vira o valor")
-            append("errado em silencio.")
-        },
+    val resolvida = mapOf(
+        "SUPABASE_URL" to exigir("platos.supabaseUrl", "PLATOS_SUPABASE_URL", url = true),
+        "SUPABASE_ANON_KEY" to exigir("platos.supabaseAnonKey", "PLATOS_SUPABASE_ANON_KEY", url = false),
+        "API_URL" to exigir("platos.apiUrl", "PLATOS_API_URL", url = true),
     )
+
+    if (faltando.isNotEmpty() || invalida.isNotEmpty()) {
+        error(
+            buildString {
+                appendLine("Configuracao do aplicativo Android incompleta.")
+                if (faltando.isNotEmpty()) {
+                    appendLine()
+                    appendLine("Faltando:")
+                    faltando.forEach { appendLine("  - $it") }
+                }
+                if (invalida.isNotEmpty()) {
+                    appendLine()
+                    appendLine("Invalido:")
+                    invalida.forEach { appendLine("  - $it") }
+                }
+                appendLine()
+                appendLine("Acrescente em `local.properties`, na raiz do repositorio (ja ignorado pelo git):")
+                appendLine("  platos.supabaseUrl=https://<projeto>.supabase.co")
+                appendLine("  platos.supabaseAnonKey=<a chave anonima do projeto>")
+                appendLine("  platos.apiUrl=https://<host da api>")
+                appendLine()
+                append("A chave anonima e publica por desenho — quem autoriza e RLS mais JWT. ")
+                appendLine("Ela nao e versionada porque o ambiente muda, e valor embutido vira o valor")
+                append("errado em silencio.")
+            },
+        )
+    }
+    return resolvida
 }
+
+/** Avaliado uma vez, e so quando alguem pedir. */
+val configuracao = providers.provider { configuracaoDoAplicativo() }
 
 android {
     namespace = "com.platos.android"
@@ -108,10 +124,6 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
-        buildConfigField("String", "API_URL", "\"$apiUrl\"")
 
         // PROBE (secao 6). Canal proprio, e nao `BuildConfig`, de proposito.
         //
@@ -211,6 +223,32 @@ val embedPackage = tasks.register<EmbedPackageTask>("embedPackage") {
 
 androidComponents {
     onVariants { variant ->
+        // `put` com `Provider`: a configuracao so e exigida quando o `BuildConfig` desta
+        // variante for gerado, e nao quando o projeto e configurado.
+        //
+        // O valor vai **com aspas**: `BuildConfigField` recebe o literal Java, e nao o dado. Sem
+        // elas as URLs saem como `= https://x;` e o javac recusa -- mas a chave anonima sozinha
+        // sairia como identificador valido, e o erro apareceria mais longe da causa.
+        //
+        // Nulo quando `buildFeatures.buildConfig` esta desligado. `requireNotNull` em vez
+        // de `?.`: com a chamada segura, desligar a feature faria os tres campos sumirem
+        // em silencio, e o aplicativo compilaria apontando para lugar nenhum.
+        val campos = requireNotNull(variant.buildConfigFields) {
+            "buildFeatures.buildConfig precisa estar ligado: a configuracao do aplicativo sai por ele"
+        }
+        campos.put(
+            "SUPABASE_URL",
+            configuracao.map { BuildConfigField("String", "\"" + it.getValue("SUPABASE_URL") + "\"", null) },
+        )
+        campos.put(
+            "SUPABASE_ANON_KEY",
+            configuracao.map { BuildConfigField("String", "\"" + it.getValue("SUPABASE_ANON_KEY") + "\"", null) },
+        )
+        campos.put(
+            "API_URL",
+            configuracao.map { BuildConfigField("String", "\"" + it.getValue("API_URL") + "\"", null) },
+        )
+
         variant.sources.assets?.addGeneratedSourceDirectory(embedPackage, EmbedPackageTask::outputDir)
     }
 }
