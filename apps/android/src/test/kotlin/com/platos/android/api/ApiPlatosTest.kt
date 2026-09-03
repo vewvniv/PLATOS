@@ -66,6 +66,8 @@ class ApiPlatosTest {
             http = clienteHttp(engine),
             urlBase = "https://api.platos.example",
             credencial = credencial,
+            // O que o 401 dispara e assunto de `ClienteApiTest`. Aqui interessa o contrato.
+            aoExpirarSessao = {},
         )
     }
 

@@ -4,8 +4,6 @@ import com.platos.android.net.Retorno
 import com.platos.android.net.retornoDe
 import com.platos.android.session.Organizacao
 import io.ktor.client.HttpClient
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.statement.HttpResponse
 
@@ -15,32 +13,23 @@ import io.ktor.client.statement.HttpResponse
  * E o segundo destino de rede da decisao 2: a credencial nasce no Supabase Auth, e todo dado de
  * dominio vem daqui. Adaptador fino, como `AutenticacaoSupabase` — traduz, e nao decide.
  *
- * **A credencial entra por `defaultRequest`, e nao em cada chamada.** A diferenca e estrutural, e e
- * a mesma razao da decisao 3 para o 401: o que depende de quem escreve a proxima chamada lembrar
- * vale hoje e fura no proximo endpoint. Aqui existe um metodo so, e mesmo assim o cabecalho nao e
- * posto por ele — quem acrescentar o segundo nao tem como esquecer, porque nao ha nada para
- * lembrar.
+ * **Nem a credencial nem o 401 sao tratados aqui.** Os dois vivem em [clienteApi], que e o ponto
+ * unico da decisao 3 — e existe como funcao separada para que "nenhuma tela trata 401 por conta
+ * propria" seja verificavel sobre o cliente, e nao sobre a disciplina de quem escreve a proxima
+ * chamada. Este arquivo so sabe a rota e a forma do contrato.
  *
- * [credencial] e funcao, e nao valor: a sessao troca — entra outro usuario, ou o token e apagado ao
- * sair — e um valor lido na construcao congelaria a credencial de quem entrou primeiro. Devolver
- * `null` e legitimo, e a chamada sai sem `Authorization`; o servidor responde 401, que e o que a
- * ausencia de sessao significa.
- *
- * **O 401 nao e interpretado aqui.** [organizacoes] devolve `Retorno` cru, e sessao expirada nasce
- * num ponto unico do cliente — tarefa 4.3. Traduzi-lo neste metodo seria o defeito que a 4.4 existe
- * para demonstrar.
+ * [organizacoes] devolve `Retorno` cru de proposito: o 401 ja levou a sessao de volta a entrada
+ * pelo interceptador antes de esta funcao retornar, e traduzi-lo tambem aqui seria a duplicacao que
+ * a tarefa 4.4 existe para demonstrar.
  */
 class ApiPlatos(
     http: HttpClient,
     private val urlBase: String,
     credencial: () -> String?,
+    aoExpirarSessao: () -> Unit,
 ) {
 
-    private val autenticado: HttpClient = http.config {
-        defaultRequest {
-            credencial()?.let { bearerAuth(it) }
-        }
-    }
+    private val autenticado: HttpClient = clienteApi(http, credencial, aoExpirarSessao)
 
     /**
      * As organizacoes do usuario da sessao.
