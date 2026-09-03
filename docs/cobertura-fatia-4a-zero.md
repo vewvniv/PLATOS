@@ -124,6 +124,13 @@ O terceiro é o único que um teste pega, e é o mais silencioso dos três: a ba
 `https://projeto//auth/v1/...`, que alguns servidores aceitam e outros recusam. O defeito
 dependeria do servidor, e nenhuma rodada local o encontraria.
 
+**Um defeito que os três não pegaram, e apareceu no CI.** A exigência era avaliada ao configurar o
+projeto, e o Gradle configura todos — então `:apps:api:installDist` passou a exigir configuração do
+Android, e o workflow que publica a imagem da API quebrou. Nenhum dos três cenários acima o
+alcançava, porque todos exercitam o módulo Android, que é justamente onde a exigência faz sentido.
+Quem acusou foi o CI, e o registro fica porque a lição é sobre onde a verificação **não** olhava:
+`./gradlew :apps:api:test` sem configuração do Android é agora parte do que se confere.
+
 **O caminho do CI foi exercitado, e não deduzido.** Sem as chaves `platos.*` em `local.properties` e
 sem ambiente, o build recusa; sem elas e **com** as variáveis de ambiente, ele compila e os três
 cenários passam. É o mesmo caminho que o runner percorre, e foi rodado antes de ir para o CI —
