@@ -272,14 +272,16 @@ ler o que há neles; só depois disso não achar o primeiro significa alguma coi
 identificador também é o que sincroniza o teste com o `apply()`, que grava fora da linha de
 execução.
 
-Quatro mutações, todas revertidas:
+Seis mutações, todas revertidas:
 
 | Mutação | O que ficou vermelho |
 |---|---|
 | Sessão guardada em claro, confiando só no sandbox | `o token aparece como texto legivel no armazenamento` |
 | Token guardado em Base64 | `o token aparece apenas codificado em Base64, que nao protege nada` |
 | `allowBackup` de volta para `true` | `FLAG_ALLOW_BACKUP esta ligada`, `expected:<0> but was:<32768>` |
-| A busca varrendo `cacheDir` em vez de `dataDir` | a **guarda**: `a busca nao achou nem o identificador da organizacao` |
+| A busca varrendo `cacheDir` em vez de `dataDir` | a guarda do canário: `a busca nao achou nem o identificador` |
+| `guardarCredencial` virando no-op | a guarda de sincronia: `o arquivo cifrado nao mudou depois de guardar` |
+| A ordem das duas escritas trocada | **nada — segue verde**, e é isso que se afirma |
 
 As duas últimas linhas são as que valem.
 
@@ -296,6 +298,30 @@ que a janela foi verificada antes de o resultado ser usado.
 
 `FLAG_ALLOW_BACKUP` é afirmada como flag, e não como lista de arquivos excluídos, porque é a flag
 que o sistema consulta. Regra que lista arquivos silencia quando alguém acrescenta o terceiro.
+
+**A guarda de sincronia veio de uma pergunta, e não do teste.** A primeira versão esperava apenas
+pelo canário — o identificador da organização — antes de varrer o disco. Isso sincroniza o teste com
+a escrita da *organização*, e não com a da *credencial*: são dois `apply()` em arquivos diferentes,
+e `apply()` grava fora da linha de execução. A versão passava de forma confiável, mas por um motivo
+não declarado: o Android serializa toda escrita de `apply()` numa fila FIFO única (`QueuedWork`), e
+a credencial era enfileirada primeiro, então o canário aparecer implicava a outra escrita ter
+terminado. Detalhe de implementação, não escrito em lugar nenhum, que trocar duas linhas de lugar
+destruiria em silêncio — a afirmação sobre o token viraria passe vazio.
+
+Tentar reproduzir a corrida trocando a ordem **não** produziu falso verde em três rodadas: a janela
+é estreita. Não reproduzir não é o mesmo que não existir, e a correção não foi tornar a corrida mais
+improvável, e sim remover a dependência: o arquivo cifrado é fotografado antes da escrita, e o teste
+espera até os bytes mudarem. Depois da construção quem escreve nesse arquivo é só
+`guardarCredencial`, então a mudança **é** a escrita. A mutação da ordem trocada existe para afirmar
+o resultado disso: ela agora é verde, e antes era o que segurava tudo.
+
+**A primeira tentativa de correção quebrou o diagnóstico, e isso vale ficar escrito.** A espera pelo
+arquivo cifrado nasceu como afirmação antes da escrita — e com a sessão em claro o arquivo só nasce
+na primeira gravação, então a mutação passou a ser acusada pela guarda de preparo (`o arquivo
+cifrado nem foi criado`) em vez da afirmação de segurança. O cenário continuava vermelho, e por isso
+o erro não apareceria em nenhuma contagem de verde e vermelho: o que se perdeu foi a afirmação que
+importa deixar de ser exercitada, e a mensagem passar a apontar para o lugar errado. A espera
+anterior à escrita passou a ser espera sem afirmação.
 
 ## O que ainda não está verificado
 

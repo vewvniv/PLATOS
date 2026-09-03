@@ -22,10 +22,22 @@ import org.junit.runner.RunWith
  *
  * **O cuidado que faz este teste valer alguma coisa.** Procurar um token e nao achar passa tambem
  * quando a busca olha no lugar errado, quando nada foi gravado, ou quando o arquivo ainda nao
- * chegou ao disco. Entao o teste grava **duas** coisas: a credencial, que deve sumir, e o
- * identificador da organizacao, que e preferencia e fica em claro de proposito. Achar o segundo e o
- * que prova que a busca alcanca os arquivos e sabe ler o que ha neles; so depois disso nao achar o
- * primeiro significa alguma coisa.
+ * chegou ao disco. Sao tres causas diferentes para o mesmo verde, e cada uma tem sua guarda:
+ *
+ * - **olhar no lugar errado** — o teste grava tambem o identificador da organizacao, que e
+ *   preferencia e fica em claro de proposito, e **exige acha-lo**. A busca que nao acha o que esta
+ *   em claro nao pode ser usada para afirmar que o token nao esta;
+ * - **nada gravado, ou ainda no ar** — o arquivo cifrado e fotografado antes de a credencial ser
+ *   escrita, e o teste espera ate os bytes mudarem. `apply()` grava fora da linha de execucao, e
+ *   essa e a unica forma de observar a escrita **da credencial** chegar ao disco.
+ *
+ * A segunda guarda substitui uma suposicao que a primeira versao deste teste fazia sem dizer. Ela
+ * esperava so pelo identificador da organizacao, e funcionava porque o Android serializa toda
+ * escrita de `apply()` numa fila FIFO unica (`QueuedWork`) e a credencial era enfileirada primeiro
+ * — entao o canario aparecer implicava a outra escrita ter terminado. Detalhe de implementacao, nao
+ * declarado, que **trocar duas linhas de lugar destruiria em silencio**: a afirmacao sobre o token
+ * viraria passe vazio, sem sintoma nenhum. Agora a espera e sobre o arquivo que interessa, e a
+ * ordem das escritas deixou de importar.
  */
 @RunWith(AndroidJUnit4::class)
 class SessaoEmRepousoInstrumentedTest {
@@ -46,21 +58,38 @@ class SessaoEmRepousoInstrumentedTest {
         val organizacao = "org-${UUID.randomUUID()}"
 
         val guardada = SessaoGuardadaAndroid(context)
+
+        // A construcao ja grava o keyset do Tink neste arquivo. Esperar por ele antes de fotografar
+        // e o que garante que a mudanca observada depois seja a credencial, e nao o keyset chegando
+        // atrasado.
+        //
+        // **Espera sem afirmar, de proposito.** Guardar a sessao em claro e um defeito que este
+        // teste precisa pegar, e nesse caso o arquivo so nasce na primeira escrita — nao existe
+        // nada para esperar aqui. Afirmar a existencia neste ponto faria o defeito ser acusado pela
+        // guarda de preparo em vez da afirmacao de seguranca, apontando para o lugar errado.
+        val cifrado = File(context.dataDir, "shared_prefs/${SessaoGuardadaAndroid.ARQUIVO_CIFRADO}.xml")
+        esperarAte { cifrado.exists() && cifrado.length() > 0 }
+        val antesDaCredencial = if (cifrado.exists()) cifrado.readBytes() else ByteArray(0)
+
         guardada.guardarCredencial(token)
         guardada.guardarOrganizacaoEscolhida(organizacao)
 
-        // `apply()` grava fora da linha de execucao. Esperar pelo identificador em claro e o que
-        // sincroniza o teste com o disco — e ja e a primeira metade da prova.
-        val gravado = esperarPorTextoGravado(organizacao)
+        // Guarda 1: a escrita da credencial chegou ao disco. Depois da construcao, quem escreve
+        // neste arquivo e so `guardarCredencial` — entao os bytes mudarem e a propria escrita.
+        assertTrue(
+            "o arquivo cifrado nao mudou depois de guardar a credencial: a escrita nao chegou ao " +
+                "disco, e procurar o token agora nao provaria nada",
+            esperarAte {
+                cifrado.exists() && !cifrado.readBytes().contentEquals(antesDaCredencial)
+            },
+        )
+
+        // Guarda 2: a busca alcanca o que foi gravado, e sabe ler o que ha nele.
         assertTrue(
             "a busca nao achou nem o identificador da organizacao, que esta em claro: " +
                 "ela nao alcanca o que foi gravado, e nao achar o token nao provaria nada",
-            gravado,
+            esperarAte { algumArquivoContem(organizacao) },
         )
-
-        val cifrado = File(context.dataDir, "shared_prefs/${SessaoGuardadaAndroid.ARQUIVO_CIFRADO}.xml")
-        assertTrue("o arquivo cifrado nem existe", cifrado.exists())
-        assertTrue("o arquivo cifrado esta vazio", cifrado.length() > 0)
 
         // Agora a afirmacao vale: o mesmo instrumento que achou um nao acha o outro.
         assertFalse(
@@ -108,9 +137,10 @@ class SessaoEmRepousoInstrumentedTest {
                 .getOrDefault(false)
         }
 
-    private fun esperarPorTextoGravado(procurado: String): Boolean {
+    /** Ate cinco segundos. Nao e folga: e o tempo de uma escrita de `apply()` que se atrasou. */
+    private fun esperarAte(condicao: () -> Boolean): Boolean {
         repeat(50) {
-            if (algumArquivoContem(procurado)) return true
+            if (condicao()) return true
             Thread.sleep(100)
         }
         return false
