@@ -67,6 +67,16 @@ URL do projeto Supabase, chave anônima e URL da API entram como campos de `Buil
 
 A chave anônima do Supabase é pública por desenho — ela identifica o projeto e a autorização real é RLS mais JWT. Mesmo assim ela não é versionada, porque a URL da API e o ambiente mudam entre desenvolvimento e produção, e um valor embutido vira o valor errado em silêncio.
 
+**O mecanismo, implementado na tarefa 2.2.** Três campos — `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `API_URL` — resolvidos nesta ordem: propriedade de projeto (`-P`), variável de ambiente, `local.properties`. A primeira serve a uma rodada avulsa, a segunda é como o CI alimenta, e a terceira é o dia a dia de quem desenvolve.
+
+**Ausente falha o build, e não vira string vazia.** Vazio compila, instala e só quebra na primeira chamada de rede, com erro que fala de rede e não de configuração. A mensagem lista tudo que falta de uma vez, nomeando a chave e a variável de ambiente equivalente, e mostra o bloco a colar em `local.properties`.
+
+Duas conferências de forma vêm junto, e nenhuma é preferência. **`https` é obrigatório** porque `targetSdk 35` recusa tráfego em claro antes de abrir soquete, e a falha sairia como `UnknownServiceException: CLEARTEXT` — política de rede disfarçada de falha de transporte, que a decisão 8 classificaria como `SemRede`. **A barra final é removida** porque quem chama concatena `"$urlBase/auth/v1/..."`, e `https://projeto//auth/v1/...` é aceito por alguns servidores e recusado por outros: defeito que depende do servidor e não aparece em teste.
+
+**O CI recebe valores de marcador, em `.invalido`.** Ele não fala com o Supabase — o probe que falaria é pulado, e nenhuma tela alcança a rede ainda. O TLD reservado garante que, se algum dia algo ali tentar sair para a rede, a falha é imediata em vez de acertar um servidor por engano.
+
+**O probe mantém canal próprio, e isso é deliberado.** As duas configurações leem o mesmo `local.properties`, mas têm semânticas **opostas** de ausência: a do aplicativo ausente falha o build, porque aplicativo sem destino não serve para nada; a do probe ausente é um não-evento, porque sem projeto real não há o que medir. Com um canal só, o probe teria de reconhecer o valor de marcador do CI por comparação de string — classificar por texto, que é o que esta fatia recusa em todo lugar.
+
 ### 7. A entrada vira o launcher; `ScanActivity` passa a ser alcançada, e não iniciada
 
 A tela de entrada é o `Activity` de lançamento. A tela de escaneamento continua exatamente como está — inclusive com o `assets.open` provisório, que só sai na 4a.

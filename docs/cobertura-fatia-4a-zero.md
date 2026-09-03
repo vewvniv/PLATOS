@@ -105,6 +105,33 @@ fabricou, e ela acertou. Também é o motivo de o probe passar a repetir a chama
 resultado é `SemRede`: `SemRede` não diz **qual** `IOException` foi, e sem esse diagnóstico a
 pergunta seguinte exige recompilar o probe.
 
+### A configuração que falta, e a que chegou torta (tarefa 2.2)
+
+A recusa mora no `build.gradle.kts`, e não em código — nenhum teste a alcança. Então ela foi
+exercitada onde vive, pela linha de comando, e o que se registra é a mensagem que saiu:
+
+| Defeito introduzido | Quem acusou |
+|---|---|
+| `platos.supabaseAnonKey` removida de `local.properties` | o build, com `Faltando: platos.supabaseAnonKey (ou a variável de ambiente PLATOS_SUPABASE_ANON_KEY)` |
+| `platos.apiUrl` em `http` | o build, com `Invalido: platos.apiUrl: precisa comecar com https:// (veio "http://api.invalido")` |
+| `.trimEnd('/')` removido, com `apiUrl` terminando em barra | `ConfiguracaoTest.asUrlsNaoTerminamEmBarra` |
+
+Os dois primeiros nomeiam a chave **e** a variável de ambiente equivalente. Uma mensagem que só
+dissesse "configuração incompleta" mandaria quem clona o repositório procurar, e é justamente na
+primeira execução que ninguém sabe onde procurar.
+
+O terceiro é o único que um teste pega, e é o mais silencioso dos três: a barra final produz
+`https://projeto//auth/v1/...`, que alguns servidores aceitam e outros recusam. O defeito
+dependeria do servidor, e nenhuma rodada local o encontraria.
+
+**O caminho do CI foi exercitado, e não deduzido.** Sem as chaves `platos.*` em `local.properties` e
+sem ambiente, o build recusa; sem elas e **com** as variáveis de ambiente, ele compila e os três
+cenários passam. É o mesmo caminho que o runner percorre, e foi rodado antes de ir para o CI —
+diferente do que aconteceu com o probe, que foi para o CI sem essa conferência e o derrubou.
+
+`ConfiguracaoTest` roda no CI com os valores de marcador e continua valendo: o que ele afirma é
+forma, e não qual projeto. Afirmar o projeto exigiria versionar o projeto.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
