@@ -41,9 +41,10 @@
 
 - [ ] 6.1 Entrar com credencial válida num projeto Supabase real e conferir que o nome apresentado é o que a API devolveu. Resultado: o caminho inteiro fecha fora do teste.
 - [ ] 6.2 Conferir os três estados de falha à mão: credencial errada, aparelho em modo avião, e sessão invalidada do lado do servidor. Resultado: as três dizem coisas diferentes, e nenhuma fica carregando sem desfecho.
-- [ ] 6.3 Com um usuário em duas organizações, escolher uma, fechar o aplicativo e reabrir. Resultado: a escolha sobreviveu e não foi pedida de novo.
-- [ ] 6.4 Sair, entrar com **outro** usuário no mesmo aparelho, e conferir que nenhuma organização vem pré-selecionada. Resultado: o defeito da tarefa 3.7 não acontece no aparelho.
-- [ ] 6.5 Acrescentar a `docs/protocolo-medicao-impressa.md` a seção de conferência da entrada, com esses passos. Resultado: quem repetir depois não reinventa o roteiro.
+- [ ] 6.3 Forçar a consulta a falhar depois de autenticar — modo avião logo após a entrada fechar — e conferir que a tela de `SemOrganizacao` apresenta **só a explicação**: nenhum nome, nenhum placeholder, nenhum texto de espera parado. Resultado: o caso que nenhum teste de JVM alcança fica visto. É o par em aparelho da lacuna registrada na 5.4b, onde a tela ignorando o parâmetro e escrevendo um literal passa por toda a suíte.
+- [ ] 6.4 Com um usuário em duas organizações, escolher uma, fechar o aplicativo e reabrir. Resultado: a escolha sobreviveu e não foi pedida de novo.
+- [ ] 6.5 Sair, entrar com **outro** usuário no mesmo aparelho, e conferir que nenhuma organização vem pré-selecionada. Resultado: o defeito da tarefa 3.7 não acontece no aparelho.
+- [ ] 6.6 Acrescentar a `docs/protocolo-medicao-impressa.md` a seção de conferência da entrada, com esses passos. Resultado: quem repetir depois não reinventa o roteiro.
 
 ## 7. Verificação final
 
