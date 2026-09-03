@@ -216,11 +216,53 @@ senha de novo por causa de um túnel que caiu.
 corrotina à parte, então a tela poderia desenhar o resultado da chamada antes de a sessão saber que
 expirou — uma corrida que passa em teste e aparece em sala.
 
+### O keyset corrompido, e a API depreciada que o torna nosso (tarefa 4.5)
+
+`security-crypto` está depreciada a partir de `1.1.0-beta01`, e a revisão de 2026-09-03 da decisão 5
+registra por que ela fica: a depreciação é a AndroidX preferindo Keystore direto à wrapper, e não
+falha de segurança — então ela propõe justamente a alternativa que a decisão 5 já havia descartado,
+pelo mesmo motivo. O que muda não é a escolha, é a consequência: **biblioteca depreciada não recebe
+correção, então o modo de falha conhecido dela passa a ser responsabilidade desta base.**
+
+Esse modo é um só: keyset corrompido. Ele aparece em dois momentos, que pedem respostas diferentes.
+
+| Momento | Resposta | Por quê |
+|---|---|---|
+| Ao **abrir** o arquivo cifrado | descarta e tenta de novo, uma vez | tem conserto: keyset novo, sessão perdida |
+| Ao **ler** um valor | sessão inválida | não tem conserto: valor que não decifra é valor perdido |
+
+Nos dois casos o desfecho é a tela de entrada, e nunca uma exceção que sobe. Pedir a senha outra vez
+é o pior desfecho aceitável; deixar subir daria um aplicativo que não abre, a partir de um dado
+ilegível.
+
+**A decisão não mora no adaptador, e essa é a razão de haver teste.** `abrindoOuDescartando` e
+`lendoOuSessaoInvalida` não conhecem Android: a corrupção entra como exceção lançada por uma lambda,
+que é a forma com que ela chega do `EncryptedSharedPreferences`. Se elas vivessem dentro de
+`SessaoGuardadaAndroid`, só um teste instrumentado as alcançaria, e o único modo de falha conhecido
+desta escolha ficaria sem cobertura até alguém ligar um aparelho. É a mesma fronteira da decisão 1,
+aplicada a um lugar onde ela não era óbvia.
+
+Duas mutações, revertidas:
+
+| Mutação | O que ficou vermelho |
+|---|---|
+| Abrir sem tratamento nenhum | os três cenários de corrupção ao abrir |
+| `SecurityException` fora da lista da leitura | `SecurityException tambem e sessao invalida` |
+
+A segunda é a que quase não foi escrita. `EncryptedSharedPreferences` embrulha falha de decifragem
+em `SecurityException`, que **não** desce de `GeneralSecurityException` — o caso mais provável
+escaparia de um `catch` que parecesse completo. Uma lista de exceções não é verificada por leitura.
+
+**O que continua subindo, e é decisão.** Exceção que não é corrupção passa direto, nos dois pontos,
+com um cenário para cada. Engolir o desconhecido transformaria defeito de programação em "sem
+sessão", e o sintoma seria o professor reautenticando para sempre sem nada dizer por quê. É o mesmo
+critério de `retornoDe`, que deixa `JsonConvertException` subir em vez de chamá-la de "sem rede".
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
 |---|---|
-| A cifragem em repouso | Tarefas 4.5 e 4.6, ainda não implementadas |
+| A cifragem em repouso, de verdade | O tratamento de corrupção é verificado na JVM, mas que o token **fique cifrado** só se afirma lendo o armazenamento num aparelho: `EncryptedSharedPreferences` exige Keystore. É a tarefa 4.6, e ela precisa de emulador |
 | O adaptador da API contra o servidor de verdade | `ApiPlatosTest` usa `MockEngine`, e o corpo que ele responde é literal escrito à mão a partir do contrato — não do servidor rodando. O que fecha isso é a tarefa 6.1 |
 | O **corpo de sucesso** da autenticação | O probe entra com senha errada de propósito, então nenhuma rodada autenticou. Os nomes de campo do DTO vêm da documentação do Supabase, não de medição desta base. Fecha na tarefa 6.1 |
 | O adaptador contra o servidor real, no CI | O probe é **pulado** no runner: não há `local.properties`, então não há projeto para medir. Ele é o instrumento da seção 6, e a classificação de falha é verificada na JVM por `AutenticacaoSupabaseTest` |
