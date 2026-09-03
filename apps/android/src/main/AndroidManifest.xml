@@ -11,7 +11,18 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" android:required="true" />
 
+    <!--
+      Fatia 4a-zero, decisao 4: o backup automatico e desabilitado.
+
+      E a diferenca entre "outro aplicativo nao le" e "o dado nao sai do aparelho": so a
+      primeira vem de graca do sandbox, e um backup na nuvem levaria a credencial junto — ja
+      decifrada, porque quem faz o backup e o sistema, do lado de dentro. Vale para os dois
+      arquivos de `SessaoGuardadaAndroid`, e por isso e desligado no aplicativo inteiro em vez
+      de por regra de exclusao: regra que lista arquivos silencia quando alguem acrescenta o
+      terceiro.
+    -->
     <application
+        android:allowBackup="false"
         android:label="PLATOS"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">

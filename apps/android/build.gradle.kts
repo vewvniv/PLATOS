@@ -285,6 +285,11 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.json)
 
+    // Decisao 5: a sessao nao fica em claro no aparelho. O sandbox impede que outro aplicativo
+    // leia o armazenamento privado, e isso e tudo o que ele impede — num aparelho compartilhado
+    // entre escolas o que sobra e acesso fisico, e ai token em claro e credencial reutilizavel.
+    implementation(libs.security.crypto)
+
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
     // `MockEngine` responde no lugar do servidor. E o que permite exercitar a classificacao de
