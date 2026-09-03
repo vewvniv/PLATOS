@@ -248,3 +248,50 @@ paquímetro), todas com escala declarada em 100%:
 Nenhuma reproduz o documento em escala real, e elas erram em direções opostas. Daí o ADR-0001:
 fidelidade é propriedade do documento, e a folha impressa precisa apenas continuar legível sob
 ±5%. O documento, medido a 1200 dpi, bate dentro de 0,05 mm em 32 verificações.
+
+## Privilégio nas migrations — o que a suíte não via
+
+Descoberto ao aplicar as migrations no Supabase pela primeira vez, em 03/09/2026. As oito rodavam
+verdes em `PostgresSupport` desde a fatia 1, e a segunda delas era impossível de aplicar em qualquer
+Postgres gerenciado.
+
+`PostgresSupport.applyMigrations` conecta com `container.username`, que é **superusuário**. A
+distinção entre `adminDataSource` e `appDataSource` protege as asserções de RLS — essas passam por
+`app_backend`, e essa parte sempre esteve certa. Mas as *migrations* nunca rodaram por outro papel
+que não o superusuário, e o Postgres pula justamente as checagens de privilégio que importam:
+
+| Comando | Quem pode | Visto pela suíte |
+|---|---|---|
+| `alter role … nologin` | dono do papel | sim |
+| `alter role … nosuperuser` | só quem tem SUPERUSER | não |
+| `alter role … nobypassrls` | só quem tem BYPASSRLS | não |
+| `alter table … owner to app_owner` | exige CREATE no schema **para o novo dono** | não |
+
+As três últimas linhas falham em silêncio na suíte: com superusuário, o Postgres nem chega a
+verificá-las. No Supabase o `postgres` não é superusuário, e as duas primeiras migrations pararam —
+`42501 permission denied to alter role`, na linha 35 de `20260813223818_roles.sql`.
+
+**Como as correções foram vistas falhar.** Container `postgres:16-alpine` com um papel `migrator`
+calibrado para o perfil do Supabase — `nosuperuser`, `createrole`, dono do banco e do schema
+`public` — aplicando as oito migrations em banco limpo. A calibração do dono não é detalhe: sem ela
+o `grant` sai como *warning*, não erro, e a migration passa "ok" sem ter concedido nada.
+
+| Mutação | Resultado |
+|---|---|
+| Árvore atual (controle) | verde, sem warning |
+| `alter role` incondicional, como estava | vermelho: `roles.sql:35 permission denied to alter role` |
+| Sem `grant create on schema public to app_owner` | vermelho: `identity_tables.sql:40 permission denied for schema public` |
+
+Cada correção é individualmente necessária. O harness carrega uma guarda que aborta se `/mig` não
+tiver exatamente oito arquivos — dois falsos vermelhos vieram daí antes da guarda existir, ambos por
+`docker cp` copiando para o lugar errado, e nenhum tinha relação com a mutação em teste.
+
+**O que continua sem cobertura automática.** Nada disso está na suíte: a verificação foi manual, e
+`./gradlew :apps:api:test` segue cego a privilégio de migration. O que fecha o ciclo hoje é
+`supabase db diff --linked`, que aplica as migrations num shadow limpo e compara com o remoto — deu
+`No schema changes found` depois do push. Um alvo de teste que aplique as migrations como
+não-superusuário é o que tornaria isso regressão detectável; ainda não existe.
+
+Nota de método: `./gradlew :apps:api:test -q` deu exit 0 **sem rodar teste nenhum** (task
+UP-TO-DATE). Os 107 testes só foram confirmados com `--rerun-tasks` e conferindo o carimbo de tempo
+dos XML em `build/test-results`. Exit 0 do Gradle não é evidência de que a suíte rodou.
