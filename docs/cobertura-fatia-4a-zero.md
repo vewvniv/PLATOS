@@ -445,6 +445,36 @@ confiança é o modo de falha desta fatia inteira.
 no manifesto mesclado: `SessaoActivity` é `exported=true` com `LAUNCHER`, e `ScanActivity` é
 `exported=false` sem `intent-filter` — nada fora do aplicativo a inicia.
 
+## O que a fatia previu que ficaria descoberto, e o que de fato ficou (tarefa 7.2)
+
+A seção de riscos do `design.md` previu, antes de a fatia começar: *"o que sobra sem teste automático
+é o encanamento — o interceptador de 401, a cifragem em repouso e a configuração"*. A previsão
+errou, e errou para o lado bom. Vale escrever por quê, porque o motivo se repete.
+
+| Previsto descoberto | Onde está hoje |
+|---|---|
+| O interceptador de 401 | `ClienteApiTest`, 10 cenários de JVM com `MockEngine` |
+| A cifragem em repouso | `SessaoEmRepousoInstrumentedTest`, 2 cenários no emulador, 6 mutações |
+| A configuração | `ConfiguracaoTest`, 3 cenários |
+| O corpo de sucesso da autenticação | **continua descoberto** — fecha na 6.1 |
+
+O que fechou os três foi sempre a mesma coisa: **tirar a decisão de dentro do adaptador**. O
+interceptador virou `clienteApi`, uma função, e passou a ser exercitável em rotas inventadas na
+hora. O tratamento de keyset corrompido virou duas funções que não conhecem Android. A escolha de
+frase saiu das telas. Nenhum desses movimentos foi feito para facilitar teste — todos foram feitos
+porque a alternativa era uma afirmação que ninguém conseguia verificar, e é a mesma fronteira que a
+decisão 1 já desenhava.
+
+O quarto item não fechou porque ele não é encanamento: é um fato sobre um servidor de terceiro. O
+probe entra com senha errada de propósito, então nenhuma rodada desta base autenticou, e os nomes
+de campo de `CredencialDeSessao` vêm da documentação do Supabase. Nenhum rearranjo de código produz
+esse dado — só uma credencial válida contra um projeto real.
+
+**O que sobra descoberto, ao fim das seções 1 a 5**, está na tabela abaixo. Duas entradas são novas
+desde que a previsão foi escrita, e as duas apareceram por mutação e não por revisão: o que um
+`@Composable` desenha (5.4b) e o número do tempo limite (4.7). Nenhuma das duas era esperada, e as
+duas estão registradas como lacuna, não como risco mitigado.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
@@ -452,5 +482,6 @@ no manifesto mesclado: `SessaoActivity` é `exported=true` com `LAUNCHER`, e `Sc
 | A cifragem em repouso **fora do emulador** | Fechada no `platos-atd34` (tarefa 4.6), com quatro mutações. Num aparelho real o Keystore é respaldado por hardware, e no emulador não — o que muda é a força da chave, e não onde o token é gravado, que é o que o teste afirma. A conferência em aparelho é a seção 6 |
 | O adaptador da API contra o servidor de verdade | `ApiPlatosTest` usa `MockEngine`, e o corpo que ele responde é literal escrito à mão a partir do contrato — não do servidor rodando. O que fecha isso é a tarefa 6.1 |
 | O **corpo de sucesso** da autenticação | O probe entra com senha errada de propósito, então nenhuma rodada autenticou. Os nomes de campo do DTO vêm da documentação do Supabase, não de medição desta base. Fecha na tarefa 6.1 |
+| O número do tempo limite de pedido | 90 s é provisório, escolhido sobre a faixa relatada de cold start do Render e não medido contra o nosso servidor. O teste afirma o **piso** de 60 s, e não o valor. Fecha na 6.6 |
 | O adaptador contra o servidor real, no CI | O probe é **pulado** no runner: não há `local.properties`, então não há projeto para medir. Ele é o instrumento da seção 6, e a classificação de falha é verificada na JVM por `AutenticacaoSupabaseTest` |
 | O que as telas **desenham** | As decisões de texto saíram para funções puras e estão verificadas (5.1, 5.4). O que nenhum teste desta base alcança é o `@Composable` em si: um literal digitado lá, ignorando o parâmetro, passa por tudo — visto acontecer na terceira mutação da 5.4b. Fecharia com teste de Compose, que exige aparelho |
