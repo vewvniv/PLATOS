@@ -380,6 +380,35 @@ Os treze cenários anteriores ficaram verdes sob a mutação. É a mesma leitura
 suíte existente aprovando o defeito novo não é sinal de que ele é pequeno, é sinal de que a
 cobertura anterior falava de outra coisa.
 
+### O servidor que aceita a conexão e não responde (tarefa 4.7)
+
+É o caso que nenhuma das outras verificações alcançava. `UnknownHostException` e `ConnectException`
+chegam depressa; este não chega nunca, e sem tempo limite `Consultando` fica para sempre — o que a
+spec proíbe ao dizer que o aplicativo não fica em carregamento sem desfecho.
+
+`Retorno` já tinha sido escrito para ele: o comentário cita `HttpRequestTimeoutException` entre os
+`IOException` que viram `SemRede`. O plugin é que faltava, e o defeito viveu desde a tarefa 4.1 num
+lugar onde o comentário dizia que estava resolvido. Classificação nova, nenhuma.
+
+| Mutação | O que ficou vermelho |
+|---|---|
+| `HttpTimeout` removido | `servidor que nao responde vira SemRede` |
+| Tempo limite de produção baixado para 5 s | `o tempo limite de producao e generoso o bastante` |
+
+O corpo do `MockEngine` é **texto puro, e não JSON**, de propósito: com JSON, remover o plugin
+falharia na desserialização, e o vermelho falaria de outra coisa. Com texto, a chamada completa e o
+teste diz que veio `Respondeu` onde se esperava `SemRede` — que é o defeito.
+
+**O número é provisório, e está marcado como tal no código.** 90 s, não medido contra o nosso
+servidor: o cold start do plano gratuito do Render fica tipicamente entre 30 e 60 s, e 90 s dá folga
+sobre o pior caso relatado. Errar para baixo é o erro caro — um cold start interrompido chega como
+`IOException`, vira `SemRede`, e o professor lê "confira a conexão" com a conexão boa, na primeira
+vez que abre o aplicativo no dia. Errar para cima só custa espera.
+
+A segunda mutação existe por causa disso: ela afirma o **piso** de 60 s, não o valor. Ninguém baixa
+o número sem enfrentar a pergunta. Quem fixa o valor de verdade é a tarefa 6.6, medindo contra o
+serviço real — e ela está na seção 6 porque depende do mesmo serviço que 6.1, 6.2 e 6.3 já exigem.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
