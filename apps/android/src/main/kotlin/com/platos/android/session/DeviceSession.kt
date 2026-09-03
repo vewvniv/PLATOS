@@ -73,8 +73,22 @@ class DeviceSession(private val guardada: SessaoGuardada) {
      *
      * Sessao expirada volta para a entrada **no momento em que e detectada**, e nao numa chamada
      * posterior com mensagem que nao seja sobre a sessao.
+     *
+     * **Resultado que chega fora de [DeviceState.Consultando] e descartado**, no mesmo padrao que
+     * [escolher] usa com [DeviceState.Escolhendo]. Dois casos reais, e nenhum deles e hipotetico:
+     *
+     * - o interceptador leva a sessao a expirada **durante** a chamada, e a mesma chamada retorna
+     *   `Recusou(401)` logo depois. Sem a guarda, esse retorno viraria `Falhou` e sobrescreveria a
+     *   expiracao com "nao foi possivel obter sua organizacao" — a tela mentiria sobre a causa;
+     * - a consulta responde depois de o professor sair, e a tela de trabalho ressuscitaria por cima
+     *   da entrada.
+     *
+     * A alternativa era quem chama conferir o status antes de repassar, e isso poria a regra na
+     * fiacao — o defeito que a tarefa 4.4 existe para demonstrar. A regra e de estado, e mora onde o
+     * estado mora.
      */
     fun aoConsultarOrganizacoes(resultado: ResultadoDasOrganizacoes) {
+        if (state !is DeviceState.Consultando) return
         state = when (resultado) {
             is ResultadoDasOrganizacoes.Chegaram -> resolverOrganizacao(resultado.organizacoes)
             is ResultadoDasOrganizacoes.SessaoExpirada -> {

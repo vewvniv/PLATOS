@@ -212,6 +212,40 @@ estoura em vez de produzir sessão vazia que só falharia depois. Quem fecha iss
 continua sendo a tarefa 2.2, por `BuildConfig` alimentado fora do repositório, e nada disso é
 versionado.
 
+### 10. A sessão vive na `Activity`, e o estado é derivado do que está gravado
+
+Nada de `ViewModel`. Na recriação — rotação, troca de idioma, fonte, tema — a `Activity` roda
+`session.abrir(guardada.credencial() != null)` e o estado se reconstrói: com credencial vai a
+`Consultando` e reconsulta, sem credencial vai a `Entrada`, e a organização escolhida é reencontrada
+por `resolverOrganizacao`.
+
+**Por quê: fonte única de verdade.** `SessaoGuardada` é a única coisa que persiste, e `DeviceState` é
+função dela mais o que a API respondeu. Um `ViewModel` criaria um segundo lugar onde mora "o que o
+aparelho sabe", e dois lugares que descrevem a mesma coisa divergem no dia em que um dos dois
+esquecer de mudar — é a razão que `ScanScreen` já dá para não ter estado de tela ao lado do estado
+da sessão. A economia de uma consulta não paga uma segunda fonte de verdade.
+
+O que se perde na recriação não é dado: uma consulta em andamento é refeita, e um login em andamento
+volta ao formulário.
+
+**A orientação não é travada, de propósito.** `ScanActivity` é `portrait` e por isso nunca encarou
+isto. Travar a entrada esconderia o caso sem resolvê-lo: idioma, fonte e tema recriam a `Activity`
+de qualquer forma.
+
+**Risco aceito, com ponto-limite — e não aceite implícito.** Toda recriação custa uma chamada de
+rede. Hoje isso é barato, e deixa de ser quando a chamada demorar: `docs/deploy-api.md` registra que
+o plano gratuito do Render suspende o serviço depois de ~15 minutos sem tráfego, e a primeira chamada
+seguinte espera o container subir. Uma rotação no momento errado passa a ser um congelamento visível,
+e o professor não tem como saber que girar o aparelho custou isso.
+
+Reabrir esta decisão quando o primeiro destes acontecer:
+
+- a medição da tarefa 4.7 mostrar o pior caso de resposta acima de 10 s — aí a reconsulta deixa de
+  ser invisível;
+- a tela de trabalho passar a depender de mais de uma chamada na abertura;
+- existir cache em disco da organização — a 4a traz cache de pacote, e se o mesmo mecanismo servir,
+  a reconsulta deixa de ser necessária em vez de ser otimizada.
+
 ## Risks / Trade-offs
 
 **A distinção entre "sem rede" e "credencial recusada" depende do que a biblioteca reporta** → se `supabase-kt` achatar as duas num erro só, o requisito não é atendível como escrito. É a primeira coisa a verificar, antes de qualquer tela.

@@ -234,4 +234,46 @@ class DeviceSessionTest {
             "veio ${seguinte.state} - organizacao pre-selecionada para outro usuario",
         )
     }
+
+    // --- Resultado que chega fora de hora (tarefa 3.8) ---
+
+    @Test
+    fun retorno_da_mesma_chamada_nao_sobrescreve_a_sessao_ja_expirada() {
+        val sessao = DeviceSession(Guardada())
+        sessao.abrir(temSessaoGuardada = true)
+
+        // O interceptador acusa o 401 durante a chamada.
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SessaoExpirada)
+        // E a mesma chamada retorna logo depois, sem saber de nada.
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Falhou)
+
+        val estado = sessao.state
+        assertTrue(
+            estado is DeviceState.Entrada && estado.motivo == MotivoDeEntrada.SESSAO_EXPIRADA,
+            "veio $estado - o retorno tardio apagou o motivo verdadeiro e a tela diria que nao " +
+                "foi possivel obter a organizacao, quando o que houve foi a sessao expirar",
+        )
+    }
+
+    @Test
+    fun consulta_que_responde_depois_de_sair_nao_ressuscita_a_tela_de_trabalho() {
+        val guardada = Guardada()
+        val sessao = DeviceSession(guardada)
+        sessao.abrir(temSessaoGuardada = true)
+        sessao.aoConsultarOrganizacoes(
+            ResultadoDasOrganizacoes.Chegaram(listOf(Organizacao("org-1", "Escola"))),
+        )
+
+        sessao.sair()
+        sessao.aoConsultarOrganizacoes(
+            ResultadoDasOrganizacoes.Chegaram(listOf(Organizacao("org-1", "Escola"))),
+        )
+
+        val estado = sessao.state
+        assertTrue(
+            estado is DeviceState.Entrada && estado.motivo == MotivoDeEntrada.SAIU,
+            "veio $estado - a resposta atrasada devolveu o aparelho a tela de trabalho depois " +
+                "de o professor ter saido",
+        )
+    }
 }

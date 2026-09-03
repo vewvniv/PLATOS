@@ -355,6 +355,31 @@ requisito é sobre *o que pode ser dito*, então a verificação enumera o que p
 nome enfiado ali muda uma das strings. Procurar por "organizacao" no texto seria classificar por
 string — recusado desde a 3c — e ainda erraria, porque o título legitimamente contém a palavra.
 
+### O resultado que chega fora de hora (tarefas 3.8 e 3.8b)
+
+`aoConsultarOrganizacoes` passou a descartar resultado que chega fora de `Consultando`, no mesmo
+padrão que `escolher` já usava com `Escolhendo`. Dois casos, nenhum hipotético:
+
+- o interceptador leva a sessão a expirada **durante** a chamada, e a mesma chamada retorna
+  `Recusou(401)` logo depois. Sem a guarda esse retorno vira `Falhou` e sobrescreve a expiração com
+  "não foi possível obter sua organização" — a tela mente sobre a causa, que é o defeito que o
+  requisito de sessão expirada existe para impedir;
+- a consulta responde depois de o professor sair, e a tela de trabalho ressuscita por cima da
+  entrada.
+
+A guarda apareceu ao desenhar a fiação da 5.5, e não ao escrever a seção 3. Foi a pergunta "o que a
+fiação faz com `Recusou(401)`?" que a produziu: qualquer resposta dada ali — mapear para `Falhou`,
+ou escrever `if (status == 401) não faça nada` — põe a regra na fiação, que é o defeito da 4.4
+entrando pela porta dos fundos. A regra é de estado, e mora onde o estado mora.
+
+| Mutação | O que ficou vermelho |
+|---|---|
+| Guarda removida | os **dois** cenários novos, e só eles |
+
+Os treze cenários anteriores ficaram verdes sob a mutação. É a mesma leitura da 4.4 e da 5.4b:
+suíte existente aprovando o defeito novo não é sinal de que ele é pequeno, é sinal de que a
+cobertura anterior falava de outra coisa.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
