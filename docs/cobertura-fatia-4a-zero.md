@@ -323,6 +323,38 @@ o erro não apareceria em nenhuma contagem de verde e vermelho: o que se perdeu 
 importa deixar de ser exercitada, e a mensagem passar a apontar para o lugar errado. A espera
 anterior à escrita passou a ser espera sem afirmação.
 
+### O nome de reserva, uma camada acima (tarefas 5.4 e 5.4b)
+
+A tarefa 3.4 provou que `DeviceSession` não cai num nome de reserva quando a consulta falha. Isso
+não protege a tela: uma sessão que nunca inventa nome não impede quem desenha de inventar um. É a
+razão da decisão 3 aplicada a outro lugar — cada camada precisa da própria prova, não da do vizinho.
+
+A garantia principal é estrutural, e não de teste: `TextoSemOrganizacao` **não tem campo de nome**, e
+`SemOrganizacaoScreen` recebe o texto pronto em vez da falha. Com a falha na mão a tela escolheria
+frase, e escolher frase é onde um nome de reserva aparece.
+
+Três mutações, todas com `DeviceSession` intocado:
+
+| Mutação | Resultado |
+|---|---|
+| Nome de reserva no título | vermelho: `nenhum nome de organizacao e apresentado` |
+| `"Carregando..."` no lugar da explicação | vermelho: o mesmo cenário |
+| **A tela ignora o parâmetro e escreve um nome literal** | **verde — não é pego** |
+
+`DeviceSessionTest` ficou verde nas três, que é o ponto da tarefa: os treze cenários daquela camada
+aprovam uma tela que mente.
+
+**A terceira é uma lacuna real, e fica escrita como lacuna.** Um literal digitado dentro do
+`@Composable`, ignorando o parâmetro, passa por toda verificação de JVM — nenhum teste desta base
+lê o que a tela desenha. O que reduz a chance é o desenho (a tela não recebe nome, e não tem de
+onde tirar um), e o que fecharia de fato é teste de Compose, que exige aparelho ou Robolectric —
+nenhum dos dois está nesta fatia. **Não é mitigado, é conhecido.**
+
+O teste afirma por igualdade exata do conjunto de textos, e não procurando palavra suspeita. O
+requisito é sobre *o que pode ser dito*, então a verificação enumera o que pode ser dito: qualquer
+nome enfiado ali muda uma das strings. Procurar por "organizacao" no texto seria classificar por
+string — recusado desde a 3c — e ainda erraria, porque o título legitimamente contém a palavra.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
@@ -331,4 +363,4 @@ anterior à escrita passou a ser espera sem afirmação.
 | O adaptador da API contra o servidor de verdade | `ApiPlatosTest` usa `MockEngine`, e o corpo que ele responde é literal escrito à mão a partir do contrato — não do servidor rodando. O que fecha isso é a tarefa 6.1 |
 | O **corpo de sucesso** da autenticação | O probe entra com senha errada de propósito, então nenhuma rodada autenticou. Os nomes de campo do DTO vêm da documentação do Supabase, não de medição desta base. Fecha na tarefa 6.1 |
 | O adaptador contra o servidor real, no CI | O probe é **pulado** no runner: não há `local.properties`, então não há projeto para medir. Ele é o instrumento da seção 6, e a classificação de falha é verificada na JVM por `AutenticacaoSupabaseTest` |
-| As telas | Seção 5, ainda não implementada |
+| O que as telas **desenham** | As decisões de texto saíram para funções puras e estão verificadas (5.1, 5.4). O que nenhum teste desta base alcança é o `@Composable` em si: um literal digitado lá, ignorando o parâmetro, passa por tudo — visto acontecer na terceira mutação da 5.4b. Fecharia com teste de Compose, que exige aparelho |
