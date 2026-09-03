@@ -32,8 +32,38 @@ end
 $$;
 
 -- Garante os atributos mesmo que os papeis ja existissem de uma execucao anterior.
-alter role app_owner nologin nosuperuser nobypassrls;
-alter role app_backend login nosuperuser nobypassrls;
+--
+-- LOGIN qualquer dono de papel ajusta. SUPERUSER e BYPASSRLS nao: desligar cada um exige possuir
+-- justamente o atributo que se quer remover, e o `postgres` de um Postgres gerenciado nao e
+-- superusuario. Emitir esses ALTER incondicionalmente derrubava a migration em qualquer banco
+-- assim -- sem que a suite acusasse, porque nos testes as migrations rodam como superusuario.
+--
+-- Entao o ALTER privilegiado so e emitido quando pg_roles mostra divergencia de verdade. No
+-- caminho normal o CREATE acima ja nasce correto e nada precisa ser alterado. Quando ha
+-- divergencia, falhar por privilegio e o resultado certo: um papel com SUPERUSER ou BYPASSRLS
+-- nao pode passar batido -- e exatamente o que estas linhas existem para impedir.
+alter role app_owner nologin;
+alter role app_backend login;
+
+do $$
+declare
+    papel record;
+begin
+    for papel in
+        select rolname, rolsuper, rolbypassrls
+        from pg_roles
+        where rolname in ('app_owner', 'app_backend')
+    loop
+        if papel.rolsuper then
+            execute format('alter role %I nosuperuser', papel.rolname);
+        end if;
+
+        if papel.rolbypassrls then
+            execute format('alter role %I nobypassrls', papel.rolname);
+        end if;
+    end loop;
+end
+$$;
 
 -- Necessario para transferir a posse das tabelas para app_owner nas migrations seguintes
 -- sem exigir superusuario.
@@ -46,4 +76,7 @@ end
 $$;
 
 grant usage on schema public to app_backend;
+-- CREATE, e nao so USAGE: `alter table ... owner to app_owner` exige que o NOVO dono possa criar
+-- no schema. O Postgres pula essa checagem para superusuario, entao a suite nunca a exercitou.
 grant usage on schema public to app_owner;
+grant create on schema public to app_owner;
