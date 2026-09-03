@@ -139,11 +139,47 @@ diferente do que aconteceu com o probe, que foi para o CI sem essa conferência 
 `ConfiguracaoTest` roda no CI com os valores de marcador e continua valendo: o que ele afirma é
 forma, e não qual projeto. Afirmar o projeto exigiria versionar o projeto.
 
+### O espelho do contrato e a credencial em cada chamada (tarefa 4.2)
+
+O DTO de organização do aparelho é **espelho** do `OrganizationDto` do servidor, e não o mesmo
+arquivo: os dois módulos dependem de `packages:domain`, então compartilhar de verdade seria
+possível, e esta fatia declara `packages/domain` e `apps/api` intocados. O custo dessa escolha é
+deriva silenciosa entre os dois lados, e quem paga por ela é `ApiPlatosTest`, que fixa o JSON
+literal que o servidor emite — com os valores que `MeOrganizationsTest` afirma do outro lado.
+
+Três mutações, todas revertidas:
+
+| Mutação | O que ficou vermelho |
+|---|---|
+| A credencial deixa de ser posta por `defaultRequest` | `a credencial da sessao viaja como Bearer`, `a credencial e lida a cada chamada` |
+| `name` ganha valor padrão, como o DTO da credencial tem | `contrato quebrado estoura em vez de virar organizacao sem nome` |
+| O espelho deriva do servidor (`name` → `title`) | quatro cenários, entre eles os dois da credencial |
+
+A terceira é a que importa para a escolha de espelhar. Ela derruba mais do que os testes de
+contrato porque o corpo de sucesso deixa de desserializar, e aí nem a chamada chega a acontecer —
+deriva de um campo só não fica confinada ao campo.
+
+**Por que `name` é obrigatório aqui e o token não era.** `CredencialDeSessao` dá padrão a tudo menos
+ao `access_token`, e a razão está escrita lá: aquele corpo nunca foi medido, vem da documentação de
+terceiro, e campo ausente é possibilidade real. Este contrato está neste repositório, com teste do
+outro lado. Campo que suma é contrato quebrado, e precisa estourar em vez de virar string vazia que
+a tela apresentaria como nome de organização — que é o mesmo defeito da tarefa 3.4, entrando por
+outra porta.
+
+**A credencial não é posta pelo método que chama.** Existe um endpoint só, e mesmo assim o cabeçalho
+sai de `defaultRequest`: quem acrescentar o segundo não tem como esquecer, porque não há nada para
+lembrar. É a decisão 3 aplicada à credencial, e não só ao 401.
+
+**O 401 continua cru.** `organizacoes()` devolve `Retorno.Recusou(401)`, e um teste afirma isso pelo
+nome. Traduzi-lo para sessão expirada aqui seria o defeito que a tarefa 4.4 existe para demonstrar,
+e a 4.3 é quem tem o ponto único.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
 |---|---|
-| O interceptador de 401, a cifragem em repouso e a configuração | Tarefas 4.2 a 4.5, ainda não implementadas |
+| O interceptador de 401 e a cifragem em repouso | Tarefas 4.3 a 4.6, ainda não implementadas |
+| O adaptador da API contra o servidor de verdade | `ApiPlatosTest` usa `MockEngine`, e o corpo que ele responde é literal escrito à mão a partir do contrato — não do servidor rodando. O que fecha isso é a tarefa 6.1 |
 | O **corpo de sucesso** da autenticação | O probe entra com senha errada de propósito, então nenhuma rodada autenticou. Os nomes de campo do DTO vêm da documentação do Supabase, não de medição desta base. Fecha na tarefa 6.1 |
 | O adaptador contra o servidor real, no CI | O probe é **pulado** no runner: não há `local.properties`, então não há projeto para medir. Ele é o instrumento da seção 6, e a classificação de falha é verificada na JVM por `AutenticacaoSupabaseTest` |
 | As telas | Seção 5, ainda não implementada |
