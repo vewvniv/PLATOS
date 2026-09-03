@@ -37,6 +37,62 @@ A imagem foi construída e exercitada localmente antes de existir workflow: cont
 as oito migrations aplicadas, conectada como `app_backend`, `GET /health` respondeu `200 ok` e
 `GET /me/organizations` sem token respondeu `401`. Arranque em 0,4 s, imagem de 136 MB.
 
+## Antes de tudo: o schema ainda não existe no Supabase
+
+As migrations em `supabase/migrations/` **nunca foram aplicadas ao projeto real**. Elas rodam em
+Postgres efêmero, no `generateJooq` e nos testes; não há `supabase/config.toml`, e o projeto nunca
+foi vinculado à CLI. No painel, *Database* aparece sem tabela nenhuma — e não é engano de quem
+olha, é o estado do projeto. (O Supabase também não lista bancos: cada projeto **é** um banco
+`postgres`.)
+
+Nada nas migrations é específico do Supabase: a RLS decide por `current_setting('app.current_user_id')`,
+e não por `auth.uid()`. Elas são Postgres comum, e por isso o mesmo SQL que roda nos testes serve
+aqui.
+
+### Aplicar
+
+Pelo **SQL Editor** do painel, colando cada arquivo, **na ordem de `0001` a `0008`**. Sem instalar
+nada, e é o caminho mais seguro para uma vez só. Ou, com `psql`, usando a conexão **direta** (porta
+5432, não o pooler — DDL não deve passar por PgBouncer):
+
+```bash
+export PGPASSWORD='<senha do postgres>'
+for m in supabase/migrations/*.sql; do
+  echo "== $m"
+  psql "postgresql://postgres@<host>:5432/postgres" -v ON_ERROR_STOP=1 -f "$m" || break
+done
+```
+
+`ON_ERROR_STOP=1` não é enfeite: sem ele o `psql` segue depois de um erro, e o schema fica pela
+metade sem que nada avise.
+
+### Trocar a senha do `app_backend` na mesma sessão
+
+`0002_roles.sql` cria o papel com `password 'app_backend'` — senha igual ao nome. Isso existe para
+o Postgres efêmero dos testes, onde não há o que proteger. **Num banco alcançável pela internet é
+exposição**, e o papel tem `LOGIN`. Troque imediatamente após aplicar, antes de qualquer outra
+coisa:
+
+```sql
+alter role app_backend with login password '<senha forte>';
+```
+
+Essa é a senha que vai em `DATABASE_PASSWORD`.
+
+### Conferir que a chave anônima não enxerga dado de domínio
+
+As oito tabelas têm RLS habilitada **e** `force row level security`, e as migrations não concedem
+nada a `anon` nem a `authenticated` — esses papéis nem são mencionados. O `force` importa porque
+faz a política valer inclusive para o dono da tabela.
+
+Vale conferir mesmo assim, porque o Supabase aplica privilégios padrão a tabelas novas em `public`:
+
+```sql
+set role anon;
+select * from public.organization;   -- espera-se zero linhas, ou permissão negada
+reset role;
+```
+
 ## Variáveis de ambiente
 
 Saem de `AppConfig.fromEnvironment`, e não de suposição. Ausente, a API **recusa subir** nomeando
@@ -138,6 +194,6 @@ A conexão direta não tem esse problema, e tem outro: limite menor de conexões
 ## O que este roteiro não cobre
 
 - **Sentry**, que §13 também prevê. Não está no código ainda.
-- **Migrations em produção.** Hoje elas são aplicadas por fora; nada neste caminho as roda.
+- **Migrations automatizadas.** O primeiro `apply` está descrito acima e é manual. Nada neste caminho as roda a cada deploy, e uma migration nova exige repetir o passo à mão.
 - **Domínio próprio e TLS.** O Render dá um subdomínio com HTTPS, que basta para o aplicativo — o
   build exige `https://` justamente porque `targetSdk 35` recusa tráfego em claro.
