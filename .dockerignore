@@ -1,0 +1,10 @@
+# O contexto da imagem da API e a raiz do repositorio, porque `plans/` mora fora de `apps/api`.
+# Sem este arquivo o Docker enviaria o repositorio inteiro como contexto — `fixtures/` sozinho
+# passa de 60 MB de fotografia, e nada disso entra na imagem.
+#
+# O padrao e negar tudo e reabrir o que a imagem usa, e nao listar exclusoes: com lista de
+# exclusoes, um diretorio novo entra no contexto sem ninguem decidir isso.
+*
+
+!apps/api/build/install/api
+!plans
