@@ -174,11 +174,53 @@ lembrar. É a decisão 3 aplicada à credencial, e não só ao 401.
 nome. Traduzi-lo para sessão expirada aqui seria o defeito que a tarefa 4.4 existe para demonstrar,
 e a 4.3 é quem tem o ponto único.
 
+### O 401 tratado pelo chamador, e a expiração escapando (tarefas 4.3 e 4.4)
+
+A mutação que a 4.4 pede, feita inteira: o `HttpResponseValidator` sai de `clienteApi`, o 401 passa
+a ser tratado dentro de `ApiPlatos.organizacoes()`, e nasce uma segunda chamada autenticada —
+`pacote(id)` — escrita por quem não sabia da regra. Foi assim que a árvore respondeu:
+
+| Teste | Sob a mutação |
+|---|---|
+| `ClienteApiTest > 401 leva a sessao a expirar` | vermelho |
+| `ClienteApiTest > 401 numa rota que ninguem previu tambem leva` | vermelho |
+| `ClienteApiTest > um 401 dispara uma expiracao, e nao duas` | vermelho |
+| `EscapeTemporarioTest > o 401 da segunda chamada nao expira a sessao` | **verde** |
+| Os onze cenários de `ApiPlatosTest` | **todos verdes** |
+
+As duas últimas linhas são o achado, e não as três primeiras.
+
+O teste temporário passando *é* o defeito: com o 401 no chamador, a segunda chamada autenticada
+devolve `Recusou(401)` e a sessão não fica sabendo. Nada na tela diz que a credencial morreu, e o
+professor vê uma falha genérica numa tela de trabalho — que é exatamente o que o requisito proíbe
+ao dizer que a expiração não pode ser adiada para falhar depois com mensagem que não seja sobre a
+sessão.
+
+E `ApiPlatosTest` inteiro continuou verde. Faz sentido: aquele arquivo exercita `organizacoes()`, e
+sob a mutação `organizacoes()` trata o 401 corretamente. Uma suíte escrita só contra o adaptador
+teria aprovado a versão defeituosa por unanimidade. **O que pega o defeito é o teste ser escrito
+contra o cliente, em rotas inventadas na hora** — `/exam-packages/42`, `/qualquer/coisa/futura`,
+que não têm método nenhum em `ApiPlatos`. A afirmação da 4.3 é sobre chamadas que ainda não
+existem, e por isso a verificação também precisa ser.
+
+É a mesma lição da tarefa 2.2 por outro caminho: lá os três cenários exercitavam o módulo Android,
+que era justamente onde a exigência fazia sentido, e por isso nenhum alcançava o defeito. Aqui os
+onze cenários exercitavam o método que trata o 401, que era justamente onde o defeito não estava.
+
+**O que não expira a sessão, e é decisão e não descuido.** 403, 500 e falha de transporte passam
+sem tocar na sessão, cada um com seu cenário. O transporte é o que mais importa: sem rede o
+aparelho não sabe nada sobre a validade da credencial, e apagá-la mandaria o professor digitar a
+senha de novo por causa de um túnel que caiu.
+
+**O interceptador é `HttpResponseValidator`, e não `ResponseObserver`.** O observador roda numa
+corrotina à parte, então a tela poderia desenhar o resultado da chamada antes de a sessão saber que
+expirou — uma corrida que passa em teste e aparece em sala.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
 |---|---|
-| O interceptador de 401 e a cifragem em repouso | Tarefas 4.3 a 4.6, ainda não implementadas |
+| A cifragem em repouso | Tarefas 4.5 e 4.6, ainda não implementadas |
 | O adaptador da API contra o servidor de verdade | `ApiPlatosTest` usa `MockEngine`, e o corpo que ele responde é literal escrito à mão a partir do contrato — não do servidor rodando. O que fecha isso é a tarefa 6.1 |
 | O **corpo de sucesso** da autenticação | O probe entra com senha errada de propósito, então nenhuma rodada autenticou. Os nomes de campo do DTO vêm da documentação do Supabase, não de medição desta base. Fecha na tarefa 6.1 |
 | O adaptador contra o servidor real, no CI | O probe é **pulado** no runner: não há `local.properties`, então não há projeto para medir. Ele é o instrumento da seção 6, e a classificação de falha é verificada na JVM por `AutenticacaoSupabaseTest` |
