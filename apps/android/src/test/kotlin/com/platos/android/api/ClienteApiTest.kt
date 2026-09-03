@@ -126,4 +126,43 @@ class ClienteApiTest {
 
         assertEquals(listOf("Bearer tok-abc", "Bearer tok-abc"), vistos)
     }
+
+    // --- A ordem, de que a fiacao da tarefa 5.5 depende ---
+
+    @Test
+    fun `a expiracao chega antes de a chamada retornar`() = runBlocking {
+        // Se chegasse depois, a fiacao aplicaria o retorno `Recusou(401)` primeiro, a sessao sairia
+        // de `Consultando`, e a guarda da tarefa 3.8 descartaria **a expiracao** em vez do retorno.
+        // O estado final seria "nao foi possivel obter sua organizacao" no lugar de "sua sessao
+        // expirou" — a tela mentindo sobre a causa, que e o defeito que a 3.8 fecha.
+        val ordem = mutableListOf<String>()
+        val engine = MockEngine {
+            respond("{}", HttpStatusCode.Unauthorized, headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+        val http = clienteApi(clienteHttp(engine), { "tok" }, aoExpirarSessao = { ordem += "expirou" })
+
+        http.get("https://api.platos.example/me/organizations")
+        ordem += "retornou"
+
+        assertEquals(listOf("expirou", "retornou"), ordem)
+    }
+
+    @Test
+    fun `a expiracao roda na thread de quem chamou`() = runBlocking {
+        // A sessao vive na thread principal e nao e thread-safe. Se o interceptador rodasse em
+        // outra, a fiacao teria de postar para a principal — e postar reintroduz a inversao de
+        // ordem que o cenario acima existe para impedir.
+        var threadDaExpiracao: String? = null
+        val engine = MockEngine {
+            respond("{}", HttpStatusCode.Unauthorized, headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+        val http = clienteApi(clienteHttp(engine), { "tok" }) {
+            threadDaExpiracao = Thread.currentThread().name
+        }
+
+        val quemChamou = Thread.currentThread().name
+        http.get("https://api.platos.example/me/organizations")
+
+        assertEquals(quemChamou, threadDaExpiracao)
+    }
 }

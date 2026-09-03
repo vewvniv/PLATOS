@@ -3,6 +3,7 @@ package com.platos.android.api
 import com.platos.android.net.Retorno
 import com.platos.android.net.clienteHttp
 import com.platos.android.session.Organizacao
+import com.platos.android.session.ResultadoDasOrganizacoes
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.request.HttpRequestData
@@ -185,5 +186,31 @@ class ApiPlatosTest {
 
         assertInstanceOf(Retorno.SemRede::class.java, retorno)
         Unit
+    }
+
+    // --- A traducao para a maquina de estados (tarefa 5.5) ---
+
+    @Test
+    fun `resposta vira Chegaram com as organizacoes`() {
+        val organizacoes = listOf(Organizacao("org-1", "Escola"))
+
+        val resultado = Retorno.Respondeu(organizacoes).paraSessao()
+
+        assertEquals(ResultadoDasOrganizacoes.Chegaram(organizacoes), resultado)
+    }
+
+    @Test
+    fun `401 vira Falhou como qualquer outra recusa, e nao SessaoExpirada`() {
+        // Parece errado, e e deliberado. Escrever `if (status == 401)` aqui poria na traducao a
+        // regra que a decisao 3 tirou dela — o defeito da tarefa 4.4. Nao e preciso: o
+        // interceptador ja levou a sessao a expirada **antes** de esta funcao existir no tempo, e a
+        // guarda da 3.8 descarta este `Falhou` porque a sessao ja saiu de `Consultando`.
+        assertEquals(ResultadoDasOrganizacoes.Falhou, Retorno.Recusou(401).paraSessao())
+        assertEquals(ResultadoDasOrganizacoes.Falhou, Retorno.Recusou(500).paraSessao())
+    }
+
+    @Test
+    fun `falha de transporte continua sendo SemRede depois da traducao`() {
+        assertEquals(ResultadoDasOrganizacoes.SemRede, Retorno.SemRede.paraSessao())
     }
 }

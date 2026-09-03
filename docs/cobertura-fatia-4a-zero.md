@@ -409,6 +409,42 @@ A segunda mutação existe por causa disso: ela afirma o **piso** de 60 s, não 
 o número sem enfrentar a pergunta. Quem fixa o valor de verdade é a tarefa 6.6, medindo contra o
 serviço real — e ela está na seção 6 porque depende do mesmo serviço que 6.1, 6.2 e 6.3 já exigem.
 
+### A fiação, e as três peças que seguram o 401 (tarefa 5.5)
+
+`SessaoActivity` liga adaptadores e escolhe tela. Nenhuma regra da fatia é reimplementada ali, e o
+caso que forçava a reimplementação — o que fazer com `Recusou(401)` — acabou resolvido por três
+peças, nenhuma delas na fiação:
+
+1. **o interceptador detecta** (4.3): qualquer 401, de qualquer rota, leva a sessão a expirada;
+2. **a ordem garante quem chega primeiro** (5.5): a expiração roda *antes* de a chamada retornar, e
+   na thread de quem chamou. Os dois cenários afirmam isso pelo nome em `ClienteApiTest`;
+3. **a guarda descarta o atrasado** (3.8): o `Falhou` que vem do retorno chega com a sessão já fora
+   de `Consultando`, e é ignorado.
+
+A peça 2 é a que quase ficou implícita. Se a expiração chegasse depois do retorno, a guarda
+descartaria **a expiração** em vez do retorno, e a tela diria "não foi possível obter sua
+organização" onde o que houve foi a sessão expirar — a mentira sobre a causa que a 3.8 existe para
+impedir. Ela vale porque `HttpResponseValidator` roda dentro da corrotina de quem chamou; se um dia
+passar a rodar solta, os dois cenários ficam vermelhos antes de alguém descobrir pela tela.
+
+`paraSessao()` mapeia `Recusou` para `Falhou` **sem olhar o status**, 401 inclusive, e um cenário
+afirma isso pelo nome. Parece errado lido isolado, e é por isso que está testado com o motivo
+escrito: `if (status == 401)` ali poria na tradução a regra que a decisão 3 tirou dela.
+
+**O `when` de estado para tela é exaustivo e sem `else`**, e a mutação foi vista:
+
+| Mutação | Resultado |
+|---|---|
+| Ramo de `SemOrganizacao` removido | `'when' expression must be exhaustive`, nomeando o ramo que falta |
+
+Não é teste, é compilação — mais barato e mais cedo. Este é o primeiro lugar onde os cinco estados
+se encontram, e com `else` um estado novo cairia numa tela por padrão. Tela errada apresentada com
+confiança é o modo de falha desta fatia inteira.
+
+**O requisito de não alcançar o escaneamento sem sessão é do manifesto, e não do código.** Conferido
+no manifesto mesclado: `SessaoActivity` é `exported=true` com `LAUNCHER`, e `ScanActivity` é
+`exported=false` sem `intent-filter` — nada fora do aplicativo a inicia.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |

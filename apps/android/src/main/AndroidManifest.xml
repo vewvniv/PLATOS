@@ -39,16 +39,33 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
+        <!--
+          Fatia 4a-zero, tarefa 5.5: a entrada e o lancamento. Abrir o aplicativo sem sessao chega
+          na entrada, e nao ha caminho daqui para o escaneamento sem passar pela tela de trabalho.
+
+          Sem `screenOrientation`, ao contrario da de escaneamento: a decisao 10 registra por que
+          travar esconderia o caso da recriacao em vez de resolve-lo.
+        -->
         <activity
-            android:name=".scan.ScanActivity"
+            android:name=".session.SessaoActivity"
             android:exported="true"
-            android:label="PLATOS"
-            android:screenOrientation="portrait">
+            android:label="PLATOS">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Deixa de ser o ponto de partida e passa a ser alcancada a partir da tela de trabalho.
+          `exported="false"` e o que sustenta o requisito: nada fora do aplicativo a inicia, entao
+          ninguem chega ao escaneamento sem ter passado pela sessao.
+        -->
+        <activity
+            android:name=".scan.ScanActivity"
+            android:exported="false"
+            android:label="PLATOS"
+            android:screenOrientation="portrait" />
 
     </application>
 
