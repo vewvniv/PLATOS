@@ -1,0 +1,71 @@
+name: Publicar imagem da API
+
+# Duas entradas, e nenhuma delas e "todo push".
+#
+# `workflow_run` depois do CI: a imagem so e publicada quando a suite que a aprova ja fechou verde
+# no mesmo commit. Publicar em paralelo com o CI colocaria no registro uma imagem que ninguem
+# afirmou, e o proximo deploy a pegaria.
+#
+# `workflow_dispatch`: para republicar sem esperar um commit novo -- reprocessar uma falha de rede
+# no push, por exemplo.
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  imagem:
+    # `workflow_run` dispara tambem quando o CI **falha**: o filtro de `types` nao distingue
+    # conclusao. Sem esta condicao, um CI vermelho publicaria imagem.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      # `workflow_run` roda no contexto do branch padrao, e nao no commit que disparou o CI. Sem
+      # `ref` explicito, a imagem sairia de um commit diferente do que o CI aprovou -- e as duas
+      # coisas so divergem quando alguem faz push durante o build, que e exatamente quando ninguem
+      # esta olhando.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # E aqui que o Docker do runner e indispensavel: `generateJooq` sobe um Postgres efemero por
+      # Testcontainers, e `sourceSets.main` depende da saida dele. E a razao de a imagem nao compilar
+      # nada por dentro -- dentro de um `docker build` nao ha daemon.
+      - name: Construir a distribuicao
+        run: ./gradlew :apps:api:installDist
+
+      - name: Entrar no GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # Duas tags de proposito. `latest` e o que o Render segue; `sha-<curto>` e imutavel e existe
+      # para voltar atras sem depender de reconstruir -- `latest` sozinho nao tem historia.
+      #
+      # O dono vai para minusculo porque o GHCR recusa maiuscula em nome de imagem, e o erro sai
+      # como "invalid reference format", que nao aponta para a causa.
+      - name: Construir e publicar
+        run: |
+          dono=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          imagem="ghcr.io/$dono/platos-api"
+          curto=$(git rev-parse --short HEAD)
+          docker build -f apps/api/Dockerfile -t "$imagem:latest" -t "$imagem:sha-$curto" .
+          docker push "$imagem:latest"
+          docker push "$imagem:sha-$curto"
+          echo "Publicado:"
+          echo "  $imagem:latest"
+          echo "  $imagem:sha-$curto"

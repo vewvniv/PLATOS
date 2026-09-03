@@ -6,7 +6,7 @@
 --    nominal. Ela nao oferecia: `exam_roster.display_name` e `not null` e nada distinguia nome
 --    civil de apelido.
 -- 2. ADR-0006 exige que toda tabela com dado pessoal nasca com finalidade e classe de retencao
---    declaradas. `0007_exam_tables.sql` nasceu sem, e nada acusava.
+--    declaradas. `..._exam_tables.sql` nasceu sem, e nada acusava.
 
 -- ---------------------------------------------------------------------------
 -- O modo e da organizacao, e o padrao e o codificado.
