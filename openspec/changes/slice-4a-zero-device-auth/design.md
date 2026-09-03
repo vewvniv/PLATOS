@@ -61,6 +61,38 @@ A sessão é guardada com `EncryptedSharedPreferences`, com chave no Android Key
 
 **Alternativa descartada:** Keystore direto, cifrando à mão. `EncryptedSharedPreferences` já é a composição das duas coisas, e escrever a cifragem à mão acrescenta superfície de erro sem acrescentar garantia.
 
+**Revisão de 2026-09-03: a API está depreciada, e a conclusão acima não muda.** Ao implementar a
+tarefa 4.5 o compilador acusou `EncryptedSharedPreferences`, `MasterKey` e `MasterKey.Builder` como
+depreciadas — em `security-crypto` a partir de `1.1.0-beta01`, e assim na `1.1.0` estável. Não há
+substituto no `androidx.security`: o grupo só tem `app-authenticator`, `identity-credential` (parado
+em `1.0.0-alpha03`) e `security-state`, que é outra biblioteca, sobre estado de atualização, e não
+tem relação com isto.
+
+**O motivo da depreciação é preferência da AndroidX por uso direto de Keystore e API de plataforma
+em vez da wrapper, e não falha de segurança na cifragem.** Essa distinção é o que decide: o
+argumento desta decisão contra cifrar à mão nunca dependeu de a API estar ativa — ele é sobre
+superfície de erro em código de criptografia escrito aqui. A informação nova **confirma** o
+argumento em vez de contrariá-lo, porque o que a depreciação propõe é exatamente a alternativa que
+esta decisão já havia descartado, e pelo mesmo motivo. Trocar agora seria substituir uma decisão
+registrada por preferência (`CLAUDE.md`, regra 5); registrar a informação nova ao lado dela é outra
+coisa.
+
+Também não cabe ADR: a decisão 5 é de implementação de uma fatia já decidida, e vive neste
+`design.md`. `ARQUITETURA-FINAL-v3.md` §17 não fixa como a credencial do aparelho é cifrada. Abrir
+ADR aqui trataria decisão de fatia como decisão de arquitetura.
+
+**Gatilho para reabrir**, o que vier primeiro:
+
+- a API for **removida**, e não apenas depreciada;
+- esta fatia passar a proteger dado além da credencial de sessão;
+- antes do primeiro release estável.
+
+**O custo aceito, e o que ele exige em troca.** Biblioteca depreciada não recebe correção, então o
+modo de falha conhecido dela passa a ser responsabilidade desta base: keyset corrompido ao abrir ou
+ao ler o armazenamento cifrado. Ele é tratado como sessão inválida — o aparelho volta à entrada e o
+professor autentica de novo —, e nunca como exceção que sobe. Deixá-lo subir transformaria um dado
+ilegível em aplicativo que não abre, que é pior do que pedir a senha outra vez.
+
 ### 6. Configuração por `BuildConfig`, alimentada fora do repositório
 
 URL do projeto Supabase, chave anônima e URL da API entram como campos de `BuildConfig` a partir de propriedades de build, não versionadas.
