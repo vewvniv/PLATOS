@@ -6,7 +6,7 @@
 ## 2. Dependências e configuração
 
 - [x] 2.1 Declarar `ktor-client` em `gradle/libs.versions.toml` e `apps/android/build.gradle.kts`, com a versão do Ktor referenciada de um lugar só. **`supabase-kt` não entra** — decisão 9, fechada com a medição da decisão 8. Resultado: `./gradlew :apps:android:assembleDebug` verde, APK registrado. O número que a 3c anotaria não existe; a linha de base é a medição de 2026-09-02, e o APK **subiu** 6 923 525 bytes, porque o cliente HTTP entra no aplicativo pela primeira vez e `auth-kt` nunca esteve nele.
-- [ ] 2.2 Campos de `BuildConfig` para URL do Supabase, chave anônima e URL da API, alimentados por propriedades de build não versionadas, com valores ausentes falhando o build com mensagem que diz qual falta. Resultado: nenhum segredo no repositório, e ambiente errado não passa em silêncio.
+- [x] 2.2 Campos de `BuildConfig` para URL do Supabase, chave anônima e URL da API, alimentados por propriedades de build não versionadas, com valores ausentes falhando o build com mensagem que diz qual falta. Resultado: nenhum segredo no repositório, e ambiente errado não passa em silêncio. Resolução `-P` → ambiente → `local.properties`; o CI alimenta por ambiente, com marcadores em `.invalido`. Três defeitos vistos falhar em `docs/cobertura-fatia-4a-zero.md`, e `ConfiguracaoTest` afirma do outro lado que o valor atravessou até `BuildConfig` na forma que quem chama assume.
 
 ## 3. A sessão, sem rede
 
