@@ -111,4 +111,5 @@ pergunta seguinte exige recompilar o probe.
 |---|---|
 | O interceptador de 401, a cifragem em repouso e a configuração | Tarefas 4.2 a 4.5, ainda não implementadas |
 | O **corpo de sucesso** da autenticação | O probe entra com senha errada de propósito, então nenhuma rodada autenticou. Os nomes de campo do DTO vêm da documentação do Supabase, não de medição desta base. Fecha na tarefa 6.1 |
+| O adaptador contra o servidor real, no CI | O probe é **pulado** no runner: não há `local.properties`, então não há projeto para medir. Ele é o instrumento da seção 6, e a classificação de falha é verificada na JVM por `AutenticacaoSupabaseTest` |
 | As telas | Seção 5, ainda não implementada |

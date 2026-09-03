@@ -14,6 +14,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.coroutines.runBlocking
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
 
@@ -30,6 +31,9 @@ import java.io.File
  * o engine OkHttp de verdade, contra o servidor de verdade, produza os mesmos tipos. Modo aviao
  * tambem so existe no aparelho. E essa diferenca que justifica este arquivo continuar existindo:
  * ele e o instrumento da secao 6, e nao verificacao automatica.
+ *
+ * **No CI ele e pulado**, e de proposito: o runner nao tem `local.properties`, entao nao ha projeto
+ * para medir. Ver `relatarFalha` para por que isso e `assumeTrue` e nao `check`.
  */
 class SupabaseFailureProbe {
 
@@ -61,9 +65,20 @@ class SupabaseFailureProbe {
 
     @Test
     fun relatarFalha() {
-        check(alvo == "morto" || urlReal.isNotBlank()) {
-            "falta `probe.supabaseUrl` em local.properties (ou o arg supabaseUrl)"
-        }
+        // `assumeTrue`, e nao `check`. Sem projeto configurado nao ha o que medir, e um probe que
+        // nao mediu **nao e uma falha**: `check` derrubava a suite instrumentada inteira no CI, que
+        // nao tem `local.properties`, por um motivo que nada tem a ver com o codigo do PR.
+        //
+        // Pular calado seria o defeito oposto, e por isso a mensagem nomeia o que falta: quem ler o
+        // relatorio da execucao ve "pulado, falta probe.supabaseUrl", e nao um verde que sugere que
+        // o aparelho falou com o servidor. O probe nao afirma nada nem quando roda; pular so torna
+        // isso explicito para quem le.
+        assumeTrue(
+            "probe pulado: falta `probe.supabaseUrl` em local.properties (ou o arg supabaseUrl). " +
+                "Este probe e o instrumento da secao 6 e so roda com um projeto Supabase real; " +
+                "a classificacao de falha e verificada na JVM por AutenticacaoSupabaseTest.",
+            alvo == "morto" || urlReal.isNotBlank(),
+        )
 
         val relato = buildString {
             appendLine("alvo=" + alvo)
