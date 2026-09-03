@@ -1,7 +1,20 @@
+// PROBE (conferencia em aparelho, secao 6). O import e obrigatorio: no Kotlin DSL do Gradle, `java` resolve para a
+// extensao do plugin Java e sombreia o pacote, entao `java.util.Properties` nao compila.
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.compiler)
+}
+
+// PROBE (secao 6): URL do projeto, chave anonima e e-mail saem de `local.properties`, que
+// ja e ignorado pelo git. Vao como argumentos do runner, e nao como `BuildConfig`: assim a chave
+// nao entra no APK, e nao vao pela linha de comando, entao tambem nao entram no historico do shell.
+// Nada disto e o mecanismo definitivo — esse e a tarefa 2.2, por `BuildConfig`.
+val probeProps = Properties().apply {
+    val arquivo = rootProject.file("local.properties")
+    if (arquivo.exists()) arquivo.inputStream().use { load(it) }
 }
 
 android {
@@ -15,6 +28,16 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // PROBE (secao 6). `alvo` fica de fora: vem por `-P` na linha de comando, e o
+        // probe imprime o que recebeu na primeira linha do relato — se o `-P` nao pegar, o
+        // cabecalho denuncia em vez de a rodada medir a condicao errada em silencio.
+        testInstrumentationRunnerArguments["supabaseUrl"] =
+            probeProps.getProperty("probe.supabaseUrl", "")
+        testInstrumentationRunnerArguments["anonKey"] =
+            probeProps.getProperty("probe.anonKey", "")
+        testInstrumentationRunnerArguments["email"] =
+            probeProps.getProperty("probe.email", "probe@example.invalid")
     }
 
     buildFeatures {
@@ -123,8 +146,18 @@ dependencies {
     implementation(libs.camerax.lifecycle)
     implementation(libs.camerax.view)
 
+    // Fatia 4a-zero: o aparelho fala com a rede. Uma pilha HTTP so, para autenticacao e para
+    // dados — a decisao 9 registra por que a autenticacao **nao** usa `supabase-kt`.
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.json)
+
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
+    // `MockEngine` responde no lugar do servidor. E o que permite exercitar a classificacao de
+    // falha na JVM: 400 de verdade, `IOException` de verdade, sem rede e sem aparelho.
+    testImplementation(libs.ktor.client.mock)
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.junit)

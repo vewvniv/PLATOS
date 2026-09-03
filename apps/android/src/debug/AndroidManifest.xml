@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PROBE (conferencia em aparelho, secao 6). So no variante `debug`: o APK de release nao ganha
+  permissao nenhuma por causa de uma medicao. O `androidTest` roda dentro do processo do aplicativo,
+  entao e o manifesto do aplicativo que precisa declarar INTERNET — o do test APK nao serve.
+
+  **O adaptador de entrada ja vive em `main`, e a permissao ainda nao.** Um APK de release tem o
+  codigo de rede e nao tem INTERNET. Hoje isso nao se manifesta porque nenhuma tela chega ao
+  adaptador; quando a secao 5 trouxer a entrada, a falha seria `SocketException: EPERM`, que o
+  classificador apresenta como "sem rede" — sintoma que nao aponta para a causa. Mover a permissao
+  para o manifesto principal e a tarefa 5.0, escrita para que isso nao dependa de alguem lembrar.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>
