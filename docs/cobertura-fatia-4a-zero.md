@@ -595,6 +595,34 @@ nunca começa em `Ativa` — era o *starting window* que o Android desenha com a
 anterior. É o mesmo problema de âncora do modo avião da 6.2, por outro caminho: numa conferência
 dirigida por `adb`, o primeiro frame depois de um `am start` não é confiável.
 
+### A sessão expirada, esperada de verdade (tarefa 6.2, terceiro estado)
+
+Não há atalho para invalidar uma sessão do lado do servidor, e as três tentativas óbvias falham por
+motivos diferentes: revogar a sessão no painel não invalida um access token já emitido; apagar o
+usuário também não, porque a assinatura continua válida e `bootstrap_identity` recriaria o
+`app_user`; e baixar o *JWT expiry* não encurta token já emitido — `exp` é gravado na emissão.
+
+Então esperou-se. O JWT dura 3600 s, conferido decodificando `exp - iat`. Uma sondagem reabriu o
+aplicativo a cada 5 min:
+
+```
++5min   Buscando suas organizacoes
++10min  professor2 | Escanear folha | Sair
+...
++37min  professor2 | Escanear folha | Sair
++42min  Sua sessao expirou. Entre de novo para continuar.
+```
+
+**Uma verificação a mais, que a tarefa não pedia.** Reabrir o aplicativo depois disso cai na entrada
+**sem faixa nenhuma**. A diferença importa: com faixa, o motivo teria sobrevivido ao fechamento e a
+credencial poderia continuar no disco; sem faixa, o estado foi reconstruído a partir do
+armazenamento e `credencial()` devolveu `null` — a credencial foi mesmo apagada. O arquivo cifrado
+continua existindo, porque ele guarda o keyset do Tink; o que sumiu foi a chave dentro dele, que é o
+que `apagarCredencial` faz.
+
+Com isso os três estados de falha da spec estão vistos em aparelho, cada um provocado pela sua causa
+real, e nenhum apresentado como o outro.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
