@@ -1,6 +1,8 @@
 package com.platos.android.net
 
 import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.plugins.HttpTimeoutConfig
+import io.ktor.client.plugins.HttpTimeoutCapability
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.request.get
 import io.ktor.client.statement.HttpResponse
@@ -10,6 +12,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -68,5 +71,24 @@ class TempoLimiteTest {
             TEMPO_LIMITE_DE_PEDIDO_MS >= 60_000,
             "tempo limite em $TEMPO_LIMITE_DE_PEDIDO_MS ms: cold start viraria SemRede",
         )
+    }
+
+    @Test
+    fun `o tempo limite de soquete chega ao engine, e nao so o do pedido`() = runBlocking {
+        // A guarda contra o defeito da tarefa 6.1, e ela e fraca de proposito -- nao afirma que o
+        // soquete espera 90 s, porque `MockEngine` nao tem soquete. Afirma que o valor **chega ao
+        // engine**, que e exatamente o elo que faltava: `requestTimeoutMillis` nao substitui os
+        // tempos limite do engine, so acrescenta um teto por cima, e sem esta linha o OkHttp seguia
+        // com os 10 s de leitura que traz por padrao.
+        var tempos: HttpTimeoutConfig? = null
+        val engine = MockEngine { pedido ->
+            tempos = pedido.getCapabilityOrNull<HttpTimeoutConfig>(HttpTimeoutCapability)
+            respond("ok", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, ContentType.Text.Plain.toString()))
+        }
+
+        clienteHttp(engine).get("https://api.platos.example/health")
+
+        assertEquals(TEMPO_LIMITE_DE_PEDIDO_MS, tempos?.socketTimeoutMillis)
+        assertEquals(TEMPO_LIMITE_DE_PEDIDO_MS, tempos?.requestTimeoutMillis)
     }
 }

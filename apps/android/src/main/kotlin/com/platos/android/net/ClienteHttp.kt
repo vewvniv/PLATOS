@@ -43,11 +43,26 @@ fun clienteHttp(
      * caso: o comentario dele cita `HttpRequestTimeoutException` entre os `IOException` que viram
      * `SemRede`. O plugin e que faltava; classificacao nova, nenhuma.
      *
-     * So `requestTimeoutMillis`. Ele cobre o pedido inteiro, que e o que o requisito pede; fixar
-     * tambem conexao e soquete seria tres numeros para medir e justificar, quando um responde.
+     * **Revisao de 2026-09-04: `socketTimeoutMillis` entrou, e a razao importa.** A versao original
+     * fixava so `requestTimeoutMillis`, argumentando que um numero responde pelo pedido inteiro. O
+     * que ela nao sabia e que `requestTimeoutMillis` **nao substitui** os tempos limite proprios do
+     * engine: ele acrescenta um teto por cima, e por baixo o OkHttp seguia com os 10 s de leitura
+     * que traz por padrao. Numa cold start do Render a conexao e aceita na hora e o soquete fica em
+     * silencio por 40 s — entao os 10 s disparavam primeiro, `SocketTimeoutException` virava
+     * `SemRede`, e os 90 s nunca chegavam a agir.
+     *
+     * Visto em aparelho na tarefa 6.1, e nao em teste: a consulta morreu aos ~11 s contra um
+     * servico frio, com a rede boa. `MockEngine` nao tem tempo limite de soquete, entao **nenhum
+     * teste de JVM desta base pegaria isso** — quem pegou foi a secao 6.
+     *
+     * `connectTimeoutMillis` **nao** sobe, e isso tambem e por evidencia: as duas medicoes de cold
+     * start mostraram conexao e TLS entre 0,06 s e 0,12 s. A demora e toda no primeiro byte, que e
+     * o que o tempo limite de soquete governa. Mexer no que nao foi observado falhando seria
+     * correcao por precaucao.
      */
     install(HttpTimeout) {
         requestTimeoutMillis = tempoLimiteMs
+        socketTimeoutMillis = tempoLimiteMs
     }
 
     install(ContentNegotiation) {

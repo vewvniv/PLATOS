@@ -524,13 +524,83 @@ mostra X" e "a tela ainda mostra X" são indistinguíveis sem uma âncora**. O q
 consultar a posição e o estado do botão no dump antes de concluir — e, no caminho certo, o estado
 intermediário `Entrando...` seria a âncora natural, se a tentativa tivesse ocorrido.
 
+### O tempo limite que nunca agiu, e o que so o servico real mostrou (tarefas 6.1 e 4.7)
+
+A primeira entrada com credencial válida **falhou**, e o modo de falha era exatamente o que a tarefa
+4.7 existia para impedir: `Nao foi possivel falar com o servidor` com a rede boa.
+
+| t | Tela |
+|---|---|
+| 2 s | `Entrando...` |
+| 7 s | `Buscando suas organizacoes` |
+| **18 s** | `Nao foi possivel falar com o servidor` |
+
+A consulta morreu aos ~11 s, contra um serviço em cold start que leva 40–60 s, e com um tempo limite
+declarado de 90 s.
+
+**A causa.** `requestTimeoutMillis` do Ktor **não substitui** os tempos limite do engine — ele
+acrescenta um teto por cima. Por baixo, o OkHttp seguia com os 10 s de leitura que traz por padrão.
+Numa cold start a conexão é aceita na hora e o soquete fica em silêncio por dezenas de segundos: os
+10 s disparam primeiro, `SocketTimeoutException` é `IOException`, vira `SemRede`, e os 90 s nunca
+chegam a agir. Os ~11 s observados são os 10 s do padrão mais o overhead.
+
+A decisão da 4.7 não estava errada em querer um número só. Estava errada em assumir que esse número
+era o único tempo limite em jogo — mesma forma da revisão do `EncryptedSharedPreferences`: decisão
+certa com a informação que havia, e a informação nova completa o dado em vez de invalidar o
+raciocínio.
+
+**A medição por `curl` chegou a reforçar a conclusão errada.** Ela mostrou conexão e TLS entre
+0,06 s e 0,12 s, e daí se concluiu que `connectTimeoutMillis` era irrelevante — o que é verdade. O
+que passou batido é que a espera pelo primeiro byte, o número grande na mesma tabela, é governada
+pelo tempo limite de **soquete**. O dado certo estava à vista e foi lido pela metade.
+
+**A correção sobe só `socketTimeoutMillis`.** `connectTimeoutMillis` fica como está, por evidência e
+não por simetria: as três medições mostraram conexão instantânea inclusive em cold start, e mexer no
+que não foi observado falhando seria correção por precaução.
+
+**Nenhum teste de JVM desta base pegaria isso**, e não é falha de quem escreveu: `MockEngine` não
+tem soquete, então tempo limite de soquete não existe para ele. O teste da 4.7 passava antes e
+depois. Quem pegou foi a seção 6, com serviço de verdade — é literalmente para isto que ela existe.
+
+A guarda que entrou é fraca e sabe disso: o Ktor propaga os tempos limite ao engine como
+*capability* do pedido, e o `MockEngine` consegue lê-la. O cenário afirma que `socketTimeoutMillis`
+**chega ao engine** — o elo que faltava —, e não que o soquete espera 90 s. Removendo a linha, ele
+fica vermelho.
+
+**A prova de verdade, sem atalho:** serviço deixado esfriar por 17 min, aplicativo reaberto.
+
+| t | Tela |
+|---|---|
+| 3 s | `Entrando...` |
+| 8 s | `Buscando suas organizacoes` |
+| **66 s** | tela de escolha, com `professor1` e `Escola de Teste` |
+
+A consulta levou 58 s e sobreviveu. **É a terceira medição de cold start, e a mais alta** — 43,4 s e
+53,5 s por `curl` em `/health`, 58 s pelo caminho real em `/me/organizations`. Se o valor tivesse
+sido baixado para os 60 s do piso, esta requisição teria falhado com 2 segundos de folga. Os 90 s
+deixam de ser conservadorismo e passam a ser margem medida.
+
+### As conferências que fecharam (tarefas 6.1, 6.3, 6.4 e 6.5)
+
+| Conferência | O que se viu |
+|---|---|
+| 6.1 nome vindo da API | `professor1`, derivado da parte local do e-mail por `bootstrap_identity` |
+| 6.3 consulta falha após autenticar | explicação sem nome nenhum, varrido contra `professor1`, `professor2`, `Escola de Teste`, `Minha organizacao` e `Carregando` |
+| 6.4 escolha sobrevive ao fechamento | `am force-stop` com pid zerado conferido; reabertura direta em 3 s, sem perguntar |
+| 6.5 sem herança entre usuários | `professor2` entrou e caiu na organização dele; `Escola de Teste` ausente da tela |
+
+**Um artefato do instrumento, registrado para quem repetir.** Na 6.3, o dump aos 3 s mostrou a tela
+de trabalho anterior. Não era conteúdo vivo: o estado nasce em `Entrada` e vai para `Consultando`, e
+nunca começa em `Ativa` — era o *starting window* que o Android desenha com a captura da instância
+anterior. É o mesmo problema de âncora do modo avião da 6.2, por outro caminho: numa conferência
+dirigida por `adb`, o primeiro frame depois de um `am start` não é confiável.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
 |---|---|
 | A cifragem em repouso **fora do emulador** | Fechada no `platos-atd34` (tarefa 4.6), com quatro mutações. Num aparelho real o Keystore é respaldado por hardware, e no emulador não — o que muda é a força da chave, e não onde o token é gravado, que é o que o teste afirma. A conferência em aparelho é a seção 6 |
-| O adaptador da API contra o servidor de verdade | `ApiPlatosTest` usa `MockEngine`, e o corpo que ele responde é literal escrito à mão a partir do contrato — não do servidor rodando. O que fecha isso é a tarefa 6.1 |
+| O **comportamento do engine HTTP** | `MockEngine` não tem soquete nem conexão real, então nenhum tempo limite de engine existe para ele. O defeito do `socketTimeoutMillis` viveu por isso, e a guarda que entrou verifica propagação de configuração, não comportamento. Só serviço real pega |
 | O **corpo de sucesso** da autenticação | O probe entra com senha errada de propósito, então nenhuma rodada autenticou. Os nomes de campo do DTO vêm da documentação do Supabase, não de medição desta base. Fecha na tarefa 6.1 |
-| O número do tempo limite de pedido | 90 s é provisório, escolhido sobre a faixa relatada de cold start do Render e não medido contra o nosso servidor. O teste afirma o **piso** de 60 s, e não o valor. Fecha na 6.6 |
 | O adaptador contra o servidor real, no CI | O probe é **pulado** no runner: não há `local.properties`, então não há projeto para medir. Ele é o instrumento da seção 6, e a classificação de falha é verificada na JVM por `AutenticacaoSupabaseTest` |
 | O que as telas **desenham** | As decisões de texto saíram para funções puras e estão verificadas (5.1, 5.4). O que nenhum teste desta base alcança é o `@Composable` em si: um literal digitado lá, ignorando o parâmetro, passa por tudo — visto acontecer na terceira mutação da 5.4b. Fecharia com teste de Compose, que exige aparelho |
