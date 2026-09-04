@@ -34,6 +34,10 @@ Crítico é o que falha em silêncio e chega à folha impressa ou ao OMR — med
 - Cubra `NaN`, infinito, vazio e fora de faixa. `NaN > tolerância` é falso e passa calado.
 - Confira valor numérico contra oracle independente, que não compartilhe código com o que ele julga.
 - Desconfie de janela de medição que alcance o vizinho, e de contagem feita sobre cache.
+- Rode o **comando completo do CI**, e não a versão filtrada, antes de publicar mudança que toque
+  build, manifesto ou suíte instrumentada. `./gradlew build` não roda `connectedDebugAndroidTest`,
+  e `--tests` de uma classe não roda as outras. Duas vezes o comando estreito local escondeu o que
+  o cheio pega.
 - Registre em `docs/cobertura-*.md` como o teste foi visto falhar, não só que ele passa.
 
 ## Invariantes arquiteturais

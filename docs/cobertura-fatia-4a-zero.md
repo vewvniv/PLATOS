@@ -475,6 +475,31 @@ desde que a previsão foi escrita, e as duas apareceram por mutação e não por
 `@Composable` desenha (5.4b) e o número do tempo limite (4.7). Nenhuma das duas era esperada, e as
 duas estão registradas como lacuna, não como risco mitigado.
 
+### O falso vermelho, e o buraco verdadeiro que ele revelou (tarefa 7.1)
+
+O CI acusou `paridade` vermelha na PR #30, com paridade verde nas quatro execuções anteriores de
+`main` — inclusive no commit imediatamente anterior à branch. A leitura óbvia era regressão. **Não
+era.** O workflow tem `concurrency: cancel-in-progress: true`, e o push seguinte cancelou a execução
+em andamento; o passo fica marcado como falha e o log dele não tem erro nenhum, só limpeza de
+pós-job. A execução do commit seguinte fechou verde nos três jobs.
+
+O sinal era falso, e a investigação achou um buraco verdadeiro do lado: **`./gradlew build` não roda
+`connectedDebugAndroidTest`**, e localmente a suíte instrumentada só tinha sido executada com filtro
+de classe (`-Pandroid.testInstrumentationRunnerArguments.class=...`). A tarefa 7.1 afirmava um verde
+que não cobria o que o CI cobre. Rodando o comando cheio no `platos-atd34` — mesma imagem do CI,
+conferida antes de a comparação valer alguma coisa: `android-34/aosp_atd/x86_64`, `pixel_6` — foram
+46 testes e zero falhas.
+
+**É a segunda vez nesta base que um comando estreito local esconde o que o comando cheio do CI pega.**
+A primeira foi a tarefa 2.2: os três cenários exercitavam o módulo Android, que era onde a exigência
+fazia sentido, e por isso nenhum alcançava o defeito — quem acusou foi o CI. A regra que sai daí está
+no `CLAUDE.md`, na seção de verificação, e não neste arquivo: ela não é desta fatia.
+
+Duas leituras que valem separadas. Primeira: comparar contra o histórico do mesmo job em `main` foi o
+passo certo, e teria evitado horas se a conclusão parasse em "isto é meu" apenas depois de ler o log.
+Segunda: um passo marcado como falha **sem erro no log** é sinal de cancelamento, e não de defeito —
+custa uma linha conferir a conclusão da execução inteira antes de caçar causa.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |

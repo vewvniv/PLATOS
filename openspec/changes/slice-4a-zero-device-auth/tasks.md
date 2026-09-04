@@ -54,7 +54,17 @@
 
 ## 7. Verificação final
 
-- [x] 7.1 Rodar `./gradlew build` e os testes de JVM do módulo Android. Resultado: verde, com `lintDebug` incluído. Conferido que `lintDebug` e `testDebugUnitTest` estão **no grafo** de `build` (`--dry-run`) e que executaram de fato: rodada com `--rerun-tasks`, **173 de 173 tarefas executadas**, nenhuma `UP-TO-DATE`. 109 testes no Android, 107 na API, 299 em `packages/domain` (jvmTest), zero falhas. Onze avisos do compilador, **todos pré-existentes** em arquivos de teste de `apps/api` e `packages/domain`, e zero em `apps/android` — a rodada incremental os escondia, porque nada recompilava.
+- [x] 7.1 **Reaberta e fechada de novo em 2026-09-04.** Rodar `./gradlew build` e os testes de JVM do módulo Android. Resultado: verde, com `lintDebug` incluído. Conferido que `lintDebug` e `testDebugUnitTest` estão **no grafo** de `build` (`--dry-run`) e que executaram de fato: rodada com `--rerun-tasks`, **173 de 173 tarefas executadas**, nenhuma `UP-TO-DATE`. 109 testes no Android, 107 na API, 299 em `packages/domain` (jvmTest), zero falhas. Onze avisos do compilador, **todos pré-existentes** em arquivos de teste de `apps/api` e `packages/domain`, e zero em `apps/android` — a rodada incremental os escondia, porque nada recompilava.
+  **Por que reabriu, e por que fechou.** O CI acusou `paridade` vermelha na PR #30, com paridade
+  verde nas quatro execuções anteriores de `main`. A causa **não era regressão**: o workflow tem
+  `concurrency: cancel-in-progress: true`, e o push seguinte cancelou a execução em andamento — o
+  passo aparece como falha, e o log dele não tem erro nenhum, só limpeza de pós-job. A execução do
+  commit seguinte fechou verde nos três jobs.
+  **O que a investigação achou de verdade** foi outra coisa, e essa era real: `./gradlew build`
+  **não** roda a suíte instrumentada, e localmente ela só tinha sido executada com filtro de classe.
+  A 7.1 afirmava um verde que não cobria o que o CI cobre. Corrigido rodando
+  `./gradlew :apps:android:connectedDebugAndroidTest` sem filtro no `platos-atd34` — mesma imagem do
+  CI, conferida (`android-34/aosp_atd/x86_64`, `pixel_6`): **46 testes, zero falhas**.
 - [x] 7.2 Completar `docs/cobertura-fatia-4a-zero.md` com como cada verificação crítica foi vista falhar, **e com o que ficou sem teste automático e por quê** — o interceptador de 401, a cifragem em repouso, a configuração e o corpo de sucesso da autenticação. **A lista envelheceu, e o registro diz isso**: os três primeiros fecharam, sempre pelo mesmo movimento — tirar a decisão de dentro do adaptador. Só o corpo de sucesso continua descoberto, porque ele não é encanamento e sim um fato sobre servidor de terceiro. Duas lacunas novas entraram, e as duas apareceram por mutação e não por revisão: o que um `@Composable` desenha, e o número do tempo limite.
 - [x] 7.3 Rodar `openspec validate slice-4a-zero-device-auth --strict`. Verde: `Change 'slice-4a-zero-device-auth' is valid`.
 - [x] 7.4 Conferir que `packages/domain`, `apps/api` e `apps/web` não foram tocados, que nenhuma spec existente mudou, e que o `assets.open` continua onde está — ele sai na 4a, e não aqui. Conferido contra `origin/main`: zero arquivos nos três módulos, zero specs existentes alteradas, `assets.open` intacto em `ScanActivity.kt:66` e nenhum arquivo de `scan/` tocado — só a declaração dele no manifesto.
