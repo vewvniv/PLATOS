@@ -500,6 +500,30 @@ passo certo, e teria evitado horas se a conclusão parasse em "isto é meu" apen
 Segunda: um passo marcado como falha **sem erro no log** é sinal de cancelamento, e não de defeito —
 custa uma linha conferir a conclusão da execução inteira antes de caçar causa.
 
+### Os dois primeiros estados de falha, em aparelho (tarefa 6.2, parcial)
+
+No `platos-atd34`, contra o projeto Supabase real, com a aplicação instalada e dirigida por `adb`.
+
+| Condição | O que a tela disse |
+|---|---|
+| Credencial inexistente no projeto | `E-mail ou senha nao conferem. Confira os dois e tente de novo.` |
+| Modo avião, **mesma** credencial nos campos | `Nao foi possivel falar com o servidor. Confira a conexao e tente de novo.` |
+
+A segunda linha é o que o requisito exige e o que a tarefa 1.1 mediu de antemão: mesma entrada, causa
+diferente, frase diferente. A tela permaneceu na entrada nos dois casos, com a senha mascarada e o
+e-mail preservado.
+
+**A primeira rodada do modo avião deu falso positivo, e o erro foi do instrumento.** A faixa
+continuou dizendo "E-mail ou senha nao conferem" — o que parecia o defeito exato que o requisito
+proíbe. Não era: o botão havia **descido 64 px** porque a faixa da tentativa anterior entrou no
+layout, e o toque em `y=1490` caiu acima dele. A faixa exibida era a antiga, e nenhuma tentativa
+nova tinha acontecido.
+
+Vale escrito porque a lição não é sobre coordenadas: **numa conferência dirigida por `adb`, "a tela
+mostra X" e "a tela ainda mostra X" são indistinguíveis sem uma âncora**. O que separou os dois foi
+consultar a posição e o estado do botão no dump antes de concluir — e, no caminho certo, o estado
+intermediário `Entrando...` seria a âncora natural, se a tentativa tivesse ocorrido.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
