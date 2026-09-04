@@ -139,11 +139,496 @@ diferente do que aconteceu com o probe, que foi para o CI sem essa conferência 
 `ConfiguracaoTest` roda no CI com os valores de marcador e continua valendo: o que ele afirma é
 forma, e não qual projeto. Afirmar o projeto exigiria versionar o projeto.
 
+### O espelho do contrato e a credencial em cada chamada (tarefa 4.2)
+
+O DTO de organização do aparelho é **espelho** do `OrganizationDto` do servidor, e não o mesmo
+arquivo: os dois módulos dependem de `packages:domain`, então compartilhar de verdade seria
+possível, e esta fatia declara `packages/domain` e `apps/api` intocados. O custo dessa escolha é
+deriva silenciosa entre os dois lados, e quem paga por ela é `ApiPlatosTest`, que fixa o JSON
+literal que o servidor emite — com os valores que `MeOrganizationsTest` afirma do outro lado.
+
+Três mutações, todas revertidas:
+
+| Mutação | O que ficou vermelho |
+|---|---|
+| A credencial deixa de ser posta por `defaultRequest` | `a credencial da sessao viaja como Bearer`, `a credencial e lida a cada chamada` |
+| `name` ganha valor padrão, como o DTO da credencial tem | `contrato quebrado estoura em vez de virar organizacao sem nome` |
+| O espelho deriva do servidor (`name` → `title`) | quatro cenários, entre eles os dois da credencial |
+
+A terceira é a que importa para a escolha de espelhar. Ela derruba mais do que os testes de
+contrato porque o corpo de sucesso deixa de desserializar, e aí nem a chamada chega a acontecer —
+deriva de um campo só não fica confinada ao campo.
+
+**Por que `name` é obrigatório aqui e o token não era.** `CredencialDeSessao` dá padrão a tudo menos
+ao `access_token`, e a razão está escrita lá: aquele corpo nunca foi medido, vem da documentação de
+terceiro, e campo ausente é possibilidade real. Este contrato está neste repositório, com teste do
+outro lado. Campo que suma é contrato quebrado, e precisa estourar em vez de virar string vazia que
+a tela apresentaria como nome de organização — que é o mesmo defeito da tarefa 3.4, entrando por
+outra porta.
+
+**A credencial não é posta pelo método que chama.** Existe um endpoint só, e mesmo assim o cabeçalho
+sai de `defaultRequest`: quem acrescentar o segundo não tem como esquecer, porque não há nada para
+lembrar. É a decisão 3 aplicada à credencial, e não só ao 401.
+
+**O 401 continua cru.** `organizacoes()` devolve `Retorno.Recusou(401)`, e um teste afirma isso pelo
+nome. Traduzi-lo para sessão expirada aqui seria o defeito que a tarefa 4.4 existe para demonstrar,
+e a 4.3 é quem tem o ponto único.
+
+### O 401 tratado pelo chamador, e a expiração escapando (tarefas 4.3 e 4.4)
+
+A mutação que a 4.4 pede, feita inteira: o `HttpResponseValidator` sai de `clienteApi`, o 401 passa
+a ser tratado dentro de `ApiPlatos.organizacoes()`, e nasce uma segunda chamada autenticada —
+`pacote(id)` — escrita por quem não sabia da regra. Foi assim que a árvore respondeu:
+
+| Teste | Sob a mutação |
+|---|---|
+| `ClienteApiTest > 401 leva a sessao a expirar` | vermelho |
+| `ClienteApiTest > 401 numa rota que ninguem previu tambem leva` | vermelho |
+| `ClienteApiTest > um 401 dispara uma expiracao, e nao duas` | vermelho |
+| `EscapeTemporarioTest > o 401 da segunda chamada nao expira a sessao` | **verde** |
+| Os onze cenários de `ApiPlatosTest` | **todos verdes** |
+
+As duas últimas linhas são o achado, e não as três primeiras.
+
+O teste temporário passando *é* o defeito: com o 401 no chamador, a segunda chamada autenticada
+devolve `Recusou(401)` e a sessão não fica sabendo. Nada na tela diz que a credencial morreu, e o
+professor vê uma falha genérica numa tela de trabalho — que é exatamente o que o requisito proíbe
+ao dizer que a expiração não pode ser adiada para falhar depois com mensagem que não seja sobre a
+sessão.
+
+E `ApiPlatosTest` inteiro continuou verde. Faz sentido: aquele arquivo exercita `organizacoes()`, e
+sob a mutação `organizacoes()` trata o 401 corretamente. Uma suíte escrita só contra o adaptador
+teria aprovado a versão defeituosa por unanimidade. **O que pega o defeito é o teste ser escrito
+contra o cliente, em rotas inventadas na hora** — `/exam-packages/42`, `/qualquer/coisa/futura`,
+que não têm método nenhum em `ApiPlatos`. A afirmação da 4.3 é sobre chamadas que ainda não
+existem, e por isso a verificação também precisa ser.
+
+É a mesma lição da tarefa 2.2 por outro caminho: lá os três cenários exercitavam o módulo Android,
+que era justamente onde a exigência fazia sentido, e por isso nenhum alcançava o defeito. Aqui os
+onze cenários exercitavam o método que trata o 401, que era justamente onde o defeito não estava.
+
+**O que não expira a sessão, e é decisão e não descuido.** 403, 500 e falha de transporte passam
+sem tocar na sessão, cada um com seu cenário. O transporte é o que mais importa: sem rede o
+aparelho não sabe nada sobre a validade da credencial, e apagá-la mandaria o professor digitar a
+senha de novo por causa de um túnel que caiu.
+
+**O interceptador é `HttpResponseValidator`, e não `ResponseObserver`.** O observador roda numa
+corrotina à parte, então a tela poderia desenhar o resultado da chamada antes de a sessão saber que
+expirou — uma corrida que passa em teste e aparece em sala.
+
+### O keyset corrompido, e a API depreciada que o torna nosso (tarefa 4.5)
+
+`security-crypto` está depreciada a partir de `1.1.0-beta01`, e a revisão de 2026-09-03 da decisão 5
+registra por que ela fica: a depreciação é a AndroidX preferindo Keystore direto à wrapper, e não
+falha de segurança — então ela propõe justamente a alternativa que a decisão 5 já havia descartado,
+pelo mesmo motivo. O que muda não é a escolha, é a consequência: **biblioteca depreciada não recebe
+correção, então o modo de falha conhecido dela passa a ser responsabilidade desta base.**
+
+Esse modo é um só: keyset corrompido. Ele aparece em dois momentos, que pedem respostas diferentes.
+
+| Momento | Resposta | Por quê |
+|---|---|---|
+| Ao **abrir** o arquivo cifrado | descarta e tenta de novo, uma vez | tem conserto: keyset novo, sessão perdida |
+| Ao **ler** um valor | sessão inválida | não tem conserto: valor que não decifra é valor perdido |
+
+Nos dois casos o desfecho é a tela de entrada, e nunca uma exceção que sobe. Pedir a senha outra vez
+é o pior desfecho aceitável; deixar subir daria um aplicativo que não abre, a partir de um dado
+ilegível.
+
+**A decisão não mora no adaptador, e essa é a razão de haver teste.** `abrindoOuDescartando` e
+`lendoOuSessaoInvalida` não conhecem Android: a corrupção entra como exceção lançada por uma lambda,
+que é a forma com que ela chega do `EncryptedSharedPreferences`. Se elas vivessem dentro de
+`SessaoGuardadaAndroid`, só um teste instrumentado as alcançaria, e o único modo de falha conhecido
+desta escolha ficaria sem cobertura até alguém ligar um aparelho. É a mesma fronteira da decisão 1,
+aplicada a um lugar onde ela não era óbvia.
+
+Duas mutações, revertidas:
+
+| Mutação | O que ficou vermelho |
+|---|---|
+| Abrir sem tratamento nenhum | os três cenários de corrupção ao abrir |
+| `SecurityException` fora da lista da leitura | `SecurityException tambem e sessao invalida` |
+
+A segunda é a que quase não foi escrita. `EncryptedSharedPreferences` embrulha falha de decifragem
+em `SecurityException`, que **não** desce de `GeneralSecurityException` — o caso mais provável
+escaparia de um `catch` que parecesse completo. Uma lista de exceções não é verificada por leitura.
+
+**O que continua subindo, e é decisão.** Exceção que não é corrupção passa direto, nos dois pontos,
+com um cenário para cada. Engolir o desconhecido transformaria defeito de programação em "sem
+sessão", e o sintoma seria o professor reautenticando para sempre sem nada dizer por quê. É o mesmo
+critério de `retornoDe`, que deixa `JsonConvertException` subir em vez de chamá-la de "sem rede".
+
+### A credencial em repouso, no aparelho (tarefa 4.6)
+
+Os dois cenários de credencial em repouso da spec, rodados no `platos-atd34` (API 34, `aosp_atd`,
+x86_64), em 2026-09-03. Eles não rodam na JVM: `EncryptedSharedPreferences` exige o Keystore, e
+"está cifrado" só se afirma lendo o que foi gravado.
+
+**Procurar um token e não achar passa por vários motivos errados** — a busca olhando no lugar
+errado, nada tendo sido gravado, o arquivo ainda não tendo chegado ao disco. Por isso o teste grava
+duas coisas: a credencial, que deve sumir, e o identificador da organização, que é preferência e
+fica em claro de propósito. Achar o segundo é o que prova que a busca alcança os arquivos e sabe
+ler o que há neles; só depois disso não achar o primeiro significa alguma coisa. Esperar pelo
+identificador também é o que sincroniza o teste com o `apply()`, que grava fora da linha de
+execução.
+
+Seis mutações, todas revertidas:
+
+| Mutação | O que ficou vermelho |
+|---|---|
+| Sessão guardada em claro, confiando só no sandbox | `o token aparece como texto legivel no armazenamento` |
+| Token guardado em Base64 | `o token aparece apenas codificado em Base64, que nao protege nada` |
+| `allowBackup` de volta para `true` | `FLAG_ALLOW_BACKUP esta ligada`, `expected:<0> but was:<32768>` |
+| A busca varrendo `cacheDir` em vez de `dataDir` | a guarda do canário: `a busca nao achou nem o identificador` |
+| `guardarCredencial` virando no-op | a guarda de sincronia: `o arquivo cifrado nao mudou depois de guardar` |
+| A ordem das duas escritas trocada | **nada — segue verde**, e é isso que se afirma |
+
+As duas últimas linhas são as que valem.
+
+A de Base64 existe porque a busca pelo token cru aprovaria um token apenas codificado, e para quem
+lê o resultado do teste isso seria indistinguível de cifragem. Ela ficou vermelha **sozinha** — a
+afirmação sobre texto legível passou na mesma rodada —, o que mostra que as duas cobrem defeitos
+diferentes e nenhuma é sobra da outra.
+
+A última é a que impede o teste de ser vazio. Com a busca apontada para o diretório errado, a
+afirmação sobre o token passaria sem nada ter sido examinado, e o cenário ficaria verde para
+sempre, dizendo nada. Foi a guarda que acusou, e não o token — que é exatamente o desenho: é a
+terceira vez nesta base que uma janela de medição mal apontada produz verde falso, e a primeira em
+que a janela foi verificada antes de o resultado ser usado.
+
+`FLAG_ALLOW_BACKUP` é afirmada como flag, e não como lista de arquivos excluídos, porque é a flag
+que o sistema consulta. Regra que lista arquivos silencia quando alguém acrescenta o terceiro.
+
+**A guarda de sincronia veio de uma pergunta, e não do teste.** A primeira versão esperava apenas
+pelo canário — o identificador da organização — antes de varrer o disco. Isso sincroniza o teste com
+a escrita da *organização*, e não com a da *credencial*: são dois `apply()` em arquivos diferentes,
+e `apply()` grava fora da linha de execução. A versão passava de forma confiável, mas por um motivo
+não declarado: o Android serializa toda escrita de `apply()` numa fila FIFO única (`QueuedWork`), e
+a credencial era enfileirada primeiro, então o canário aparecer implicava a outra escrita ter
+terminado. Detalhe de implementação, não escrito em lugar nenhum, que trocar duas linhas de lugar
+destruiria em silêncio — a afirmação sobre o token viraria passe vazio.
+
+Tentar reproduzir a corrida trocando a ordem **não** produziu falso verde em três rodadas: a janela
+é estreita. Não reproduzir não é o mesmo que não existir, e a correção não foi tornar a corrida mais
+improvável, e sim remover a dependência: o arquivo cifrado é fotografado antes da escrita, e o teste
+espera até os bytes mudarem. Depois da construção quem escreve nesse arquivo é só
+`guardarCredencial`, então a mudança **é** a escrita. A mutação da ordem trocada existe para afirmar
+o resultado disso: ela agora é verde, e antes era o que segurava tudo.
+
+**A primeira tentativa de correção quebrou o diagnóstico, e isso vale ficar escrito.** A espera pelo
+arquivo cifrado nasceu como afirmação antes da escrita — e com a sessão em claro o arquivo só nasce
+na primeira gravação, então a mutação passou a ser acusada pela guarda de preparo (`o arquivo
+cifrado nem foi criado`) em vez da afirmação de segurança. O cenário continuava vermelho, e por isso
+o erro não apareceria em nenhuma contagem de verde e vermelho: o que se perdeu foi a afirmação que
+importa deixar de ser exercitada, e a mensagem passar a apontar para o lugar errado. A espera
+anterior à escrita passou a ser espera sem afirmação.
+
+### O nome de reserva, uma camada acima (tarefas 5.4 e 5.4b)
+
+A tarefa 3.4 provou que `DeviceSession` não cai num nome de reserva quando a consulta falha. Isso
+não protege a tela: uma sessão que nunca inventa nome não impede quem desenha de inventar um. É a
+razão da decisão 3 aplicada a outro lugar — cada camada precisa da própria prova, não da do vizinho.
+
+A garantia principal é estrutural, e não de teste: `TextoSemOrganizacao` **não tem campo de nome**, e
+`SemOrganizacaoScreen` recebe o texto pronto em vez da falha. Com a falha na mão a tela escolheria
+frase, e escolher frase é onde um nome de reserva aparece.
+
+Três mutações, todas com `DeviceSession` intocado:
+
+| Mutação | Resultado |
+|---|---|
+| Nome de reserva no título | vermelho: `nenhum nome de organizacao e apresentado` |
+| `"Carregando..."` no lugar da explicação | vermelho: o mesmo cenário |
+| **A tela ignora o parâmetro e escreve um nome literal** | **verde — não é pego** |
+
+`DeviceSessionTest` ficou verde nas três, que é o ponto da tarefa: os treze cenários daquela camada
+aprovam uma tela que mente.
+
+**A terceira é uma lacuna real, e fica escrita como lacuna.** Um literal digitado dentro do
+`@Composable`, ignorando o parâmetro, passa por toda verificação de JVM — nenhum teste desta base
+lê o que a tela desenha. O que reduz a chance é o desenho (a tela não recebe nome, e não tem de
+onde tirar um), e o que fecharia de fato é teste de Compose, que exige aparelho ou Robolectric —
+nenhum dos dois está nesta fatia. **Não é mitigado, é conhecido.**
+
+O teste afirma por igualdade exata do conjunto de textos, e não procurando palavra suspeita. O
+requisito é sobre *o que pode ser dito*, então a verificação enumera o que pode ser dito: qualquer
+nome enfiado ali muda uma das strings. Procurar por "organizacao" no texto seria classificar por
+string — recusado desde a 3c — e ainda erraria, porque o título legitimamente contém a palavra.
+
+### O resultado que chega fora de hora (tarefas 3.8 e 3.8b)
+
+`aoConsultarOrganizacoes` passou a descartar resultado que chega fora de `Consultando`, no mesmo
+padrão que `escolher` já usava com `Escolhendo`. Dois casos, nenhum hipotético:
+
+- o interceptador leva a sessão a expirada **durante** a chamada, e a mesma chamada retorna
+  `Recusou(401)` logo depois. Sem a guarda esse retorno vira `Falhou` e sobrescreve a expiração com
+  "não foi possível obter sua organização" — a tela mente sobre a causa, que é o defeito que o
+  requisito de sessão expirada existe para impedir;
+- a consulta responde depois de o professor sair, e a tela de trabalho ressuscita por cima da
+  entrada.
+
+A guarda apareceu ao desenhar a fiação da 5.5, e não ao escrever a seção 3. Foi a pergunta "o que a
+fiação faz com `Recusou(401)`?" que a produziu: qualquer resposta dada ali — mapear para `Falhou`,
+ou escrever `if (status == 401) não faça nada` — põe a regra na fiação, que é o defeito da 4.4
+entrando pela porta dos fundos. A regra é de estado, e mora onde o estado mora.
+
+| Mutação | O que ficou vermelho |
+|---|---|
+| Guarda removida | os **dois** cenários novos, e só eles |
+
+Os treze cenários anteriores ficaram verdes sob a mutação. É a mesma leitura da 4.4 e da 5.4b:
+suíte existente aprovando o defeito novo não é sinal de que ele é pequeno, é sinal de que a
+cobertura anterior falava de outra coisa.
+
+### O servidor que aceita a conexão e não responde (tarefa 4.7)
+
+É o caso que nenhuma das outras verificações alcançava. `UnknownHostException` e `ConnectException`
+chegam depressa; este não chega nunca, e sem tempo limite `Consultando` fica para sempre — o que a
+spec proíbe ao dizer que o aplicativo não fica em carregamento sem desfecho.
+
+`Retorno` já tinha sido escrito para ele: o comentário cita `HttpRequestTimeoutException` entre os
+`IOException` que viram `SemRede`. O plugin é que faltava, e o defeito viveu desde a tarefa 4.1 num
+lugar onde o comentário dizia que estava resolvido. Classificação nova, nenhuma.
+
+| Mutação | O que ficou vermelho |
+|---|---|
+| `HttpTimeout` removido | `servidor que nao responde vira SemRede` |
+| Tempo limite de produção baixado para 5 s | `o tempo limite de producao e generoso o bastante` |
+
+O corpo do `MockEngine` é **texto puro, e não JSON**, de propósito: com JSON, remover o plugin
+falharia na desserialização, e o vermelho falaria de outra coisa. Com texto, a chamada completa e o
+teste diz que veio `Respondeu` onde se esperava `SemRede` — que é o defeito.
+
+**O número é provisório, e está marcado como tal no código.** 90 s, não medido contra o nosso
+servidor: o cold start do plano gratuito do Render fica tipicamente entre 30 e 60 s, e 90 s dá folga
+sobre o pior caso relatado. Errar para baixo é o erro caro — um cold start interrompido chega como
+`IOException`, vira `SemRede`, e o professor lê "confira a conexão" com a conexão boa, na primeira
+vez que abre o aplicativo no dia. Errar para cima só custa espera.
+
+A segunda mutação existe por causa disso: ela afirma o **piso** de 60 s, não o valor. Ninguém baixa
+o número sem enfrentar a pergunta. Quem fixa o valor de verdade é a tarefa 6.6, medindo contra o
+serviço real — e ela está na seção 6 porque depende do mesmo serviço que 6.1, 6.2 e 6.3 já exigem.
+
+### A fiação, e as três peças que seguram o 401 (tarefa 5.5)
+
+`SessaoActivity` liga adaptadores e escolhe tela. Nenhuma regra da fatia é reimplementada ali, e o
+caso que forçava a reimplementação — o que fazer com `Recusou(401)` — acabou resolvido por três
+peças, nenhuma delas na fiação:
+
+1. **o interceptador detecta** (4.3): qualquer 401, de qualquer rota, leva a sessão a expirada;
+2. **a ordem garante quem chega primeiro** (5.5): a expiração roda *antes* de a chamada retornar, e
+   na thread de quem chamou. Os dois cenários afirmam isso pelo nome em `ClienteApiTest`;
+3. **a guarda descarta o atrasado** (3.8): o `Falhou` que vem do retorno chega com a sessão já fora
+   de `Consultando`, e é ignorado.
+
+A peça 2 é a que quase ficou implícita. Se a expiração chegasse depois do retorno, a guarda
+descartaria **a expiração** em vez do retorno, e a tela diria "não foi possível obter sua
+organização" onde o que houve foi a sessão expirar — a mentira sobre a causa que a 3.8 existe para
+impedir. Ela vale porque `HttpResponseValidator` roda dentro da corrotina de quem chamou; se um dia
+passar a rodar solta, os dois cenários ficam vermelhos antes de alguém descobrir pela tela.
+
+`paraSessao()` mapeia `Recusou` para `Falhou` **sem olhar o status**, 401 inclusive, e um cenário
+afirma isso pelo nome. Parece errado lido isolado, e é por isso que está testado com o motivo
+escrito: `if (status == 401)` ali poria na tradução a regra que a decisão 3 tirou dela.
+
+**O `when` de estado para tela é exaustivo e sem `else`**, e a mutação foi vista:
+
+| Mutação | Resultado |
+|---|---|
+| Ramo de `SemOrganizacao` removido | `'when' expression must be exhaustive`, nomeando o ramo que falta |
+
+Não é teste, é compilação — mais barato e mais cedo. Este é o primeiro lugar onde os cinco estados
+se encontram, e com `else` um estado novo cairia numa tela por padrão. Tela errada apresentada com
+confiança é o modo de falha desta fatia inteira.
+
+**O requisito de não alcançar o escaneamento sem sessão é do manifesto, e não do código.** Conferido
+no manifesto mesclado: `SessaoActivity` é `exported=true` com `LAUNCHER`, e `ScanActivity` é
+`exported=false` sem `intent-filter` — nada fora do aplicativo a inicia.
+
+## O que a fatia previu que ficaria descoberto, e o que de fato ficou (tarefa 7.2)
+
+A seção de riscos do `design.md` previu, antes de a fatia começar: *"o que sobra sem teste automático
+é o encanamento — o interceptador de 401, a cifragem em repouso e a configuração"*. A previsão
+errou, e errou para o lado bom. Vale escrever por quê, porque o motivo se repete.
+
+| Previsto descoberto | Onde está hoje |
+|---|---|
+| O interceptador de 401 | `ClienteApiTest`, 10 cenários de JVM com `MockEngine` |
+| A cifragem em repouso | `SessaoEmRepousoInstrumentedTest`, 2 cenários no emulador, 6 mutações |
+| A configuração | `ConfiguracaoTest`, 3 cenários |
+| O corpo de sucesso da autenticação | **continua descoberto** — fecha na 6.1 |
+
+O que fechou os três foi sempre a mesma coisa: **tirar a decisão de dentro do adaptador**. O
+interceptador virou `clienteApi`, uma função, e passou a ser exercitável em rotas inventadas na
+hora. O tratamento de keyset corrompido virou duas funções que não conhecem Android. A escolha de
+frase saiu das telas. Nenhum desses movimentos foi feito para facilitar teste — todos foram feitos
+porque a alternativa era uma afirmação que ninguém conseguia verificar, e é a mesma fronteira que a
+decisão 1 já desenhava.
+
+O quarto item não fechou porque ele não é encanamento: é um fato sobre um servidor de terceiro. O
+probe entra com senha errada de propósito, então nenhuma rodada desta base autenticou, e os nomes
+de campo de `CredencialDeSessao` vêm da documentação do Supabase. Nenhum rearranjo de código produz
+esse dado — só uma credencial válida contra um projeto real.
+
+**O que sobra descoberto, ao fim das seções 1 a 5**, está na tabela abaixo. Duas entradas são novas
+desde que a previsão foi escrita, e as duas apareceram por mutação e não por revisão: o que um
+`@Composable` desenha (5.4b) e o número do tempo limite (4.7). Nenhuma das duas era esperada, e as
+duas estão registradas como lacuna, não como risco mitigado.
+
+### O falso vermelho, e o buraco verdadeiro que ele revelou (tarefa 7.1)
+
+O CI acusou `paridade` vermelha na PR #30, com paridade verde nas quatro execuções anteriores de
+`main` — inclusive no commit imediatamente anterior à branch. A leitura óbvia era regressão. **Não
+era.** O workflow tem `concurrency: cancel-in-progress: true`, e o push seguinte cancelou a execução
+em andamento; o passo fica marcado como falha e o log dele não tem erro nenhum, só limpeza de
+pós-job. A execução do commit seguinte fechou verde nos três jobs.
+
+O sinal era falso, e a investigação achou um buraco verdadeiro do lado: **`./gradlew build` não roda
+`connectedDebugAndroidTest`**, e localmente a suíte instrumentada só tinha sido executada com filtro
+de classe (`-Pandroid.testInstrumentationRunnerArguments.class=...`). A tarefa 7.1 afirmava um verde
+que não cobria o que o CI cobre. Rodando o comando cheio no `platos-atd34` — mesma imagem do CI,
+conferida antes de a comparação valer alguma coisa: `android-34/aosp_atd/x86_64`, `pixel_6` — foram
+46 testes e zero falhas.
+
+**É a segunda vez nesta base que um comando estreito local esconde o que o comando cheio do CI pega.**
+A primeira foi a tarefa 2.2: os três cenários exercitavam o módulo Android, que era onde a exigência
+fazia sentido, e por isso nenhum alcançava o defeito — quem acusou foi o CI. A regra que sai daí está
+no `CLAUDE.md`, na seção de verificação, e não neste arquivo: ela não é desta fatia.
+
+Duas leituras que valem separadas. Primeira: comparar contra o histórico do mesmo job em `main` foi o
+passo certo, e teria evitado horas se a conclusão parasse em "isto é meu" apenas depois de ler o log.
+Segunda: um passo marcado como falha **sem erro no log** é sinal de cancelamento, e não de defeito —
+custa uma linha conferir a conclusão da execução inteira antes de caçar causa.
+
+### Os dois primeiros estados de falha, em aparelho (tarefa 6.2, parcial)
+
+No `platos-atd34`, contra o projeto Supabase real, com a aplicação instalada e dirigida por `adb`.
+
+| Condição | O que a tela disse |
+|---|---|
+| Credencial inexistente no projeto | `E-mail ou senha nao conferem. Confira os dois e tente de novo.` |
+| Modo avião, **mesma** credencial nos campos | `Nao foi possivel falar com o servidor. Confira a conexao e tente de novo.` |
+
+A segunda linha é o que o requisito exige e o que a tarefa 1.1 mediu de antemão: mesma entrada, causa
+diferente, frase diferente. A tela permaneceu na entrada nos dois casos, com a senha mascarada e o
+e-mail preservado.
+
+**A primeira rodada do modo avião deu falso positivo, e o erro foi do instrumento.** A faixa
+continuou dizendo "E-mail ou senha nao conferem" — o que parecia o defeito exato que o requisito
+proíbe. Não era: o botão havia **descido 64 px** porque a faixa da tentativa anterior entrou no
+layout, e o toque em `y=1490` caiu acima dele. A faixa exibida era a antiga, e nenhuma tentativa
+nova tinha acontecido.
+
+Vale escrito porque a lição não é sobre coordenadas: **numa conferência dirigida por `adb`, "a tela
+mostra X" e "a tela ainda mostra X" são indistinguíveis sem uma âncora**. O que separou os dois foi
+consultar a posição e o estado do botão no dump antes de concluir — e, no caminho certo, o estado
+intermediário `Entrando...` seria a âncora natural, se a tentativa tivesse ocorrido.
+
+### O tempo limite que nunca agiu, e o que so o servico real mostrou (tarefas 6.1 e 4.7)
+
+A primeira entrada com credencial válida **falhou**, e o modo de falha era exatamente o que a tarefa
+4.7 existia para impedir: `Nao foi possivel falar com o servidor` com a rede boa.
+
+| t | Tela |
+|---|---|
+| 2 s | `Entrando...` |
+| 7 s | `Buscando suas organizacoes` |
+| **18 s** | `Nao foi possivel falar com o servidor` |
+
+A consulta morreu aos ~11 s, contra um serviço em cold start que leva 40–60 s, e com um tempo limite
+declarado de 90 s.
+
+**A causa.** `requestTimeoutMillis` do Ktor **não substitui** os tempos limite do engine — ele
+acrescenta um teto por cima. Por baixo, o OkHttp seguia com os 10 s de leitura que traz por padrão.
+Numa cold start a conexão é aceita na hora e o soquete fica em silêncio por dezenas de segundos: os
+10 s disparam primeiro, `SocketTimeoutException` é `IOException`, vira `SemRede`, e os 90 s nunca
+chegam a agir. Os ~11 s observados são os 10 s do padrão mais o overhead.
+
+A decisão da 4.7 não estava errada em querer um número só. Estava errada em assumir que esse número
+era o único tempo limite em jogo — mesma forma da revisão do `EncryptedSharedPreferences`: decisão
+certa com a informação que havia, e a informação nova completa o dado em vez de invalidar o
+raciocínio.
+
+**A medição por `curl` chegou a reforçar a conclusão errada.** Ela mostrou conexão e TLS entre
+0,06 s e 0,12 s, e daí se concluiu que `connectTimeoutMillis` era irrelevante — o que é verdade. O
+que passou batido é que a espera pelo primeiro byte, o número grande na mesma tabela, é governada
+pelo tempo limite de **soquete**. O dado certo estava à vista e foi lido pela metade.
+
+**A correção sobe só `socketTimeoutMillis`.** `connectTimeoutMillis` fica como está, por evidência e
+não por simetria: as três medições mostraram conexão instantânea inclusive em cold start, e mexer no
+que não foi observado falhando seria correção por precaução.
+
+**Nenhum teste de JVM desta base pegaria isso**, e não é falha de quem escreveu: `MockEngine` não
+tem soquete, então tempo limite de soquete não existe para ele. O teste da 4.7 passava antes e
+depois. Quem pegou foi a seção 6, com serviço de verdade — é literalmente para isto que ela existe.
+
+A guarda que entrou é fraca e sabe disso: o Ktor propaga os tempos limite ao engine como
+*capability* do pedido, e o `MockEngine` consegue lê-la. O cenário afirma que `socketTimeoutMillis`
+**chega ao engine** — o elo que faltava —, e não que o soquete espera 90 s. Removendo a linha, ele
+fica vermelho.
+
+**A prova de verdade, sem atalho:** serviço deixado esfriar por 17 min, aplicativo reaberto.
+
+| t | Tela |
+|---|---|
+| 3 s | `Entrando...` |
+| 8 s | `Buscando suas organizacoes` |
+| **66 s** | tela de escolha, com `professor1` e `Escola de Teste` |
+
+A consulta levou 58 s e sobreviveu. **É a terceira medição de cold start, e a mais alta** — 43,4 s e
+53,5 s por `curl` em `/health`, 58 s pelo caminho real em `/me/organizations`. Se o valor tivesse
+sido baixado para os 60 s do piso, esta requisição teria falhado com 2 segundos de folga. Os 90 s
+deixam de ser conservadorismo e passam a ser margem medida.
+
+### As conferências que fecharam (tarefas 6.1, 6.3, 6.4 e 6.5)
+
+| Conferência | O que se viu |
+|---|---|
+| 6.1 nome vindo da API | `professor1`, derivado da parte local do e-mail por `bootstrap_identity` |
+| 6.3 consulta falha após autenticar | explicação sem nome nenhum, varrido contra `professor1`, `professor2`, `Escola de Teste`, `Minha organizacao` e `Carregando` |
+| 6.4 escolha sobrevive ao fechamento | `am force-stop` com pid zerado conferido; reabertura direta em 3 s, sem perguntar |
+| 6.5 sem herança entre usuários | `professor2` entrou e caiu na organização dele; `Escola de Teste` ausente da tela |
+
+**Um artefato do instrumento, registrado para quem repetir.** Na 6.3, o dump aos 3 s mostrou a tela
+de trabalho anterior. Não era conteúdo vivo: o estado nasce em `Entrada` e vai para `Consultando`, e
+nunca começa em `Ativa` — era o *starting window* que o Android desenha com a captura da instância
+anterior. É o mesmo problema de âncora do modo avião da 6.2, por outro caminho: numa conferência
+dirigida por `adb`, o primeiro frame depois de um `am start` não é confiável.
+
+### A sessão expirada, esperada de verdade (tarefa 6.2, terceiro estado)
+
+Não há atalho para invalidar uma sessão do lado do servidor, e as três tentativas óbvias falham por
+motivos diferentes: revogar a sessão no painel não invalida um access token já emitido; apagar o
+usuário também não, porque a assinatura continua válida e `bootstrap_identity` recriaria o
+`app_user`; e baixar o *JWT expiry* não encurta token já emitido — `exp` é gravado na emissão.
+
+Então esperou-se. O JWT dura 3600 s, conferido decodificando `exp - iat`. Uma sondagem reabriu o
+aplicativo a cada 5 min:
+
+```
++5min   Buscando suas organizacoes
++10min  professor2 | Escanear folha | Sair
+...
++37min  professor2 | Escanear folha | Sair
++42min  Sua sessao expirou. Entre de novo para continuar.
+```
+
+**Uma verificação a mais, que a tarefa não pedia.** Reabrir o aplicativo depois disso cai na entrada
+**sem faixa nenhuma**. A diferença importa: com faixa, o motivo teria sobrevivido ao fechamento e a
+credencial poderia continuar no disco; sem faixa, o estado foi reconstruído a partir do
+armazenamento e `credencial()` devolveu `null` — a credencial foi mesmo apagada. O arquivo cifrado
+continua existindo, porque ele guarda o keyset do Tink; o que sumiu foi a chave dentro dele, que é o
+que `apagarCredencial` faz.
+
+Com isso os três estados de falha da spec estão vistos em aparelho, cada um provocado pela sua causa
+real, e nenhum apresentado como o outro.
+
 ## O que ainda não está verificado
 
 | O que | Por quê |
 |---|---|
-| O interceptador de 401, a cifragem em repouso e a configuração | Tarefas 4.2 a 4.5, ainda não implementadas |
+| A cifragem em repouso **fora do emulador** | Fechada no `platos-atd34` (tarefa 4.6), com quatro mutações. Num aparelho real o Keystore é respaldado por hardware, e no emulador não — o que muda é a força da chave, e não onde o token é gravado, que é o que o teste afirma. A conferência em aparelho é a seção 6 |
+| O **comportamento do engine HTTP** | `MockEngine` não tem soquete nem conexão real, então nenhum tempo limite de engine existe para ele. O defeito do `socketTimeoutMillis` viveu por isso, e a guarda que entrou verifica propagação de configuração, não comportamento. Só serviço real pega |
 | O **corpo de sucesso** da autenticação | O probe entra com senha errada de propósito, então nenhuma rodada autenticou. Os nomes de campo do DTO vêm da documentação do Supabase, não de medição desta base. Fecha na tarefa 6.1 |
 | O adaptador contra o servidor real, no CI | O probe é **pulado** no runner: não há `local.properties`, então não há projeto para medir. Ele é o instrumento da seção 6, e a classificação de falha é verificada na JVM por `AutenticacaoSupabaseTest` |
-| As telas | Seção 5, ainda não implementada |
+| O que as telas **desenham** | As decisões de texto saíram para funções puras e estão verificadas (5.1, 5.4). O que nenhum teste desta base alcança é o `@Composable` em si: um literal digitado lá, ignorando o parâmetro, passa por tudo — visto acontecer na terceira mutação da 5.4b. Fecharia com teste de Compose, que exige aparelho |

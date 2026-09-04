@@ -537,3 +537,135 @@ precisa desse número.
 Em `docs/cobertura-fatia-3c.md`: o que fechou, o que não fechou, o tempo até a leitura, a distância
 em que ela deixa de fechar, o aparelho, e **se alguma nota fechou errada**. **Inclusive quando o resultado for ruim** — se a leitura
 ao vivo não fechar em condição de sala de aula, isso é resultado da fatia, e não fracasso dela.
+
+
+## 13. Conferir a entrada e a sessão, em aparelho (fatia 4a-zero)
+
+Como §12, isto não é medição: é o roteiro da parte que nenhum teste alcança. As decisões desta fatia
+— os três motivos de falha, a escolha de organização, o que sair apaga — rodam na JVM. O que sobra é
+o encanamento contra servidor de verdade, e foi ele que escondeu o defeito mais caro da fatia: um
+tempo limite que nunca agia.
+
+### 13.1 Preparar, e o que precisa existir antes
+
+Quatro coisas, e nenhuma delas o aplicativo cria:
+
+1. **API no ar.** `curl https://<servico>/health` responde `ok`, e `/me/organizations` sem token
+   responde 401. Se responder 200 sem token, pare tudo.
+2. **`local.properties` apontando para ela.** `platos.apiUrl` sem barra final. O valor entra em
+   `BuildConfig` em tempo de build: mudar o arquivo **exige recompilar**.
+3. **Dois usuários no Supabase**, criados em Authentication → Users → Add user com *Auto Confirm
+   User* marcado. Sem o auto-confirm eles existem e não entram, e a tela diz "credencial recusada" —
+   indistinguível de senha errada. Ver §13.7.
+4. **Uma segunda organização para o primeiro usuário**, criada por SQL depois de ele ter entrado uma
+   vez. Não há trigger: `app_user`, a organização pessoal e o `membership` nascem de
+   `bootstrap_identity`, que a API chama na primeira requisição autenticada. Antes dessa primeira
+   entrada não existe `app_user` para o insert referenciar.
+
+O SQL precisa de `set role app_owner;` antes e `reset role;` depois. As tabelas têm `force row level
+security` e as políticas de bootstrap são `to app_owner`; o `postgres` do projeto **não** tem
+`BYPASSRLS`, então sem trocar de papel o insert é recusado por política, e não por sintaxe.
+
+```bash
+./gradlew :apps:android:installDebug
+```
+
+### 13.2 O nome vem da API
+
+Entre com o primeiro usuário. A tela de trabalho tem de mostrar o nome que a API devolveu — para um
+usuário sem display name, `bootstrap_identity` usa a parte local do e-mail, então
+`professor1@teste.com` vira `professor1`.
+
+Confira contra a resposta crua, e não contra a expectativa:
+
+```bash
+curl -s "$API/me/organizations" -H "Authorization: Bearer $TOKEN"
+```
+
+### 13.3 Os três estados de falha, e como provocar cada um
+
+**Credencial recusada:** e-mail que não existe no projeto. A tela permanece na entrada.
+
+**Sem rede:** modo avião, com a **mesma** credencial nos campos. A frase tem de mudar. Usar a mesma
+credencial é o ponto: é o que separa "diz coisas diferentes" de "diz coisas diferentes porque a
+entrada era diferente".
+
+**Sessão expirada:** não tem atalho. Revogar a sessão no painel não invalida um access token já
+emitido; apagar o usuário também não, porque a assinatura continua válida e `bootstrap_identity`
+recriaria o `app_user`; e baixar o *JWT expiry* no painel não encurta token já emitido — `exp` é
+gravado na emissão, então só afetaria emissões futuras, e aproveitá-lo exigiria relogar. **Espere a
+expiração real.** O padrão do Supabase é 3600 s; confirme decodificando `exp - iat` do token.
+
+Depois da expiração, reabra o aplicativo mais uma vez: ele tem de cair na entrada **sem faixa**. Com
+faixa, a credencial foi apagada mas o motivo sobreviveu ao fechamento; sem faixa, o estado foi
+reconstruído do disco e a credencial não está mais lá — que é o que se quer.
+
+### 13.4 A consulta falhando depois de autenticar
+
+Com sessão válida guardada, ligue o modo avião e reabra o aplicativo. A tela tem de explicar que não
+conseguiu obter a organização e **não apresentar nome nenhum**. Varra a tela contra os nomes reais
+das organizações do projeto, contra `Minha organizacao` e contra qualquer texto de espera — um nome
+de reserva é indistinguível de nome verdadeiro para quem lê.
+
+Restaure a rede e toque em "Tentar de novo": tem de recuperar sem pedir a senha.
+
+### 13.5 A escolha, e o que sair apaga
+
+Com o usuário de duas organizações, a tela de escolha só aparece quando **não há escolha guardada**.
+Depois da primeira entrada com uma organização só, ela ficou guardada automaticamente — então
+acrescentar a segunda organização não faz a tela aparecer. É preciso **Sair** antes, porque sair
+apaga a escolha junto com a credencial.
+
+Escolha uma, e feche o aplicativo **de verdade**: `adb shell am force-stop`, conferindo com
+`adb shell pidof` que o processo morreu. Reabrir tem de ir direto para a organização escolhida, sem
+perguntar.
+
+Depois: sair, entrar com o **segundo** usuário, e conferir que o nome da organização do primeiro não
+aparece em lugar nenhum. É o defeito mais caro da fatia — aparelho compartilhado entre escolas, e o
+segundo usuário herdando a organização do primeiro sem nada na tela dizendo isso.
+
+### 13.6 O cold start, que é onde o encanamento quebra
+
+**Este passo achou um defeito que nenhum teste desta base pegaria**, e é o motivo de ele estar
+escrito. O plano gratuito do Render suspende o serviço depois de ~15 min sem tráfego, e a primeira
+chamada seguinte espera o contêiner subir — medido em 43 s, 53 s e 58 s.
+
+Deixe o serviço **em silêncio por 17 minutos** — nenhum `curl`, nenhuma abertura do aplicativo — e
+então entre. A consulta tem de sobreviver à espera e terminar na tela certa.
+
+O defeito que apareceu aqui: `requestTimeoutMillis` do Ktor não substitui os tempos limite do
+engine, acrescenta um teto por cima. Sem `socketTimeoutMillis`, o OkHttp mantinha os 10 s de leitura
+que traz por padrão, e a consulta morria aos ~11 s dizendo "sem rede" com a rede boa. `MockEngine`
+não tem soquete, então nenhum teste de JVM alcança isso.
+
+Anote o tempo. Se o pior caso passar de 10 s, o gatilho da decisão 10 do `design.md` disparou e a
+reconsulta em toda recriação volta à mesa.
+
+### 13.7 Duas armadilhas do instrumento, e não do aplicativo
+
+Numa conferência dirigida por `adb`, **"a tela mostra X" e "a tela ainda mostra X" são
+indistinguíveis**. As duas aconteceram nesta fatia e as duas quase viraram defeito reportado:
+
+- **O botão se move.** Quando a faixa de motivo entra, o layout desce — na fatia 4a-zero, 64 px. Um
+  toque em coordenada fixa cai fora e nada acontece, e a faixa antiga continua na tela. Leia a
+  posição do elemento no `uiautomator dump` **a cada passo**, nunca uma vez só.
+- **O primeiro frame depois de `am start` não é conteúdo vivo.** É o *starting window* que o Android
+  desenha com a captura da instância anterior. Espere um estado que só a instância nova produz.
+
+E antes de suspeitar da conta, descarte o `adb`: `input text` pode engolir caractere. Digite a senha
+num campo **visível** uma vez e leia de volta. Depois, se a entrada falhar, vá ao endpoint em vez de
+acreditar na tela — `invalid_credentials` e `email_not_confirmed` são coisas diferentes, e a tela
+apresenta as duas como credencial recusada:
+
+```bash
+curl -s -X POST "$SUPABASE/auth/v1/token?grant_type=password" \
+  -H "apikey: $ANON" -H "Content-Type: application/json" \
+  -d '{"email":"...","password":"..."}'
+```
+
+### 13.8 Registrar
+
+Em `docs/cobertura-fatia-4a-zero.md`: o que fechou, o que não fechou, os tempos de cold start, o
+aparelho, e **o que falhou pela primeira vez**. A fatia 4a-zero fechou com dois defeitos achados
+aqui e em nenhum outro lugar — o tempo limite de soquete e a permissão de rede fora do manifesto
+principal —, e os dois estavam sob comentários que diziam estar resolvidos.

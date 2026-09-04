@@ -61,6 +61,38 @@ A sessão é guardada com `EncryptedSharedPreferences`, com chave no Android Key
 
 **Alternativa descartada:** Keystore direto, cifrando à mão. `EncryptedSharedPreferences` já é a composição das duas coisas, e escrever a cifragem à mão acrescenta superfície de erro sem acrescentar garantia.
 
+**Revisão de 2026-09-03: a API está depreciada, e a conclusão acima não muda.** Ao implementar a
+tarefa 4.5 o compilador acusou `EncryptedSharedPreferences`, `MasterKey` e `MasterKey.Builder` como
+depreciadas — em `security-crypto` a partir de `1.1.0-beta01`, e assim na `1.1.0` estável. Não há
+substituto no `androidx.security`: o grupo só tem `app-authenticator`, `identity-credential` (parado
+em `1.0.0-alpha03`) e `security-state`, que é outra biblioteca, sobre estado de atualização, e não
+tem relação com isto.
+
+**O motivo da depreciação é preferência da AndroidX por uso direto de Keystore e API de plataforma
+em vez da wrapper, e não falha de segurança na cifragem.** Essa distinção é o que decide: o
+argumento desta decisão contra cifrar à mão nunca dependeu de a API estar ativa — ele é sobre
+superfície de erro em código de criptografia escrito aqui. A informação nova **confirma** o
+argumento em vez de contrariá-lo, porque o que a depreciação propõe é exatamente a alternativa que
+esta decisão já havia descartado, e pelo mesmo motivo. Trocar agora seria substituir uma decisão
+registrada por preferência (`CLAUDE.md`, regra 5); registrar a informação nova ao lado dela é outra
+coisa.
+
+Também não cabe ADR: a decisão 5 é de implementação de uma fatia já decidida, e vive neste
+`design.md`. `ARQUITETURA-FINAL-v3.md` §17 não fixa como a credencial do aparelho é cifrada. Abrir
+ADR aqui trataria decisão de fatia como decisão de arquitetura.
+
+**Gatilho para reabrir**, o que vier primeiro:
+
+- a API for **removida**, e não apenas depreciada;
+- esta fatia passar a proteger dado além da credencial de sessão;
+- antes do primeiro release estável.
+
+**O custo aceito, e o que ele exige em troca.** Biblioteca depreciada não recebe correção, então o
+modo de falha conhecido dela passa a ser responsabilidade desta base: keyset corrompido ao abrir ou
+ao ler o armazenamento cifrado. Ele é tratado como sessão inválida — o aparelho volta à entrada e o
+professor autentica de novo —, e nunca como exceção que sobe. Deixá-lo subir transformaria um dado
+ilegível em aplicativo que não abre, que é pior do que pedir a senha outra vez.
+
 ### 6. Configuração por `BuildConfig`, alimentada fora do repositório
 
 URL do projeto Supabase, chave anônima e URL da API entram como campos de `BuildConfig` a partir de propriedades de build, não versionadas.
@@ -179,6 +211,40 @@ estoura em vez de produzir sessão vazia que só falharia depois. Quem fecha iss
 **A decisão 6 não muda.** Só o transporte da autenticação mudou; de onde a URL e a chave vêm
 continua sendo a tarefa 2.2, por `BuildConfig` alimentado fora do repositório, e nada disso é
 versionado.
+
+### 10. A sessão vive na `Activity`, e o estado é derivado do que está gravado
+
+Nada de `ViewModel`. Na recriação — rotação, troca de idioma, fonte, tema — a `Activity` roda
+`session.abrir(guardada.credencial() != null)` e o estado se reconstrói: com credencial vai a
+`Consultando` e reconsulta, sem credencial vai a `Entrada`, e a organização escolhida é reencontrada
+por `resolverOrganizacao`.
+
+**Por quê: fonte única de verdade.** `SessaoGuardada` é a única coisa que persiste, e `DeviceState` é
+função dela mais o que a API respondeu. Um `ViewModel` criaria um segundo lugar onde mora "o que o
+aparelho sabe", e dois lugares que descrevem a mesma coisa divergem no dia em que um dos dois
+esquecer de mudar — é a razão que `ScanScreen` já dá para não ter estado de tela ao lado do estado
+da sessão. A economia de uma consulta não paga uma segunda fonte de verdade.
+
+O que se perde na recriação não é dado: uma consulta em andamento é refeita, e um login em andamento
+volta ao formulário.
+
+**A orientação não é travada, de propósito.** `ScanActivity` é `portrait` e por isso nunca encarou
+isto. Travar a entrada esconderia o caso sem resolvê-lo: idioma, fonte e tema recriam a `Activity`
+de qualquer forma.
+
+**Risco aceito, com ponto-limite — e não aceite implícito.** Toda recriação custa uma chamada de
+rede. Hoje isso é barato, e deixa de ser quando a chamada demorar: `docs/deploy-api.md` registra que
+o plano gratuito do Render suspende o serviço depois de ~15 minutos sem tráfego, e a primeira chamada
+seguinte espera o container subir. Uma rotação no momento errado passa a ser um congelamento visível,
+e o professor não tem como saber que girar o aparelho custou isso.
+
+Reabrir esta decisão quando o primeiro destes acontecer:
+
+- a medição da tarefa 4.7 mostrar o pior caso de resposta acima de 10 s — aí a reconsulta deixa de
+  ser invisível;
+- a tela de trabalho passar a depender de mais de uma chamada na abertura;
+- existir cache em disco da organização — a 4a traz cache de pacote, e se o mesmo mecanismo servir,
+  a reconsulta deixa de ser necessária em vez de ser otimizada.
 
 ## Risks / Trade-offs
 

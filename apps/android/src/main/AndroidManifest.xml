@@ -11,21 +11,61 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" android:required="true" />
 
+    <!--
+      Fatia 4a-zero, tarefa 5.0. A permissao vivia so no manifesto de `debug`, declarada pelo probe
+      da tarefa 1.1, enquanto o adaptador de entrada ja vivia em `main`: um APK de release tinha o
+      codigo de rede e nao tinha a permissao.
+
+      Sem tela que alcancasse a rede isso nao se manifestava. Com a entrada, a falha seria
+      `SocketException: EPERM` — que e `IOException`, e portanto `SemRede` para o classificador da
+      decisao 8. O professor leria "precisa de rede" com a rede funcionando, e o sintoma nao
+      apontaria para a causa em lugar nenhum.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      Fatia 4a-zero, decisao 4: o backup automatico e desabilitado.
+
+      E a diferenca entre "outro aplicativo nao le" e "o dado nao sai do aparelho": so a
+      primeira vem de graca do sandbox, e um backup na nuvem levaria a credencial junto — ja
+      decifrada, porque quem faz o backup e o sistema, do lado de dentro. Vale para os dois
+      arquivos de `SessaoGuardadaAndroid`, e por isso e desligado no aplicativo inteiro em vez
+      de por regra de exclusao: regra que lista arquivos silencia quando alguem acrescenta o
+      terceiro.
+    -->
     <application
+        android:allowBackup="false"
         android:label="PLATOS"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
+        <!--
+          Fatia 4a-zero, tarefa 5.5: a entrada e o lancamento. Abrir o aplicativo sem sessao chega
+          na entrada, e nao ha caminho daqui para o escaneamento sem passar pela tela de trabalho.
+
+          Sem `screenOrientation`, ao contrario da de escaneamento: a decisao 10 registra por que
+          travar esconderia o caso da recriacao em vez de resolve-lo.
+        -->
         <activity
-            android:name=".scan.ScanActivity"
+            android:name=".session.SessaoActivity"
             android:exported="true"
-            android:label="PLATOS"
-            android:screenOrientation="portrait">
+            android:label="PLATOS">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Deixa de ser o ponto de partida e passa a ser alcancada a partir da tela de trabalho.
+          `exported="false"` e o que sustenta o requisito: nada fora do aplicativo a inicia, entao
+          ninguem chega ao escaneamento sem ter passado pela sessao.
+        -->
+        <activity
+            android:name=".scan.ScanActivity"
+            android:exported="false"
+            android:label="PLATOS"
+            android:screenOrientation="portrait" />
 
     </application>
 
