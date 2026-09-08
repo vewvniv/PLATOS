@@ -86,6 +86,17 @@ class PublicarFixturesNoBancoRealTest {
             ),
         )
 
+        // O pool e fechado ao fim, sempre. Sem isto cada execucao deixa conexoes de sessao penduradas
+        // no pooler ate o processo morrer, e elas competem com as do servico vivo: o limite do plano
+        // e pequeno, e estoura-lo derruba PostgREST, Auth e o pooler juntos, porque os tres
+        // compartilham o mesmo banco. O sintoma nao diz "limite" — o pooler devolve conexao ja
+        // fechada e o Hikari falha detectando nivel de isolamento.
+        (dataSource as AutoCloseable).use {
+            publicar(dataSource, fixtures)
+        }
+    }
+
+    private fun publicar(dataSource: javax.sql.DataSource, fixtures: File) {
         // Idempotente por construcao (D-0.4): no primeiro acesso cria a organizacao pessoal, depois
         // so resolve. E o mesmo caminho que `/me/organizations` percorre, e nao um paralelo.
         val userId = IdentityBootstrap(dataSource).bootstrap(
