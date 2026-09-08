@@ -172,6 +172,38 @@ Os dois cenários ficam, e o comentário de cada um agora diz qual dos dois pap�
 vieram da mutação. O padrão é sempre o mesmo: um cenário cai por uma razão a jusante da que se
 pretendia medir. É exatamente o risco que motivou a tarefa 8.3b, e ele já se materializou aqui.
 
+### A corrupção que isola a camada (a), em aparelho (tarefa 9.4)
+
+Precedente direto da fixture adversarial da 8.1, e vale nomeado como a mesma família.
+
+Para conferir em aparelho que a leitura do cache **recalcula** o hash, a corrupção óbvia é truncar o
+arquivo. Ela não serve, e a tarefa 4.4 já tinha mostrado por quê: conteúdo truncado também não
+parseia, então a camada (b) o recusa por interpretação e o cenário fica verde mesmo com (a)
+desligada. Medir (a) com uma corrupção que (b) também pega é medir (b).
+
+A corrupção usada foi outra: **o conteúdo da `prova-2` sob o nome do hash da `prova-1`**. Ela isola
+(a) porque nenhuma das outras camadas pode alcançá-la:
+
+| Camada | Por que não pega |
+|---|---|
+| (a) integridade | **é a única que pega** — recalcula o SHA-256 e vê `9dccf215…` onde o nome diz `26612ad5…` |
+| (b) fidelidade | o conteúdo é um pacote **válido**: parseia e reserializa canônico, idêntico byte a byte |
+| (c) identidade da folha | não está em jogo — não há QR nem folha, o cache é lido antes de qualquer captura |
+
+É exatamente o raciocínio da 8.1, um nível abaixo. Lá, a `prova-2` recebeu **os mesmos itens,
+posições e gabarito** da referência para que `ObjectiveScoring` não recusasse por divergência de
+conjunto e (c) fosse a única coisa entre a folha errada e uma nota plausível. Aqui, o pacote
+injetado é **válido** para que (b) não o recuse por interpretação e (a) seja a única coisa entre um
+arquivo trocado e uma sessão aberta com a prova errada.
+
+A regra que os dois casos compartilham: **a fixture da mutação precisa passar em todas as outras
+conferências e falhar só na que está sob teste.** Quando ela falha em duas, o teste não diz qual
+segurou.
+
+O resultado em aparelho foi o esperado, e o que o provou merece nota: o carimbo do `ls` **não**
+serviu — injeção e repull caíram no mesmo minuto, e a granularidade é de minuto. Quem provou foi o
+tamanho (101 618 de volta, contra os 101 635 injetados) e o `sha256sum` do próprio Android.
+
 ### O cache endereçado só por conteúdo (tarefa 4.7)
 
 Endereçamento por conteúdo é global por natureza, e o cache é um caminho de leitura que **não passa
