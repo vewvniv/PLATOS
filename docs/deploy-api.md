@@ -180,6 +180,54 @@ platos.apiUrl=https://<seu-servico>.onrender.com
 
 Sem barra no fim — o build recusa e explica, mas é mais rápido acertar de primeira.
 
+## Publicar imagem nova NÃO redeploya o Render
+
+O roteiro acima cria o serviço e para por aí, e isso escondia um elo. `latest` mudar no GHCR **não
+muda o que está rodando**: o serviço é do tipo *deploy an existing image from a registry*, e ele não
+fica observando a tag. O workflow fecha verde, a imagem nova está no registro, e o Render continua
+servindo a anterior — sem erro em lugar nenhum.
+
+É o modo de falha que este documento existe para nomear, porque ele **não tem sintoma**: quem olhar
+o Actions vê verde, quem olhar o GHCR vê a imagem, e quem chamar a API recebe respostas coerentes —
+só que da versão velha.
+
+**Workflow verde não é evidência de que o deploy chegou.** A evidência é bater numa rota que só
+existe na versão nova e ver a resposta mudar de forma. O par que separa as duas coisas:
+
+```
+# controle: rota que já existia. Prova que o serviço está no ar e a auth ativa.
+curl -s -o /dev/null -w "%{http_code}
+" https://<seu-servico>.onrender.com/me/organizations
+
+# alvo: rota da versão nova, sem token.
+curl -s -o /dev/null -w "%{http_code}
+"   https://<seu-servico>.onrender.com/organizations/<uuid>/exams
+```
+
+Controle **401** com alvo **404** é o estado "imagem publicada, Render não puxou". Sem o controle,
+o 404 do alvo é indistinguível de serviço fora do ar. Os dois em 401 é o deploy no ar.
+
+Para o Render puxar: *Manual Deploy → Deploy latest reference* no painel, ou um **Deploy Hook**
+(*Settings → Deploy Hook*) chamado como último passo de `publicar-api.yml`. O hook fecha o elo e
+tira a etapa manual; enquanto ele não existir, publicar é duas ações e não uma.
+
+## Estado publicado
+
+O que está no registro, e quando foi. Não é histórico completo — é a última publicação afirmada,
+para que "a imagem é velha" seja uma afirmação conferível em vez de uma suposição.
+
+| Quando | Tag | Commit | Origem |
+|---|---|---|---|
+| 2026-09-04 13:09Z | `ghcr.io/vewvniv/platos-api:latest` | `09f200b` (`main`) | `workflow_run` após CI |
+| 2026-09-08 14:47Z | `ghcr.io/vewvniv/platos-api:latest` e `:sha-9d4f3f8` | `9d4f3f8` (`vewvniv/slice-4a-pull-de-pacote`) | `workflow_dispatch` |
+
+A segunda linha é da fatia 4a e saiu de branch **não mergeada** — `latest` aponta para código que a
+PR #31 ainda não levou para a `main`. É consequência aceita de publicar por `workflow_dispatch`, e
+some quando a PR fechar. `:sha-9d4f3f8` existe para voltar atrás sem reconstruir.
+
+**Em 2026-09-08 14:50Z o serviço ainda respondia com a imagem de 09-04**: controle em 401, as duas
+rotas da 4a em 404, três minutos depois do push. O elo do Render não fechou.
+
 ## Duas coisas para decidir com os olhos abertos
 
 **Hibernação.** O plano gratuito do Render suspende o serviço depois de ~15 minutos sem tráfego, e
