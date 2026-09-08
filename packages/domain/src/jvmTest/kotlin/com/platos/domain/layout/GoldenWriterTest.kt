@@ -73,4 +73,32 @@ class GoldenWriterTest {
         destination.writeText(folha.toCanonicalJson())
         println("folha de teste regravada: ${destination.absolutePath} (${destination.length()} bytes)")
     }
+
+    /**
+     * A segunda prova publicada, e ela e **adversarial** e nao apenas "outra".
+     *
+     * Ela declara os mesmos identificadores de item e as mesmas posicoes da `prova-referencia`,
+     * mudando so o `short_id`. A coincidencia e deliberada: com conjuntos de itens diferentes,
+     * `ObjectiveScoring` recusaria a folha trocada por divergencia de itens, a conferencia de
+     * identidade ficaria **sombreada** por uma conferencia posterior, e o cenario que a exercita
+     * passaria sem que ela existisse.
+     *
+     * Com os itens iguais, a conferencia do `exam_short_id` e a unica coisa entre a folha errada e
+     * uma nota plausivel — que e a forma de falha que ADR-0013 nomeia: integro e errado.
+     */
+    @Test
+    fun `regrava o pacote da segunda prova apenas quando solicitado`() {
+        if (System.getProperty("platos.golden.write") != "true") return
+        val destination = File(System.getProperty("platos.package2.path"))
+
+        val segunda: ExamDefinition = Json { ignoreUnknownKeys = false }
+            .decodeFromString(ExamDefinition.serializer(), Fixtures.PROVA_2_JSON)
+        val pacote = segunda.buildPackage()
+
+        destination.writeText(pacote.toCanonicalJson())
+        println(
+            "pacote 2 regravado: ${destination.absolutePath} (${destination.length()} bytes, " +
+                "hash ${pacote.contentHash()})",
+        )
+    }
 }

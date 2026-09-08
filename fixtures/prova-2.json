@@ -1,0 +1,934 @@
+{
+  "id": "prova-referencia-slice-2",
+  "title": "Prova adversarial — mesma estrutura, outra identidade",
+  "questions": [
+    {
+      "id": "q01",
+      "kind": "objective",
+      "statement": "Quanto vale {{i-soma}} ao todo?",
+      "options": [
+        "27",
+        "29",
+        "32",
+        "25"
+      ],
+      "inline": [
+        {
+          "reference": "i-soma",
+          "width": 10795,
+          "height": 2498,
+          "baseline_offset": 274
+        }
+      ],
+      "skills": [
+        {
+          "code": "EF06MA03",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "27",
+      "why": "12 + 15 = 27"
+    },
+    {
+      "id": "q02",
+      "kind": "objective",
+      "statement": "Um retangulo tem 8 cm de base e 5 cm de altura. Qual e a sua area?",
+      "options": [
+        "26 cm2",
+        "40 cm2",
+        "45 cm2",
+        "13 cm2"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA24",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "40 cm2",
+      "why": "area = base x altura = 8 x 5"
+    },
+    {
+      "id": "q03",
+      "kind": "objective",
+      "statement": "Qual fracao e equivalente a {{i-meio}}?",
+      "options": [
+        "5/12",
+        "2/5",
+        "3/6",
+        "4/9"
+      ],
+      "inline": [
+        {
+          "reference": "i-meio",
+          "width": 3133,
+          "height": 6773,
+          "baseline_offset": 2291
+        }
+      ],
+      "skills": [
+        {
+          "code": "EF06MA07",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "3/6",
+      "why": "3/6 simplifica para 1/2"
+    },
+    {
+      "id": "q04",
+      "kind": "objective",
+      "statement": "Quanto e 30% de 200?",
+      "options": [
+        "75",
+        "30",
+        "45",
+        "60"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA13",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "60",
+      "why": "30% de 200 = 0,30 x 200"
+    },
+    {
+      "id": "q05",
+      "kind": "objective",
+      "statement": "Qual e o menor numero primo maior que 10?",
+      "options": [
+        "11",
+        "12",
+        "13",
+        "15"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA05",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "11",
+      "why": "11 e primo e e o menor maior que 10"
+    },
+    {
+      "id": "q06",
+      "kind": "objective",
+      "statement": "A soma dos angulos internos de um triangulo e:",
+      "options": [
+        "90 graus",
+        "180 graus",
+        "270 graus",
+        "360 graus"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA24",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "180 graus",
+      "why": "soma dos angulos internos de qualquer triangulo"
+    },
+    {
+      "id": "q07",
+      "kind": "objective",
+      "statement": "Resolva {{i-equacao}} e depois confirme a identidade {{i-larga}} para o valor encontrado.",
+      "options": [
+        "3",
+        "6",
+        "7",
+        "9"
+      ],
+      "inline": [
+        {
+          "reference": "i-equacao",
+          "width": 11430,
+          "height": 2498,
+          "baseline_offset": 274
+        },
+        {
+          "reference": "i-larga",
+          "width": 35052,
+          "height": 3810,
+          "baseline_offset": 840
+        }
+      ],
+      "skills": [
+        {
+          "code": "EF07MA18",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "7",
+      "why": "3x = 21 -> x = 21/3"
+    },
+    {
+      "id": "q08",
+      "kind": "objective",
+      "statement": "Um produto custa 80 reais e recebe desconto de 25%. Qual o preco final?",
+      "options": [
+        "65 reais",
+        "70 reais",
+        "55 reais",
+        "60 reais"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA02",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "60 reais",
+      "why": "80 - 25% de 80 = 80 - 20"
+    },
+    {
+      "id": "q09",
+      "kind": "objective",
+      "statement": "Qual destes numeros e divisivel por 9?",
+      "options": [
+        "234",
+        "345",
+        "457",
+        "123"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA05",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "234",
+      "why": "2+3+4 = 9, divisivel por 9; os demais somam 6, 12 e 16"
+    },
+    {
+      "id": "q10",
+      "kind": "objective",
+      "statement": "O perimetro de um quadrado de lado 7 cm e:",
+      "options": [
+        "21 cm",
+        "28 cm",
+        "49 cm",
+        "14 cm"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA29",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "28 cm",
+      "why": "perimetro = 4 x lado = 4 x 7"
+    },
+    {
+      "id": "q11",
+      "kind": "objective",
+      "statement": "Quanto e {{i-potencia}}?",
+      "options": [
+        "16",
+        "25",
+        "32",
+        "64"
+      ],
+      "inline": [
+        {
+          "reference": "i-potencia",
+          "width": 3133,
+          "height": 2963,
+          "baseline_offset": 0
+        }
+      ],
+      "skills": [
+        {
+          "code": "EF06MA11",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "32",
+      "why": "2^5 = 32"
+    },
+    {
+      "id": "q12",
+      "kind": "objective",
+      "statement": "Qual e a media aritmetica de 4, 8 e 12?",
+      "options": [
+        "9",
+        "12",
+        "6",
+        "8"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA35",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "8",
+      "why": "(4 + 8 + 12) / 3 = 24/3"
+    },
+    {
+      "id": "q13",
+      "kind": "objective",
+      "statement": "Se um carro percorre 240 km em 3 horas, qual a velocidade media?",
+      "options": [
+        "80 km/h",
+        "90 km/h",
+        "60 km/h",
+        "70 km/h"
+      ],
+      "skills": [
+        {
+          "code": "EF09MA07",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "80 km/h",
+      "why": "240 km / 3 h"
+    },
+    {
+      "id": "q14",
+      "kind": "objective",
+      "statement": "Qual e o maximo divisor comum entre 12 e 18?",
+      "options": [
+        "3",
+        "6",
+        "9",
+        "2"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA01",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "6",
+      "why": "divisores comuns de 12 e 18: 1, 2, 3, 6; o maior e 6"
+    },
+    {
+      "id": "q15",
+      "kind": "objective",
+      "statement": "Um circulo tem raio 5 cm. Qual e o seu diametro?",
+      "options": [
+        "25 cm",
+        "5 cm",
+        "10 cm",
+        "15 cm"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA33",
+          "coverage": "partial"
+        }
+      ],
+      "points": 1,
+      "answer": "10 cm",
+      "why": "diametro = 2 x raio = 2 x 5"
+    },
+    {
+      "id": "q16",
+      "kind": "objective",
+      "statement": "Calcule a raiz quadrada de cento e quarenta e quatro, isto e, {{i-raiz}}",
+      "options": [
+        "13",
+        "14",
+        "11",
+        "12"
+      ],
+      "inline": [
+        {
+          "reference": "i-raiz",
+          "width": 7874,
+          "height": 3556,
+          "baseline_offset": 155
+        }
+      ],
+      "skills": [
+        {
+          "code": "EF08MA02",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "12",
+      "why": "12 x 12 = 144"
+    },
+    {
+      "id": "q17",
+      "kind": "objective",
+      "statement": "Qual e o proximo numero na sequencia 2, 4, 8, 16?",
+      "options": [
+        "32",
+        "36",
+        "20",
+        "24"
+      ],
+      "skills": [
+        {
+          "code": "EF08MA11",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "32",
+      "why": "cada termo e o dobro do anterior: 16 x 2"
+    },
+    {
+      "id": "q18",
+      "kind": "objective",
+      "statement": "Em uma turma de 40 alunos, 60% sao meninas. Quantas meninas ha?",
+      "options": [
+        "22",
+        "24",
+        "26",
+        "20"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA13",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "24",
+      "why": "60% de 40 = 0,60 x 40"
+    },
+    {
+      "id": "q19",
+      "kind": "objective",
+      "statement": "Qual e o resultado de menos 7 mais 12?",
+      "options": [
+        "menos 19",
+        "menos 5",
+        "5",
+        "19"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA03",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "5",
+      "why": "-7 + 12 = 5"
+    },
+    {
+      "id": "q20",
+      "kind": "objective",
+      "statement": "Um litro equivale a quantos mililitros?",
+      "options": [
+        "10000",
+        "10",
+        "100",
+        "1000"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA24",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "1000",
+      "why": "1 L = 1000 mL por definicao"
+    },
+    {
+      "id": "q21",
+      "kind": "objective",
+      "statement": "Qual e o minimo multiplo comum entre 4 e 6?",
+      "options": [
+        "12",
+        "24",
+        "8",
+        "10"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA01",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "12",
+      "why": "multiplos comuns de 4 e 6: 12, 24, ...; o menor e 12"
+    },
+    {
+      "id": "q22",
+      "kind": "objective",
+      "statement": "A metade de um terco de 90 e:",
+      "options": [
+        "10",
+        "15",
+        "20",
+        "30"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA09",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "15",
+      "why": "um terco de 90 = 30; a metade de 30 = 15"
+    },
+    {
+      "id": "q23",
+      "kind": "objective",
+      "statement": "Quanto e {{i-decimal}} escrito como fracao?",
+      "options": [
+        "1/2",
+        "1/3",
+        "1/4",
+        "1/5"
+      ],
+      "inline": [
+        {
+          "reference": "i-decimal",
+          "width": 5969,
+          "height": 2879,
+          "baseline_offset": 649
+        }
+      ],
+      "skills": [
+        {
+          "code": "EF06MA08",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "1/4",
+      "why": "0,25 = 25/100 = 1/4"
+    },
+    {
+      "id": "q24",
+      "kind": "objective",
+      "statement": "Um triangulo com todos os lados iguais chama-se:",
+      "options": [
+        "retangulo",
+        "escaleno",
+        "isosceles",
+        "equilatero"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA19",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "equilatero",
+      "why": "triangulo de tres lados iguais"
+    },
+    {
+      "id": "q25",
+      "kind": "objective",
+      "statement": "Qual e o resultado de 100 dividido por 4?",
+      "options": [
+        "25",
+        "30",
+        "40",
+        "20"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA03",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "25",
+      "why": "100 / 4 = 25"
+    },
+    {
+      "id": "q26",
+      "kind": "objective",
+      "statement": "Se {{i-x-vale}}, quanto vale {{i-dobro}}?",
+      "options": [
+        "12",
+        "18",
+        "24",
+        "36"
+      ],
+      "inline": [
+        {
+          "reference": "i-x-vale",
+          "width": 8043,
+          "height": 2498,
+          "baseline_offset": 274
+        },
+        {
+          "reference": "i-dobro",
+          "width": 5038,
+          "height": 3006,
+          "baseline_offset": 37
+        }
+      ],
+      "skills": [
+        {
+          "code": "EF08MA06",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "18",
+      "why": "2 x 3^2 = 2 x 9"
+    },
+    {
+      "id": "q27",
+      "kind": "objective",
+      "statement": "Quantos minutos ha em duas horas e meia?",
+      "options": [
+        "120",
+        "130",
+        "150",
+        "180"
+      ],
+      "skills": [
+        {
+          "code": "EF06MA24",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "150",
+      "why": "2,5 h x 60 min"
+    },
+    {
+      "id": "q28",
+      "kind": "objective",
+      "statement": "Qual e o oitavo numero da sequencia dos numeros pares positivos?",
+      "options": [
+        "18",
+        "20",
+        "14",
+        "16"
+      ],
+      "skills": [
+        {
+          "code": "EF07MA15",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "16",
+      "why": "pares positivos: 2, 4, ..., o oitavo e 2 x 8"
+    },
+    {
+      "id": "q29",
+      "kind": "objective",
+      "statement": "Qual e o valor da expressao abaixo?",
+      "options": [
+        "24",
+        "31",
+        "36",
+        "0"
+      ],
+      "formula": {
+        "reference": "f-aritmetica",
+        "width": 25866,
+        "height": 3344
+      },
+      "skills": [
+        {
+          "code": "EF07MA04",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "24",
+      "why": "multiplicacao antes: (-7) + 36 - 5"
+    },
+    {
+      "id": "q30",
+      "kind": "objective",
+      "statement": "Qual e o resultado da soma indicada?",
+      "options": [
+        "5/12",
+        "11/12",
+        "7/12",
+        "3/7"
+      ],
+      "formula": {
+        "reference": "f-fracoes",
+        "width": 10414,
+        "height": 6900
+      },
+      "skills": [
+        {
+          "code": "EF06MA10",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "11/12",
+      "why": "2/3 + 1/4 = 8/12 + 3/12"
+    },
+    {
+      "id": "q31",
+      "kind": "objective",
+      "statement": "Quanto vale a expressao abaixo?",
+      "options": [
+        "21",
+        "12",
+        "15",
+        "18"
+      ],
+      "formula": {
+        "reference": "f-raizes",
+        "width": 18203,
+        "height": 3683
+      },
+      "skills": [
+        {
+          "code": "EF09MA03",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "15",
+      "why": "raiz de 144 = 12; raiz cubica de 27 = 3"
+    },
+    {
+      "id": "q32",
+      "kind": "objective",
+      "statement": "Numa PG com a1 = 3 e razao q = 2, quanto vale o quarto termo?",
+      "options": [
+        "48",
+        "12",
+        "18",
+        "24"
+      ],
+      "formula": {
+        "reference": "f-potencias",
+        "width": 20616,
+        "height": 3598
+      },
+      "skills": [
+        {
+          "code": "EM13MAT508",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "24",
+      "why": "a4 = 3 x 2^3 = 3 x 8"
+    },
+    {
+      "id": "q33",
+      "kind": "objective",
+      "statement": "Se o seno de um angulo agudo e 3/5, quanto vale o cosseno desse angulo?",
+      "options": [
+        "4/5",
+        "5/4",
+        "2/5",
+        "3/5"
+      ],
+      "formula": {
+        "reference": "f-trigonometria",
+        "width": 26035,
+        "height": 3217
+      },
+      "skills": [
+        {
+          "code": "EM13MAT306",
+          "coverage": "partial"
+        }
+      ],
+      "points": 1,
+      "answer": "4/5",
+      "why": "cos^2 = 1 - (3/5)^2 = 16/25; cos = 4/5, positivo no agudo"
+    },
+    {
+      "id": "q34",
+      "kind": "objective",
+      "statement": "Qual e o valor de x na igualdade abaixo?",
+      "options": [
+        "4",
+        "5",
+        "6",
+        "16"
+      ],
+      "formula": {
+        "reference": "f-logaritmo",
+        "width": 16044,
+        "height": 3133
+      },
+      "skills": [
+        {
+          "code": "EM13MAT305",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "5",
+      "why": "2^5 = 32"
+    },
+    {
+      "id": "q35",
+      "kind": "objective",
+      "statement": "Qual e o modulo do vetor indicado?",
+      "options": [
+        "3",
+        "4",
+        "5",
+        "7"
+      ],
+      "formula": {
+        "reference": "f-vetor",
+        "width": 44027,
+        "height": 4572
+      },
+      "skills": [
+        {
+          "code": "EM13MAT308",
+          "coverage": "anchor"
+        }
+      ],
+      "points": 1,
+      "answer": "5",
+      "why": "raiz de (9 + 16) = raiz de 25"
+    },
+    {
+      "id": "q36",
+      "kind": "objective",
+      "statement": "Usando a identidade abaixo, quanto vale a soma dos dez primeiros inteiros positivos?",
+      "options": [
+        "100",
+        "45",
+        "50",
+        "55"
+      ],
+      "formula": {
+        "reference": "f-somatorio",
+        "width": 24892,
+        "height": 9398
+      },
+      "skills": [
+        {
+          "code": "EM13MAT507",
+          "coverage": "partial"
+        }
+      ],
+      "points": 1,
+      "answer": "55",
+      "why": "10 x 11 / 2"
+    },
+    {
+      "id": "q37",
+      "kind": "objective",
+      "statement": "Qual e o valor do determinante indicado?",
+      "options": [
+        "10",
+        "14",
+        "6",
+        "8"
+      ],
+      "formula": {
+        "reference": "f-matriz2",
+        "width": 8932,
+        "height": 8043
+      },
+      "skills": [
+        {
+          "code": "EM13MAT301",
+          "coverage": "anchor"
+        }
+      ],
+      "points": 1,
+      "answer": "10",
+      "why": "3 x 4 - 1 x 2 = 12 - 2"
+    },
+    {
+      "id": "q38",
+      "kind": "objective",
+      "statement": "Qual e a soma dos elementos da diagonal principal da matriz abaixo?",
+      "options": [
+        "12",
+        "15",
+        "18",
+        "45"
+      ],
+      "formula": {
+        "reference": "f-matriz3",
+        "width": 17611,
+        "height": 12742
+      },
+      "skills": [
+        {
+          "code": "EM13MAT301",
+          "coverage": "anchor"
+        }
+      ],
+      "points": 1,
+      "answer": "15",
+      "why": "diagonal principal: 1 + 5 + 9"
+    },
+    {
+      "id": "q39",
+      "kind": "objective",
+      "statement": "Qual e o valor de x no sistema abaixo?",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "5"
+      ],
+      "formula": {
+        "reference": "f-sistema",
+        "width": 17992,
+        "height": 8043
+      },
+      "skills": [
+        {
+          "code": "EM13MAT301",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "3",
+      "why": "somando as equacoes: 3x = 9"
+    },
+    {
+      "id": "q40",
+      "kind": "objective",
+      "statement": "Aplicando a formula abaixo, quais sao as raizes de x2 - 5x + 6 = 0?",
+      "options": [
+        "-2 e -3",
+        "0 e 5",
+        "1 e 6",
+        "2 e 3"
+      ],
+      "formula": {
+        "reference": "f-bhaskara",
+        "width": 30776,
+        "height": 7832
+      },
+      "skills": [
+        {
+          "code": "EM13MAT302",
+          "coverage": "direct"
+        }
+      ],
+      "points": 1,
+      "answer": "2 e 3",
+      "why": "x = (5 +- 1)/2 -> 3 e 2"
+    }
+  ]
+}

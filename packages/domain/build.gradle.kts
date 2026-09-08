@@ -26,6 +26,7 @@ val embedFixtures = tasks.register<EmbedFixturesTask>("embedFixtures") {
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.json"),
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.layout.json"),
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.package.json"),
+        rootProject.layout.projectDirectory.file("fixtures/prova-2.json"),
         rootProject.layout.projectDirectory.file("fixtures/folha-de-teste.layout.json"),
         rootProject.layout.projectDirectory.file("fixtures/formulas.manifest.json"),
     )
@@ -125,6 +126,13 @@ tasks.withType<Test>().configureEach {
     systemProperty(
         "platos.package.path",
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.package.json")
+            .asFile.absolutePath,
+    )
+    // A segunda prova da fatia 4a: mesma estrutura, outra identidade. E o oraculo da conferencia
+    // de identidade, que sem ela ficaria sombreada pela divergencia de itens.
+    systemProperty(
+        "platos.package2.path",
+        rootProject.layout.projectDirectory.file("fixtures/prova-2.package.json")
             .asFile.absolutePath,
     )
     // A folha de teste de impressao e artefato versionado pelo mesmo motivo do golden: e dela que
