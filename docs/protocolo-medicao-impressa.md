@@ -669,3 +669,173 @@ Em `docs/cobertura-fatia-4a-zero.md`: o que fechou, o que não fechou, os tempos
 aparelho, e **o que falhou pela primeira vez**. A fatia 4a-zero fechou com dois defeitos achados
 aqui e em nenhum outro lugar — o tempo limite de soquete e a permissão de rede fora do manifesto
 principal —, e os dois estavam sob comentários que diziam estar resolvidos.
+
+---
+
+## 14. Conferir o pull do pacote, em aparelho (fatia 4a)
+
+Como §12 e §13, isto não é medição: é o roteiro da parte que nenhum teste alcança. As decisões desta
+fatia — as duas camadas de conferência, o escopo do cache, os quatro motivos de barragem, a
+identidade da folha — rodam na JVM, e `docs/cobertura-fatia-4a.md` registra como cada uma foi vista
+falhar. O que sobra aqui é o que só existe com servidor de verdade, disco de verdade e papel.
+
+### 14.1 Preparar, e o que precisa existir antes
+
+Vale tudo o que §13.1 pede, mais **duas provas publicadas na mesma organização**:
+
+1. `prova-referencia-slice-1`, a de sempre;
+2. `prova-referencia-slice-2`, a adversarial — mesmos itens, mesmas posições, mesmo gabarito, outro
+   `short_id`. É essa coincidência que faz a recusa por identidade ser a **única** coisa entre a
+   folha errada e uma nota plausível; com provas de estruturas diferentes, `ObjectiveScoring`
+   recusaria por divergência de itens e a conferência de identidade ficaria coberta.
+
+Publicar as duas exige `ExamPublication` contra o banco real; as fixtures dos pacotes estão em
+`fixtures/prova-referencia.package.json` e `fixtures/prova-2.package.json`, e os `content_hash` são
+o SHA-256 dos bytes de cada arquivo.
+
+Confira antes de instalar que a rota responde:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Bearer $TOKEN" \
+  "https://<servico>/organizations/<org>/exams"
+```
+
+### 14.2 A lista vem da API
+
+Entre, toque em "Escanear folha". A lista tem de trazer **as duas provas**, com os títulos e os
+identificadores que o `curl` acima devolveu. Não há campo para digitar identificador, e não deve
+haver: prova que a consulta não devolveu não é escolhível.
+
+### 14.3 O caso para o qual a fatia existe: a segunda vez, sem rede
+
+1. Escolha uma prova **com rede**. Ela baixa, confere e abre a câmera.
+2. Feche o aplicativo (`am force-stop`, e confira que o pid zerou).
+3. **Modo avião.**
+4. Reabra, escolha a mesma prova.
+
+A câmera tem de abrir. Se ela pedir rede, o cache não está sendo consultado — é o defeito da tarefa
+5.8, que com rede não aparece em lugar nenhum.
+
+### 14.4 Os quatro motivos de barragem são quatro frases
+
+Ainda em modo avião, escolha uma prova **nunca baixada**. A tela tem de dizer que falta rede e que
+baixar uma vez resolve — e não "não foi possível", nem falha de conferência.
+
+Os outros três se provocam assim: **pacote ausente**, publicando uma prova sem pacote (ou apontando
+para um `short_id` inexistente); **conferência falha**, corrompendo o arquivo do cache (§14.5);
+**versão insuficiente**, publicando um pacote com `min_renderer_version` acima do
+`RendererContract.RENDERER_VERSION` do APK instalado.
+
+### 14.5 Corromper o cache à mão
+
+É o par em aparelho da tarefa 4.4, e nenhum teste de JVM alcança o sistema de arquivos real do
+aplicativo.
+
+```bash
+adb shell run-as com.platos.android ls files/packages/<org>/
+adb shell run-as com.platos.android sh -c 'echo lixo > files/packages/<org>/<hash>.json'
+```
+
+Reabra e escolha a mesma prova. Com rede, o aplicativo tem de **descartar e puxar de novo**, sem
+nada na tela além do preparo normal. Sem rede, tem de barrar dizendo que falta rede — e nunca
+escanear com o arquivo corrompido.
+
+### 14.6 Sair leva os pacotes junto
+
+Par em aparelho da tarefa 4.9, e a conferência é no **disco**, não na tela:
+
+```bash
+adb shell run-as com.platos.android ls -R files/packages/
+```
+
+Depois de sair, o diretório da organização não pode existir. Entre com o **segundo** usuário e
+confira de novo antes de ele escolher qualquer prova.
+
+### 14.7 A folha de outra prova, no papel
+
+**Qual arquivo é a `prova-2`, e como sai o PDF.** São dois artefatos versionados:
+
+| Arquivo | O que é |
+|---|---|
+| `fixtures/prova-2.json` | a definição, adversarial: mesmos itens, posições e gabarito da `prova-referencia`, só o `id` muda |
+| `fixtures/prova-2.package.json` | o pacote publicado, 101 635 bytes, `content_hash` `9dccf215…3c8a` |
+
+Para comparar: o pacote da `prova-referencia` tem `content_hash` `26612ad5…909a`. **São essas duas
+linhas que distinguem as folhas** — visualmente elas são quase idênticas, e é essa semelhança que
+torna o teste válido.
+
+O PDF sai pelo mesmo caminho de §1, com o pacote escolhido por variável de ambiente:
+
+```bash
+cd apps/web
+PLATOS_PACKAGE=fixtures/prova-2.package.json   npx tsx scripts/render-fixture.ts ../../build/parity/prova-2.pdf
+```
+
+A saída tem de dizer `prova prova-referencia-slice-2`. **Se disser `slice-1`, pare**: a variável não
+pegou e você está prestes a imprimir a folha errada, que passaria no teste sem provar nada.
+
+Imprima como §2 manda — 100%, sem ajuste à página.
+
+
+**Fecha a 6.4b, herdada da fatia 3c**, que ficou aberta por falta de oráculo físico — e esta fatia é
+quem o cria.
+
+1. Imprima uma folha da `prova-referencia-slice-2`. Ela não precisa ser oráculo de nota; precisa
+   carregar um QR que diz outra prova.
+2. No aparelho, escolha a `prova-referencia-slice-1`.
+3. Escaneie a folha da `slice-2`.
+
+**O texto exato que tem de aparecer**, e é ele que fecha a tarefa — não "recusou":
+
+```
+a folha e de outra prova: o QR diz prova-referencia-slice-2,
+e o aparelho carrega prova-referencia-slice-1
+```
+
+Os **dois** identificadores precisam estar na frase. Anote o texto literal da tela, e não um resumo:
+é a única coisa que distingue a recusa por identidade de uma recusa por outra causa, e a fatia
+inteira gira em torno dessa distinção.
+
+**Se aparecer outra frase, o teste não passou — ele mudou de assunto.** Duas leituras erradas
+comuns:
+
+| Se a tela disser | O que aconteceu |
+|---|---|
+| algo sobre **itens divergentes** ou variante | a `prova-2` deixou de ser adversarial; alguém a regravou de outra definição e a identidade nunca foi consultada |
+| algo sobre **não conseguir ler a folha** | o pipeline parou antes do QR; é problema de captura, e não de identidade — repita com mais luz |
+| **uma nota** | a conferência de identidade não rodou. Pare e avise: é o defeito que a tarefa 8.3b existe para impedir, e ele produz 40 de 40 |
+
+**Não pode sair nota**, e é por isso que as duas provas têm os mesmos itens: sem a conferência de
+identidade, esta folha seria apurada contra o gabarito errado e produziria exatamente **40 de 40,
+sem pendência** — indistinguível de uma folha certa e perfeita.
+
+**Rede:** o pull precisa de rede **uma vez**, no passo 2, para baixar a `slice-1`. O escaneamento do
+passo 3 é local e pode ser feito em **modo avião** — e é assim que vale mais, porque a mesma sessão
+fecha §14.3 (a segunda vez sem rede) e esta. Anote o horário da primeira listagem: contra o Render,
+um serviço frio leva de 40 a 60 s para responder (medido: 43 s em 2026-09-04), e essa espera é
+esperada, não defeito.
+
+Vale o aviso de §12.5, agora do outro lado: a folha de teste de impressão **não serve** aqui — ela
+não tem região do mesmo tipo, e a recusa viria do estágio errado.
+
+**Pré-requisito, e ele ainda não está satisfeito:** o passo 2 exige que a API **com as rotas desta
+fatia** esteja no ar e que as duas provas estejam publicadas (tarefa 8.2). Em 2026-09-04 o serviço
+publicado ainda é o anterior a esta branch — `/me/organizations` responde 401 e
+`/organizations/{id}/exams` responde **404**, que é como uma rota inexistente responde. Imprimir a
+folha (§14.7, passo 1) pode ser feito desde já; escaneá-la, não.
+
+### 14.8 O que ainda não é produzível
+
+Folha cuja **variante** o pacote não declara. `LayoutEngine.qrPayloadOf` recebe `examId` e índice de
+região, e nada mais: a variante sai vazia de toda folha impressa até a fatia 7 criar variantes de
+verdade. O cenário está coberto em JVM (`IdentidadeDaFolhaTest`), e o que falta é o papel — não o
+código.
+
+### 14.9 Registrar
+
+Em `docs/cobertura-fatia-4a.md`, e no formato de §12.7 e §13.8: o que foi conferido, o que falhou na
+primeira tentativa, e o que a conferência revelou que nenhum teste de JVM tinha visto. Registre
+também o tempo do pull de ~100 KB contra o serviço real, incluindo cold start, ao lado do
+`TEMPO_LIMITE_DE_PEDIDO_MS` de 90 s que a 4a-zero fixou — é a primeira chamada desta base grande o
+bastante para dizer algo sobre ele.
