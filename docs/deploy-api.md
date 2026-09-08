@@ -266,6 +266,38 @@ não erro de conexão. Não é certeza — é o primeiro suspeito se a conexão 
 A conexão direta não tem esse problema, e tem outro: limite menor de conexões simultâneas.
 `maxPoolSize` está em 10 (`DatabaseConfig`).
 
+## Notas operacionais
+
+Fatos observados que não têm explicação fechada, registrados porque saber que já aconteceram uma
+vez vale mais do que a explicação que falta.
+
+**2026-09-08, ~17:50–18:20Z: degradação transitória do projeto Supabase, sem causa local
+identificada.** Os três serviços que compartilham o banco falharam juntos e voltaram sozinhos:
+
+| Alvo | Na degradação | Depois |
+|---|---|---|
+| `rest/v1/` | 401 em **18,9 s** | 401 em 0,24 s |
+| `auth/v1/health` | **000** — sem resposta HTTP | 200 em 0,16 s |
+| Session Pooler | conexão devolvida **já fechada** | conecta normalmente |
+
+Do lado do pooler o sintoma **não diz "banco"**: chega como
+`HikariPool$PoolInitializationException: Failed to initialize pool: This connection has been
+closed.`, com a causa em `PgConnection.setTransactionIsolation` — o Hikari falhando ao detectar o
+nível de isolamento numa conexão que já veio morta. Quem ler só essa linha procura defeito no
+cliente.
+
+Duas hipóteses foram levantadas e **nenhuma se confirmou**. Esgotamento de conexões era a mais
+plausível — o serviço no Render segura até dez (`maxPoolSize`) e as ferramentas locais abriam outras
+dez —, mas os logs de Supavisor e Auth da janela não mostram erro de conexão nenhum, mostram
+abertura e `shutting down gracefully` emparelhados em cada ciclo, e ficam **em silêncio total** por
+~30 min. Vazamento apareceria como abertura sem fechamento correspondente, e não apareceu. A
+recuperação foi espontânea, sem nenhuma ação. Fica sem causa.
+
+O que isto muda na prática: **antes de depurar o cliente, bata em `rest/v1/` e `auth/v1/health`.**
+Se os dois estiverem lentos ou mudos, o problema não é seu código. E ao interpretar a janela, note
+que a ausência de linhas no log é ambígua — pode ser normalidade ou pode ser que as tentativas nem
+estejam chegando; só um probe ao vivo decide.
+
 ## O que este roteiro não cobre
 
 - **Sentry**, que §13 também prevê. Não está no código ainda.
