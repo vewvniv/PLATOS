@@ -38,7 +38,32 @@ Crítico é o que falha em silêncio e chega à folha impressa ou ao OMR — med
   build, manifesto ou suíte instrumentada. `./gradlew build` não roda `connectedDebugAndroidTest`,
   e `--tests` de uma classe não roda as outras. Duas vezes o comando estreito local escondeu o que
   o cheio pega.
+- **Artefato de execução anterior não é evidência da execução atual.** Reinstalação de APK apaga o
+  `filesDir`, e o nome do arquivo não muda — nada avisa. A primeira tentativa de fechar paridade na
+  fatia 4a comparou o web de **hoje** contra um `android.pdf` de **agosto**: o arquivo estava lá,
+  com o nome certo, e só a data denunciava. Estado que mora no instrumento precisa de âncora —
+  data, hash ou diretório por execução —, conferida **antes** da comparação. É defeito
+  diferente do comando de CI filtrado: lá falta cobertura; aqui a cobertura roda e mede o
+  artefato errado.
 - Registre em `docs/cobertura-*.md` como o teste foi visto falhar, não só que ele passa.
+
+**Fixture mínima sombreia a camada que deveria testar.** Quando duas conferências cobrem o mesmo
+dado por motivos diferentes, mutar a de dentro deixa a de fora recusando pelo motivo errado, e o
+teste fica verde por acidente — ou vermelho sem provar nada. Aconteceu duas vezes na fatia 4a: o
+cenário de conteúdo truncado no cache continuou **verde** com a leitura confiando no nome do arquivo,
+porque truncado também não parseia e a camada (b) o recusava por interpretação; e a conferência de
+identidade da folha só pôde ser exercitada porque a `prova-2` foi construída com os **mesmos itens,
+posições e gabarito** da `prova-referencia` — com itens diferentes, `ObjectiveScoring` recusaria por
+divergência de conjunto e a identidade nunca seria consultada. Ao escrever um "ver falhar" para uma
+camada específica:
+
+- A fixture da mutação SHALL **isolar essa camada**: passar em todas as outras conferências e falhar
+  só na que está sob teste. Se ela falha em duas, a mutação não diz qual das duas segurou.
+- A asserção SHALL conferir o **motivo** da recusa, e não só que houve recusa. "Recusou" é
+  indistinguível entre a camada certa e a vizinha.
+- Leia **quais** cenários caíram e quais não: conjuntos disjuntos entre duas mutações são a prova de
+  que as camadas são independentes; um cenário que sobrevive à mutação da própria camada que ele
+  nomeia está medindo outra coisa.
 
 ## Invariantes arquiteturais
 
