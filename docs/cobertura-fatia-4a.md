@@ -321,6 +321,32 @@ variante; a fatia 7 multiplica o `layout` por variante, e é lá que ela precisa
 (1.4) e do `body<ByteArray>()` (2.3). As três foram escritas com convicção no `design.md` e nenhuma
 sobreviveu ao contato com o instrumento.
 
+### A expiração de sessão descartada em `Ativa` (tarefa 9b.1)
+
+Regressão desta fatia, encontrada **por acidente de relógio** durante a conferência em aparelho: o
+token completou 60 min no meio da sessão, e a listagem devolveu "não foi possível obter as provas"
+em vez de levar ao login. Não foi revisão que a achou, e não foi teste — foi o relógio.
+
+O que este caso ensina não é a correção; é **como ler duas falhas**. Escrevi dois testes antes de
+consertar, e os dois ficaram vermelhos na primeira execução:
+
+| Teste | Falhou porque |
+|---|---|
+| `sessao_expirada_em_ativa_tambem_volta_para_a_entrada` | **o defeito real** — "estado ficou `Ativa(...)`" |
+| `expiracao_que_chega_depois_de_sair_nao_mente_sobre_a_causa` | **erro meu de expectativa** — esperava motivo `null`, o correto é `SAIU` |
+
+"Dois vermelhos" teria sido lido como "dois defeitos", e consertar o segundo teria mudado código que
+estava certo. Quem separou os dois foi a **mensagem** de cada falha, não a contagem. Corrigida a
+expectativa, sobrou **uma** falha; depois da correção, o segundo cenário seguiu verde na mesma
+execução — e é isso que prova que os dois casos são independentes e que a guarda de `Consultando`
+continua protegendo o que sempre protegeu.
+
+É a regra do `CLAUDE.md` — "a asserção SHALL conferir o motivo da recusa, e não só que houve recusa"
+— aparecendo do lado de fora do teste: vale para quem **lê** a suíte, e não só para quem a escreve.
+Um teste novo que nasce vermelho junto com outro é suspeito até que as duas mensagens sejam lidas.
+
+Depois da correção: 185 testes, 0 falhas.
+
 ## O comando cheio do CI, e a paridade (tarefas 7.4 e 10.1)
 
 Rodado no `platos-atd34` (API 34, `aosp_atd`, x86_64) — a mesma imagem do CI — em 2026-09-04:
