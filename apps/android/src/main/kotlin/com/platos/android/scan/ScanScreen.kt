@@ -136,3 +136,26 @@ private fun Nota(score: ObjectiveScore) {
         Text(pendencia, fontSize = 14.sp)
     }
 }
+
+/**
+ * O escaneamento nao abriu porque nao ha pacote conferido para esta prova.
+ *
+ * Nao ha caminho de reserva a oferecer: sem pacote conferido nao se escaneia (ADR-0013, decisao 5).
+ * A unica acao e voltar e escolher de novo, que refaz o gate.
+ */
+@Composable
+fun SemPacoteScreen(onVoltar: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "A prova nao esta mais conferida neste aparelho, entao a camera nao foi aberta. " +
+                "Volte e escolha a prova de novo para baixa-la.",
+        )
+        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth().padding(top = 24.dp)) {
+            Text("Voltar")
+        }
+    }
+}

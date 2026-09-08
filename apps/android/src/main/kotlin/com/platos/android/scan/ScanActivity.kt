@@ -18,12 +18,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import com.platos.android.pacote.PacotesEmArquivo
 import com.platos.domain.capture.OmrThreshold
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.layout.LayoutMap
+import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlinx.serialization.json.Json
 import org.opencv.android.OpenCVLoader
 
 /**
@@ -33,11 +34,21 @@ import org.opencv.android.OpenCVLoader
  * permissao, liga o CameraX no analisador e leva o estado da sessao para a tela. Toda decisao mora
  * em [ScanSession] e no pipeline — o que esta aqui e o que so existe porque ha um aparelho.
  *
- * **O pacote vem de asset, e isso e provisorio.** Ate a fatia 4 trazer o pull de referencia
- * imutavel, nao ha de onde ele vir sem rede. A conferencia do `exam_short_id` contra ele nao e
- * opcional: sem ela, uma folha de outra prova produziria nota plausivel e errada.
+ * **O pacote vem do cache, pelo endereco que o `Intent` trouxe.** Nao ha asset embutido, e nao ha
+ * caminho de reserva: sem pacote conferido a camera nao abre. Um pacote embutido que sobrevivesse
+ * "por enquanto" viraria caminho permanente de reserva, e com ele o portao binario de ADR-0009
+ * morreria em silencio — o aparelho escanearia com um pacote que ninguem puxou nem conferiu, e nada
+ * na tela diria isso.
  *
- * Nada e persistido: a nota e apresentada e some. Room e outbox sao da fatia 4.
+ * **A leitura reconfere**, e nao confia na decisao que o gate ja tomou. Nao e redundancia: e o que
+ * faz o requisito "reconferido a cada leitura" valer no caminho real, e o que faz esta `Activity`
+ * sobreviver a morte do processo — o `Intent` persiste, o endereco continua valido, e a conferencia
+ * acontece de novo em vez de ser herdada de antes de o processo morrer.
+ *
+ * A conferencia do `exam_short_id` contra o payload do QR — a camada (c) — continua em
+ * [ScanSession], e e a unica das tres que julga **de quem e a folha**, e nao os bytes.
+ *
+ * Nada e persistido: a nota e apresentada e some. Room e outbox sao da fatia 4b.
  */
 class ScanActivity : ComponentActivity() {
 
@@ -62,9 +73,23 @@ class ScanActivity : ComponentActivity() {
 
         check(OpenCVLoader.initLocal()) { "o OpenCV nativo nao carregou" }
 
-        examPackage = Json.decodeFromString(
-            assets.open(PACOTE).use { it.readBytes().decodeToString() },
-        )
+        val organizacao = intent.getStringExtra(EXTRA_ORGANIZACAO)
+        val contentHash = intent.getStringExtra(EXTRA_CONTENT_HASH)
+        val doCache = if (organizacao == null || contentHash == null) {
+            null
+        } else {
+            PacotesEmArquivo(File(filesDir, "packages")).ler(organizacao, contentHash)
+        }
+
+        if (doCache == null) {
+            // Recusa com motivo, e nunca degradacao. Chegar aqui significa que o pacote sumiu ou
+            // deixou de conferir entre o gate e esta tela — disco cheio, arquivo removido, corrupcao
+            // em repouso. O escaneamento nao abre, e quem escolheu a prova volta a escolher.
+            setContent { SemPacoteScreen(onVoltar = ::finish) }
+            return
+        }
+
+        examPackage = doCache
         map = examPackage.layout.values.single()
         session = ScanSession(examPackage)
         analysisExecutor = Executors.newSingleThreadExecutor()
@@ -95,7 +120,9 @@ class ScanActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        analysisExecutor.shutdown()
+        // A recusa por falta de pacote retorna antes de o executor existir; `isInitialized` evita
+        // que o caminho de recusa estoure ao fechar a tela.
+        if (::analysisExecutor.isInitialized) analysisExecutor.shutdown()
     }
 
     private fun temPermissao() =
@@ -168,8 +195,12 @@ class ScanActivity : ComponentActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private companion object {
-        const val PACOTE = "prova-referencia.package.json"
+    companion object {
+        /** A organizacao sob a qual o pacote esta guardado. */
+        const val EXTRA_ORGANIZACAO = "com.platos.android.scan.ORGANIZACAO"
+
+        /** O endereco do pacote conferido. **O endereco, e nao o pacote** — ver `design.md`, 6. */
+        const val EXTRA_CONTENT_HASH = "com.platos.android.scan.CONTENT_HASH"
 
         /**
          * Resolucao pedida a analise.

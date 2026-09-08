@@ -11,11 +11,14 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import com.platos.android.BuildConfig
 import com.platos.android.api.ApiPlatos
+import com.platos.android.api.paraProvas
 import com.platos.android.api.paraSessao
 import com.platos.android.auth.AutenticacaoSupabase
 import com.platos.android.auth.ResultadoDaAutenticacao
 import com.platos.android.auth.paraSessao
 import com.platos.android.net.clienteHttp
+import com.platos.android.pacote.PacotesEmArquivo
+import com.platos.android.pacote.obterPacote
 import com.platos.android.scan.ScanActivity
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.launch
@@ -40,6 +43,7 @@ import kotlinx.coroutines.launch
 class SessaoActivity : ComponentActivity() {
 
     private lateinit var guardada: SessaoGuardadaAndroid
+    private lateinit var pacotes: PacotesEmArquivo
     private lateinit var http: HttpClient
     private lateinit var autenticacao: AutenticacaoSupabase
     private lateinit var api: ApiPlatos
@@ -56,11 +60,32 @@ class SessaoActivity : ComponentActivity() {
      */
     private var enviando by mutableStateOf(false)
 
+    /**
+     * O preparo de prova em curso, ou `null` quando a tela e a de trabalho.
+     *
+     * **Maquina separada, e nao um estado a mais em [DeviceState]** (decisao 5 do `design.md`).
+     * Nula significa "ninguem pediu para escanear ainda"; nao-nula, que o fluxo de escolha de prova
+     * esta aberto sobre a organizacao ativa.
+     *
+     * Ela e descartada ao sair e ao trocar de organizacao, porque as provas apresentadas pertencem a
+     * uma organizacao so — mante-la viva deixaria a lista da organizacao anterior na tela.
+     */
+    private var preparo by mutableStateOf<PreparoDaProva?>(null)
+
+    /** O estado do preparo, espelhado para o Compose recompor. */
+    private var estadoDaProva by mutableStateOf<EstadoDaProva>(EstadoDaProva.Listando)
+
+    /** As provas da ultima listagem bem-sucedida, para o "escolher outra prova" da barragem. */
+    private var provasApresentadas by mutableStateOf<List<ProvaPublicada>>(emptyList())
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         guardada = SessaoGuardadaAndroid(applicationContext)
-        sessao = DeviceSession(guardada)
+        // Quem sabe onde fica o armazenamento privado do aplicativo e o `Activity`; o cache so sabe
+        // de arquivos, e e isso que o deixa verificavel na JVM (decisao 4 do `design.md`).
+        pacotes = PacotesEmArquivo(java.io.File(filesDir, "packages"))
+        sessao = DeviceSession(guardada, pacotes)
         http = clienteHttp()
 
         autenticacao = AutenticacaoSupabase(
@@ -140,7 +165,63 @@ class SessaoActivity : ComponentActivity() {
     private fun sair() {
         sessao.sair()
         state = sessao.state
+        preparo = null
     }
+
+    // --- O preparo da prova ---
+
+    /** Abre o fluxo de escolha de prova sobre a organizacao ativa, e lista. */
+    private fun prepararProva() {
+        val maquina = PreparoDaProva()
+        preparo = maquina
+        listarProvas()
+    }
+
+    private fun listarProvas() {
+        val maquina = preparo ?: return
+        val organizacao = organizacaoAtiva() ?: return
+
+        maquina.listar()
+        estadoDaProva = maquina.state
+
+        lifecycleScope.launch {
+            maquina.aoListar(api.provas(organizacao).paraProvas())
+            estadoDaProva = maquina.state
+            (maquina.state as? EstadoDaProva.Escolhendo)?.let { provasApresentadas = it.provas }
+        }
+    }
+
+    private fun escolherProva(prova: ProvaPublicada) {
+        val maquina = preparo ?: return
+        val organizacao = organizacaoAtiva() ?: return
+
+        maquina.escolher(prova)
+        estadoDaProva = maquina.state
+        if (maquina.state !is EstadoDaProva.Preparando) return
+
+        lifecycleScope.launch {
+            maquina.aoObterPacote(obterPacote(pacotes, api, organizacao, prova))
+            estadoDaProva = maquina.state
+        }
+    }
+
+    /**
+     * O gate passou: abre o escaneamento passando o **endereco** do pacote, e nao o pacote.
+     *
+     * Sao ~100 KB, e uma transacao Binder desse tamanho derruba o aplicativo em vez de falhar com
+     * motivo. `ScanActivity` rele do cache e reconfere, que e o que faz o requisito "reconferido a
+     * cada leitura" valer no caminho real — e o que a faz sobreviver a morte do processo.
+     */
+    private fun escanear(pronta: EstadoDaProva.Pronta) {
+        val organizacao = organizacaoAtiva() ?: return
+        startActivity(
+            Intent(this, ScanActivity::class.java)
+                .putExtra(ScanActivity.EXTRA_ORGANIZACAO, organizacao)
+                .putExtra(ScanActivity.EXTRA_CONTENT_HASH, pronta.contentHash),
+        )
+    }
+
+    private fun organizacaoAtiva(): String? = (state as? DeviceState.Ativa)?.organizacao?.id
 
     // --- Estado para tela ---
 
@@ -171,16 +252,68 @@ class SessaoActivity : ComponentActivity() {
                 },
             )
 
-            is DeviceState.Ativa -> TrabalhoScreen(
-                organizacao = atual.organizacao,
-                onEscanear = { startActivity(Intent(this, ScanActivity::class.java)) },
-                onSair = ::sair,
-            )
+            is DeviceState.Ativa -> when (val fluxo = preparo) {
+                null -> TrabalhoScreen(
+                    organizacao = atual.organizacao,
+                    onEscanear = ::prepararProva,
+                    onSair = ::sair,
+                )
+
+                else -> TelaDoPreparo(fluxo)
+            }
 
             is DeviceState.SemOrganizacao -> SemOrganizacaoScreen(
                 texto = textoSemOrganizacao(atual.falha),
                 onTentarDeNovo = ::abrirSessao,
                 onSair = ::sair,
+            )
+        }
+    }
+
+    /**
+     * O `when` do preparo e **exaustivo e sem `else`**, pela mesma razao do de [DeviceState].
+     *
+     * Estado novo em [EstadoDaProva] quebra a compilacao aqui em vez de cair numa tela por padrao.
+     * Tela errada apresentada com confianca e o modo de falha desta fatia inteira.
+     */
+    @Composable
+    private fun TelaDoPreparo(fluxo: PreparoDaProva) {
+        when (val atual = estadoDaProva) {
+            is EstadoDaProva.Listando -> ConsultandoScreen()
+
+            is EstadoDaProva.Escolhendo -> EscolhaDaProvaScreen(
+                provas = atual.provas,
+                onEscolher = ::escolherProva,
+                onSair = ::sair,
+            )
+
+            is EstadoDaProva.SemProvaPublicada -> SemProvaScreen(
+                onTentarDeNovo = ::listarProvas,
+                onSair = ::sair,
+            )
+
+            is EstadoDaProva.ListagemFalhou -> BarragemScreen(
+                titulo = "Nao foi possivel listar as provas",
+                texto = textoDaListagem(atual.falha),
+                onTentarDeNovo = ::listarProvas,
+                onVoltar = { preparo = null },
+            )
+
+            is EstadoDaProva.Preparando -> PreparandoScreen(atual.prova)
+
+            is EstadoDaProva.Pronta -> {
+                // Efeito, e nao chamada no corpo do `@Composable`: navegar durante a composicao
+                // dispararia de novo a cada recomposicao. A chave e o hash, entao a mesma prova
+                // conferida nao reabre a camera sozinha.
+                androidx.compose.runtime.LaunchedEffect(atual.contentHash) { escanear(atual) }
+                PreparandoScreen(atual.prova)
+            }
+
+            is EstadoDaProva.Barrada -> BarragemScreen(
+                titulo = atual.prova.titulo,
+                texto = textoDaBarragem(atual.motivo),
+                onTentarDeNovo = { escolherProva(atual.prova) },
+                onVoltar = { fluxo.voltarAEscolha(provasApresentadas); estadoDaProva = fluxo.state },
             )
         }
     }
