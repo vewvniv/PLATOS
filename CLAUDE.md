@@ -45,6 +45,13 @@ Crítico é o que falha em silêncio e chega à folha impressa ou ao OMR — med
   data, hash ou diretório por execução —, conferida **antes** da comparação. É defeito
   diferente do comando de CI filtrado: lá falta cobertura; aqui a cobertura roda e mede o
   artefato errado.
+- **Sinal barato não prova o que ele não mede.** `comando; echo "ok"` imprime o `ok` mesmo com o
+  comando vermelho — só `&&` ou uma conferência de `$?` amarram os dois. A família é maior que o
+  `echo`: workflow verde prova que a imagem foi construída, não que ela está servindo; um 401 sem
+  token prova roteamento e autenticação, não que o processo alcança o banco; um arquivo com o nome
+  certo prova que existe um arquivo. Antes de citar um sinal como evidência, diga **qual passo ele
+  atravessa** — e se o passo que interessa não estiver nesse caminho, o sinal não serve, por mais
+  verde que esteja. Quatro vezes na fatia 4a.
 - Registre em `docs/cobertura-*.md` como o teste foi visto falhar, não só que ele passa.
 
 **Fixture mínima sombreia a camada que deveria testar.** Quando duas conferências cobrem o mesmo

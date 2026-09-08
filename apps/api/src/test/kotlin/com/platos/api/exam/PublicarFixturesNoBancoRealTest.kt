@@ -78,6 +78,11 @@ class PublicarFixturesNoBancoRealTest {
                 url = obrigatorio("DATABASE_URL"),
                 user = obrigatorio("DATABASE_USER"),
                 password = obrigatorio("DATABASE_PASSWORD"),
+                // Duas, e nao as dez do padrao. Isto publica duas provas em sequencia e sai; dez
+                // conexoes so disputam o limite do pooler com o servico vivo, que ja segura as
+                // dez dele. O sintoma da disputa nao diz "limite": o pooler devolve a conexao ja
+                // fechada, e o Hikari falha detectando nivel de isolamento.
+                maxPoolSize = 2,
             ),
         )
 
