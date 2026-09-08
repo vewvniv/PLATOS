@@ -225,8 +225,15 @@ A segunda linha é da fatia 4a e saiu de branch **não mergeada** — `latest` a
 PR #31 ainda não levou para a `main`. É consequência aceita de publicar por `workflow_dispatch`, e
 some quando a PR fechar. `:sha-9d4f3f8` existe para voltar atrás sem reconstruir.
 
-**Em 2026-09-08 14:50Z o serviço ainda respondia com a imagem de 09-04**: controle em 401, as duas
-rotas da 4a em 404, três minutos depois do push. O elo do Render não fechou.
+**O elo do Render foi fechado à mão em 2026-09-08, e o par mostrou as duas metades.** Às 14:50Z,
+três minutos depois do push, o serviço ainda respondia com a imagem de 09-04: controle em 401 e as
+duas rotas da 4a em 404. Depois de *Manual Deploy → Deploy latest reference* no painel, às 16:13Z:
+controle em 401 e as duas rotas da 4a **em 401** — mesma forma do controle, que é o que caracteriza
+a versão nova no ar.
+
+O painel mostrou `Source: 6b72e80` para esse deploy. **Não é commit deste repositório** (`git
+cat-file -t` recusa, e nenhum commit começa com isso) — é identificador do lado do Render, e não
+serve para conferir qual código subiu. Quem confere isso é o par de rotas.
 
 ## Duas coisas para decidir com os olhos abertos
 
