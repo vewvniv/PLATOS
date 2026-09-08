@@ -209,6 +209,33 @@ Os testes instrumentados (`CorpusInstrumentedTest`, `SheetReaderInstrumentedTest
 `LayoutMapRendererInstrumentedTest`) continuam lendo a fixture pelos assets **de teste**, que é
 outro conjunto e não vai para o APK de produção.
 
+### 10. O harness de publicação de fixture fica, e fica cercado
+
+A §14.1 exige duas provas publicadas antes de qualquer conferência da seção 9, e esta fatia **não
+tem rota de publicação**: as quatro rotas do servidor são `GET`, e `ExamPublication` não está ligada
+ao `Application`. Isso é coerente — a 4a é fatia de *pull* —, mas deixa a §14 dependendo de uma peça
+que não existe. Descartar o harness depois de publicar faria a próxima pessoa reescrever exatamente
+aquilo que a 9.7 escreveu para não ser reescrito.
+
+Ele fica, então, como `PublicarFixturesNoBancoRealTest`. **Não é o caminho de publicação do
+produto** — publicação de verdade, com professor autenticado e prova própria, é escopo da fatia 7.
+A distinção é sustentada por três cercas estruturais, e não por disciplina de quem lê:
+
+1. mora em `src/test`, logo **não existe** na imagem publicada no GHCR;
+2. só age com `-Dplatos.publicar.fixtures=true`, no padrão já usado por `platos.golden.write`;
+3. publica **fixture versionada**, lida de `platos.fixtures.dir`; não aceita prova arbitrária.
+
+O `content_hash` devolvido é conferido contra o SHA-256 dos bytes do `.package.json` versionado,
+calculado por `MessageDigest` — que não compartilha código com o `Sha256` do domínio que produziu o
+valor sob julgamento. Publicação que divergir da fixture fica vermelha em vez de gravar no banco um
+pacote que ninguém afirmou.
+
+`DATABASE_USER` é obrigatório aqui, ao contrário de `AppConfig`, que cai no padrão `app_backend`: o
+Session Pooler exige o usuário com o sufixo do projeto, e o padrão falha na autenticação com erro
+que não aponta para a causa.
+
+**Quando a fatia 7 entregar publicação de verdade, reavaliar se este harness ainda se justifica.**
+
 ## Risks / Trade-offs
 
 **A camada (b) vira portão de compatibilidade, e ela é estrita por natureza** → é o comportamento
