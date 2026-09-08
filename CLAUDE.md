@@ -38,8 +38,9 @@ Crítico é o que falha em silêncio e chega à folha impressa ou ao OMR — med
   build, manifesto ou suíte instrumentada. `./gradlew build` não roda `connectedDebugAndroidTest`,
   e `--tests` de uma classe não roda as outras. Duas vezes o comando estreito local escondeu o que
   o cheio pega.
-- **Artefato de execução anterior não é evidência da execução atual.** Reinstalação de APK apaga o
-  `filesDir`, e o nome do arquivo não muda — nada avisa. A primeira tentativa de fechar paridade na
+- **Artefato de execução anterior não é evidência da execução atual.** O ciclo uninstall/install de
+  `connectedDebugAndroidTest` apaga o `filesDir`, e o nome do arquivo não muda — nada avisa.
+  (`installDebug` **não** apaga: é atualização, e preserva os dados. Conferido em 2026-09-08.) A primeira tentativa de fechar paridade na
   fatia 4a comparou o web de **hoje** contra um `android.pdf` de **agosto**: o arquivo estava lá,
   com o nome certo, e só a data denunciava. Estado que mora no instrumento precisa de âncora —
   data, hash ou diretório por execução —, conferida **antes** da comparação. É defeito
