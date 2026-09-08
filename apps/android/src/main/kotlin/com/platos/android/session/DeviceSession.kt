@@ -1,5 +1,7 @@
 package com.platos.android.session
 
+import com.platos.android.pacote.PacotesGuardados
+
 /** O que a autenticacao devolveu, ja destilado pelo adaptador. */
 sealed interface ResultadoDaEntrada {
     data object Autenticado : ResultadoDaEntrada
@@ -42,7 +44,10 @@ interface SessaoGuardada {
  * ja resolvida. Ela nao e feita aqui e nao e feita por texto de mensagem: o adaptador olha o lado da
  * falha — excecao de transporte contra resposta 401 — e diz qual das tres foi.
  */
-class DeviceSession(private val guardada: SessaoGuardada) {
+class DeviceSession(
+    private val guardada: SessaoGuardada,
+    private val pacotes: PacotesGuardados,
+) {
 
     var state: DeviceState = DeviceState.Entrada()
         private set
@@ -112,15 +117,36 @@ class DeviceSession(private val guardada: SessaoGuardada) {
     /**
      * Sair.
      *
-     * Apaga a credencial **e** a organizacao escolhida. A segunda nao e detalhe: o aparelho e
-     * compartilhado entre escolas, e a escolha do usuario anterior sobrevivendo a troca de conta e
-     * invisivel para quem entra depois.
+     * Apaga a credencial, a organizacao escolhida **e os pacotes guardados sob ela**. Nenhuma das
+     * tres e detalhe: o aparelho e compartilhado entre escolas, e o que o usuario anterior deixou
+     * sobrevivendo a troca de conta e invisivel para quem entra depois. A fatia 4a-zero pagou esse
+     * defeito com a organizacao; o pacote e o mesmo defeito um nivel abaixo, e por isso ADR-0013
+     * manda cada fatia **nomear o que apaga** em vez de confiar num requisito generico de limpar
+     * dados locais.
+     *
+     * **A organizacao e lida antes de ser apagada.** Invertendo a ordem, o identificador ja teria
+     * sumido quando o cache fosse apagado, e o apagamento aconteceria sobre `null` — sem estourar, e
+     * sem apagar nada.
      */
     fun sair() {
+        val organizacao = organizacaoAtiva()
+
         guardada.apagarCredencial()
         guardada.apagarOrganizacaoEscolhida()
+        if (organizacao != null) pacotes.apagarDaOrganizacao(organizacao)
+
         state = DeviceState.Entrada(MotivoDeEntrada.SAIU)
     }
+
+    /**
+     * Qual organizacao esta ativa neste instante, para efeito de apagamento.
+     *
+     * O estado vem primeiro porque ele e o mais recente; o disco responde quando a tela nao esta em
+     * [DeviceState.Ativa] — sair a partir da escolha, por exemplo. Nao havendo nenhum dos dois, nao
+     * houve pull, porque puxar exige organizacao ativa.
+     */
+    private fun organizacaoAtiva(): String? =
+        (state as? DeviceState.Ativa)?.organizacao?.id ?: guardada.organizacaoEscolhida()
 
     /**
      * Uma organizacao so dispensa a escolha; mais de uma pede.
