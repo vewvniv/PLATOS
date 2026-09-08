@@ -693,6 +693,18 @@ Publicar as duas exige `ExamPublication` contra o banco real; as fixtures dos pa
 `fixtures/prova-referencia.package.json` e `fixtures/prova-2.package.json`, e os `content_hash` são
 o SHA-256 dos bytes de cada arquivo.
 
+O executor é `PublicarFixturesNoBancoRealTest` (decisão 10 do `design.md` da 4a). Rodar **sem**
+`PLATOS_PUBLISH_ORG_ID` lista as organizações visíveis e para, sem publicar — é assim que se
+descobre o uuid da escola:
+
+```bash
+DATABASE_URL=jdbc:postgresql://<regiao>.pooler.supabase.com:5432/postgres DATABASE_USER=app_backend.<ref-do-projeto> DATABASE_PASSWORD=<senha> PLATOS_PUBLISH_AUTH_SUBJECT=<uid do professor> PLATOS_PUBLISH_ORG_ID=<uuid da escola> ./gradlew :apps:api:test --tests '*PublicarFixturesNoBancoRealTest*'   -Dplatos.publicar.fixtures=true
+```
+
+Publique com a conta que vai **logar no aparelho**, e na organização que ela vai escolher. Publicar
+na organização pessoal enquanto o aparelho consulta a escola devolve **lista vazia**, sem erro em
+lugar nenhum.
+
 Confira antes de instalar que a rota responde:
 
 ```bash
