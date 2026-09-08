@@ -236,6 +236,38 @@ que não aponta para a causa.
 
 **Quando a fatia 7 entregar publicação de verdade, reavaliar se este harness ainda se justifica.**
 
+### 11. Acompanhamento: rede inalcançável não é a mesma coisa que vínculo perdido
+
+Descoberto em 2026-09-08, na conferência em aparelho, e **não corrigido nesta fatia**.
+
+A decisão 10 da fatia 4a-zero manda o arranque com credencial guardada ir a `Consultando` e
+reconsultar `/me/organizations`, com `SessaoGuardada` como fonte única de verdade e `DeviceState`
+como função dela mais o que a API respondeu. **Essa decisão continua certa, e não está sendo
+substituída.** A razão que a sustenta — não ter um segundo lugar onde mora "o que o aparelho sabe" —
+não mudou, e a proteção que ela dá é real: quando o **servidor responde** que o usuário não pertence
+mais àquela organização, a escolha guardada precisa mesmo cair, senão o aparelho segue operando sob
+um vínculo que a instituição já revogou.
+
+O que é informação nova é que **os dois casos estavam sendo tratados como um**:
+
+| Caso | O que o servidor disse | O que deve acontecer |
+|---|---|---|
+| Vínculo perdido | respondeu, e a organização não está na lista | derrubar a escolha guardada — **é a decisão 10, e está certa** |
+| Rede inalcançável | **não respondeu nada** | hoje também derruba, e é aí que está o buraco |
+
+O segundo caso não existia como cenário com consequência até esta fatia: antes dela não havia pacote
+guardado, então não havia nada de útil a fazer offline, e "sem rede o aplicativo não serve" era
+verdade sem custo. Com cache conferido no aparelho, passa a haver — e o aplicativo continua parando
+no arranque, com o pacote intacto em disco a dois passos de distância.
+
+**Isto é atualização de uma decisão registrada com informação nova, não troca por preferência**, e o
+`design.md` arquivado da 4a-zero não é reescrito: ele descreve corretamente o que foi decidido com o
+que se sabia. A mudança, quando vier, é fatia própria — e precisa decidir por quanto tempo uma
+escolha guardada vale sem revalidação, que é a pergunta que a decisão 10 não teve de responder.
+
+Registrado também em `docs/architecture/ARQUITETURA-FINAL-v3.md` §16, como risco de entrega da §10:
+a promessa de captura offline é do produto, e não cobertura de uma fatia.
+
 ## Risks / Trade-offs
 
 **A camada (b) vira portão de compatibilidade, e ela é estrita por natureza** → é o comportamento
