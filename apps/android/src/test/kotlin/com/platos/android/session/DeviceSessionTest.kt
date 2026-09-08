@@ -93,6 +93,53 @@ class DeviceSessionTest {
         assertTrue(guardada.credencialApagada, "sessao expirada tem de descartar a credencial")
     }
 
+    /**
+     * Regressao da fatia 4a, encontrada em aparelho em 2026-09-08 (tarefa 9b.1).
+     *
+     * Ate a 4a-zero, toda chamada autenticada acontecia em [DeviceState.Consultando], e tratar a
+     * expiracao sob aquela guarda era seguro. A 4a acrescentou `provas()` e `pacote()`, que rodam
+     * com o aparelho em [DeviceState.Ativa] — e para elas o 401 do interceptador era descartado em
+     * silencio: a credencial expirada continuava guardada, e a tela dizia "nao foi possivel obter
+     * as provas" com um "tentar de novo" que falharia para sempre.
+     */
+    @Test
+    fun sessao_expirada_em_ativa_tambem_volta_para_a_entrada() {
+        val guardada = Guardada("org-1")
+        val sessao = DeviceSession(guardada, PacotesFalsos())
+        sessao.abrir(temSessaoGuardada = true)
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola)))
+        assertTrue(sessao.state is DeviceState.Ativa, "pre-condicao: o aparelho tem de estar ativo")
+
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SessaoExpirada)
+
+        val estado = sessao.state as? DeviceState.Entrada
+        assertEquals(
+            MotivoDeEntrada.SESSAO_EXPIRADA,
+            estado?.motivo,
+            "expiracao detectada em Ativa foi descartada; estado ficou ${sessao.state}",
+        )
+        assertTrue(guardada.credencialApagada, "credencial expirada tem de ser descartada")
+    }
+
+    /** A guarda continua valendo para o que ela foi escrita: retorno atrasado depois de sair. */
+    @Test
+    fun expiracao_que_chega_depois_de_sair_nao_mente_sobre_a_causa() {
+        val guardada = Guardada("org-1")
+        val sessao = DeviceSession(guardada, PacotesFalsos())
+        sessao.abrir(temSessaoGuardada = true)
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola)))
+        sessao.sair()
+
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SessaoExpirada)
+
+        val estado = sessao.state as DeviceState.Entrada
+        assertEquals(
+            MotivoDeEntrada.SAIU,
+            estado.motivo,
+            "quem saiu por vontade propria nao viu a sessao expirar",
+        )
+    }
+
     @Test
     fun os_tres_motivos_de_falha_sao_distintos_entre_si() {
         fun motivoDe(resultado: ResultadoDaEntrada): MotivoDeEntrada? {

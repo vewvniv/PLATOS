@@ -93,13 +93,27 @@ class DeviceSession(
      * estado mora.
      */
     fun aoConsultarOrganizacoes(resultado: ResultadoDasOrganizacoes) {
+        // **A expiracao e a excecao a guarda, e precisa ser.** Ela nao e resultado de consulta: vem
+        // do interceptador de `clienteApi` e pode chegar de QUALQUER chamada autenticada. Ate a
+        // 4a-zero todas aconteciam em `Consultando`, e trata-la aqui dentro era seguro; a fatia 4a
+        // acrescentou `provas()` e `pacote()`, que rodam com o aparelho em `Ativa`, e para elas a
+        // guarda descartava o 401 em silencio — credencial expirada seguia guardada e a tela
+        // oferecia um "tentar de novo" que falharia para sempre (tarefa 9b.1, decisao 12).
+        //
+        // Sair continua sendo sair: expiracao que chega depois de o professor ja estar na entrada
+        // nao reescreve o motivo, senao a tela mentiria para quem saiu por vontade propria.
+        if (resultado is ResultadoDasOrganizacoes.SessaoExpirada) {
+            if (state is DeviceState.Entrada) return
+            guardada.apagarCredencial()
+            state = DeviceState.Entrada(MotivoDeEntrada.SESSAO_EXPIRADA)
+            return
+        }
+
         if (state !is DeviceState.Consultando) return
         state = when (resultado) {
             is ResultadoDasOrganizacoes.Chegaram -> resolverOrganizacao(resultado.organizacoes)
-            is ResultadoDasOrganizacoes.SessaoExpirada -> {
-                guardada.apagarCredencial()
-                DeviceState.Entrada(MotivoDeEntrada.SESSAO_EXPIRADA)
-            }
+            is ResultadoDasOrganizacoes.SessaoExpirada ->
+                error("tratada acima; o ramo existe para o `when` seguir exaustivo sem `else`")
             is ResultadoDasOrganizacoes.SemRede ->
                 DeviceState.SemOrganizacao(FalhaDaConsulta.SEM_REDE)
             is ResultadoDasOrganizacoes.Falhou ->

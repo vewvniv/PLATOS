@@ -152,6 +152,35 @@ conferência falha e versão insuficiente são quatro estados distintos, com qua
 
 ## MODIFIED Requirements
 
+### Requirement: Sessão expirada leva de volta à entrada, seja qual for a tela
+
+Quando uma chamada autenticada é recusada por credencial expirada, o aplicativo SHALL descartar a
+credencial guardada e SHALL apresentar a entrada dizendo que a sessão expirou — **qualquer que seja
+o estado em que o aparelho esteja**, e não apenas durante a consulta das organizações.
+
+O requisito é escrito assim porque a fatia que criou as chamadas do pacote também criou o primeiro
+caso de chamada autenticada feita fora da consulta: listar provas e puxar pacote acontecem com a
+organização já ativa. Tratar a expiração só na consulta a descartava em silêncio, e o resultado era
+uma tela sem saída — credencial expirada ainda guardada, e um "tentar de novo" que falharia sempre.
+
+Recusa que chega depois de o usuário já ter saído SHALL NOT reescrever o motivo apresentado: quem
+saiu por vontade própria não viu a sessão expirar.
+
+#### Scenario: Expiração detectada durante a consulta das organizações
+- **WHEN** a consulta das organizações é recusada por credencial expirada
+- **THEN** a credencial é descartada e a entrada é apresentada dizendo que a sessão expirou
+
+#### Scenario: Expiração detectada com a organização já ativa
+- **WHEN** a listagem das provas ou o pull do pacote é recusado por credencial expirada, com o
+  aparelho já operando numa organização
+- **THEN** a credencial é descartada e a entrada é apresentada dizendo que a sessão expirou, e o
+  aplicativo NÃO apresenta falha de listagem nem oferece repetir a chamada
+
+#### Scenario: Expiração que chega depois de sair
+- **WHEN** a recusa por credencial expirada chega depois de o usuário já ter saído
+- **THEN** o motivo apresentado continua sendo o da saída, e não o de expiração
+
+
 ### Requirement: Sair apaga a sessão e a organização escolhida
 
 O aplicativo SHALL oferecer sair. Sair SHALL apagar do aparelho a sessão, a organização escolhida

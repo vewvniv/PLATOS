@@ -268,6 +268,33 @@ escolha guardada vale sem revalidação, que é a pergunta que a decisão 10 nã
 Registrado também em `docs/architecture/ARQUITETURA-FINAL-v3.md` §16, como risco de entrega da §10:
 a promessa de captura offline é do produto, e não cobertura de uma fatia.
 
+### 12. A expiração é exceção à guarda de `Consultando` — correção de regressão desta fatia
+
+Encontrada em aparelho em 2026-09-08 (tarefa 9b.1), por acidente de relógio: o token do aplicativo
+completou 60 min durante a conferência.
+
+`aoConsultarOrganizacoes` descarta resultado que chegue fora de `DeviceState.Consultando`, e a guarda
+é certa — o KDoc dela nomeia dois casos reais, e ambos continuam valendo. O que mudou é que **esta
+fatia criou o primeiro caso de chamada autenticada feita fora da consulta**: `provas()` e `pacote()`
+rodam com o aparelho em `Ativa`. Para elas, o 401 do interceptador caía na guarda e sumia.
+
+A correção é mínima e não mexe na guarda: a expiração é tratada **antes** dela, porque expiração não
+é resultado de consulta — vem do interceptador e pode chegar de qualquer chamada autenticada. As duas
+proteções documentadas seguem intactas, porque quem as exercita é `Falhou` e `Chegaram`, que
+continuam sob a guarda. E sair continua sendo sair: expiração que chegue com o aparelho já na entrada
+não reescreve o motivo.
+
+**O que ficou por fazer, e é modelagem e não defeito:** `SessaoExpirada` continua morando em
+`ResultadoDasOrganizacoes`, e não é um resultado de consulta. Movê-la para um evento próprio tornaria
+o defeito estruturalmente impossível em vez de evitado por ordem de linhas. Não foi feito aqui porque
+a fatia corrige uma regressão e não refatora (`CLAUDE.md` regra 6), e porque tirar um caso da
+interface selada mexe em testes que não têm nada a ver com isto. Fica nomeado para quem tocar em
+`DeviceSession` a seguir.
+
+Visto falhar antes de existir: `sessao_expirada_em_ativa_tambem_volta_para_a_entrada` ficou vermelho
+com a mensagem "estado ficou Ativa(...)", e o cenário vizinho — expiração depois de sair — ficou
+verde na mesma execução, provando que a guarda já protegia o que dizia proteger.
+
 ## Risks / Trade-offs
 
 **A camada (b) vira portão de compatibilidade, e ela é estrita por natureza** → é o comportamento
