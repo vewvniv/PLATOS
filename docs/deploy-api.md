@@ -107,14 +107,32 @@ qual falta — o que aparece no log do Render como `Variavel de ambiente obrigat
 
 | Variável | Obrigatória | Padrão | De onde sai |
 |---|---|---|---|
-| `DATABASE_URL` | sim | — | JDBC do Supabase: `jdbc:postgresql://<host>:<porta>/postgres` |
+| `DATABASE_URL` | sim | — | JDBC do **Session Pooler**: `jdbc:postgresql://<regiao>.pooler.supabase.com:5432/postgres` — ver abaixo |
 | `DATABASE_PASSWORD` | sim | — | senha do papel `app_backend` |
-| `DATABASE_USER` | não | `app_backend` | deixe em branco |
+| `DATABASE_USER` | **na prática sim** | `app_backend` | `app_backend.<ref-do-projeto>` — **não** deixe em branco; ver abaixo |
 | `JWT_ISSUER` | sim | — | `https://<projeto>.supabase.co/auth/v1` |
 | `JWKS_URL` | sim | — | `https://<projeto>.supabase.co/auth/v1/.well-known/jwks.json` |
 | `JWT_AUDIENCE` | não | `authenticated` | deixe em branco |
 | `PLANS_DIR` | não | `plans` | deixe em branco; a imagem já traz `plans/` |
 | `PORT` | não | `8080` | **o Render injeta**; não defina à mão |
+
+### Use o Session Pooler, e preencha `DATABASE_USER`
+
+**A conexão direta (`db.<ref>.supabase.co`) é IPv6-only.** O Supabase deixou de dar IPv4 a ela sem
+o add-on pago, e ambientes de execução que não roteiam IPv6 — o Render entre eles — simplesmente
+não a alcançam. O sintoma é tempo esgotado na conexão, não erro de credencial, o que manda quem
+depura para o lado errado. Por isso a URL da tabela é a do **Session Pooler**, na porta **5432**.
+
+E o pooler traz uma consequência que o padrão do código não cobre: **ele exige o usuário com o
+sufixo do projeto**, `app_backend.<ref-do-projeto>`. `AppConfig.fromEnvironment` faz
+`DATABASE_USER` cair em `app_backend` puro quando a variável está ausente (`AppConfig.kt:35`), e
+contra o pooler isso falha na autenticação. A linha da tabela dizia "deixe em branco" e estava
+errada desde que o pooler passou a ser o caminho; um serviço criado seguindo aquela instrução sobe,
+responde `/health` com `ok` e devolve 401 nas rotas autenticadas — e **só quebra na primeira
+consulta ao banco**, porque `/health` não toca o banco e o 401 vem antes de qualquer query.
+
+Porta **5432** é modo *session*; **6543** é *transaction*. A ressalva do PgBouncer com prepared
+statements do JDBC, mais abaixo, vale para 6543 — em 5432 ela não se aplica.
 
 ### `app_backend`, e por que não `postgres`
 
