@@ -47,13 +47,21 @@ import kotlin.test.assertTrue
  * DATABASE_USER=app_backend.<ref-do-projeto> \
  * DATABASE_PASSWORD=<senha> \
  * PLATOS_PUBLISH_AUTH_SUBJECT=<uuid do `sub` do Supabase> \
+ * PLATOS_PUBLISH_ORG_ID=<uuid da organizacao> \
  * ./gradlew :apps:api:test --tests '*PublicarFixturesNoBancoRealTest*' \
  *   -Dplatos.publicar.fixtures=true
  * ```
  *
+ * Rodar **sem** `PLATOS_PUBLISH_ORG_ID` lista as organizacoes visiveis e para, sem publicar nada:
+ * e assim que se descobre o uuid a usar.
+ *
  * `DATABASE_USER` e **obrigatorio aqui**, ao contrario de `AppConfig`, que cai no padrao
  * `app_backend`. O Session Pooler exige o usuario com o sufixo do projeto, e o padrao falharia na
  * autenticacao — erro que nao aponta para a causa.
+ *
+ * `PLATOS_PUBLISH_EMAIL` e `PLATOS_PUBLISH_DISPLAY_NAME` existem, e normalmente **nao devem ser
+ * passados**: `bootstrap_identity` faz `coalesce` deles sobre o registro existente, entao passa-los
+ * sobrescreve o cadastro de um usuario real por efeito colateral de uma publicacao de fixture.
  */
 class PublicarFixturesNoBancoRealTest {
 
@@ -124,17 +132,31 @@ class PublicarFixturesNoBancoRealTest {
         )
     }
 
+    /**
+     * A organizacao e **sempre** explicita. Nao ha caso em que este harness a adivinhe.
+     *
+     * A versao anterior caia na unica organizacao do usuario quando `PLATOS_PUBLISH_ORG_ID` estava
+     * ausente. Parece conveniente e e o defeito: um professor que so tem a organizacao pessoal
+     * receberia as provas nela, o aparelho consultaria a escola, e a lista viria **vazia** — sem
+     * erro em lugar nenhum, e com a causa a tres camadas de distancia do sintoma.
+     *
+     * Sem a variavel, isto lista as organizacoes visiveis e para. Listar e barato; publicar na
+     * organizacao errada custa uma conferencia inteira em aparelho para ser descoberto.
+     */
     private fun resolverOrganizacao(tenancy: Tenancy, userId: UUID): UUID {
-        System.getenv("PLATOS_PUBLISH_ORG_ID")?.let { return UUID.fromString(it) }
-
+        val escolhida = System.getenv("PLATOS_PUBLISH_ORG_ID")
         val organizacoes = tenancy.asUser(userId) { ctx ->
             OrganizationQueries().listForCurrentUser(ctx)
         }
-        check(organizacoes.size == 1) {
-            "o usuario tem ${organizacoes.size} organizacoes; escolha uma em PLATOS_PUBLISH_ORG_ID " +
-                "(${organizacoes.joinToString { "${it.id}=${it.name}" }})"
+        val visiveis = organizacoes.joinToString("\n") { "  ${it.id}  ${it.kind}  ${it.name}" }
+
+        if (escolhida.isNullOrBlank()) {
+            error("PLATOS_PUBLISH_ORG_ID ausente. Organizacoes visiveis:\n$visiveis")
         }
-        return UUID.fromString(organizacoes.single().id)
+        check(organizacoes.any { it.id == escolhida }) {
+            "PLATOS_PUBLISH_ORG_ID=$escolhida nao esta entre as organizacoes visiveis:\n$visiveis"
+        }
+        return UUID.fromString(escolhida)
     }
 
     /** Oraculo independente: `MessageDigest`, e nao o `Sha256` que produziu o valor sob julgamento. */
