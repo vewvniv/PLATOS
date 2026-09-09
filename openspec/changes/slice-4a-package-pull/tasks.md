@@ -69,8 +69,44 @@
 - [x] 8.3 Testar na JVM que, com os dois pacotes guardados e uma prova escolhida, uma folha da outra é recusada **sem trocar de pacote**. A asserção é sobre o **motivo** — "a folha é de outra prova" —, e não sobre haver recusa: recusa por outra causa é indistinguível de recusa por identidade para um teste que só pergunta se recusou. Resultado: o cenário "folha de outra prova cujo pacote também está no aparelho" passa. É a versão em unidade do que a 8.5 confere no papel.
 - [x] 8.3b **Ver falhar:** bypassar a comparação (c) — remover a conferência de `exam_short_id` em `ScanSession.resultOf` — e confirmar que 8.3 fica vermelho **e que 3.2 e 3.3 continuam verdes**; reverter. Registrar. É o par exato da 3.4, e existe pela mesma razão: sem ele, nada prova que 8.3 mede identidade em vez de medir (a) ou (b) de novo por acidente. **(c) é a mais crítica das três** — (a) e (b) julgam bytes, e (c) julga de quem é a folha que vai virar nota. A leitura que importa é a mesma: se 3.2 ou 3.3 caírem junto, as três camadas não são independentes e a suíte está afirmando uma delas três vezes.
 - [x] 8.3c Conferir, na mesma mutação da 8.3b, que a folha trocada produz **nota** e não recusa — e não apenas que 8.3 ficou vermelho. Com os itens coincidentes da 8.1, retirar (c) deixa `ObjectiveScoring` apurar a folha errada contra o gabarito certo, e o desfecho é uma nota plausível na tela. Registrar o número que saiu. **Saiu 40 de 40, sem pendência** — a nota cheia, idêntica à de uma folha certa e perfeita, porque `max_score` e gabarito coincidem nos dois pacotes. Ver o defeito produzir nota é o que separa "o teste caiu" de "a proteção era a única coisa ali".
-- [ ] 8.4 Imprimir uma folha da `prova-2`. Ela não precisa ser oráculo de nota; precisa carregar um QR que diz outra prova.
-- [ ] 8.5 **Bloqueada pela 9b.2 até que ela seja corrigida** — voltar da câmera cai hoje numa tela sem saída, e esta tarefa precisa navegar de volta depois de escanear. **Fecha a 6.4b, herdada da fatia 3c.** Com a `prova-referencia` escolhida no aparelho, escanear a folha impressa da `prova-2` e conferir que a recusa por identidade acontece no papel, e não só na JVM. Resultado: a dívida que a 3c abriu por falta de oráculo físico fecha aqui, na fatia que criou o oráculo.
+- [x] 8.4 Imprimir uma folha da `prova-2`. Ela não precisa ser oráculo de nota; precisa carregar um QR que diz outra prova. **Âncora do artefato conferida em 2026-09-09, e não pela data:** `build/parity/prova-2.pdf` é de 04/09 19:30 **local, UTC+2** — 17:30Z, e é esse fuso que as datas internas do PDF usam — (sha256 `865f74df…`, 229 789 bytes), e a pergunta "ele ainda é o que os insumos de hoje desenham?" foi respondida **regerando** — `PLATOS_PACKAGE=fixtures/prova-2.package.json tsx scripts/render-fixture.ts`. O regerado tem o mesmo tamanho e hash diferente, e a diferença foi **localizada**: os primeiros 222 943 bytes são idênticos byte a byte, e o que diverge é o `ObjStm` final, que descomprimido dá 30 520 bytes dos dois lados e é **igual com as datas neutralizadas** — só `/ModDate` muda (`D:20260904173054Z` contra `D:20260909152609Z`). O mesmo vale para `build/parity/web.pdf` (sha256 `b855cc8c…`; o byte a menos no regerado é o comprimento do fluxo comprimido e o deslocamento do `startxref`). Ou seja: **a geometria, as fontes e os rasters do PDF guardado são os que o pacote versionado produz hoje**; hash diferente aqui não é artefato velho, é carimbo de tempo do PDF. Os dois `exam_id` saíram certos no log do renderizador: `prova-referencia-slice-2` na folha da `prova-2`, `prova-referencia-slice-1` no `web.pdf`. **Impressa em 2026-09-09**, e o que fecha a tarefa não é a folha existir: é o QR dela dizer outra prova, e quem leu isso foi o aparelho — a recusa da 8.5 cita `prova-referencia-slice-2` lido do papel. **Não medida quanto à escala** (portão 3.0 do protocolo): esta folha não é oráculo de geometria, e não deve ser usada como tal.
+- [x] 8.5 **PASSA em 2026-09-09, em telefone real.** **Desbloqueada no mesmo dia: a correção da 9b.2 existe.** Ela estava bloqueada porque voltar da câmera caía numa tela sem saída, e esta tarefa precisa navegar de volta depois de escanear. A correção está em código e coberta em JVM, e a **metade de aparelho dela fecha aqui**: se voltar da câmera não cair na lista de provas, a 9b.2 continua aberta e esta tarefa não fecha. **Fecha a 6.4b, herdada da fatia 3c.** Com a `prova-referencia` escolhida no aparelho, escanear a folha impressa da `prova-2` e conferir que a recusa por identidade acontece no papel, e não só na JVM. Resultado: a dívida que a 3c abriu por falta de oráculo físico fecha aqui, na fatia que criou o oráculo.
+
+  **Instrumento, e ele não é o de sempre:** telefone `2511FPC34G` (`klee_eea`), **Android 16, SDK
+  36** — e não o emulador `platos-atd34` (API 34, a imagem do CI). O APK no aparelho é **byte a byte**
+  o compilado nesta sessão (`sha256 9c1a53f7…979a`, idêntico dos dois lados), e o `classes12.dex`
+  carrega a string `Abrindo a camera`, que só existe na correção de hoje — a âncora é de conteúdo, e
+  não de carimbo de tempo. Serviço acordado antes de tudo, pela regra da 9.3: `GET /health` **200 em
+  44,5 s** (frio), concluído às **16:44:05Z**.
+
+  **O texto literal na tela, capturado por `uiautomator` às 17:02:24Z** — e não recordado:
+
+  ```
+  Folha recusada
+  a folha e de outra prova: o QR diz prova-referencia-slice-2, e o aparelho carrega prova-referencia-slice-1
+  [Escanear outra folha]
+  ```
+
+  É **palavra por palavra** o texto que o §14.7 do protocolo fixou como critério em 2026-09-08, antes
+  desta rodada: o oráculo foi escrito antes da observação, e não ajustado depois dela. Os dois
+  identificadores estão na frase, que é o que separa recusa por identidade de recusa por outra causa.
+
+  **O controle positivo, e ele é o que torna a recusa interpretável** — feito por iniciativa do
+  desenvolvedor: a **mesma folha física**, na mesma câmera e na mesma luz, escaneada com a `slice-2`
+  carregada, produziu **`0 de 40 · Nota fechada.`** às 17:03:53Z (a folha está em branco; nenhuma
+  bolha marcada). Trocando só o pacote carregado, o mesmo papel é recusado numa direção e apurado na
+  outra. Isso elimina as duas leituras erradas que o §14.7 nomeia — "não consegui ler a folha" e
+  "itens divergentes" —, porque as duas fariam a folha falhar **nos dois** sentidos. É o análogo
+  físico da mutação isolada: um par de conjuntos disjuntos, feito de papel.
+
+  **Escaneamentos repetidos, que é o outro requisito desta tarefa:** **seis** aberturas da
+  `ScanActivity` no logcat desde 16:52:35Z, todas do **mesmo pid 31566**, sem nenhum reinício da
+  `SessaoActivity` no meio — o processo nunca morreu, então a composição ficou viva o tempo todo, que
+  é exatamente a condição em que o defeito da 9b.2 travava. Nenhuma exceção do aplicativo no período
+  (as seis linhas de `AndroidRuntime` na varredura eram do meu próprio `uiautomator`, uid 2000).
+
+  **Com rede ligada.** O escaneamento sem rede já está coberto pela 9.2b, e o §14.7 sugere juntar as
+  duas numa sessão só; aqui elas ficaram separadas.
 - [x] 8.6 Escanear folha de variante que o pacote não declara, ou registrar por que o caso não é produzível hoje — `payload.variant` vem vazio até a fatia 7, e uma folha com variante inexistente pode não ser fabricável sem mexer no gerador de QR. Registrar o resultado qualquer que seja, incluindo "não produzível, e por quê". **Não produzível no papel, e a razão é do gerador:** `LayoutEngine.qrPayloadOf` recebe `examId` e índice de região, e nada mais — a variante sai vazia de toda folha impressa até a fatia 7 criar variantes. O cenário ficou coberto em JVM (`IdentidadeDaFolhaTest`), e está registrado em `docs/protocolo-medicao-impressa.md` §14.8: falta o papel, não o código.
 
 ## 9. Conferência em aparelho
@@ -97,7 +133,74 @@
 
   **Corrigido em 2026-09-08, com o teste escrito antes.** A expiração passa a ser tratada **antes** da guarda em `aoConsultarOrganizacoes`, porque não é resultado de consulta — vem do interceptador e pode chegar de qualquer chamada autenticada. A guarda não muda, e as duas proteções que o KDoc dela nomeia seguem intactas: quem as exercita é `Falhou` e `Chegaram`. **Visto falhar antes:** `sessao_expirada_em_ativa_tambem_volta_para_a_entrada` vermelho com "expiracao detectada em Ativa foi descartada; estado ficou Ativa(...)", e o cenário vizinho — expiração chegando depois de sair — **verde na mesma execução**, provando que a guarda já protegia o que dizia proteger e que os dois casos são independentes. Depois da correção: **185 testes, 0 falhas** na suíte unitária do Android. Registrado como decisão 12 do `design.md`; a spec de `device-session` ganhou o requisito "Sessão expirada leva de volta à entrada, seja qual for a tela", com os três cenários. Achado lateral do teste: a expectativa inicial dele para o caso "depois de sair" estava errada (esperava motivo `null`, é `SAIU`) — conferir o **motivo** da falha, e não só que houve falha, foi o que separou o defeito real do meu erro de expectativa.
 
-- [ ] 9b.2 **Segundo achado da conferência: voltar da câmera cai numa tela sem saída.** Encontrado em 2026-09-08 21:16Z, ao tentar voltar à lista depois da 9.2b. `EstadoDaProva.Pronta` desenha a **mesma** `PreparandoScreen` que `Preparando` (`SessaoActivity.kt:305-311`), e o `LaunchedEffect(atual.contentHash)` que abre a câmera é chaveado pelo hash — deliberadamente, para "a mesma prova conferida não reabrir a câmera sozinha". Ao voltar da `ScanActivity`, a composição continua viva com a mesma chave: o efeito não roda de novo, e o estado permanece `Pronta`. Conferido no aparelho: **0 elementos clicáveis** na tela, só o título da prova e "Preparando a prova…", e o `back` **sai do aplicativo** (foi para o launcher). Sem exceção e sem laço — a `ScanActivity` subiu uma vez só. **Consequência:** depois de cada sessão de escaneamento o professor cai numa tela de carregamento perpétua cuja única saída é abandonar o aplicativo; reabrindo sem rede, cai no buraco da 9.2. O texto exibido também mente sobre o estado — diz "preparando" o que já está pronto. Não corrigido: é defeito de fiação da tela, irmão do 9b.1, e a correção precisa decidir o que `Pronta` deve mostrar quando a câmera já foi e voltou. **É pré-requisito da 8.5, e não da 9.4.** Nada se perde neste estado — só trava, e sair e reabrir já foi provado funcionando hoje —, então 9.4 e 9.5 seguem sem depender disto. Mas a 8.5 escaneia folha impressa e vai precisar escanear mais de uma vez, ou ao menos navegar de volta depois de escanear: sem decidir o que `Pronta` mostra quando a câmera vai e volta, a 8.5 esbarra nesta mesma tela sem saída. A correção **SHALL** existir antes da 8.5.
+- [x] 9b.2 **Segundo achado da conferência: voltar da câmera cai numa tela sem saída.** Encontrado em 2026-09-08 21:16Z, ao tentar voltar à lista depois da 9.2b. `EstadoDaProva.Pronta` desenha a **mesma** `PreparandoScreen` que `Preparando` (`SessaoActivity.kt:305-311`), e o `LaunchedEffect(atual.contentHash)` que abre a câmera é chaveado pelo hash — deliberadamente, para "a mesma prova conferida não reabrir a câmera sozinha". Ao voltar da `ScanActivity`, a composição continua viva com a mesma chave: o efeito não roda de novo, e o estado permanece `Pronta`. Conferido no aparelho: **0 elementos clicáveis** na tela, só o título da prova e "Preparando a prova…", e o `back` **sai do aplicativo** (foi para o launcher). Sem exceção e sem laço — a `ScanActivity` subiu uma vez só. **Consequência:** depois de cada sessão de escaneamento o professor cai numa tela de carregamento perpétua cuja única saída é abandonar o aplicativo; reabrindo sem rede, cai no buraco da 9.2. O texto exibido também mente sobre o estado — diz "preparando" o que já está pronto. Não corrigido: é defeito de fiação da tela, irmão do 9b.1, e a correção precisa decidir o que `Pronta` deve mostrar quando a câmera já foi e voltou. **É pré-requisito da 8.5, e não da 9.4.** Nada se perde neste estado — só trava, e sair e reabrir já foi provado funcionando hoje —, então 9.4 e 9.5 seguem sem depender disto. Mas a 8.5 escaneia folha impressa e vai precisar escanear mais de uma vez, ou ao menos navegar de volta depois de escanear: sem decidir o que `Pronta` mostra quando a câmera vai e volta, a 8.5 esbarra nesta mesma tela sem saída. A correção **SHALL** existir antes da 8.5.
+
+  **Corrigida em 2026-09-09, e a tarefa fica DESMARCADA** — a metade que só o aparelho fecha não
+  rodou nesta sessão.
+
+  **A decisão, porque a tarefa pedia que ela fosse tomada por escrito:** voltar do escaneamento é
+  **evento**, e o destino dele é a **escolha da prova**. Registrada como decisão 13 do `design.md`,
+  com o que foi rejeitado e por quê (`onResume` em vez de resultado de `Activity`; um estado
+  `Escaneada` com tela própria). A spec de `device-session` ganhou o requisito "Voltar do
+  escaneamento devolve à escolha da prova", com três cenários.
+
+  **O que mudou no código.** `PreparoDaProva.aoVoltarDoEscaneamento(provas)` — evento novo, com a
+  guarda dos demais; `SessaoActivity` abre a `ScanActivity` por `registerForActivityResult` e
+  dispara o evento na volta, em vez de `startActivity` e ninguém escutando; `PreparandoScreen` passa
+  a receber a frase por parâmetro, porque duas telas eram a mesma e uma delas mentia — `Preparando`
+  diz "Preparando a prova…", `Pronta` diz "Abrindo a camera…".
+
+  **Visto falhar antes, com duas mutações de conjuntos disjuntos.** A primeira é o comportamento do
+  aparelho escrito como código — `aoVoltarDoEscaneamento` como no-op —, e derruba
+  `voltar_do_escaneamento_devolve_a_escolha_da_prova` e
+  `depois_de_voltar_a_mesma_prova_e_escolhivel_de_novo` com a mensagem `estado ficou Pronta(...)`,
+  que é a frase do aparelho; a segunda remove a guarda e derruba **só**
+  `volta_que_chega_fora_do_escaneamento_nao_reescreve_o_preparo`. Disjuntas, e por isso cada uma diz
+  qual proteção segurou. As duas foram revertidas e a reversão foi **rodada**.
+
+  **Rodado nesta sessão:** `./gradlew :apps:android:testDebugUnitTest` **sem filtro** — 188 testes,
+  0 falhas, os 20 arquivos de teste do módulo — e `./gradlew :apps:android:build` verde (assemble
+  debug e release, lint, suíte unitária). `./gradlew build` **não** fecha nesta máquina, e não é
+  desta mudança: `:apps:api:test` cai em 111 de 121 cenários com `IllegalStateException: Previous
+  attempts to find a Docker environment failed`, que é pré-condição de Testcontainers. O diff toca
+  `apps/android/`, `openspec/` e `docs/`.
+
+  **Docker subido, e o comando cheio fechado na mesma sessão, às 16:48Z de 2026-09-09.** `./gradlew
+  build` **verde**. O verde foi conferido contra a armadilha que P2 nomeia — Gradle sai com 0
+  também com a suíte `UP-TO-DATE` e zero testes —, e o sinal atravessa o passo: os relatórios de
+  `:apps:api:test` foram **escritos às 16:48:24**, doze segundos antes da conferência, com **121
+  testes, 0 falhas e 0 erros** somados nos 25 arquivos — os mesmos 121 que minutos antes tinham 111
+  falhas. `verificarApkSemPacote` está no grafo e diz `0 asset(s) JSON conferido(s)`, sobre o APK de
+  **hoje** (`android-debug.apk`, 16:41:54, posterior às edições desta tarefa) — a âncora importa
+  porque a tarefa passaria por vacuidade sobre um APK velho, e é o mesmo cuidado que a paridade
+  pagou em agosto. O relato de Docker ausente fica acima de propósito: "111 falhas" sem a causa se
+  lê como regressão desta mudança, e não era.
+
+  **A metade instrumentada do CI não rodou** — `:apps:android:connectedDebugAndroidTest` exige o
+  emulador, e subir emulador não é decisão minha. Ela não cobre tela de sessão (são 46 cenários de
+  visão, render e escaneamento), e nenhum deles toca o que esta correção mudou.
+
+  **A metade de aparelho, que era o que faltava, fechou em 2026-09-09** — no telefone
+  `2511FPC34G` (Android 16, SDK 36), na mesma sessão da 8.5 e com o APK conferido por hash. Três
+  observações, e cada uma responde a uma metade do achado:
+
+  1. **A lista volta.** `uiautomator dump` às **16:59:09Z**, logo depois de voltar da câmera:
+     `Escolha a prova`, as duas provas e `Sair` — **3 elementos clicáveis**. O registro do achado diz
+     **0 elementos clicáveis** nesta mesma tela, e é essa a diferença que a correção produz.
+  2. **Voltar e reabrir, repetidas vezes.** **Seis** aberturas da `ScanActivity` desde 16:52:35Z,
+     todas do **mesmo pid 31566**, e **nenhum reinício da `SessaoActivity`** entre elas. O processo
+     nunca morreu: a composição ficou viva com a mesma chave o tempo todo, que é precisamente a
+     condição em que o `LaunchedEffect(contentHash)` não redispara. Sem o resultado da `Activity`,
+     nenhuma dessas seis aberturas depois da primeira seria possível.
+  3. **Nenhuma exceção, nenhuma queda** do processo do aplicativo no período. As seis linhas de
+     `AndroidRuntime` que uma varredura por contagem acusou eram do próprio `uiautomator` (uid 2000,
+     pid 9019) — contagem enganava, as linhas não.
+
+  **O que NÃO foi observado, e fica dito:** a frase da tela de `Pronta`. Com o pacote já em cache a
+  câmera abre em menos de um segundo, e o texto transitório não foi capturado; o que existe é a
+  presença da string `Abrindo a camera` no `classes12.dex` do APK instalado. A metade "a tela não
+  mente mais" está verificada por conteúdo do artefato, e não por observação de tela — **não é
+  mitigado, é conhecido**.
 
 ## 10. Verificação final
 

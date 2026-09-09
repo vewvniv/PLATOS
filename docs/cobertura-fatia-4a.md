@@ -326,6 +326,24 @@ Registrar o limiar (`> 0`) em vez do número teria escondido justamente o que to
 não há nada na tela que distinga a folha errada da folha certa. É a mesma convenção da tarefa 9.6 —
 o número medido, e não o limiar aceito.
 
+### O oráculo físico da camada (c), e o controle que o torna legível (tarefa 8.5)
+
+A mutação da 8.3b provou a camada (c) em JVM. O papel provou-a em 2026-09-09, e com um par que vale
+registrar porque não estava no roteiro: **a mesma folha física, dois pacotes**.
+
+| Pacote carregado no aparelho | O que a folha da `prova-2` produziu |
+|---|---|
+| `prova-referencia-slice-1` | `a folha e de outra prova: o QR diz prova-referencia-slice-2, e o aparelho carrega prova-referencia-slice-1` (17:02:24Z) |
+| `prova-referencia-slice-2` | `0 de 40 · Nota fechada.` (17:03:53Z) — a folha está em branco |
+
+Sozinha, a linha de cima é ambígua: "recusou" é o que uma folha ilegível também produz, e o §14.7 do
+protocolo lista as três leituras erradas possíveis. A linha de baixo desfaz as três de uma vez —
+mesma câmera, mesma luz, mesmo papel, e a leitura **acontece** quando o pacote é o certo. O que muda
+entre as duas linhas é uma coisa só, e é a que estava sob teste.
+
+O texto da recusa é **palavra por palavra** o que o §14.7 fixou como critério em 2026-09-08, antes da
+observação: oráculo escrito antes, e não ajustado depois.
+
 ### O tamanho do `Intent`, medido em vez de citado (tarefa 6.5)
 
 A decisão 6 do `design.md` rejeitava passar o pacote pelo `Intent` afirmando que ~100 KB numa
@@ -379,6 +397,52 @@ Um teste novo que nasce vermelho junto com outro é suspeito até que as duas me
 
 Depois da correção: 185 testes, 0 falhas.
 
+### A volta da câmera sem evento (tarefa 9b.2)
+
+Segundo achado da conferência em aparelho, e o par exato do 9b.1: máquina pura certa, fiação da tela
+errada. `EstadoDaProva.Pronta` diz "o gate passou e a câmera vai abrir"; ela não diz se a câmera **já
+foi**. Voltar da `ScanActivity` deixava a composição viva com a mesma chave, o
+`LaunchedEffect(contentHash)` não rodava de novo, e a tela ficava em `Pronta` — zero elemento
+clicável, e o `back` saindo do aplicativo.
+
+**Vista falhar antes de existir, com o método da mutação isolada** (2026-09-09). A correção foi
+escrita em dois passos, e o primeiro é o comportamento de hoje escrito como código:
+
+| Mutação | O que caiu | O que ficou verde |
+|---|---|---|
+| `aoVoltarDoEscaneamento` como no-op — **o comportamento que o aparelho mostrou** | `voltar_do_escaneamento_devolve_a_escolha_da_prova`, `depois_de_voltar_a_mesma_prova_e_escolhivel_de_novo` | `volta_que_chega_fora_do_escaneamento_nao_reescreve_o_preparo`, e os 16 cenários anteriores |
+| a guarda `if (state !is Pronta) return` removida | `volta_que_chega_fora_do_escaneamento_nao_reescreve_o_preparo` | os outros 18, incluindo os dois de cima |
+
+Os dois conjuntos são **disjuntos**, e é isso que prova que as duas coisas são independentes: uma é
+"a volta muda o estado", a outra é "a volta atrasada não reescreve um preparo em curso". A mensagem
+do primeiro vermelho é a do aparelho, palavra por palavra — `estado ficou Pronta(...)` —, e a do
+segundo é `a volta reescreveu um preparo em curso; estado ficou Escolhendo(...)`. As duas mutações
+foram revertidas e a reversão foi **rodada**, não lembrada.
+
+Depois da correção: **188 testes, 0 falhas** em `:apps:android:testDebugUnitTest` sem filtro, e
+`:apps:android:build` verde (assemble debug e release, lint, suíte unitária). Com o Docker de pé,
+`./gradlew build` fecha verde — `:apps:api:test` **executado**, e não `UP-TO-DATE`: 121 testes, 0
+falhas, relatórios escritos às 16:48:24 de 2026-09-09, e `verificarApkSemPacote` no grafo com `0
+asset(s) JSON conferido(s)` sobre o APK de 16:41:54, gerado depois desta correção. A metade
+instrumentada continua fora: ela exige emulador.
+
+**O que estes testes NÃO provam, e é metade da correção:** que a `SessaoActivity` dispara o evento.
+O `ActivityResultLauncher` que abre a `ScanActivity` e chama `aoVoltarDoEscaneamento` na volta é
+fiação, e nenhum teste desta base alcança `@Composable` nem ciclo de vida de `Activity` — é o mesmo
+sombreamento que deixou o 9b.1 passar. **Não é mitigado, é conhecido**, e só o aparelho fecha: voltar
+da câmera e ver a lista de provas na tela.
+
+**Fechado em aparelho no mesmo dia**, no telefone `2511FPC34G` (Android 16, SDK 36 — e não o
+emulador API 34), com o APK conferido por hash contra o compilado. `uiautomator dump` às
+**16:59:09Z**, logo depois de voltar da câmera: `Escolha a prova`, as duas provas, `Sair` — **3
+elementos clicáveis**, contra os **0** que o achado registrou nesta mesma tela. E **seis** aberturas
+da `ScanActivity` desde 16:52:35Z, todas do **mesmo pid**, sem nenhum reinício da `SessaoActivity`
+entre elas: o processo nunca morreu, a composição ficou viva com a mesma chave — a condição exata em
+que o efeito não redispara —, e ainda assim a câmera reabriu cinco vezes depois da primeira. O que
+continua **sem observação** é a frase da tela de `Pronta`: com o pacote em cache a câmera abre em
+menos de um segundo, e o transitório não foi capturado; o que existe é a string `Abrindo a camera` no
+`classes12.dex` do APK instalado.
+
 ## O comando cheio do CI, e a paridade (tarefas 7.4 e 10.1)
 
 Rodado no `platos-atd34` (API 34, `aosp_atd`, x86_64) — a mesma imagem do CI — em 2026-09-04:
@@ -408,6 +472,11 @@ o nome certo, e só a data denunciava. Confira a data do `android.pdf` antes de 
   `PreparandoScreen`) e nenhuma tem teste. A mitigação é a mesma de lá — a **escolha da frase** saiu
   da tela e virou `textoDaBarragem`/`textoDaListagem`, com `when` exaustivo sem `else`, e é ela que
   está coberta. O que fica descoberto é a tela ignorar o parâmetro e escrever um literal.
+- **A fiação entre a tela e as máquinas puras.** As duas regressões achadas em aparelho (9b.1 e
+  9b.2) estavam aqui, e não nas máquinas: uma guarda que descartava a expiração, e uma volta de
+  `Activity` que ninguém escutava. Os testes dirigem as máquinas direto, então o que a
+  `SessaoActivity` liga a quê não é exercitado por nada. É a lacuna mais cara desta fatia, e as duas
+  vezes quem a achou foi o aparelho.
 - **A leitura do cache no caminho real do Android.** `PacotesEmArquivo` é testado sobre um `@TempDir`
   de verdade, mas `filesDir` só existe em aparelho. É o par da tarefa 9.4.
 - **O tempo do pull contra servidor real.** `MockEngine` não tem tempo limite de soquete — a lição
@@ -423,9 +492,18 @@ Tudo o que exige aparelho, impressora ou servidor real. O roteiro está em
 | 6.5 | Medir o `Intent` com o pacote serializado, em aparelho |
 | 7.4 | `connectedDebugAndroidTest` **sem filtro**, no `platos-atd34` |
 | 8.2 | Publicar as duas provas contra o servidor real e puxá-las |
-| 8.4, 8.5 | Imprimir a folha da `prova-2` e fechar a **6.4b**, herdada da 3c |
+| ~~8.4, 8.5~~ | **Fechadas em 2026-09-09**, em telefone real: folha impressa, recusa por identidade com os dois identificadores na frase, e controle positivo com o outro pacote. A **6.4b** da 3c fecha com elas |
+| ~~9b.2~~ | **Fechada em 2026-09-09**: lista na tela com 3 clicáveis depois de voltar da câmera, seis aberturas no mesmo processo |
 | 9.1–9.6 | As seis conferências em aparelho (§14.2 a §14.6 e §14.9) |
 | 10.1 | A metade instrumentada do comando cheio do CI |
 
 `./gradlew build` está **verde**, com `verificarApkSemPacote` no grafo; o que ele não roda é a suíte
 instrumentada, e é exatamente por isso que a 10.1 pede as duas metades.
+
+**Esta tabela está atrasada em relação ao `tasks.md`**, e o aviso fica no lugar da reescrita: as
+linhas 6.5, 7.4, 8.2, 9.1–9.6 e 10.1 descrevem o estado de quando a seção foi escrita, e a sessão em
+aparelho de 2026-09-08 fechou parte delas — com a 9.2 seguindo **desmarcada** por defeito de produto,
+e não de cobertura. Quem quiser o estado corrente lê as tarefas, que trazem data, instrumento e
+número; o que não se faz é apagar esta tabela e ficar sem o registro de quando cada coisa ainda
+faltava. A conferência em aparelho **desta** sessão usou outro instrumento — telefone `2511FPC34G`,
+Android 16 —, e a suíte instrumentada (46 cenários) continua tendo rodado só no `platos-atd34`.

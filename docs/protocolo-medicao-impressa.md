@@ -837,6 +837,31 @@ publicado ainda é o anterior a esta branch — `/me/organizations` responde 401
 `/organizations/{id}/exams` responde **404**, que é como uma rota inexistente responde. Imprimir a
 folha (§14.7, passo 1) pode ser feito desde já; escaneá-la, não.
 
+**Satisfeito desde 2026-09-08** (tarefa 8.2: as duas provas publicadas contra o banco real), e
+exercido pelo caminho do produto em **2026-09-09**: o pull das duas aconteceu num telefone que nunca
+tinha puxado nada.
+
+**Resultado da rodada de 2026-09-09 — passa.** Instrumento: telefone `2511FPC34G` (`klee_eea`),
+Android 16, SDK 36; **não** o emulador `platos-atd34` da imagem do CI. Serviço acordado antes, como
+manda §14.1: `GET /health` **200 em 44,5 s**, frio, às 16:44:05Z. O texto na tela, capturado por
+`uiautomator` às **17:02:24Z**, é o previsto acima, palavra por palavra:
+
+```
+Folha recusada
+a folha e de outra prova: o QR diz prova-referencia-slice-2, e o aparelho carrega prova-referencia-slice-1
+[Escanear outra folha]
+```
+
+**Faça também o controle positivo, e ele não estava neste roteiro:** volte, escolha a
+`prova-referencia-slice-2` e escaneie **a mesma folha**. Ela tem de ser lida. Em 2026-09-09 saiu
+`0 de 40 · Nota fechada.` às 17:03:53Z, com a folha em branco. Sem essa segunda leitura, a recusa da
+primeira é compatível com as três leituras erradas da tabela acima — é a mesma folha lendo bem que as
+elimina, e o passo custa quinze segundos.
+
+O cache, depois da rodada, tinha os dois pacotes com `sha256` igual ao próprio nome, conferido pelo
+`sha256sum` **do Android** e não pelo do aplicativo: `26612ad5….json` com 101 618 bytes e
+`9dccf215….json` com 101 635.
+
 ### 14.8 O que ainda não é produzível
 
 Folha cuja **variante** o pacote não declara. `LayoutEngine.qrPayloadOf` recebe `examId` e índice de
