@@ -128,15 +128,24 @@ fun BarragemScreen(
     }
 }
 
-/** O preparo em curso: baixando ou conferindo. Nao fica sem desfecho — sempre vira outro estado. */
+/**
+ * O titulo da prova e uma frase, enquanto nao ha nada a decidir: obtendo, conferindo, ou abrindo a
+ * camera. Nao fica sem desfecho — sempre vira outro estado.
+ *
+ * **A frase vem por parametro**, como em [BarragemScreen] e pela mesma razao. Dois estados desenham
+ * esta tela — `Preparando` obtem e confere, `Pronta` ja passou pelo gate e esta abrindo a camera —,
+ * e um literal aqui dentro faria a tela afirmar o estado errado. Foi metade do que a tarefa 9b.2
+ * encontrou em aparelho: "Preparando a prova…" continuava na tela depois de a camera ter ido e
+ * voltado.
+ */
 @Composable
-fun PreparandoScreen(prova: ProvaPublicada, modifier: Modifier = Modifier) {
+fun PreparandoScreen(prova: ProvaPublicada, texto: String, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(text = prova.titulo, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(text = "Preparando a prova…", modifier = Modifier.padding(top = 12.dp))
+        Text(text = texto, modifier = Modifier.padding(top = 12.dp))
     }
 }

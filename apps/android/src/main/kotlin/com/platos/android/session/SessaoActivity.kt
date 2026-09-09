@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,6 +78,27 @@ class SessaoActivity : ComponentActivity() {
 
     /** As provas da ultima listagem bem-sucedida, para o "escolher outra prova" da barragem. */
     private var provasApresentadas by mutableStateOf<List<ProvaPublicada>>(emptyList())
+
+    /**
+     * A ida a camera, e a volta dela.
+     *
+     * **`registerForActivityResult`, e nao `onResume`** (decisao 13). O que interessa e o fim da
+     * `ScanActivity`, e `onResume` roda tambem na primeira abertura e em toda volta de dialogo do
+     * sistema: distinguir "voltei da camera" pelo ciclo de vida pediria um sinalizador, e o
+     * sinalizador seria um segundo lugar onde mora "onde o aparelho esta".
+     *
+     * **O codigo de resultado nao e lido.** A `ScanActivity` nao publica nada nesta fatia — nada e
+     * persistido ate a 4b —, e o que este ponto precisa saber e que ela fechou.
+     *
+     * `preparo` nulo e a `Activity` recriada enquanto a camera estava aberta: o fluxo de escolha nao
+     * sobrevive a recriacao de proposito (decisao 5), e a tela de trabalho e o desfecho.
+     */
+    private val escaneamento =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            val maquina = preparo ?: return@registerForActivityResult
+            maquina.aoVoltarDoEscaneamento(provasApresentadas)
+            estadoDaProva = maquina.state
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -214,7 +236,7 @@ class SessaoActivity : ComponentActivity() {
      */
     private fun escanear(pronta: EstadoDaProva.Pronta) {
         val organizacao = organizacaoAtiva() ?: return
-        startActivity(
+        escaneamento.launch(
             Intent(this, ScanActivity::class.java)
                 .putExtra(ScanActivity.EXTRA_ORGANIZACAO, organizacao)
                 .putExtra(ScanActivity.EXTRA_CONTENT_HASH, pronta.contentHash),
@@ -299,14 +321,18 @@ class SessaoActivity : ComponentActivity() {
                 onVoltar = { preparo = null },
             )
 
-            is EstadoDaProva.Preparando -> PreparandoScreen(atual.prova)
+            is EstadoDaProva.Preparando -> PreparandoScreen(atual.prova, "Preparando a prova…")
 
             is EstadoDaProva.Pronta -> {
                 // Efeito, e nao chamada no corpo do `@Composable`: navegar durante a composicao
                 // dispararia de novo a cada recomposicao. A chave e o hash, entao a mesma prova
                 // conferida nao reabre a camera sozinha.
+                //
+                // Voltar da camera **nao** passa por aqui: quem devolve a escolha e o resultado do
+                // `escaneamento`, e nao este efeito — que, com a composicao viva na mesma chave, nao
+                // roda de novo. Era essa a tela sem saida da 9b.2.
                 androidx.compose.runtime.LaunchedEffect(atual.contentHash) { escanear(atual) }
-                PreparandoScreen(atual.prova)
+                PreparandoScreen(atual.prova, "Abrindo a camera…")
             }
 
             is EstadoDaProva.Barrada -> BarragemScreen(

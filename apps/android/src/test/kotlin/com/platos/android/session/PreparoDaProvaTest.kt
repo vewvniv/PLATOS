@@ -193,6 +193,76 @@ class PreparoDaProvaTest {
         assertEquals(EstadoDaProva.Escolhendo(listOf(provaA)), preparo.state)
     }
 
+    // --- A volta do escaneamento (tarefa 9b.2) ---
+
+    /**
+     * O que a 9b.2 encontrou em aparelho: a camera vai, volta, e o preparo continua em `Pronta`.
+     *
+     * `Pronta` diz "o gate passou e a camera vai abrir"; ela nao diz se a camera **ja foi**. Sem um
+     * evento de volta, a tela continuava desenhando o preparo com a camera fechada, sem nenhum
+     * elemento clicavel e com o `back` saindo do aplicativo.
+     *
+     * A afirmacao e sobre o **estado de destino**, e nao sobre ter mudado: "mudou" seria verdade
+     * tambem se a volta jogasse o professor na tela de trabalho, e ali a lista que ele acabou de usar
+     * some — ela precisa estar na tela para a folha seguinte ser escaneada sem rede.
+     */
+    @Test
+    fun voltar_do_escaneamento_devolve_a_escolha_da_prova() {
+        val preparo = preparoEscolhendo(provaA, provaB)
+        preparo.escolher(provaA)
+        preparo.aoObterPacote(ResultadoDoPacote.Conferido(pacote, provaA.contentHash))
+
+        preparo.aoVoltarDoEscaneamento(listOf(provaA, provaB))
+
+        assertEquals(
+            EstadoDaProva.Escolhendo(listOf(provaA, provaB)),
+            preparo.state,
+            "a volta do escaneamento nao devolveu a escolha; estado ficou ${preparo.state}",
+        )
+    }
+
+    /**
+     * O que a 8.5 precisa: escanear a mesma prova mais de uma vez, sem consultar de novo.
+     *
+     * A lista que volta e a que ja tinha sido apresentada, entao escolher a mesma prova recomeca o
+     * preparo — e a obtencao seguinte cai no pacote guardado. Sem rede, e o unico caminho que existe.
+     */
+    @Test
+    fun depois_de_voltar_a_mesma_prova_e_escolhivel_de_novo() {
+        val preparo = preparoEscolhendo(provaA, provaB)
+        preparo.escolher(provaA)
+        preparo.aoObterPacote(ResultadoDoPacote.Conferido(pacote, provaA.contentHash))
+        preparo.aoVoltarDoEscaneamento(listOf(provaA, provaB))
+
+        preparo.escolher(provaA)
+
+        assertEquals(
+            EstadoDaProva.Preparando(provaA),
+            preparo.state,
+            "a mesma prova nao voltou a ser escolhivel; estado ficou ${preparo.state}",
+        )
+    }
+
+    /**
+     * A guarda, e ela e a mesma dos outros eventos desta maquina.
+     *
+     * Volta que chegue com o preparo em outro estado nao reescreve o que esta na tela. O caso real e
+     * o retorno atrasado: a `Activity` pode ser recriada enquanto a camera esta aberta, e o resultado
+     * do escaneamento chega depois de o fluxo ja ter seguido.
+     */
+    @Test
+    fun volta_que_chega_fora_do_escaneamento_nao_reescreve_o_preparo() {
+        val preparo = preparoPreparando()
+
+        preparo.aoVoltarDoEscaneamento(listOf(provaA, provaB))
+
+        assertEquals(
+            EstadoDaProva.Preparando(provaA),
+            preparo.state,
+            "a volta reescreveu um preparo em curso; estado ficou ${preparo.state}",
+        )
+    }
+
     // --- As frases (tarefa 5.6) ---
 
     @Test

@@ -113,6 +113,26 @@ class PreparoDaProva {
         }
     }
 
+    /**
+     * O escaneamento fechou e a tela do preparo voltou.
+     *
+     * **Evento, e nao inferencia da tela** (decisao 13). [EstadoDaProva.Pronta] diz "o gate passou e
+     * a camera vai abrir"; ela nao diz se a camera **ja foi**. Sem este evento o preparo ficava
+     * parado em `Pronta` com a camera fechada, desenhando a tela de preparo sem nenhuma saida — foi
+     * o que a tarefa 9b.2 encontrou em aparelho.
+     *
+     * **O destino e a escolha, e nao um estado novo.** A `ScanActivity` escaneia folha apos folha
+     * sem voltar, entao voltar significa "terminei com esta prova". As [provas] sao as que ja foram
+     * apresentadas, e e por isso que a volta **nao consulta nada**: a sala e onde nao ha sinal, e
+     * escolher a mesma prova de novo cai no pacote ja guardado.
+     */
+    fun aoVoltarDoEscaneamento(provas: List<ProvaPublicada>) {
+        // A guarda e a dos outros eventos desta maquina: volta atrasada — a `Activity` pode ser
+        // recriada com a camera aberta — nao reescreve um preparo que ja seguiu.
+        if (state !is EstadoDaProva.Pronta) return
+        voltarAEscolha(provas)
+    }
+
     /** Volta a escolha, depois de uma barragem. */
     fun voltarAEscolha(provas: List<ProvaPublicada>) {
         state = if (provas.isEmpty()) EstadoDaProva.SemProvaPublicada else EstadoDaProva.Escolhendo(provas)
