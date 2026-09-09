@@ -7,6 +7,9 @@
 - `openspec/specs/` descreve o comportamento atual.
 - `openspec/changes/` descreve mudanças em andamento.
 - `docs/adr/` registra decisões arquiteturais permanentes.
+- `rigorous.md` define as proibições de conduta (P1–P26) e o método de verificação (§3). Leia antes
+  de implementar e antes de fechar qualquer tarefa. Instrução que só pode ser cumprida quebrando
+  este arquivo ou aquele é má instrução, e `rigorous.md` §7 diz o que fazer com ela.
 - Nunca recrie contexto já registrado nesses arquivos; leia a fonte relevante.
 
 ## Regras de execução
@@ -24,54 +27,9 @@
 
 ## Verificação
 
-A regra 10 diz *o que* verificar; esta diz como saber se a verificação vale. Aplica-se a número, não só a teste: as piores evidências falsas desta base foram medições, não suítes vermelhas.
-
-**Antes de confiar numa medição, prove que ela reage a uma mudança no que ela mede.**
-
-Crítico é o que falha em silêncio e chega à folha impressa ou ao OMR — medição de texto, geometria, paridade, fidelidade e todo artefato imutável hasheado. Para esses:
-
-- Introduza um erro de propósito, confirme que a verificação fica vermelha, e reverta.
-- Cubra `NaN`, infinito, vazio e fora de faixa. `NaN > tolerância` é falso e passa calado.
-- Confira valor numérico contra oracle independente, que não compartilhe código com o que ele julga.
-- Desconfie de janela de medição que alcance o vizinho, e de contagem feita sobre cache.
-- Rode o **comando completo do CI**, e não a versão filtrada, antes de publicar mudança que toque
-  build, manifesto ou suíte instrumentada. `./gradlew build` não roda `connectedDebugAndroidTest`,
-  e `--tests` de uma classe não roda as outras. Duas vezes o comando estreito local escondeu o que
-  o cheio pega.
-- **Artefato de execução anterior não é evidência da execução atual.** O ciclo uninstall/install de
-  `connectedDebugAndroidTest` apaga o `filesDir`, e o nome do arquivo não muda — nada avisa.
-  (`installDebug` **não** apaga: é atualização, e preserva os dados. Conferido em 2026-09-08.) A primeira tentativa de fechar paridade na
-  fatia 4a comparou o web de **hoje** contra um `android.pdf` de **agosto**: o arquivo estava lá,
-  com o nome certo, e só a data denunciava. Estado que mora no instrumento precisa de âncora —
-  data, hash ou diretório por execução —, conferida **antes** da comparação. É defeito
-  diferente do comando de CI filtrado: lá falta cobertura; aqui a cobertura roda e mede o
-  artefato errado.
-- **Sinal barato não prova o que ele não mede.** `comando; echo "ok"` imprime o `ok` mesmo com o
-  comando vermelho — só `&&` ou uma conferência de `$?` amarram os dois. A família é maior que o
-  `echo`: workflow verde prova que a imagem foi construída, não que ela está servindo; um 401 sem
-  token prova roteamento e autenticação, não que o processo alcança o banco; um arquivo com o nome
-  certo prova que existe um arquivo. Antes de citar um sinal como evidência, diga **qual passo ele
-  atravessa** — e se o passo que interessa não estiver nesse caminho, o sinal não serve, por mais
-  verde que esteja. Quatro vezes na fatia 4a.
-- Registre em `docs/cobertura-*.md` como o teste foi visto falhar, não só que ele passa.
-
-**Fixture mínima sombreia a camada que deveria testar.** Quando duas conferências cobrem o mesmo
-dado por motivos diferentes, mutar a de dentro deixa a de fora recusando pelo motivo errado, e o
-teste fica verde por acidente — ou vermelho sem provar nada. Aconteceu duas vezes na fatia 4a: o
-cenário de conteúdo truncado no cache continuou **verde** com a leitura confiando no nome do arquivo,
-porque truncado também não parseia e a camada (b) o recusava por interpretação; e a conferência de
-identidade da folha só pôde ser exercitada porque a `prova-2` foi construída com os **mesmos itens,
-posições e gabarito** da `prova-referencia` — com itens diferentes, `ObjectiveScoring` recusaria por
-divergência de conjunto e a identidade nunca seria consultada. Ao escrever um "ver falhar" para uma
-camada específica:
-
-- A fixture da mutação SHALL **isolar essa camada**: passar em todas as outras conferências e falhar
-  só na que está sob teste. Se ela falha em duas, a mutação não diz qual das duas segurou.
-- A asserção SHALL conferir o **motivo** da recusa, e não só que houve recusa. "Recusou" é
-  indistinguível entre a camada certa e a vizinha.
-- Leia **quais** cenários caíram e quais não: conjuntos disjuntos entre duas mutações são a prova de
-  que as camadas são independentes; um cenário que sobrevive à mutação da própria camada que ele
-  nomeia está medindo outra coisa.
+As regras 9 e 10 dizem *o que* verificar. **Como saber se a verificação vale** está em `rigorous.md`
+§3, junto com o método de "ver falhar" e o sombreamento de fixture; é leitura obrigatória antes de
+fechar qualquer tarefa que produza número, geometria, paridade ou artefato hasheado.
 
 ## Invariantes arquiteturais
 
