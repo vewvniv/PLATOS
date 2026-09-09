@@ -459,6 +459,21 @@ alterado é motivo suficiente para não confiar na última medição. Fidelidade
 **0,048 mm** contra tolerância de 0,3 mm — folga de 0,252 mm. O `android.pdf` é de hoje, gerado no
 emulador.
 
+**Refeito em 2026-09-10, depois da correção da 9b.2.** O verde de 09-04 deixou de valer no instante
+em que a fatia voltou a tocar `SessaoActivity`, `PreparoDaProva` e uma tela — comando estreito e
+comando velho falham pela mesma razão. No `platos-atd34`: `./gradlew build` verde e
+`connectedDebugAndroidTest` **sem filtro** com **46 testes, 0 falhas**, às 22:23Z. O número foi lido
+do relatório, e não do código de saída: uma primeira soma sobre o XML deu **92**, porque o elemento
+agregador e as suítes internas contam o mesmo teste duas vezes. `<testcase>` é que são 46.
+
+**Pendente, com gatilho explícito e não com prazo:** rodar os mesmos 46 no **telefone real**
+(`2511FPC34G`, Android 16, SDK 36). Ele não é o critério que autoriza o archive — esse é a imagem do
+CI, e ela deu verde —, é conferência extra sem defeito que a motive até agora. **Roda na próxima vez
+que o aparelho for conectado para qualquer tarefa da `slice-4a-cache-referencia`**, e não "quando
+puder": prazo sem evento é o que o §16 da arquitetura proíbe. Se divergir do emulador, é achado a
+investigar **naquele momento**, com os dois números lado a lado — e não motivo retroativo para
+reabrir este archive.
+
 **Uma armadilha do instrumento, registrada para não custar de novo:** rodar
 `connectedDebugAndroidTest` com filtro de classe **reinstala o APK e apaga o `filesDir`**, levando
 junto o `android.pdf` que a execução anterior tinha escrito. A primeira tentativa de fechar paridade

@@ -157,6 +157,13 @@ Contrato antes do consumidor, e a ordem reduz risco:
 5. **Conferência em aparelho**: puxar com rede, matar o processo, modo avião, reabrir, escanear — a
    9.2 herdada, que é o critério de aceite desta fatia.
 
+**Dívida herdada da 4a, com gatilho nesta fatia:** os 46 cenários instrumentados fecharam na imagem
+do CI (`platos-atd34`, API 34) em 2026-09-10, e **não** no telefone real (`2511FPC34G`, Android 16,
+SDK 36) — ele estava desconectado. Na **primeira vez que um aparelho for conectado para qualquer
+tarefa desta fatia**, rodar `:apps:android:connectedDebugAndroidTest` sem filtro nele antes de
+começar. Divergência entre os dois SDKs é achado a investigar com os dois números lado a lado, e não
+motivo para reabrir o archive da 4a.
+
 Reversão: reverter o commit 3 devolve o comportamento atual (arranque exige rede) sem deixar dado
 órfão — a visão guardada é derivada e pode ser ignorada ou apagada sem perda.
 
