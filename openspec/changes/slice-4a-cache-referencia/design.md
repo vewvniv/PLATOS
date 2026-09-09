@@ -115,6 +115,13 @@ Android fino, decisão em Kotlin puro. É o que permite que "reabrir sem rede us
 **Rejeitado: Room.** É a 4b, e ela entra quando houver fato durável para guardar. Um banco para uma
 visão por organização é a abstração prematura que a regra 8 do `CLAUDE.md` proíbe.
 
+**Precisão acrescentada na implementação (tarefa 1.1), e ela fica visível em vez de silenciosa:** o
+parágrafo acima diz "no comum, como o identificador da organização já vai", o que aponta para
+`SharedPreferences`. O meio escolhido foi **arquivo** — `visoes/<organization_id>.json`, no mesmo
+armazenamento privado comum —, porque `SharedPreferences` só existe em aparelho, e esta mesma decisão
+pede que "reabrir sem rede usa a visão guardada" e "a revogação apaga a visão" sejam cenários de JVM.
+O armazenamento é o que a decisão escolheu; o que muda é o meio, pela razão que a própria decisão dá.
+
 ### 5. O vocabulário de falha já distingue os dois casos; o que falta é quem o consome
 
 `ResultadoDasOrganizacoes` já separa `SemRede` de `Chegaram` — a decisão 8 da 4a-zero fixou um
