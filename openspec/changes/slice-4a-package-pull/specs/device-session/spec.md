@@ -150,6 +150,34 @@ conferência falha e versão insuficiente são quatro estados distintos, com qua
 - **THEN** o escaneamento não abre, e o motivo apresentado distingue ausência de rede de falha de
   conferência
 
+### Requirement: Voltar do escaneamento devolve à escolha da prova
+
+Quando o escaneamento fecha e a tela do preparo volta, o aplicativo SHALL apresentar de novo as
+provas da última consulta bem-sucedida, e SHALL NOT permanecer na tela de preparo.
+
+A volta SHALL NOT depender de rede. A lista apresentada é a que já veio, e escolher de novo a mesma
+prova usa o pacote já guardado: escanear é atividade de sala, e sala é onde não há sinal — uma volta
+que precisasse consultar de novo devolveria tela de falha a quem acabou de escanear.
+
+Nenhuma tela do preparo SHALL afirmar estado que não é o seu. "Preparando" é o que está sendo obtido
+e conferido; o que já passou pelo gate está abrindo a câmera. Dizer a mesma frase nos dois casos
+esconde exatamente o estado em que o aplicativo pode ficar parado.
+
+#### Scenario: Voltar do escaneamento
+
+- **WHEN** o escaneamento fecha e a tela do preparo volta
+- **THEN** as provas já apresentadas voltam à tela, e o aplicativo não fica na tela de preparo
+
+#### Scenario: Escanear a mesma prova outra vez
+
+- **WHEN** a mesma prova é escolhida de novo depois de voltar do escaneamento
+- **THEN** o preparo recomeça por ela, sem nova consulta de provas e usando o pacote já guardado
+
+#### Scenario: Volta que chega fora do escaneamento
+
+- **WHEN** a volta chega com o preparo em outro estado que não o de escaneamento aberto
+- **THEN** o estado do preparo não é reescrito
+
 ## MODIFIED Requirements
 
 ### Requirement: Sessão expirada leva de volta à entrada, seja qual for a tela

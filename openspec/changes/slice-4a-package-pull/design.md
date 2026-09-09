@@ -295,6 +295,53 @@ Visto falhar antes de existir: `sessao_expirada_em_ativa_tambem_volta_para_a_ent
 com a mensagem "estado ficou Ativa(...)", e o cenário vizinho — expiração depois de sair — ficou
 verde na mesma execução, provando que a guarda já protegia o que dizia proteger.
 
+### 13. Voltar do escaneamento é evento, e o destino dele é a escolha da prova
+
+Encontrado em aparelho em 2026-09-08 (tarefa 9b.2), corrigido em 2026-09-09.
+
+`EstadoDaProva.Pronta` significa "o gate passou, e a câmera vai abrir" — ela não diz se a câmera **já
+foi**. A `SessaoActivity` abria a `ScanActivity` por `startActivity` e não ficava sabendo do retorno:
+a composição continuava viva com a mesma chave, o `LaunchedEffect(contentHash)` não rodava de novo, e
+`Pronta` seguia desenhando a mesma `PreparandoScreen` de `Preparando` — zero elemento clicável, e um
+texto que afirma o estado anterior.
+
+**A decisão tem duas metades, e a segunda é a que a tarefa pedia por escrito.**
+
+**Evento, e não inferência de ciclo de vida.** Entra `PreparoDaProva.aoVoltarDoEscaneamento(provas)`,
+disparado pelo `ActivityResultLauncher` que abriu a `ScanActivity`. `onResume` foi **rejeitado**: ele
+roda também na primeira abertura e em toda volta de diálogo do sistema, então distinguir "voltei da
+câmera" exigiria um sinalizador — e o sinalizador seria um segundo lugar onde mora "onde o aparelho
+está", que é exatamente o que a decisão 10 da 4a-zero proíbe. O código de resultado não é lido: a
+`ScanActivity` não publica nada nesta fatia — nada é persistido até a 4b —, e o que este ponto
+precisa saber é que ela fechou.
+
+**O destino é a escolha da prova.** A lista já está na tela (`provasApresentadas`, memorizada da
+última listagem bem-sucedida), então voltar **não consulta nada** e funciona sem rede — que é a
+condição de sala. Escolher a mesma prova de novo passa pelo cache já conferido, que é o caminho que a
+9.2b provou em modo avião.
+
+**Rejeitado: um estado novo — `Escaneada`, com tela própria de "escanear de novo".** Ele pouparia um
+toque e custaria um estado, uma tela e uma pergunta nova ("o que ela mostra quando o pacote é
+descartado enquanto a câmera está aberta?"). A `ScanActivity` já escaneia folha após folha sem voltar
+— `retomar` é ação dela —, então voltar significa "terminei com esta prova", e o destino certo de
+"terminei" é a lista.
+
+**A frase da tela passa a vir por parâmetro.** `PreparandoScreen` desenha dois estados, e um literal
+dentro dela fazia a tela afirmar o estado errado: "Preparando a prova…" ficou na tela depois de a
+câmera ter ido e voltado. `Preparando` diz que está preparando; `Pronta` diz que está abrindo a
+câmera. É o mesmo princípio de `textoDaBarragem` — motivo é estado, frase é apresentação —, no
+tamanho que este caso pede: dois estados, sem enum.
+
+**O que fica nomeado e não corrigido** (regra 6 do `CLAUDE.md`):
+
+- `back` continua saindo do aplicativo em **todas** as telas de sessão, e não só nesta. É
+  comportamento do aplicativo inteiro, não desta correção, e mudá-lo é decisão de produto com escopo
+  próprio.
+- A tela de escolha não oferece voltar à tela de trabalho — só escolher prova ou sair —, então
+  refazer a listagem passa hoje por sair, que apaga o cache da organização (tarefa 4.8). É
+  pré-existente a esta correção e não foi introduzido por ela; fica nomeado para quem mexer na
+  navegação da sessão.
+
 ## Risks / Trade-offs
 
 **A camada (b) vira portão de compatibilidade, e ela é estrita por natureza** → é o comportamento
