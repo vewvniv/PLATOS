@@ -1,6 +1,6 @@
 ## 0. Dívida herdada da 4a, antes de começar
 
-- [ ] 0.1 Na **primeira vez** que um aparelho for conectado para qualquer tarefa desta fatia, rodar `./gradlew :apps:android:connectedDebugAndroidTest` **sem filtro** nele, antes de mexer em qualquer coisa. Os 46 cenários fecharam na imagem do CI (`platos-atd34`, API 34) em 2026-09-10 e não em telefone real (SDK 36). Resultado: os dois instrumentos com número registrado. Divergência é achado a investigar **naquele momento**, com os dois lado a lado — e não motivo para reabrir o archive da 4a.
+- [ ] 0.1 **Não bloqueia o início.** Na **primeira vez** que um aparelho for conectado para qualquer tarefa desta fatia, rodar `./gradlew :apps:android:connectedDebugAndroidTest` **sem filtro** nele, antes de usá-lo para qualquer outra coisa. Sem aparelho conectado, esta tarefa fica desmarcada e o trabalho segue: 1.1 a 1.3 e a seção 2 são JVM pura, e a primeira tarefa que de fato exige aparelho é a 1.4. Os 46 cenários fecharam na imagem do CI (`platos-atd34`, API 34) em 2026-09-10 e não em telefone real (SDK 36). Resultado: os dois instrumentos com número registrado. Divergência é achado a investigar **naquele momento**, com os dois lado a lado — e não motivo para reabrir o archive da 4a.
 
 ## 1. A porta da visão guardada
 

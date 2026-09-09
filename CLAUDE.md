@@ -72,6 +72,22 @@ fechar qualquer tarefa que produza número, geometria, paridade ou artefato hash
 
 Use `openspec/` como memória durável. Não reexplique a arquitetura no chat quando um arquivo existente puder ser citado.
 
+### Editar `openspec/specs/` direto, sem passar por uma mudança
+
+É atalho, e vale **só com as cinco condições juntas**. Faltando qualquer uma, o veículo é mudança
+nova — inclusive para correção "pequena" logo depois de um archive, que é quando o atalho é mais
+tentador e menos visível.
+
+1. **Nenhum comportamento muda.** Só a forma como uma regra já vigente é dita.
+2. **A decisão já existe e é citável**, com o arquivo e a linha na mão antes da edição — não a
+   lembrança de que ela existe.
+3. **Nenhum texto novo é inventado.** Cada frase vem de um bloco que já estava escrito; o que muda é
+   onde ela mora.
+4. **Commit isolado**, que diz de onde veio cada metade e por que o veículo não foi uma mudança.
+5. **Nenhuma mudança ativa declara delta sobre o mesmo requisito.** Um `MODIFIED` carrega o bloco
+   **inteiro** do requisito: editar a spec principal por baixo dele faz a mudança ativa passar a
+   descrever um estado que já não existe, e o archive dela reintroduz o texto antigo em silêncio.
+
 ## Commits
 
 - Um commit deve representar uma unidade lógica.
