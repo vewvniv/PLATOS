@@ -153,12 +153,16 @@ class DeviceSession(
     /**
      * Sair.
      *
-     * Apaga a credencial, a organizacao escolhida **e os pacotes guardados sob ela**. Nenhuma das
-     * tres e detalhe: o aparelho e compartilhado entre escolas, e o que o usuario anterior deixou
-     * sobrevivendo a troca de conta e invisivel para quem entra depois. A fatia 4a-zero pagou esse
-     * defeito com a organizacao; o pacote e o mesmo defeito um nivel abaixo, e por isso ADR-0013
-     * manda cada fatia **nomear o que apaga** em vez de confiar num requisito generico de limpar
-     * dados locais.
+     * Apaga a credencial, a organizacao escolhida, **a visao guardada e os pacotes guardados sob
+     * ela**. Nenhuma das quatro e detalhe: o aparelho e compartilhado entre escolas, e o que o
+     * usuario anterior deixou sobrevivendo a troca de conta e invisivel para quem entra depois. A
+     * fatia 4a-zero pagou esse defeito com a organizacao; o pacote e o mesmo defeito um nivel
+     * abaixo, e por isso ADR-0013 manda cada fatia **nomear o que apaga** em vez de confiar num
+     * requisito generico de limpar dados locais.
+     *
+     * A visao entrou nesta lista nesta fatia, e ela e a **unica** das quatro que aparece em tela: sem
+     * este apagamento, quem entrasse depois no mesmo aparelho e abrisse sem rede leria o nome da
+     * organizacao anterior e a lista de provas dela.
      *
      * **A organizacao e lida antes de ser apagada.** Invertendo a ordem, o identificador ja teria
      * sumido quando o cache fosse apagado, e o apagamento aconteceria sobre `null` — sem estourar, e
@@ -169,7 +173,10 @@ class DeviceSession(
 
         guardada.apagarCredencial()
         guardada.apagarOrganizacaoEscolhida()
-        if (organizacao != null) pacotes.apagarDaOrganizacao(organizacao)
+        if (organizacao != null) {
+            visoes.apagarDaOrganizacao(organizacao)
+            pacotes.apagarDaOrganizacao(organizacao)
+        }
 
         state = DeviceState.Entrada(MotivoDeEntrada.SAIU)
     }
@@ -190,15 +197,26 @@ class DeviceSession(
      * Escolha guardada que nao esta mais na lista **volta a ser pedida**: perder o vinculo com uma
      * organizacao e possivel, e seguir com um identificador que a API nao devolve mais deixaria a
      * tela ativa sobre uma organizacao que o usuario nao tem.
+     *
+     * **Resposta sem organizacao nenhuma e revogacao tambem**, e isto e decisao desta fatia, nao
+     * heranca: a condicao que o requisito escreve — "o servidor respondeu e a organizacao nao esta
+     * mais entre as do usuario" — e satisfeita por uma lista vazia do mesmo jeito que por uma lista
+     * que nao a traz. Tratar a lista vazia como caso de falha, e nao de revogacao, deixaria o
+     * gabarito em cache exatamente na revogacao mais dura, a de quem perdeu todos os vinculos. O
+     * desfecho de tela nao muda ([DeviceState.SemOrganizacao]); o que muda e o que sai do disco.
      */
     private fun resolverOrganizacao(organizacoes: List<Organizacao>): DeviceState {
-        if (organizacoes.isEmpty()) return DeviceState.SemOrganizacao(FalhaDaConsulta.OUTRA)
-
         val guardadaAgora = guardada.organizacaoEscolhida()
+
+        if (organizacoes.isEmpty()) {
+            if (guardadaAgora != null) revogar(guardadaAgora)
+            return DeviceState.SemOrganizacao(FalhaDaConsulta.OUTRA)
+        }
+
         val jaEscolhida = organizacoes.firstOrNull { it.id == guardadaAgora }
         if (jaEscolhida != null) return DeviceState.Ativa(jaEscolhida, Procedencia.Fresca)
 
-        if (guardadaAgora != null) guardada.apagarOrganizacaoEscolhida()
+        if (guardadaAgora != null) revogar(guardadaAgora)
 
         val unica = organizacoes.singleOrNull()
         if (unica != null) {
@@ -207,5 +225,28 @@ class DeviceSession(
         }
 
         return DeviceState.Escolhendo(organizacoes)
+    }
+
+    /**
+     * O vinculo caiu, e quem disse foi o servidor.
+     *
+     * Apaga a escolha, a **visao** e os **pacotes** daquela organizacao. A escolha sozinha ja caia
+     * desde a decisao 10 da 4a-zero; cair sem levar o resto deixava no aparelho o **gabarito** de uma
+     * organizacao que a instituicao ja revogou — e o gabarito nao aparece em tela nenhuma, entao
+     * ninguem tem como notar que ficou.
+     *
+     * **A ausencia de teto de tempo depende deste apagamento.** A decisao 2 do `design.md` recusou
+     * expirar a visao por calendario, e o que ela poe no lugar e isto: a visao vale enquanto o
+     * servidor nao disser o contrario, e no instante em que ele disser, o que estava guardado sob a
+     * organizacao vai junto. Sem esta funcao, "sem prazo de validade" viraria "para sempre".
+     *
+     * E o mesmo apagamento de [sair], com duas diferencas: a credencial continua valendo — o usuario
+     * segue sendo ele mesmo, e pode ter outras organizacoes —, e quem manda sair da organizacao e o
+     * servidor, e nao o professor.
+     */
+    private fun revogar(organizacao: String) {
+        guardada.apagarOrganizacaoEscolhida()
+        visoes.apagarDaOrganizacao(organizacao)
+        pacotes.apagarDaOrganizacao(organizacao)
     }
 }

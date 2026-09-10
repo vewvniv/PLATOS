@@ -349,7 +349,116 @@ class DeviceSessionTest {
             "o aparelho seguiu ativo numa organizacao que a resposta nao trouxe: ${sessao.state}")
     }
 
-    // --- Sair apaga as tres coisas (tarefa 3.6 da 4a-zero, e 4.8 da 4a) ---
+    // --- A revogacao observada apaga o que estava guardado (tarefas 5.1 e 5.2) ---
+
+    /**
+     * **A visao sai do disco quando o servidor diz que o vinculo caiu.**
+     *
+     * Separado do teste dos pacotes de proposito, e nao por gosto de granularidade: a tarefa 5.3
+     * manda apagar **so** a visao e conferir que o cenario dos pacotes fica vermelho enquanto este
+     * continua verde. Com as duas asercoes dentro de um unico teste, a mutacao derrubaria o mesmo
+     * teste nas duas direcoes e nao diria qual das duas metades segurou.
+     *
+     * Duas asercoes, e a segunda nao e redundante: a primeira diz que o apagamento foi pedido para a
+     * organizacao **certa** — um booleano passaria apagando a visao da organizacao que o usuario
+     * ainda tem —, e a segunda diz que ele **surtiu efeito**.
+     */
+    @Test
+    fun revogacao_observada_apaga_a_visao_da_organizacao() {
+        val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
+        val visoes = VisoesFalsas(visao)
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), visoes)
+        sessao.abrir(temSessaoGuardada = true)
+
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(pessoal)))
+
+        assertEquals(
+            listOf(escola.id),
+            visoes.apagadas,
+            "a revogacao nao apagou a visao da organizacao certa",
+        )
+        assertNull(visoes.ler(escola.id), "a visao continua legivel depois da revogacao")
+    }
+
+    /**
+     * **O gabarito em cache vai junto**, e e este o resultado que a tarefa 5.1 existe para produzir.
+     *
+     * A escolha cair sozinha — o que ja acontecia desde a 4a-zero — deixava no aparelho o pacote
+     * conferido de uma organizacao que a instituicao ja revogou. Ele nao aparece em tela nenhuma,
+     * entao a ausencia deste apagamento seria invisivel para quem usa e para quem le a tela.
+     */
+    @Test
+    fun revogacao_observada_apaga_tambem_os_pacotes_da_organizacao() {
+        val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
+        val pacotes = PacotesFalsos()
+        val sessao = DeviceSession(Guardada(escola.id), pacotes, VisoesFalsas(visao))
+        sessao.abrir(temSessaoGuardada = true)
+
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(pessoal)))
+
+        assertEquals(
+            listOf(escola.id),
+            pacotes.apagadas,
+            "a revogacao deixou o gabarito em cache sob a organizacao revogada",
+        )
+    }
+
+    /**
+     * **Resposta sem organizacao nenhuma tambem e revogacao**, e este teste fixa a decisao.
+     *
+     * Ate esta fatia a lista vazia terminava em `SemOrganizacao` sem tocar no disco. O desfecho de
+     * tela continua o mesmo; o que muda e que a condicao do requisito — "o servidor respondeu e a
+     * organizacao nao esta mais entre as do usuario" — e satisfeita por uma lista vazia tanto quanto
+     * por uma lista que nao a traz. Sem isto, o gabarito ficaria em cache exatamente na revogacao
+     * mais dura, a de quem perdeu **todos** os vinculos.
+     *
+     * Este e o unico dos tres que afirma as duas metades juntas, porque o que ele mede e o **ramo**,
+     * e nao qual das duas metades apaga.
+     */
+    @Test
+    fun resposta_sem_organizacao_nenhuma_tambem_e_revogacao() {
+        val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
+        val guardada = Guardada(escola.id)
+        val visoes = VisoesFalsas(visao)
+        val pacotes = PacotesFalsos()
+        val sessao = DeviceSession(guardada, pacotes, visoes)
+        sessao.abrir(temSessaoGuardada = true)
+
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(emptyList()))
+
+        assertEquals(listOf(escola.id), visoes.apagadas, "a lista vazia nao apagou a visao")
+        assertEquals(listOf(escola.id), pacotes.apagadas, "a lista vazia nao apagou os pacotes")
+        assertTrue(guardada.organizacaoApagada, "a lista vazia nao derrubou a escolha guardada")
+        assertTrue(
+            sessao.state is DeviceState.SemOrganizacao,
+            "o desfecho de tela mudou junto, e nao era para mudar: ${sessao.state}",
+        )
+    }
+
+    /**
+     * **O canario, e sem ele os tres de cima passariam com "apagar sempre".**
+     *
+     * O servidor respondeu **trazendo** a organizacao guardada: nada e apagado. Uma implementacao
+     * que apagasse a cada consulta bem-sucedida esvaziaria o cache do professor toda vez que ele
+     * abrisse o aplicativo com rede — e os tres cenarios de revogacao continuariam verdes, porque
+     * eles afirmam que o apagamento aconteceu, nunca que ele foi seletivo.
+     */
+    @Test
+    fun vinculo_que_continua_valendo_nao_apaga_nem_visao_nem_pacote() {
+        val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
+        val visoes = VisoesFalsas(visao)
+        val pacotes = PacotesFalsos()
+        val sessao = DeviceSession(Guardada(escola.id), pacotes, visoes)
+        sessao.abrir(temSessaoGuardada = true)
+
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola, pessoal)))
+
+        assertTrue(visoes.apagadas.isEmpty(), "apagou a visao de quem ainda tem o vinculo: ${visoes.apagadas}")
+        assertTrue(pacotes.apagadas.isEmpty(), "apagou o pacote de quem ainda tem o vinculo: ${pacotes.apagadas}")
+        assertTrue(sessao.state is DeviceState.Ativa, "veio ${sessao.state}")
+    }
+
+    // --- Sair apaga as quatro coisas (tarefa 3.6 da 4a-zero, 4.8 da 4a, e 5.1 desta) ---
 
     @Test
     fun sair_apaga_a_credencial_e_a_organizacao_escolhida() {
@@ -408,17 +517,39 @@ class DeviceSessionTest {
     /**
      * Sem organizacao nenhuma, sair nao tenta apagar coisa nenhuma.
      *
-     * Puxar exige organizacao ativa, entao nao ha pacote guardado; chamar o apagamento com um
-     * identificador vazio ou inventado seria pedir para o cache decidir o que fazer com lixo.
+     * Puxar exige organizacao ativa, entao nao ha pacote nem visao guardados; chamar o apagamento
+     * com um identificador vazio ou inventado seria pedir para o cache decidir o que fazer com lixo.
      */
     @Test
-    fun sair_sem_organizacao_escolhida_nao_apaga_pacote_nenhum() {
+    fun sair_sem_organizacao_escolhida_nao_apaga_nada() {
         val pacotes = PacotesFalsos()
-        val sessao = DeviceSession(Guardada(), pacotes, VisoesFalsas())
+        val visoes = VisoesFalsas()
+        val sessao = DeviceSession(Guardada(), pacotes, visoes)
 
         sessao.sair()
 
-        assertTrue(pacotes.apagadas.isEmpty(), "apagou ${pacotes.apagadas}")
+        assertTrue(pacotes.apagadas.isEmpty(), "apagou pacote de ${pacotes.apagadas}")
+        assertTrue(visoes.apagadas.isEmpty(), "apagou visao de ${visoes.apagadas}")
+    }
+
+    /**
+     * Sair apaga a visao, e ela e a **unica** das quatro coisas que aparece em tela.
+     *
+     * A credencial e a escolha caiam desde a 4a-zero, e o pacote desde a 4a; a visao entrou na lista
+     * nesta fatia, e o defeito que ela produziria e mais visivel que o do pacote, nao menos: quem
+     * entrasse depois no mesmo aparelho e abrisse sem rede leria o **nome** da organizacao anterior
+     * e a lista de provas dela.
+     */
+    @Test
+    fun sair_apaga_a_visao_junto_com_o_resto() {
+        val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
+        val visoes = VisoesFalsas(visao)
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), visoes)
+
+        sessao.sair()
+
+        assertEquals(listOf(escola.id), visoes.apagadas, "sair nao apagou a visao da organizacao ativa")
+        assertNull(visoes.ler(escola.id), "a visao do usuario anterior continua legivel")
     }
 
     @Test
