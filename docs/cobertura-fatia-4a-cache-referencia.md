@@ -1,7 +1,7 @@
 # Cobertura de cenários — fatia 4a-cache-referencia (a visão guardada da organização)
 
-Documento **em construção**: as seções 1 a 6 do `tasks.md` fecharam, a conferência em aparelho (7)
-fechou as tarefas 7.1 a 7.3 em 2026-09-10, e falta a verificação final (8). O registro **por tarefa** vive em
+Documento **em construção**: as seções 1 a 7 do `tasks.md` fecharam — a conferência em aparelho
+inteira em 2026-09-10 —, e falta a verificação final (8). O registro **por tarefa** vive em
 `openspec/changes/slice-4a-cache-referencia/tasks.md`; este documento existe para que um achado seja
 encontrável **por assunto**, e a tarefa 8.2 é quem o consolida no fim.
 
@@ -121,6 +121,12 @@ revoga, cai na visão).
 Toda a cadeia — arranque, tela de trabalho, atualizar frustrado, lista, câmera — aconteceu **no
 processo 16591**, que nasceu já em modo avião. Não é que ele não usou a rede: ela não existiu em
 nenhum instante da vida dele.
+
+**A folha errada, no papel (7.4).** Recusa às 15:39:38Z nomeando os dois identificadores — `o QR diz
+prova-referencia-slice-2, e o aparelho carrega prova-referencia-slice-1` — e **controle positivo** às
+15:40:43Z com a folha certa: `9 de 40` · `Nota fechada.`. Sem o controle positivo, "recusou a folha
+errada" é indistinguível de "não lê folha nenhuma". Sobre o valor `9 de 40` não há afirmação: não há
+oráculo para ele nesta conferência, e a tarefa não o pede.
 
 **Um erro de sequenciamento, registrado porque custou uma rodada:** na primeira tentativa da 7.3 eu
 mandei o SQL de restauração na mesma mensagem em que pedi o login. O `membership` voltou antes de o

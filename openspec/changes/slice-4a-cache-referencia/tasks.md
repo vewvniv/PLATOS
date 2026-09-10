@@ -270,7 +270,21 @@
   ao desenvolvedor eu conferi que `/me/organizations` lista por **join com `membership`**
   (`OrganizationQueries.listForCurrentUser`), porque se ela listasse por outro caminho o `delete`
   nunca teria sido revogação e a premissa do roteiro estaria errada.
-- [ ] 7.4 Conferir que o caminho da 4a não regrediu: escolher prova, câmera abre, folha de outra prova continua recusada por identidade.
+- [x] 7.4 Conferir que o caminho da 4a não regrediu: escolher prova, câmera abre, folha de outra
+  prova continua recusada por identidade. **Fechada em 2026-09-10, com as duas folhas impressas na
+  mão, e as duas metades: a recusa e o controle positivo.** Recusa às 15:39:38Z, com os **dois**
+  identificadores na frase: `a folha e de outra prova: o QR diz prova-referencia-slice-2, e o
+  aparelho carrega prova-referencia-slice-1`. Controle positivo às 15:40:43Z, com a folha da
+  `slice-1`: `9 de 40` · `Nota fechada.` **O controle positivo é o que dá sentido à recusa** — sem
+  ele, "recusou a folha errada" é indistinguível de "não lê folha nenhuma", e o cenário da recusa
+  passaria por acidente. **Sobre o número não há afirmação:** `9 de 40` depende de como a folha foi
+  preenchida, não há oráculo para ele nesta conferência, e a tarefa não pede — ela pede que a folha
+  errada seja recusada por identidade e que a certa seja lida e apurada. A recusa só é exercitável
+  porque a `prova-2` tem os mesmos itens, posições e gabarito da referência; com estruturas
+  diferentes, `ObjectiveScoring` recusaria por divergência de conjunto e a identidade nunca seria
+  consultada (§14.1). **De passagem, o segundo pull da sessão:** o cache havia sido apagado pela
+  revogação da 7.3, então escolher a `slice-1` puxou de novo — e o arquivo voltou com o **mesmo**
+  hash `26612ad5…909a`.
 
 ## 8. Verificação final
 
