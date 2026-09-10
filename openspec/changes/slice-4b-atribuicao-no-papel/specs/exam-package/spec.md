@@ -15,6 +15,16 @@ do aluno fora da lista, e a atribuição dela é feita depois da captura.
 Duas atribuições da mesma prova SHALL NOT compartilhar token, e um token SHALL identificar no máximo
 uma atribuição dentro de uma prova.
 
+**O que endereça a folha de uma atribuição é a própria atribuição.** O que distingue a folha de um
+aluno — o payload do QR dela e a matriz que dele decorre — SHALL viajar **dentro** da atribuição, e
+SHALL NOT viver em uma entrada endereçada por token ao lado dela. A geometria SHALL continuar sendo
+uma por variante.
+
+Disso decorre uma garantia, e ela é da **forma** e não de uma conferência: **folha sem atribuição é
+irrepresentável**. Não há onde colocar uma — não existe mapa endereçado por token onde uma entrada
+órfã pudesse sobrar —, então o pacote não precisa recusar esse estado, porque ele não pode ser
+construído. A recusa que resta é a inversa, que **é** representável: atribuição sem a folha dela.
+
 #### Scenario: Roster com alunos produz uma folha para cada um
 
 - **WHEN** uma prova é publicada com um roster de N alunos
@@ -35,7 +45,7 @@ uma atribuição dentro de uma prova.
 
 ### Requirement: Pacote incoerente é recusado antes de ser publicado
 
-Um pacote SHALL ser recusado, com erro identificável, quando não for internamente coerente. São incoerências: posição de variante que aponta item inexistente, item sem gabarito, atribuição que aponta variante inexistente, layout que declara questões diferentes das que os itens declaram, **atribuição sem layout endereçável por ela, e layout endereçado por uma atribuição que o pacote não declara**.
+Um pacote SHALL ser recusado, com erro identificável, quando não for internamente coerente. São incoerências: posição de variante que aponta item inexistente, item sem gabarito, atribuição que aponta variante inexistente, layout que declara questões diferentes das que os itens declaram, **e atribuição sem a folha dela** — isto é, sem o payload do QR que a identifica. A incoerência inversa, layout órfão de atribuição, não entra nesta lista porque ela é irrepresentável pela forma do pacote: ver "Publicar com roster produz uma atribuição e uma folha por aluno".
 
 Nenhum pacote parcial SHALL ser gravado.
 
@@ -56,13 +66,13 @@ Nenhum pacote parcial SHALL ser gravado.
 
 #### Scenario: Atribuição sem folha
 
-- **WHEN** o pacote declara uma atribuição para a qual não há layout endereçável
+- **WHEN** o pacote declara uma atribuição sem o payload do QR que a identifica
 - **THEN** a publicação falha com erro que identifica a atribuição e nada é gravado
 
-#### Scenario: Folha sem atribuição
+#### Scenario: Token repetido entre atribuições
 
-- **WHEN** o pacote declara um layout endereçado por uma atribuição que ele não traz
-- **THEN** a publicação falha com erro que identifica o endereço órfão e nada é gravado
+- **WHEN** o pacote declara duas atribuições com o mesmo token
+- **THEN** a publicação falha com erro que identifica o token e nada é gravado
 
 ### Requirement: A folha impressa é derivada do pacote
 

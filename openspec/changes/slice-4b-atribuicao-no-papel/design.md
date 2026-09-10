@@ -48,6 +48,15 @@ a fatia seguinte herdar o que já funciona e ter que reabrir o transporte.
 que folhas da mesma prova e variante difiram **só** no QR. Sem esse requisito, compartilhar geometria
 seria suposição; com ele, é o contrato.
 
+**Uma consequência que só apareceu na implementação, e ela melhorou a spec.** Com o QR viajando
+**dentro** da atribuição, e não em um mapa endereçado por token, **folha órfã deixa de ser estado
+possível** — não há onde uma entrada sem atribuição sobrar. A spec enumerava essa incoerência e
+exigia um cenário de recusa para ela; recusa de estado impossível nunca dispara, e o cenário seria
+vacuidade. O delta foi ajustado: a garantia passou a ser declarada pela forma, **nomeando a
+construção que a produz**, no mesmo estilo em que o §13 diz que divergência é impossível por
+construção. A recusa que resta é a inversa — atribuição sem a folha dela —, e essa é representável e
+tem cenário.
+
 **Alternativas descartadas:**
 
 - **N layouts completos.** Mais simples de escrever e 20× maior. O `content_hash` cobre os dois

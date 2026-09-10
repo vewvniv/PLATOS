@@ -97,9 +97,12 @@ class FolhaDaAtribuicaoTest {
 
     @Test
     fun `atribuicao sem QR e pacote incoerente, e nao folha igual a da variante`() {
-        val pacote = exam.buildPackage(
-            assignments = listOf(PackageAssignment("tok-1", DEFAULT_VARIANT, qr = null)),
-        )
+        // Montado por `copy` a partir de um pacote valido, e nao por `buildPackage`: a validacao
+        // recusa atribuicao sem QR **na publicacao**, e este cenario cobre a segunda linha de
+        // defesa — pacote que chegou de outro lugar, como o disco do aparelho, e no qual a
+        // composicao nao confia.
+        val pacote = exam.buildPackage(assignments = listOf(PackageAssignment("tok-1", DEFAULT_VARIANT, qrDe("tok-1"))))
+            .copy(assignments = listOf(PackageAssignment("tok-1", DEFAULT_VARIANT, qr = null)))
 
         // O desfecho errado seria silencioso: devolver a folha da variante, com o campo de aluno
         // vazio, para um aluno que existe. A folha sairia impressa sem dono e ninguem notaria.
