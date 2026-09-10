@@ -16,7 +16,7 @@ A visão guardada SHALL NOT ter prazo próprio de validade: enquanto o servidor 
 ela vale. Quando o servidor responder e a organização não estiver mais entre as do usuário, o
 aplicativo SHALL apagar a visão **e** os pacotes guardados sob aquela organização.
 
-Sair SHALL apagar a visão junto com a credencial, a escolha e os pacotes.
+O que sair apaga é dito **uma vez**, no requisito de sair, e a visão entra naquela lista.
 
 #### Scenario: A visão é gravada quando a consulta responde
 
@@ -33,11 +33,6 @@ Sair SHALL apagar a visão junto com a credencial, a escolha e os pacotes.
 
 - **WHEN** o servidor responde e a organização guardada não está mais entre as do usuário
 - **THEN** a escolha cai, a visão daquela organização é apagada, e os pacotes guardados sob ela também
-
-#### Scenario: Sair apaga a visão
-
-- **WHEN** o usuário sai
-- **THEN** nenhuma visão daquela organização continua guardada
 
 ### Requirement: Sem rede, o trabalho continua a partir da última visão conhecida
 
@@ -96,6 +91,41 @@ marcada, e SHALL NOT esvaziar a tela nem apresentar o dado como fresco.
   atualizar
 
 ## MODIFIED Requirements
+
+### Requirement: Sair apaga a sessão e a organização escolhida
+
+O aplicativo SHALL oferecer sair. Sair SHALL apagar do aparelho a sessão, a organização escolhida,
+**a última visão conhecida daquela organização** e os pacotes guardados sob ela, e SHALL levar de
+volta à entrada.
+
+Depois de sair, a entrada seguinte SHALL NOT vir com organização pré-selecionada, qualquer que seja
+o usuário que entrar, e SHALL NOT alcançar pacote guardado antes da saída — a entrada seguinte refaz
+o pull.
+
+O apagamento dos pacotes é nomeado aqui, e não coberto por um requisito genérico de limpar dados
+locais, porque requisito genérico é fácil de dar como cumprido sem reler. O aparelho é compartilhado
+entre escolas, e o que o usuário anterior baixou sobrevivendo à troca de conta é invisível para quem
+entra depois. **A visão entra na mesma lista pela mesma razão, e é a única das quatro que aparece em
+tela:** sem apagá-la, quem entrasse depois no mesmo aparelho e abrisse sem rede leria o nome da
+organização anterior e a lista de provas dela.
+
+#### Scenario: Sair volta à entrada
+- **WHEN** o usuário sai
+- **THEN** o aplicativo apresenta a entrada, e nenhuma tela de trabalho é alcançável sem autenticar
+  de novo
+
+#### Scenario: A escolha do usuário anterior não é herdada
+- **WHEN** um usuário escolhe uma organização, sai, e outro usuário entra no mesmo aparelho
+- **THEN** nenhuma organização vem pré-selecionada para o segundo usuário
+
+#### Scenario: O pacote do usuário anterior não é herdado
+- **WHEN** um usuário baixa o pacote de uma prova, sai, e outro usuário entra no mesmo aparelho
+- **THEN** nenhum pacote daquela organização continua guardado, e escolher uma prova refaz o pull
+
+#### Scenario: Sair apaga a visão
+
+- **WHEN** o usuário sai
+- **THEN** nenhuma visão daquela organização continua guardada
 
 ### Requirement: A organização apresentada vem da API, e não do aparelho
 
