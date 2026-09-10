@@ -129,6 +129,21 @@ vocabulário só de falha, e é ele que permite dizer "não respondeu" e "respon
 lá" sem inventar nada. Esta fatia **não** acrescenta vocabulário: acrescenta um consumidor que trata
 os dois de formas diferentes, que é precisamente o buraco que a decisão 11 da 4a nomeou.
 
+### 6. A gravação vem antes da leitura, e isso é invariante — não estilo
+
+Descoberto ao escrever a mutação (ii) da tarefa 4.3, que saiu **inerte**: mascarar uma lista vazia
+com a visão guardada não muda nada, porque a visão já foi substituída pela lista vazia que chegou.
+
+**O que impede "a organização não tem prova publicada" de virar "aqui estão as provas de ontem" não é
+uma conferência: é a ordem.** Na resposta que chega, `guardar` acontece antes de qualquer leitura, e
+por isso não existe instante em que a visão antiga possa ser lida como se fosse a atual. Inverter as
+duas linhas reintroduz o defeito **sem quebrar nenhum teste que existisse antes** — foi exatamente o
+que a mutação inerte demonstrou.
+
+Fica escrito aqui porque uma invariante que só existe na cabeça de quem escreveu some no primeiro
+refactor. O cenário que a segura é `lista_vazia_que_chegou_nao_e_mascarada_pela_visao`, e a mutação
+que o exercita é a "não perca a lista" — o defeito plausível de verdade.
+
 ## Risks / Trade-offs
 
 **A visão pode estar velha e o professor não perceber** → a marca visual e a idade ao lado existem
@@ -143,6 +158,12 @@ consulta bem-sucedida a substitui por inteiro, e nenhum caminho de escrita a pro
 resposta da API. É a mesma disciplina do cache de pacotes, onde o hash é a autoridade.
 
 **O resíduo da decisão 2** → aceito e registrado acima, com a porta de saída nomeada.
+
+**Item levantado e não resolvido aqui, com dono:** varrer a base atrás de **outros** pontos em que
+gravação ou decisão mora dentro de `Activity`, do mesmo tipo que produziu 9b.1 e 9b.2. Esta fatia
+moveu dois — a gravação da visão e a memória da última escolha — porque estavam no caminho; **não
+foi feita uma varredura**, e dizer "o ponto cego" no singular seria afirmar mais do que se mediu.
+Dono: mantenedor; fatia: a próxima que tocar `SessaoActivity`.
 
 **Sombreamento entre máquina pura e fiação** → foi o que produziu 9b.1 e 9b.2, as duas regressões da
 4a. Aqui o risco reaparece com a mesma cara: a decisão mora em Kotlin puro, mas *quando* a

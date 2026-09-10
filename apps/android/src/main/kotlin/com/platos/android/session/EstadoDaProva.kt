@@ -29,6 +29,18 @@ enum class MotivoDaBarragem {
 }
 
 /**
+ * Uma prova como a tela a apresenta: a prova, e se o aparelho ja tem o pacote dela.
+ *
+ * **[pacoteGuardado] e presenca, e nao promessa.** Quem decide se a camera abre e o gate de pre-voo,
+ * que le e reconfere; isto aqui existe para que o professor sem rede saiba, **antes de tocar**, qual
+ * prova vai abrir e qual vai pedir conexao — e nao descubra na barragem.
+ */
+data class ProvaApresentada(
+    val prova: ProvaPublicada,
+    val pacoteGuardado: Boolean,
+)
+
+/**
  * O que a tela do preparo desenha, entre ter organizacao ativa e abrir a camera.
  *
  * ```
@@ -48,11 +60,25 @@ sealed interface EstadoDaProva {
     /** A listagem foi pedida e ainda nao chegou. */
     data object Listando : EstadoDaProva
 
-    /** As provas chegaram, e a escolha e de quem segura o aparelho. */
-    data class Escolhendo(val provas: List<ProvaPublicada>) : EstadoDaProva
+    /**
+     * As provas apresentadas, e a escolha e de quem segura o aparelho.
+     *
+     * [procedencia] diz se a lista veio da consulta de agora ou da visao guardada, e a tela **tem**
+     * de marcar a segunda: lista velha e indistinguivel de lista correta para quem le.
+     */
+    data class Escolhendo(
+        val provas: List<ProvaApresentada>,
+        val procedencia: Procedencia,
+    ) : EstadoDaProva
 
-    /** A organizacao ativa nao tem prova publicada. Nao e falha. */
-    data object SemProvaPublicada : EstadoDaProva
+    /**
+     * A organizacao ativa nao tem prova publicada. Nao e falha.
+     *
+     * Carrega [procedencia] pela mesma razao de [Escolhendo], e o caso cacheado e o mais traicoeiro
+     * dos dois: "nao ha prova publicada" e afirmacao sobre o mundo, e afirma-la a partir de uma visao
+     * de tres dias atras sem dizer a idade e afirmar mais do que se sabe.
+     */
+    data class SemProvaPublicada(val procedencia: Procedencia) : EstadoDaProva
 
     /** A listagem nao fechou. A tela explica, e nao apresenta lista nenhuma. */
     data class ListagemFalhou(val falha: FalhaDaListagem) : EstadoDaProva

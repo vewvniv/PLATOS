@@ -50,15 +50,32 @@ class PreparoDaProvaTest {
         }
     }
 
+    /** Pacotes de mentira: so responde presenca, que e o que a apresentacao pergunta. */
+    private class PacotesFalsos(private val presentes: MutableSet<String> = mutableSetOf()) :
+        com.platos.android.pacote.PacotesGuardados {
+        fun passaAGuardar(hash: String) {
+            presentes += hash
+        }
+
+        override fun guardar(organizacao: String, hash: String, bytes: ByteArray) = Unit
+        override fun ler(organizacao: String, hash: String): ExamPackage? = null
+        override fun temConteudo(organizacao: String, hash: String): Boolean = hash in presentes
+        override fun apagarDaOrganizacao(organizacao: String) = Unit
+    }
+
     private val visoes = VisoesEmMemoria()
+    private val pacotesGuardados = PacotesFalsos()
     private val escola = Organizacao("01a06ba4-cb43-7d97-842d-165352d010b5", "Escola de Teste")
     private val agora = 1_757_000_000_000L
 
     private val provaA = ProvaPublicada("mat-7a-2026-1", "Prova de Matematica", "a".repeat(64))
     private val provaB = ProvaPublicada("mat-7b-2026-1", "Prova de Portugues", "b".repeat(64))
 
+    private fun apresentadas(vararg provas: ProvaPublicada) =
+        provas.map { ProvaApresentada(it, pacotesGuardados.temConteudo(escola.id, it.contentHash)) }
+
     private fun preparoEscolhendo(vararg provas: ProvaPublicada): PreparoDaProva {
-        val preparo = PreparoDaProva(visoes, escola)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
         preparo.aoListar(ResultadoDasProvas.Chegaram(provas.toList()), agora)
         return preparo
     }
@@ -75,15 +92,15 @@ class PreparoDaProvaTest {
     fun provas_que_chegam_viram_escolha() {
         val preparo = preparoEscolhendo(provaA, provaB)
 
-        assertEquals(EstadoDaProva.Escolhendo(listOf(provaA, provaB)), preparo.state)
+        assertEquals(EstadoDaProva.Escolhendo(apresentadas(provaA, provaB), Procedencia.Fresca), preparo.state)
     }
 
     @Test
     fun organizacao_sem_prova_publicada_e_estado_proprio() {
-        val preparo = PreparoDaProva(visoes, escola)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
         preparo.aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora)
 
-        assertEquals(EstadoDaProva.SemProvaPublicada, preparo.state)
+        assertEquals(EstadoDaProva.SemProvaPublicada(Procedencia.Fresca), preparo.state)
     }
 
     /**
@@ -94,8 +111,8 @@ class PreparoDaProvaTest {
      */
     @Test
     fun listagem_sem_rede_nao_e_lista_vazia() {
-        val semRede = PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.SemRede, agora) }
-        val vazia = PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora) }
+        val semRede = PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.SemRede, agora) }
+        val vazia = PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora) }
 
         assertEquals(EstadoDaProva.ListagemFalhou(FalhaDaListagem.SEM_REDE), semRede.state)
         assertNotEquals(vazia.state, semRede.state)
@@ -103,8 +120,8 @@ class PreparoDaProvaTest {
 
     @Test
     fun listagem_que_falha_por_outra_causa_e_distinta_de_sem_rede() {
-        val outra = PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.Falhou, agora) }
-        val semRede = PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.SemRede, agora) }
+        val outra = PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.Falhou, agora) }
+        val semRede = PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.SemRede, agora) }
 
         assertEquals(EstadoDaProva.ListagemFalhou(FalhaDaListagem.OUTRA), outra.state)
         assertNotEquals(semRede.state, outra.state)
@@ -147,7 +164,7 @@ class PreparoDaProvaTest {
      */
     @Test
     fun listagem_vazia_que_chegou_grava_visao_vazia() {
-        PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora) }
+        PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora) }
 
         val visao = requireNotNull(visoes.ler(escola.id)) { "lista vazia que chegou nao gravou" }
         assertEquals(emptyList<ProvaPublicada>(), visao.provas)
@@ -165,10 +182,117 @@ class PreparoDaProvaTest {
         preparoEscolhendo(provaA, provaB)
         val boa = requireNotNull(visoes.ler(escola.id))
 
-        PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.SemRede, agora + 1) }
-        PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.Falhou, agora + 2) }
+        PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.SemRede, agora + 1) }
+        PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.Falhou, agora + 2) }
 
         assertEquals(boa, visoes.ler(escola.id), "uma listagem que falhou mexeu na visao guardada")
+    }
+
+    // --- A segunda parede: a listagem sem rede (tarefas 4.1 e 4.2) ---
+
+    private fun comVisaoGuardada(vararg provas: ProvaPublicada, vistaEm: Long = agora) {
+        visoes.guardar(VisaoDaOrganizacao(escola, provas.toList(), vistaEm))
+    }
+
+    /**
+     * **O cenario X do par declarado na 4.3: sem resposta.**
+     *
+     * A listagem nao chegou ao servidor, e o aparelho ja viu provas desta organizacao. A lista volta
+     * a tela, e o estado **declara** que veio da visao — sem isso a tela nao teria como marcar, e o
+     * requisito exige a marca.
+     */
+    @Test
+    fun listagem_sem_rede_cai_na_ultima_listagem_conhecida() {
+        comVisaoGuardada(provaA, provaB, vistaEm = 1_757_000_000_000)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+
+        preparo.aoListar(ResultadoDasProvas.SemRede, agora + 5_000)
+
+        val estado = preparo.state
+        assertTrue(estado is EstadoDaProva.Escolhendo, "veio $estado")
+        assertEquals(listOf(provaA, provaB), (estado as EstadoDaProva.Escolhendo).provas.map { it.prova })
+        assertEquals(Procedencia.Cacheada(1_757_000_000_000), estado.procedencia)
+    }
+
+    @Test
+    fun listagem_sem_rede_sem_visao_guardada_continua_sendo_falha() {
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+
+        preparo.aoListar(ResultadoDasProvas.SemRede, agora)
+
+        assertEquals(EstadoDaProva.ListagemFalhou(FalhaDaListagem.SEM_REDE), preparo.state)
+    }
+
+    /**
+     * **O cenario Y do par: respondeu, e a lista veio vazia.**
+     *
+     * Esta e a protecao que importa desta secao. "Esta organizacao nao tem prova publicada" e
+     * afirmacao sobre o mundo, e a consulta que respondeu a autoriza; cair na visao aqui apresentaria
+     * as provas de ontem como se existissem hoje. A afirmacao e sobre **o que nao esta na tela**.
+     */
+    @Test
+    fun lista_vazia_que_chegou_nao_e_mascarada_pela_visao() {
+        comVisaoGuardada(provaA, provaB)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+
+        preparo.aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora + 5_000)
+
+        assertEquals(EstadoDaProva.SemProvaPublicada(Procedencia.Fresca), preparo.state)
+    }
+
+    /**
+     * Visao vazia guardada, sem rede: continua sendo "nao ha prova publicada", com a idade junto.
+     *
+     * O servidor ja afirmou isso um dia, e a visao carrega de quando. Virar falha aqui seria perder
+     * uma afirmacao que o aparelho tem.
+     */
+    @Test
+    fun visao_vazia_guardada_sem_rede_e_sem_prova_publicada_e_nao_falha() {
+        comVisaoGuardada(vistaEm = 1_757_000_000_000)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+
+        preparo.aoListar(ResultadoDasProvas.SemRede, agora + 5_000)
+
+        assertEquals(EstadoDaProva.SemProvaPublicada(Procedencia.Cacheada(1_757_000_000_000)), preparo.state)
+    }
+
+    /**
+     * **O terceiro caso declarado na 4.3:** resposta que nao serve nao fala pelo passado.
+     *
+     * Um 500 nao e ausencia de servidor nem afirmacao sobre o mundo — o aparelho esta alcancando a
+     * rede, e o que cabe e tentar de novo. Cair na visao aqui apresentaria dado velho num momento em
+     * que dado novo esta a um toque de distancia.
+     */
+    @Test
+    fun resposta_que_nao_serve_nao_cai_na_visao() {
+        comVisaoGuardada(provaA, provaB)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+
+        preparo.aoListar(ResultadoDasProvas.Falhou, agora + 5_000)
+
+        assertEquals(EstadoDaProva.ListagemFalhou(FalhaDaListagem.OUTRA), preparo.state)
+    }
+
+    /**
+     * A prova que ja tem pacote guardado e distinguivel da que nao tem, **antes** da escolha.
+     *
+     * Sem isso o professor sem rede toca uma prova para descobrir na barragem que ela precisa de
+     * conexao. A afirmacao e sobre as duas: uma marcada, a outra nao — um teste que so olhasse a
+     * marcada passaria com tudo marcado.
+     */
+    @Test
+    fun provas_com_pacote_guardado_sao_distinguiveis_das_sem() {
+        pacotesGuardados.passaAGuardar(provaA.contentHash)
+        comVisaoGuardada(provaA, provaB)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+
+        preparo.aoListar(ResultadoDasProvas.SemRede, agora)
+
+        val apresentadas = (preparo.state as EstadoDaProva.Escolhendo).provas
+        assertEquals(
+            mapOf(provaA to true, provaB to false),
+            apresentadas.associate { it.prova to it.pacoteGuardado },
+        )
     }
 
     // --- A escolha ---
@@ -194,7 +318,7 @@ class PreparoDaProvaTest {
 
         preparo.escolher(provaB)
 
-        assertEquals(EstadoDaProva.Escolhendo(listOf(provaA)), preparo.state)
+        assertEquals(EstadoDaProva.Escolhendo(apresentadas(provaA), Procedencia.Fresca), preparo.state)
     }
 
     // --- O gate (tarefa 5.4) ---
@@ -266,7 +390,7 @@ class PreparoDaProvaTest {
 
         preparo.aoObterPacote(ResultadoDoPacote.Conferido(pacote, provaA.contentHash))
 
-        assertEquals(EstadoDaProva.Escolhendo(listOf(provaA)), preparo.state)
+        assertEquals(EstadoDaProva.Escolhendo(apresentadas(provaA), Procedencia.Fresca), preparo.state)
     }
 
     // --- A volta do escaneamento (tarefa 9b.2) ---
@@ -288,10 +412,10 @@ class PreparoDaProvaTest {
         preparo.escolher(provaA)
         preparo.aoObterPacote(ResultadoDoPacote.Conferido(pacote, provaA.contentHash))
 
-        preparo.aoVoltarDoEscaneamento(listOf(provaA, provaB))
+        preparo.aoVoltarDoEscaneamento()
 
         assertEquals(
-            EstadoDaProva.Escolhendo(listOf(provaA, provaB)),
+            EstadoDaProva.Escolhendo(apresentadas(provaA, provaB), Procedencia.Fresca),
             preparo.state,
             "a volta do escaneamento nao devolveu a escolha; estado ficou ${preparo.state}",
         )
@@ -308,7 +432,7 @@ class PreparoDaProvaTest {
         val preparo = preparoEscolhendo(provaA, provaB)
         preparo.escolher(provaA)
         preparo.aoObterPacote(ResultadoDoPacote.Conferido(pacote, provaA.contentHash))
-        preparo.aoVoltarDoEscaneamento(listOf(provaA, provaB))
+        preparo.aoVoltarDoEscaneamento()
 
         preparo.escolher(provaA)
 
@@ -330,7 +454,7 @@ class PreparoDaProvaTest {
     fun volta_que_chega_fora_do_escaneamento_nao_reescreve_o_preparo() {
         val preparo = preparoPreparando()
 
-        preparo.aoVoltarDoEscaneamento(listOf(provaA, provaB))
+        preparo.aoVoltarDoEscaneamento()
 
         assertEquals(
             EstadoDaProva.Preparando(provaA),

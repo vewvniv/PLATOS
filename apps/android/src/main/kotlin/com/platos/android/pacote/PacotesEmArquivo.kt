@@ -76,6 +76,9 @@ class PacotesEmArquivo(private val raiz: File) : PacotesGuardados {
         }
     }
 
+    override fun temConteudo(organizacao: String, hash: String): Boolean =
+        arquivo(organizacao, hash)?.isFile == true
+
     override fun apagarDaOrganizacao(organizacao: String) {
         val pasta = pasta(organizacao) ?: return
         pasta.deleteRecursively()

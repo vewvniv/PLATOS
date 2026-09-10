@@ -23,9 +23,26 @@
 
 ## 4. A listagem sem rede — a segunda parede
 
-- [ ] 4.1 Listagem que falha por rede passa a cair na **última listagem conhecida**, marcada como cacheada; sem listagem conhecida, o comportamento é o de hoje. Resultado: matar o processo deixa de esconder as provas que o aparelho já viu.
-- [ ] 4.2 Distinguir, **antes da escolha**, as provas com pacote guardado das que não têm — cruzando a visão com o cache de pacotes. Resultado: o professor sem rede sabe o que vai abrir antes de tocar, em vez de descobrir na barragem.
-- [ ] 4.3 **Ver falhar:** apresentar todas como disponíveis, e confirmar que só o cenário da 4.2 fica vermelho.
+- [x] 4.1 Listagem que falha por rede passa a cair na **última listagem conhecida**, marcada como cacheada; sem listagem conhecida, o comportamento é o de hoje. Resultado: matar o processo deixa de esconder as provas que o aparelho já viu. **Feito:** `Escolhendo` e `SemProvaPublicada` passaram a carregar `Procedencia`, e a máquina passou a lembrar a última escolha apresentada — `voltarAEscolha()` e `aoVoltarDoEscaneamento()` deixaram de receber a lista por parâmetro, e `provasApresentadas` saiu da `Activity`. Quem lembra o que foi apresentado é quem decide, não a tela.
+- [x] 4.2 Distinguir, **antes da escolha**, as provas com pacote guardado das que não têm — cruzando a visão com o cache de pacotes. Resultado: o professor sem rede sabe o que vai abrir antes de tocar, em vez de descobrir na barragem. **Feito:** `PacotesGuardados` ganhou `temConteudo`, que responde **presença e não conferência** — quem julga o conteúdo continua sendo o gate, e a tela diz "baixada", não "vai abrir com certeza".
+- [x] 4.3 **Ver falhar, com conjuntos disjuntos declarados ANTES das mutações.** O par desta seção não é o mesmo da 3.3, e por isso é nomeado aqui em vez de presumido. Na 3.3 os dois casos eram "não respondeu" contra "respondeu, e a organização não está na lista". Aqui são:
+
+  | Caso | O que o servidor fez | O que tem de acontecer |
+  |---|---|---|
+  | **X — sem resposta** | não respondeu (`SemRede`) | apresenta as provas da última listagem conhecida, marcadas como cacheadas |
+  | **Y — respondeu sem provas** | respondeu, e a lista veio **vazia** | apresenta "esta organização não tem prova publicada", **não** as provas da visão, e a visão passa a ser vazia |
+
+  **Y é a proteção que importa**, e é irmã da mutação B da 3.3: uma implementação que caísse na visão sempre que a lista apresentada ficasse vazia transformaria "a organização não tem prova publicada" — afirmação sobre o mundo, que a fatia 4a existiu para distinguir — em "aqui estão as provas de ontem". As duas mutações: (i) não consultar a visão quando a listagem falha → **X vermelho, Y verde**; (ii) cair na visão sempre que a lista resultante for vazia, sem olhar a causa → **Y vermelho, X verde**. Se as duas derrubarem o mesmo conjunto, a distinção não está sendo medida.
+
+  **Resultado, e ele tem um achado de método no meio.** A mutação (i) derrubou **três** cenários — `listagem_sem_rede_cai_na_ultima_listagem_conhecida`, `visao_vazia_guardada_sem_rede_e_sem_prova_publicada_e_nao_falha` e `provas_com_pacote_guardado_sao_distinguiveis_das_sem` —, todos do caminho sem resposta, com **Y verde**. Três e o esperado: a disjunção declarada é entre **proteções**, e não entre cenários individuais.
+
+  **A mutação (ii) como eu a declarei saiu INERTE, e a razão dela ser inerte é a própria proteção.** Mascarar a lista vazia *depois* de montar o estado não muda nada, porque a gravação da visão acontece **antes**: quando o mascaramento vai ler, a visão já foi substituída pela lista vazia que chegou. Ou seja, o que impede o defeito não é uma conferência — é a **ordem entre gravar e ler**, e ela não estava declarada em lugar nenhum. Substituí por **(ii-b)**, que é o defeito plausível de verdade — "não perca a lista": lista vazia que chegou não substitui a visão, e a tela segue mostrando o que havia. Essa derrubou **só** `lista_vazia_que_chegou_nao_e_mascarada_pela_visao`, com X verde. É a disjunção que a tarefa pedia, agora medida contra a mutação certa.
+
+  **Uma armadilha de instrumento pega no caminho:** a primeira rodada da (ii) devolveu `BUILD SUCCESSFUL` com a task **`UP-TO-DATE`** e zero testes executados — exatamente o que P2 registra. As rodadas seguintes usaram `--rerun`.
+
+  **Terceiro caso, declarado para não virar decisão silenciosa:** `Falhou` — o servidor respondeu e a resposta não serve — **não** cai na visão. A spec fala em "falta de rede", e resposta inutilizável não é afirmação sobre o mundo nem ausência de servidor: é motivo para tentar de novo, e o aparelho está alcançando a rede. Fica com um cenário próprio.
+
+- [x] 4.4 **Ver falhar (4.2):** apresentar todas como disponíveis. **Resultado honesto: a mutação NÃO isolou** — derrubou **cinco** cenários, e não um: `provas_com_pacote_guardado_sao_distinguiveis_das_sem` mais quatro que comparam o estado apresentado por igualdade exata (`provas_que_chegam_viram_escolha`, `escolher_prova_que_nao_foi_apresentada_nao_faz_nada`, `resultado_de_pacote_que_chega_fora_do_preparo_e_descartado`, `voltar_do_escaneamento_devolve_a_escolha_da_prova`). A presença é **parte do estado**, e o estilo desta base é comparar o estado inteiro; então uma marca errada quebra em todo lugar que afirma o estado. **A leitura que isso permite, e a que não permite:** os cinco vermelhos apontam para a **mesma** proteção — não há ambiguidade sobre qual delas segurou, que é o que a §3 do `rigorous.md` quer impedir —, mas esta mutação não distingue camadas como a da 4.3 distingue. Fica registrado como isolamento **fraco**, e não como isolamento.
 
 ## 5. A invalidação por revogação observada
 

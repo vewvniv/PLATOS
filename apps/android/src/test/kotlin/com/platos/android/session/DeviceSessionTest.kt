@@ -52,6 +52,7 @@ class DeviceSessionTest {
 
         override fun guardar(organizacao: String, hash: String, bytes: ByteArray) = Unit
         override fun ler(organizacao: String, hash: String): ExamPackage? = null
+        override fun temConteudo(organizacao: String, hash: String): Boolean = false
 
         override fun apagarDaOrganizacao(organizacao: String) {
             apagadas += organizacao

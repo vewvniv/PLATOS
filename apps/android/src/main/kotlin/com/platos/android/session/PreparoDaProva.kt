@@ -1,6 +1,7 @@
 package com.platos.android.session
 
 import com.platos.android.pacote.MotivoDaRecusa
+import com.platos.android.pacote.PacotesGuardados
 import com.platos.android.render.RendererContract
 import com.platos.domain.exam.ExamPackage
 
@@ -48,11 +49,21 @@ sealed interface ResultadoDoPacote {
  */
 class PreparoDaProva(
     private val visoes: VisoesGuardadas,
+    private val pacotes: PacotesGuardados,
     private val organizacao: Organizacao,
 ) {
 
     var state: EstadoDaProva = EstadoDaProva.Listando
         private set
+
+    /**
+     * A ultima escolha apresentada, para voltar a ela sem consultar nada.
+     *
+     * Mora aqui, e nao na tela: e a maquina que sabe o que foi apresentado, e voltar depois de uma
+     * barragem ou do escaneamento nao pode depender de rede — a volta e em sala, e sala e onde nao
+     * ha sinal.
+     */
+    private var ultimaEscolha: EstadoDaProva? = null
 
     /** Uma nova listagem foi pedida. Volta ao inicio, descartando o que estivesse na tela. */
     fun listar() {
@@ -80,16 +91,49 @@ class PreparoDaProva(
         state = when (resultado) {
             is ResultadoDasProvas.Chegaram -> {
                 visoes.guardar(VisaoDaOrganizacao(organizacao, resultado.provas, agora))
-                if (resultado.provas.isEmpty()) {
-                    EstadoDaProva.SemProvaPublicada
-                } else {
-                    EstadoDaProva.Escolhendo(resultado.provas)
-                }
+                apresentar(resultado.provas, Procedencia.Fresca)
             }
 
-            is ResultadoDasProvas.SemRede -> EstadoDaProva.ListagemFalhou(FalhaDaListagem.SEM_REDE)
+            // **Sem resposta cai na visao guardada; resposta que nao serve, nao.** Um 500 nao e
+            // afirmacao sobre o mundo nem ausencia de servidor: o aparelho esta alcancando a rede, e
+            // o que cabe e tentar de novo. So a ausencia de resposta autoriza falar pelo passado.
+            is ResultadoDasProvas.SemRede -> semResposta()
             is ResultadoDasProvas.Falhou -> EstadoDaProva.ListagemFalhou(FalhaDaListagem.OUTRA)
         }
+        if (state is EstadoDaProva.Escolhendo || state is EstadoDaProva.SemProvaPublicada) {
+            ultimaEscolha = state
+        }
+    }
+
+    /**
+     * A listagem nao chegou ao servidor: apresenta o que a ultima consulta devolveu.
+     *
+     * **Lista vazia guardada continua sendo "nao ha prova publicada"**, e nao vira falha: o servidor
+     * ja afirmou isso um dia, e a visao carrega a idade dessa afirmacao para a tela dizer de quando
+     * ela e. Sem visao nenhuma nao ha o que apresentar, e ai sim e falha com motivo.
+     */
+    private fun semResposta(): EstadoDaProva {
+        val visao = visoes.ler(organizacao.id)
+            ?: return EstadoDaProva.ListagemFalhou(FalhaDaListagem.SEM_REDE)
+
+        return apresentar(visao.provas, Procedencia.Cacheada(visao.vistaEm))
+    }
+
+    /**
+     * Monta o que a tela apresenta, com a presenca do pacote de cada prova.
+     *
+     * A presenca e perguntada ao cache **sem abrir o pacote**: aqui ela e dica para o professor
+     * escolher, e quem julga o conteudo continua sendo o gate, na escolha.
+     */
+    private fun apresentar(provas: List<ProvaPublicada>, procedencia: Procedencia): EstadoDaProva {
+        if (provas.isEmpty()) return EstadoDaProva.SemProvaPublicada(procedencia)
+
+        return EstadoDaProva.Escolhendo(
+            provas = provas.map {
+                ProvaApresentada(it, pacotes.temConteudo(organizacao.id, it.contentHash))
+            },
+            procedencia = procedencia,
+        )
     }
 
     /**
@@ -102,7 +146,7 @@ class PreparoDaProva(
     fun escolher(prova: ProvaPublicada) {
         val atual = state
         if (atual !is EstadoDaProva.Escolhendo) return
-        if (prova !in atual.provas) return
+        if (atual.provas.none { it.prova == prova }) return
         state = EstadoDaProva.Preparando(prova)
     }
 
@@ -146,16 +190,22 @@ class PreparoDaProva(
      * apresentadas, e e por isso que a volta **nao consulta nada**: a sala e onde nao ha sinal, e
      * escolher a mesma prova de novo cai no pacote ja guardado.
      */
-    fun aoVoltarDoEscaneamento(provas: List<ProvaPublicada>) {
+    fun aoVoltarDoEscaneamento() {
         // A guarda e a dos outros eventos desta maquina: volta atrasada — a `Activity` pode ser
         // recriada com a camera aberta — nao reescreve um preparo que ja seguiu.
         if (state !is EstadoDaProva.Pronta) return
-        voltarAEscolha(provas)
+        voltarAEscolha()
     }
 
-    /** Volta a escolha, depois de uma barragem. */
-    fun voltarAEscolha(provas: List<ProvaPublicada>) {
-        state = if (provas.isEmpty()) EstadoDaProva.SemProvaPublicada else EstadoDaProva.Escolhendo(provas)
+    /**
+     * Volta a escolha apresentada, depois de uma barragem ou do escaneamento.
+     *
+     * Sem consultar nada: quem lembra o que foi apresentado e [ultimaEscolha]. Nao havendo nada
+     * lembrado — caso que so acontece se a volta chegar antes de qualquer listagem —, o desfecho e
+     * uma listagem nova, que e o que a tela ja sabia fazer.
+     */
+    fun voltarAEscolha() {
+        state = ultimaEscolha ?: EstadoDaProva.Listando
     }
 
     private fun passarPeloGate(

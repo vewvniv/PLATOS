@@ -77,9 +77,6 @@ class SessaoActivity : ComponentActivity() {
     /** O estado do preparo, espelhado para o Compose recompor. */
     private var estadoDaProva by mutableStateOf<EstadoDaProva>(EstadoDaProva.Listando)
 
-    /** As provas da ultima listagem bem-sucedida, para o "escolher outra prova" da barragem. */
-    private var provasApresentadas by mutableStateOf<List<ProvaPublicada>>(emptyList())
-
     /**
      * A ida a camera, e a volta dela.
      *
@@ -97,7 +94,7 @@ class SessaoActivity : ComponentActivity() {
     private val escaneamento =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             val maquina = preparo ?: return@registerForActivityResult
-            maquina.aoVoltarDoEscaneamento(provasApresentadas)
+            maquina.aoVoltarDoEscaneamento()
             estadoDaProva = maquina.state
         }
 
@@ -199,7 +196,7 @@ class SessaoActivity : ComponentActivity() {
     /** Abre o fluxo de escolha de prova sobre a organizacao ativa, e lista. */
     private fun prepararProva() {
         val organizacao = (state as? DeviceState.Ativa)?.organizacao ?: return
-        val maquina = PreparoDaProva(visoes, organizacao)
+        val maquina = PreparoDaProva(visoes, pacotes, organizacao)
         preparo = maquina
         listarProvas()
     }
@@ -216,7 +213,6 @@ class SessaoActivity : ComponentActivity() {
             // da visao impossivel de afirmar num teste, e a idade e o que a tela apresenta.
             maquina.aoListar(api.provas(organizacao).paraProvas(), System.currentTimeMillis())
             estadoDaProva = maquina.state
-            (maquina.state as? EstadoDaProva.Escolhendo)?.let { provasApresentadas = it.provas }
         }
     }
 
@@ -346,7 +342,7 @@ class SessaoActivity : ComponentActivity() {
                 titulo = atual.prova.titulo,
                 texto = textoDaBarragem(atual.motivo),
                 onTentarDeNovo = { escolherProva(atual.prova) },
-                onVoltar = { fluxo.voltarAEscolha(provasApresentadas); estadoDaProva = fluxo.state },
+                onVoltar = { fluxo.voltarAEscolha(); estadoDaProva = fluxo.state },
             )
         }
     }

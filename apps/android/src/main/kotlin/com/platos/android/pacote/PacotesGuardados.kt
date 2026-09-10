@@ -13,6 +13,16 @@ import com.platos.domain.exam.ExamPackage
 interface PacotesGuardados {
 
     /**
+     * Se ha conteudo guardado sob aquele hash, **sem abrir nem conferir**.
+     *
+     * E dica de tela, e nao promessa: o arquivo pode estar corrompido, e quem descobre isso e [ler],
+     * que reconfere a cada leitura e descarta o que nao passar. A distincao importa porque a tela vai
+     * dizer "ja baixada" a partir daqui, e "ja baixada" nao pode virar "vai abrir com certeza" — o
+     * gate de pre-voo continua sendo quem decide (ADR-0009).
+     */
+    fun temConteudo(organizacao: String, hash: String): Boolean
+
+    /**
      * Guarda os bytes de um pacote sob o hash do seu conteudo, dentro do escopo da organizacao.
      *
      * A gravacao e atomica: nao existe instante em que o conteudo guardado sob um hash esteja pela

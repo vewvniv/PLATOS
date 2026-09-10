@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.sp
  */
 @Composable
 fun EscolhaDaProvaScreen(
-    provas: List<ProvaPublicada>,
+    provas: List<ProvaApresentada>,
     onEscolher: (ProvaPublicada) -> Unit,
     onSair: () -> Unit,
     modifier: Modifier = Modifier,
@@ -49,12 +49,15 @@ fun EscolhaDaProvaScreen(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(provas, key = { it.shortId }) { prova ->
+            items(provas, key = { it.prova.shortId }) { apresentada ->
                 OutlinedButton(
-                    onClick = { onEscolher(prova) },
+                    onClick = { onEscolher(apresentada.prova) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("${prova.titulo}  ·  ${prova.shortId}")
+                    // O sinal de ja baixada vem antes do titulo porque e o que decide se esta prova
+                    // abre sem rede, e quem le a tela em sala esta decidindo isso.
+                    val marca = if (apresentada.pacoteGuardado) "baixada" else "precisa de rede"
+                    Text("${apresentada.prova.titulo}  ·  ${apresentada.prova.shortId}  ·  $marca")
                 }
             }
         }
