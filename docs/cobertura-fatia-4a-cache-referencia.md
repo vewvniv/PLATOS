@@ -1,7 +1,9 @@
 # Cobertura de cenários — fatia 4a-cache-referencia (a visão guardada da organização)
 
-Documento **em construção**: as seções 1 a 7 do `tasks.md` fecharam — a conferência em aparelho
-inteira em 2026-09-10 —, e falta a verificação final (8). O registro **por tarefa** vive em
+As oito seções do `tasks.md` fecharam, com a conferência em aparelho e o comando cheio do CI em
+2026-09-10. O registro **por tarefa** — data, instrumento e número — vive em
+`openspec/changes/slice-4a-cache-referencia/tasks.md`; este documento existe para que um achado seja
+encontrável **por assunto**. O registro **por tarefa** vive em
 `openspec/changes/slice-4a-cache-referencia/tasks.md`; este documento existe para que um achado seja
 encontrável **por assunto**, e a tarefa 8.2 é quem o consolida no fim.
 
@@ -141,6 +143,35 @@ disparava em "saiu da tela de entrada", e `Buscando suas organizacoes` satisfaz 
 `ConsultandoScreen` no ar e reportou disco cheio, como se a revogação não tivesse apagado nada. O
 gatilho precisa ser o estado **terminal**, não a saída do anterior.
 
+## O comando cheio do CI, e a rodada que foi descartada (tarefa 8.1)
+
+**A primeira rodada de `./gradlew build` foi descartada, e o motivo é P3.** Ela deu `BUILD SUCCESSFUL`
+em 40 s com **21 das 173 tasks** executadas: as de teste ficaram `UP-TO-DATE`, servidas por
+relatórios de ontem, de seis dias antes e — a variante release — de **um mês**. A contagem somava
+1246 e parecia ótima. **O único sinal que denunciou foi o `timestamp` do relatório.**
+
+`UP-TO-DATE` não é mentira: significa que as entradas não mudaram desde a última execução
+bem-sucedida, e para um módulo que a fatia não tocou isso é legítimo. O que não vale é **citá-lo como
+verde de hoje** — e o CI, que roda em checkout limpo, executa tudo. Refeito com `--rerun-tasks`:
+
+| Task no grafo do `build` | Testes | `timestamp` |
+|---|---|---|
+| `:apps:android:testDebugUnitTest` | 233 | 15:50:25Z |
+| `:apps:api:test` | 121 | 15:51:13Z |
+| `:packages:domain:jsNodeTest` | 293 | 15:51:01Z |
+| `:packages:domain:jvmTest` | 300 | 15:51:10Z |
+| `:packages:domain:testAndroidHostTest` | 293 | 15:50:52Z |
+| **soma** | **1240** | 173 de 173 tasks executadas |
+
+Instrumentada **sem filtro**: **49 testes, 0 falhas, 0 erros, 0 ignorados** em `2511FPC34G - 16`,
+nove classes, `timestamp` 2026-09-10T15:54:04. A contagem foi conferida por **segunda leitura** — 49
+elementos `<testcase>` contra o atributo `tests="49"` —, que é a mesma dupla checagem da tarefa 0.1.
+
+**E a soma corrigiu um número meu:** 1240, e não 1246. Os 6 testes que sobravam vinham do XML de
+`testReleaseUnitTest`, uma task que **não existe** no grafo (`build --dry-run` e `tasks --all` não a
+listam). Somar arquivos de relatório sem conferir a **qual task** cada um pertence é a lição da P3
+repetida um nível abaixo.
+
 ## Achados fora do escopo, com dono e fatia-limite
 
 Nenhum destes é defeito desta fatia, e nenhum foi consertado aqui (P19). Ficam nomeados porque
@@ -151,6 +182,7 @@ achado sem dono é achado que ninguém procura.
 | **Expiração de sessão não apaga o cache** — e está certo: quem expirou é o token, não o vínculo. Visto no disco às 15:29Z com token de 82 min. Não estava escrito em lugar nenhum | `DeviceSession.aoConsultarOrganizacoes`, ramo `SessaoExpirada` | nenhuma: é decisão a **documentar**, não a mudar. Cabe numa linha da spec de `device-session` |
 | **O título "Escolha a prova" fica sob a barra de status** — a `Column` não tem inset de topo. Cosmético, pré-existente (o título já nascia no topo antes desta fatia); na tela de trabalho não aparece porque o conteúdo é centralizado | `EscolhaDaProvaScreen` | a próxima que tocar essa tela |
 | **Não há troca de organização sem sair** — a tela de trabalho oferece escanear, atualizar e sair. Quem tem duas escolas precisa fazer logout para trocar. Exposto por acidente: a revogação derrubou a escolha, sobrou uma organização, ela foi guardada, e o aparelho ficou preso nela mesmo depois de o vínculo voltar | `TrabalhoScreen` / `DeviceSession.escolher` | 4b, quando professor com duas escolas deixa de ser hipótese |
+| **A variante release não tem teste de unidade no grafo** — `testReleaseUnitTest` não é listada por `tasks --all`, e não há `beforeVariants` nem `enableUnitTest` em `.kts` nenhum da árvore. **Por que ela não existe não foi investigado**, e fica dito assim em vez de explicado por suposição (P6). Consequência: defeito que só apareça com configuração de release não é pego pelo `build` | `apps/android/build.gradle.kts` | a próxima que mexer em build ou variante |
 | **`connectedDebugAndroidTest` desinstala o aplicativo ao terminar** — e com ele vai o `filesDir`. É o que explica o cache que "sumiu sem que ninguém observasse" na 0.1, e é P3 em estado puro: estado que mora no instrumento não avisa quando desaparece | `apps/android/build.gradle.kts` (a suíte instrumentada) | nenhuma: é para o protocolo, e entra no §14.1 como pré-condição |
 
 ## O que ficou sem verificação automática, e por quê

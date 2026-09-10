@@ -288,7 +288,49 @@
 
 ## 8. Verificação final
 
-- [ ] 8.1 Rodar o **comando cheio do CI**, e não a versão filtrada: `./gradlew build` mais `./gradlew :apps:android:connectedDebugAndroidTest` **sem filtro de classe**. Conferir o número no relatório, e não no código de saída do Gradle.
-- [ ] 8.2 Escrever `docs/cobertura-fatia-4a-cache-referencia.md` com **como** cada verificação crítica foi vista falhar — e não que ela passa —, incluindo o que ficou sem teste automático e por quê. **Documento criado em 2026-09-10, em construção**, no formato do `cobertura-fatia-4a-zero.md`: já traz as seções 1 a 5 vistas falhar, a lacuna do `ClassCastException` da 4.3 (registrada por assunto, e não só no corpo de um commit), o isolamento fraco da 4.4 e a declaração que não foi prévia. **A tarefa segue aberta:** falta consolidar as telas (6), o aparelho (7) e o comando cheio do CI (8.1).
-- [ ] 8.3 Rodar `openspec validate slice-4a-cache-referencia --strict`.
-- [ ] 8.4 Conferir contra `origin/main`, **arquivo a arquivo**, as negativas que a proposta faz: `packages/domain`, `apps/web`, `apps/api`, `vision/` e `omr/` sem alteração, e nenhuma spec fora de `device-session`. Negativa larga não vale — nomear a exceção, se houver, e mostrá-la no `git diff`.
+- [x] 8.1 Rodar o **comando cheio do CI**, e não a versão filtrada: `./gradlew build` mais
+  `./gradlew :apps:android:connectedDebugAndroidTest` **sem filtro de classe**. Conferir o número no
+  relatório, e não no código de saída do Gradle. **Fechada em 2026-09-10, e a primeira rodada foi
+  descartada por P3.** `./gradlew build` deu `BUILD SUCCESSFUL` em 40 s com **21 das 173 tasks**
+  executadas: as de teste ficaram `UP-TO-DATE` e os relatórios eram velhos — `apps/api` de ontem,
+  `packages/domain` de seis dias antes, e a variante release de **um mês**. Somar aquilo e chamar de
+  "suíte verde de hoje" seria exatamente o que a P2 registra, e **o único sinal que denunciou foi o
+  `timestamp` do relatório**, não a contagem. Vale a distinção: `UP-TO-DATE` não é mentira — significa
+  entradas inalteradas desde a última execução bem-sucedida —, mas o CI roda em checkout limpo e
+  executa tudo. Refeito com `--rerun-tasks`: **173 de 173 tasks executadas** em 2m05s (15:49:21Z →
+  15:51:27Z), e os cinco relatórios de teste do grafo com `timestamp` entre 15:50:25Z e 15:51:23Z —
+  `:apps:android:testDebugUnitTest` 233, `:apps:api:test` 121, `:packages:domain:jsNodeTest` 293,
+  `jvmTest` 300, `testAndroidHostTest` 293. **Soma: 1240 testes, 0 falhas, 0 erros.** Instrumentada
+  **sem filtro**: **49 testes, 0 falhas, 0 erros, 0 ignorados** em `2511FPC34G - 16`, nove classes,
+  `timestamp` 2026-09-10T15:54:04, e a contagem conferida por segunda leitura — 49 elementos
+  `<testcase>` contra o atributo `tests="49"`. **Um segundo achado, e ele corrigiu um número meu:** a
+  primeira soma deu **1246** porque incluiu o XML de `testReleaseUnitTest`; `build --dry-run` e
+  `tasks --all` mostram que essa task **não existe** no grafo, então aquele arquivo é sobra de
+  configuração anterior e os 6 testes dele nunca rodam no CI. **Por que ela não existe eu não sei** —
+  não há `beforeVariants` nem `enableUnitTest` em nenhum `.kts` da árvore —, e fica como item aberto,
+  não como explicação inventada (P6). A consequência de cobertura é nomeável: defeito que só apareça
+  com configuração de release não é pego pelo `build`.
+- [x] 8.2 Escrever `docs/cobertura-fatia-4a-cache-referencia.md` com **como** cada verificação crítica foi vista falhar — e não que ela passa —, incluindo o que ficou sem teste automático e por quê. **Documento criado em 2026-09-10, em construção**, no formato do `cobertura-fatia-4a-zero.md`: já traz as seções 1 a 5 vistas falhar, a lacuna do `ClassCastException` da 4.3 (registrada por assunto, e não só no corpo de um commit), o isolamento fraco da 4.4 e a declaração que não foi prévia. **Consolidado em 2026-09-10**, com: as seções 1 a 5 vistas falhar (mutação, vermelhos e mensagem
+  em cada uma), a lacuna do `ClassCastException` da 4.3, o isolamento fraco da 4.4, a declaração que
+  não foi prévia, a tabela da tela ignorando o parâmetro (6.4) com os quatro defeitos nomeados um a
+  um, a conferência em aparelho inteira, os quatro achados fora do escopo com dono e fatia-limite, e
+  a tabela do que não está verificado — onde entrou o ramo da lista vazia como **gap aceito**, com o
+  motivo que a leitura do `bootstrap_identity` revelou.
+- [x] 8.3 Rodar `openspec validate slice-4a-cache-referencia --strict`. **Feito em 2026-09-10:** `Change 'slice-4a-cache-referencia' is valid`.
+- [x] 8.4 Conferir contra `origin/main`, **arquivo a arquivo**, as negativas que a proposta faz:
+  `packages/domain`, `apps/web`, `apps/api`, `vision/` e `omr/` sem alteração, e nenhuma spec fora de
+  `device-session`. Negativa larga não vale — nomear a exceção, se houver, e mostrá-la no `git diff`.
+  **Feita em 2026-09-10, e contra `origin/main` as negativas NÃO fecham — a exceção é nomeada e
+  mostrada.** `git diff --name-only origin/main...HEAD` acusa 2 arquivos em `packages/domain`, 1 em
+  `apps/web` e 8 em `apps/api`. **Todos são da fatia 4a**, que está arquivada neste mesmo branch no
+  commit `6f2dfe9` e que o `main` ainda não recebeu — o branch é `vewvniv/slice-4a-pull-de-pacote`, e
+  ele carrega as duas fatias. Contra o baseline correto, `6f2dfe9..HEAD`, as cinco negativas fecham
+  com **zero arquivo** em cada uma: `packages/domain` 0, `apps/web` 0, `apps/api` 0, `vision` 0,
+  `omr` 0. E em `openspec/`, esta mudança tocou três arquivos: o `design.md` e o `tasks.md` dela
+  mesma, e `openspec/specs/device-session/spec.md` — **nenhuma spec fora de `device-session`**.
+  **A conferência que o `CLAUDE.md` manda fazer junto**, porque o atalho de editar a spec principal
+  foi usado nesta sequência (commit `dad1acc`): a quinta condição exige que nenhuma mudança ativa
+  declare delta sobre o requisito editado. `dad1acc` tocou **"Credencial inválida, ausência de rede e
+  sessão expirada são três estados distintos"**; o delta desta mudança declara `MODIFIED` sobre **"A
+  organização apresentada vem da API"** e **"A prova a escanear é escolhida entre as que a API
+  apresenta"**. Não há sobreposição, então o archive não reintroduz texto antigo em silêncio.
