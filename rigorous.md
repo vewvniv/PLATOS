@@ -68,7 +68,11 @@ respondendo com a de 09-04); 401 sem token como prova de que o processo alcança
 `/health` como prova de folga sobre o tempo limite de requisição (`c1aa6b3`: 43,5 s lidos como ~2×
 de folga; o caminho real deu 69,2 s, folga de 20,8 s); `exit 0` do Gradle como prova de que a suíte
 rodou (`docs/cobertura-fatia-1.md`: `-q` deu exit 0 com a task `UP-TO-DATE` e **zero testes**); um
-arquivo com o nome certo como prova de que o conteúdo é aquele. Quatro vezes só na fatia 4a
+relatório **completo e com contagem plausível** como prova de que a suíte rodou **agora**
+(`60ba7bd`: `./gradlew build` deu `BUILD SUCCESSFUL` com **21 de 173** tasks executadas, e as
+contagens de 233, 121 e 293 vinham de relatórios de ontem, de seis dias antes e de um mês — o
+`timestamp` foi o único sinal que denunciou); um arquivo com o nome certo como prova de que o
+conteúdo é aquele. Quatro vezes só na fatia 4a
 (`b2eb65c`).
 
 **P3 [V].** **Nunca comparar artefato sem conferir a âncora — data, hash, ou diretório por
@@ -77,7 +81,18 @@ com filtro de classe reinstala o APK e apaga o `filesDir`, e a primeira tentativ
 comparou o web de hoje contra um `android.pdf` de **agosto** — nome certo, lugar certo, só a data
 denunciava (`9d4f3f8`). (`installDebug` **não** apaga: é atualização, e preserva os dados. Conferido
 em 2026-09-08.) É defeito **diferente** do comando de CI filtrado de P5: lá falta cobertura; aqui a
-cobertura roda e mede o artefato errado. O par em tela: numa conferência por `adb`, "a tela mostra X"
+cobertura roda e mede o artefato errado.
+
+**Para relatório de teste a âncora tem nome: é o `timestamp` do XML, e nunca a contagem.** Zero
+testes é o caso fácil — ele salta aos olhos. O caso difícil é a contagem **plausível** de uma
+execução anterior, e `UP-TO-DATE` a serve sem avisar: ela é indistinguível de verde de hoje até
+alguém ler a data (`60ba7bd`, e o registro em
+`docs/cobertura-fatia-4a-cache-referencia.md`, seção "O comando cheio do CI"). `UP-TO-DATE` **não é
+mentira** — significa entradas inalteradas desde a última execução bem-sucedida, e para módulo que a
+fatia não tocou é legítimo. O que não vale é citá-lo como execução: o CI roda em checkout limpo, e
+reproduzi-lo exige `--rerun-tasks` ou `--rerun`. **E somar relatórios sem conferir a qual task cada
+um pertence é o mesmo defeito um nível abaixo:** a primeira soma daquele dia deu 1246 porque incluiu
+o XML de uma task que não existe mais no grafo. O par em tela: numa conferência por `adb`, "a tela mostra X"
 e "a tela **ainda** mostra X" são indistinguíveis sem âncora — a faixa antiga do modo avião e o
 *starting window* do `am start` já custaram duas conclusões erradas
 (`docs/cobertura-fatia-4a-zero.md`).
@@ -346,6 +361,7 @@ zona amarela vai para §5; zona vermelha fica onde está, e a IA diz em uma fras
 Uma tarefa está concluída quando **todas** estas respostas existem por escrito:
 
 - [ ] O que foi rodado, **nesta sessão**, e o comando exato — cheio, não filtrado (P1, P5).
+- [ ] **O `timestamp` do relatório que prova a execução**, quando a evidência é suíte de teste (P2, P3).
 - [ ] Qual sinal foi observado, e **qual passo ele atravessa** (P2).
 - [ ] Contra qual oráculo, e por que ele é independente (P4).
 - [ ] Como a verificação foi **vista falhar**, e qual foi o conjunto de cenários que caiu (P9).
