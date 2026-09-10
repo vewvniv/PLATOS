@@ -155,8 +155,10 @@
   e listar passa por `Listando`, e as duas apagam a tela enquanto a consulta está no ar; o requisito
   proíbe exatamente isso. O pedido é **consumido** no resultado seguinte, senão o primeiro toque em
   "atualizar" autorizaria para sempre resultados atrasados a reescrever a tela — a guarda da 3.8 pela
-  porta dos fundos. **16 cenários novos** entre `DeviceSessionTest`, `PreparoDaProvaTest` e
-  `MarcaDeLeituraTest`; suíte em **233 testes, 0 falhas, 0 erros**, contados no relatório XML.
+  porta dos fundos. **22 cenários novos** — 7 em `DeviceSessionTest` (28 para 35), 8 em
+  `PreparoDaProvaTest` (28 para 36) e os 7 do `MarcaDeLeituraTest` novo, contados no relatório XML
+  arquivo por arquivo; suíte em **233 testes, 0 falhas, 0 erros** (211 para 233). O número **16** que
+  estava escrito aqui era erro de contagem meu, e fica dito como erro em vez de sumir (P7).
 
   **Terceiro caso, declarado para não ficar implícito:** tentativa frustrada **não envelhece o dado**.
   `Procedencia` diz de **onde** o dado veio, não há quanto tempo — o que chegou por resposta do
