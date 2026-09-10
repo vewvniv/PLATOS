@@ -22,6 +22,7 @@ import com.platos.android.pacote.PacotesEmArquivo
 import com.platos.android.pacote.obterPacote
 import com.platos.android.scan.ScanActivity
 import io.ktor.client.HttpClient
+import java.time.ZoneId
 import kotlinx.coroutines.launch
 
 /**
@@ -166,6 +167,20 @@ class SessaoActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * O "atualizar" da tela de trabalho.
+     *
+     * **Nao e [abrirSessao]**, e a diferenca e o requisito: reabrir a sessao passa por
+     * [DeviceState.Consultando], que apaga a tela enquanto a consulta esta no ar. [DeviceSession.atualizar]
+     * nao muda o estado — a visao anterior continua, marcada —, e quem decide o que fazer com o
+     * resultado continua sendo a maquina.
+     */
+    private fun atualizarSessao() {
+        sessao.atualizar()
+        state = sessao.state
+        consultar()
+    }
+
     private fun aplicar(resultado: ResultadoDasOrganizacoes) {
         sessao.aoConsultarOrganizacoes(resultado)
         state = sessao.state
@@ -211,6 +226,26 @@ class SessaoActivity : ComponentActivity() {
         lifecycleScope.launch {
             // O instante vem daqui, e nao de dentro da maquina: relogio dentro dela tornaria a idade
             // da visao impossivel de afirmar num teste, e a idade e o que a tela apresenta.
+            maquina.aoListar(api.provas(organizacao).paraProvas(), System.currentTimeMillis())
+            estadoDaProva = maquina.state
+        }
+    }
+
+    /**
+     * O "atualizar" das telas de prova.
+     *
+     * Espelha [atualizarSessao], e pela mesma razao: [PreparoDaProva.listar] volta para
+     * `Listando` — carregamento honesto quando nao ha nada na tela —, e aqui ha lista apresentada,
+     * que o requisito manda manter.
+     */
+    private fun atualizarProvas() {
+        val maquina = preparo ?: return
+        val organizacao = organizacaoAtiva() ?: return
+
+        maquina.atualizar()
+        estadoDaProva = maquina.state
+
+        lifecycleScope.launch {
             maquina.aoListar(api.provas(organizacao).paraProvas(), System.currentTimeMillis())
             estadoDaProva = maquina.state
         }
@@ -280,7 +315,12 @@ class SessaoActivity : ComponentActivity() {
             is DeviceState.Ativa -> when (val fluxo = preparo) {
                 null -> TrabalhoScreen(
                     organizacao = atual.organizacao,
+                    // O fuso vem do aparelho, e a formatacao e de `marcaDeLeitura`: passar o fuso
+                    // por parametro e o que deixa a idade verificavel na JVM com um fuso fixo.
+                    marca = marcaDeLeitura(atual.procedencia, ZoneId.systemDefault()),
+                    aviso = avisoDeAtualizacao(atual.falhaAoAtualizar),
                     onEscanear = ::prepararProva,
+                    onAtualizar = ::atualizarSessao,
                     onSair = ::sair,
                 )
 
@@ -308,12 +348,20 @@ class SessaoActivity : ComponentActivity() {
 
             is EstadoDaProva.Escolhendo -> EscolhaDaProvaScreen(
                 provas = atual.provas,
+                marca = marcaDeLeitura(atual.procedencia, ZoneId.systemDefault()),
+                aviso = avisoDeAtualizacao(atual.falhaAoAtualizar),
                 onEscolher = ::escolherProva,
+                onAtualizar = ::atualizarProvas,
                 onSair = ::sair,
             )
 
             is EstadoDaProva.SemProvaPublicada -> SemProvaScreen(
-                onTentarDeNovo = ::listarProvas,
+                marca = marcaDeLeitura(atual.procedencia, ZoneId.systemDefault()),
+                aviso = avisoDeAtualizacao(atual.falhaAoAtualizar),
+                // "Procurar de novo" passou a ser atualizacao, e nao nova listagem: esta tela
+                // apresenta dado da visao, e esvazia-la para tentar de novo perderia a afirmacao
+                // que o aparelho tem.
+                onTentarDeNovo = ::atualizarProvas,
                 onSair = ::sair,
             )
 

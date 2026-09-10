@@ -30,16 +30,27 @@ import androidx.compose.ui.unit.sp
  * da API — se a rota falhar, nao ha de onde inventar.
  *
  * Sem ordenacao propria: a ordem e a que o servidor mandou.
+ *
+ * **[marca] e [aviso] chegam prontos**, como em [TrabalhoScreen] e pela mesma razao. Esta e a tela em
+ * que a marca importa mais: a lista de provas cacheada e indistinguivel da lista correta, e escanear
+ * uma turma com a prova errada e um erro que so aparece depois da aula.
  */
 @Composable
 fun EscolhaDaProvaScreen(
     provas: List<ProvaApresentada>,
+    marca: MarcaDeLeitura?,
+    aviso: String?,
     onEscolher: (ProvaPublicada) -> Unit,
+    onAtualizar: () -> Unit,
     onSair: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
         Text(text = "Escolha a prova", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+
+        if (marca != null) SeloDeLeitura(marca, modifier = Modifier.padding(top = 12.dp))
+        if (aviso != null) AvisoDeAtualizacao(aviso, modifier = Modifier.padding(top = 12.dp))
+
         Text(
             text = "O aparelho baixa a prova escolhida e confere antes de abrir a camera.",
             modifier = Modifier.padding(top = 8.dp),
@@ -62,6 +73,9 @@ fun EscolhaDaProvaScreen(
             }
         }
 
+        OutlinedButton(onClick = onAtualizar, modifier = Modifier.fillMaxWidth()) {
+            Text("Atualizar a lista")
+        }
         TextButton(onClick = onSair, modifier = Modifier.fillMaxWidth()) {
             Text("Sair")
         }
@@ -76,6 +90,8 @@ fun EscolhaDaProvaScreen(
  */
 @Composable
 fun SemProvaScreen(
+    marca: MarcaDeLeitura?,
+    aviso: String?,
     onTentarDeNovo: () -> Unit,
     onSair: () -> Unit,
     modifier: Modifier = Modifier,
@@ -85,10 +101,17 @@ fun SemProvaScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // **Esta tela tambem apresenta dado da visao**, e e o caso mais traicoeiro dos tres: "nao ha
+        // prova publicada" e afirmacao sobre o mundo, e afirma-la a partir de uma visao de tres dias
+        // sem dizer a idade e afirmar mais do que se sabe.
+        if (marca != null) SeloDeLeitura(marca, modifier = Modifier.padding(bottom = 16.dp))
+
         Text(
             text = "Esta organizacao ainda nao tem prova publicada. " +
                 "Publique uma prova antes de escanear folhas.",
         )
+
+        if (aviso != null) AvisoDeAtualizacao(aviso, modifier = Modifier.padding(top = 12.dp))
 
         Button(onClick = onTentarDeNovo, modifier = Modifier.fillMaxWidth().padding(top = 24.dp)) {
             Text("Procurar de novo")

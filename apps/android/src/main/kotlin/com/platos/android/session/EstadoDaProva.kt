@@ -65,10 +65,14 @@ sealed interface EstadoDaProva {
      *
      * [procedencia] diz se a lista veio da consulta de agora ou da visao guardada, e a tela **tem**
      * de marcar a segunda: lista velha e indistinguivel de lista correta para quem le.
+     *
+     * [falhaAoAtualizar] espelha `DeviceState.Ativa`, e pela mesma razao: atualizacao que falha nao
+     * esvazia a tela, entao a falha precisa caber **dentro** do estado que continua apresentado.
      */
     data class Escolhendo(
         val provas: List<ProvaApresentada>,
         val procedencia: Procedencia,
+        val falhaAoAtualizar: FalhaDaListagem? = null,
     ) : EstadoDaProva
 
     /**
@@ -78,7 +82,10 @@ sealed interface EstadoDaProva {
      * dos dois: "nao ha prova publicada" e afirmacao sobre o mundo, e afirma-la a partir de uma visao
      * de tres dias atras sem dizer a idade e afirmar mais do que se sabe.
      */
-    data class SemProvaPublicada(val procedencia: Procedencia) : EstadoDaProva
+    data class SemProvaPublicada(
+        val procedencia: Procedencia,
+        val falhaAoAtualizar: FalhaDaListagem? = null,
+    ) : EstadoDaProva
 
     /** A listagem nao fechou. A tela explica, e nao apresenta lista nenhuma. */
     data class ListagemFalhou(val falha: FalhaDaListagem) : EstadoDaProva

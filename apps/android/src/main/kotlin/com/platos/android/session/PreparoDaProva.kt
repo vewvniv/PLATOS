@@ -57,6 +57,15 @@ class PreparoDaProva(
         private set
 
     /**
+     * Ha uma atualizacao **pedida pelo professor** no ar.
+     *
+     * Espelha `DeviceSession.atualizacaoPedida`, e pela mesma razao: pedir para atualizar nao muda o
+     * estado, porque o requisito proibe esvaziar a tela para dizer que nao conseguiu. Sem pedido, um
+     * resultado que chega fora de [EstadoDaProva.Listando] continua descartado.
+     */
+    private var atualizacaoPedida = false
+
+    /**
      * A ultima escolha apresentada, para voltar a ela sem consultar nada.
      *
      * Mora aqui, e nao na tela: e a maquina que sabe o que foi apresentado, e voltar depois de uma
@@ -68,6 +77,21 @@ class PreparoDaProva(
     /** Uma nova listagem foi pedida. Volta ao inicio, descartando o que estivesse na tela. */
     fun listar() {
         state = EstadoDaProva.Listando
+    }
+
+    /**
+     * O professor pediu para atualizar a lista.
+     *
+     * **Nao muda o estado**, ao contrario de [listar] — que existe para o caminho em que nao ha nada
+     * na tela e um carregamento honesto e o desfecho. Aqui ha lista apresentada, e ela fica.
+     *
+     * Fora dos dois estados que apresentam dado, o pedido e ignorado: em `Preparando`, `Pronta` ou
+     * `Barrada` a tela nao esta apresentando visao nenhuma, e atualizar por baixo de uma barragem
+     * reescreveria a tela sob os pes de quem esta lendo.
+     */
+    fun atualizar() {
+        if (state !is EstadoDaProva.Escolhendo && state !is EstadoDaProva.SemProvaPublicada) return
+        atualizacaoPedida = true
     }
 
     /**
@@ -87,7 +111,15 @@ class PreparoDaProva(
      * impossivel de afirmar num teste.
      */
     fun aoListar(resultado: ResultadoDasProvas, agora: Long) {
-        if (state !is EstadoDaProva.Listando) return
+        // O pedido vale por um resultado so, como em `DeviceSession`, e pela mesma razao.
+        val atual = state
+        val pedida = atualizacaoPedida
+        atualizacaoPedida = false
+
+        val apresentando =
+            atual is EstadoDaProva.Escolhendo || atual is EstadoDaProva.SemProvaPublicada
+        if (atual !is EstadoDaProva.Listando && !(pedida && apresentando)) return
+
         state = when (resultado) {
             is ResultadoDasProvas.Chegaram -> {
                 visoes.guardar(VisaoDaOrganizacao(organizacao, resultado.provas, agora))
@@ -97,8 +129,24 @@ class PreparoDaProva(
             // **Sem resposta cai na visao guardada; resposta que nao serve, nao.** Um 500 nao e
             // afirmacao sobre o mundo nem ausencia de servidor: o aparelho esta alcancando a rede, e
             // o que cabe e tentar de novo. So a ausencia de resposta autoriza falar pelo passado.
-            is ResultadoDasProvas.SemRede -> semResposta()
-            is ResultadoDasProvas.Falhou -> EstadoDaProva.ListagemFalhou(FalhaDaListagem.OUTRA)
+            //
+            // **E quando ha lista apresentada, nenhum dos dois apaga a tela**: entra a causa da
+            // tentativa frustrada no estado que continua no ar.
+            is ResultadoDasProvas.SemRede -> when (atual) {
+                is EstadoDaProva.Escolhendo ->
+                    atual.copy(falhaAoAtualizar = FalhaDaListagem.SEM_REDE)
+                is EstadoDaProva.SemProvaPublicada ->
+                    atual.copy(falhaAoAtualizar = FalhaDaListagem.SEM_REDE)
+                else -> semResposta()
+            }
+
+            is ResultadoDasProvas.Falhou -> when (atual) {
+                is EstadoDaProva.Escolhendo ->
+                    atual.copy(falhaAoAtualizar = FalhaDaListagem.OUTRA)
+                is EstadoDaProva.SemProvaPublicada ->
+                    atual.copy(falhaAoAtualizar = FalhaDaListagem.OUTRA)
+                else -> EstadoDaProva.ListagemFalhou(FalhaDaListagem.OUTRA)
+            }
         }
         if (state is EstadoDaProva.Escolhendo || state is EstadoDaProva.SemProvaPublicada) {
             ultimaEscolha = state

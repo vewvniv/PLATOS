@@ -7,6 +7,7 @@ import java.io.File
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -293,6 +294,147 @@ class PreparoDaProvaTest {
             mapOf(provaA to true, provaB to false),
             apresentadas.associate { it.prova to it.pacoteGuardado },
         )
+    }
+
+    // --- Atualizar, e o que ela nao pode fazer com a tela (tarefas 6.2 e 6.3) ---
+
+    /**
+     * **A metade "nao esvazia" do requisito**, separada da outra pela razao da 5.2: mutacoes
+     * diferentes precisam poder derrubar coisas diferentes.
+     */
+    @Test
+    fun atualizar_que_nao_chega_ao_servidor_nao_esvazia_a_lista() {
+        val preparo = preparoEscolhendo(provaA, provaB)
+
+        preparo.atualizar()
+        preparo.aoListar(ResultadoDasProvas.SemRede, agora + 5_000)
+
+        val estado = preparo.state
+        assertTrue(estado is EstadoDaProva.Escolhendo, "a lista esvaziou: $estado")
+        assertEquals(
+            listOf(provaA, provaB),
+            (estado as EstadoDaProva.Escolhendo).provas.map { it.prova },
+            "a lista apresentada mudou sem consulta que respondesse",
+        )
+    }
+
+    /** A outra metade: a tentativa frustrada aparece, com a causa. */
+    @Test
+    fun atualizar_que_nao_chega_ao_servidor_diz_que_nao_conseguiu() {
+        val preparo = preparoEscolhendo(provaA)
+
+        preparo.atualizar()
+        preparo.aoListar(ResultadoDasProvas.SemRede, agora + 5_000)
+
+        assertEquals(
+            FalhaDaListagem.SEM_REDE,
+            (preparo.state as EstadoDaProva.Escolhendo).falhaAoAtualizar,
+            "a tentativa falhou e a tela nao teria como dizer isso",
+        )
+    }
+
+    /** Atualizar com rede troca a lista, e o aviso da tentativa anterior sai junto. */
+    @Test
+    fun atualizar_que_chega_troca_a_lista_e_limpa_o_aviso() {
+        val preparo = preparoEscolhendo(provaA)
+        preparo.atualizar()
+        preparo.aoListar(ResultadoDasProvas.SemRede, agora + 5_000)
+
+        preparo.atualizar()
+        preparo.aoListar(ResultadoDasProvas.Chegaram(listOf(provaA, provaB)), agora + 10_000)
+
+        val estado = preparo.state as EstadoDaProva.Escolhendo
+        assertEquals(listOf(provaA, provaB), estado.provas.map { it.prova })
+        assertEquals(Procedencia.Fresca, estado.procedencia)
+        assertNull(estado.falhaAoAtualizar, "o aviso da tentativa anterior ficou na tela")
+    }
+
+    /**
+     * "Nao ha prova publicada" tambem e dado apresentado, e atualizar sobre ele segue a mesma regra.
+     *
+     * E o caso mais traicoeiro dos dois: a tela afirma uma coisa sobre o mundo, e esvazia-la para
+     * dizer que a atualizacao falhou trocaria a afirmacao por um carregamento sem desfecho.
+     */
+    @Test
+    fun atualizar_em_sem_prova_publicada_tambem_nao_esvazia() {
+        val preparo = preparoEscolhendo()
+
+        preparo.atualizar()
+        preparo.aoListar(ResultadoDasProvas.SemRede, agora + 5_000)
+
+        val estado = preparo.state
+        assertTrue(estado is EstadoDaProva.SemProvaPublicada, "veio $estado")
+        assertEquals(
+            FalhaDaListagem.SEM_REDE,
+            (estado as EstadoDaProva.SemProvaPublicada).falhaAoAtualizar,
+        )
+    }
+
+    /**
+     * **Atualizacao frustrada sobre lista fresca nao a faz parecer cacheada.**
+     *
+     * Irmao do cenario de `DeviceSessionTest`, e existe pela mesma razao encontrada na mutacao da
+     * 6.3: partindo de lista cacheada, esvaziar a tela e cair na visao reconstroi um estado com as
+     * mesmas provas, e a asercao nao ve a diferenca. Partindo de lista fresca, ela ve — `Fresca`
+     * viraria `Cacheada`.
+     */
+    @Test
+    fun atualizar_que_falha_sobre_lista_fresca_nao_a_faz_parecer_cacheada() {
+        val preparo = preparoEscolhendo(provaA, provaB)
+        val antes = preparo.state as EstadoDaProva.Escolhendo
+
+        preparo.atualizar()
+        preparo.aoListar(ResultadoDasProvas.SemRede, agora + 5_000)
+
+        val depois = preparo.state
+        assertTrue(depois is EstadoDaProva.Escolhendo, "a lista esvaziou: $depois")
+        assertEquals(
+            antes,
+            (depois as EstadoDaProva.Escolhendo).copy(falhaAoAtualizar = null),
+            "a atualizacao frustrada mudou mais do que o aviso",
+        )
+        // Sem asercao sobre o aviso aqui, pela razao registrada no cenario irmao de
+        // `DeviceSessionTest`: mutacoes diferentes precisam derrubar cenarios diferentes.
+    }
+
+    /** A guarda de "resultado fora de `Listando` e descartado" continua fechada sem pedido. */
+    @Test
+    fun resultado_de_listagem_atrasado_sem_pedido_continua_descartado() {
+        val preparo = preparoEscolhendo(provaA)
+        val antes = preparo.state
+
+        preparo.aoListar(ResultadoDasProvas.SemRede, agora + 5_000)
+
+        assertEquals(antes, preparo.state, "um resultado sem pedido reescreveu a lista")
+    }
+
+    /** Um pedido vale por um resultado so, como em `DeviceSession` e pela mesma razao. */
+    @Test
+    fun um_pedido_de_atualizacao_da_lista_vale_por_um_resultado_so() {
+        val preparo = preparoEscolhendo(provaA)
+        preparo.atualizar()
+        preparo.aoListar(ResultadoDasProvas.Chegaram(listOf(provaB)), agora + 5_000)
+        val depois = preparo.state
+
+        preparo.aoListar(ResultadoDasProvas.SemRede, agora + 10_000)
+
+        assertEquals(depois, preparo.state, "um pedido antigo autorizou um resultado atrasado")
+    }
+
+    /**
+     * Sob uma barragem ou no meio do preparo, atualizar nao e aceito.
+     *
+     * Nao ha visao apresentada nesses estados, e reescrever a tela por baixo de quem esta lendo uma
+     * barragem seria trocar a explicacao do problema por uma lista.
+     */
+    @Test
+    fun atualizar_no_meio_do_preparo_nao_e_aceito() {
+        val preparo = preparoPreparando()
+
+        preparo.atualizar()
+        preparo.aoListar(ResultadoDasProvas.SemRede, agora + 5_000)
+
+        assertTrue(preparo.state is EstadoDaProva.Preparando, "veio ${preparo.state}")
     }
 
     // --- A escolha ---

@@ -66,10 +66,20 @@ sealed interface DeviceState {
      * **O nome nunca e construido aqui**, e continua nao sendo: ele e o que a consulta devolveu — ou
      * agora, ou na ultima vez que ela respondeu, e [procedencia] diz qual dos dois. O que nao existe
      * e nome de reserva; sem consulta e sem visao guardada o estado e [SemOrganizacao].
+     *
+     * **[falhaAoAtualizar] e sobre a ultima atualizacao pedida, e nao sobre o dado.** `null` e "nada
+     * foi pedido, ou o pedido chegou"; nao-nulo e "o professor pediu para atualizar e nao deu", com
+     * a causa. Os dois campos sao independentes de proposito: dado fresco cuja atualizacao seguinte
+     * falhou continua fresco, e dado cacheado continua cacheado depois de uma tentativa frustrada.
+     *
+     * Ele existe porque a alternativa e a tela **esvaziar** para dizer que nao conseguiu — e o
+     * requisito proibe exatamente isso: a visao anterior continua, ainda marcada, e o aplicativo diz
+     * que nao conseguiu atualizar.
      */
     data class Ativa(
         val organizacao: Organizacao,
         val procedencia: Procedencia,
+        val falhaAoAtualizar: FalhaDaConsulta? = null,
     ) : DeviceState
 
     /** Autenticado e sem saber a organizacao. A tela explica, e nao apresenta nome nenhum. */

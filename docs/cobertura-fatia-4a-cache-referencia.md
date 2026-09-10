@@ -1,7 +1,7 @@
 # Cobertura de cenários — fatia 4a-cache-referencia (a visão guardada da organização)
 
-Documento **em construção**: a fatia está parcialmente implementada — as seções 1 a 5 do `tasks.md`
-fecharam, as telas (6) e a conferência em aparelho (7) não. O registro **por tarefa** vive em
+Documento **em construção**: a fatia está parcialmente implementada — as seções 1 a 6 do `tasks.md`
+fecharam, e a conferência em aparelho (7) não. O registro **por tarefa** vive em
 `openspec/changes/slice-4a-cache-referencia/tasks.md`; este documento existe para que um achado seja
 encontrável **por assunto**, e a tarefa 8.2 é quem o consolida no fim.
 
@@ -92,6 +92,25 @@ apagamento **aconteceu**, nunca que ele foi seletivo (P13).
 
 ## O que ficou sem verificação automática, e por quê
 
+### A tela ignorando o parâmetro (tarefa 6.4)
+
+A decisão de texto e de formato saiu para funções puras — `marcaDeLeitura` e `avisoDeAtualizacao`,
+com sete cenários de JVM — e as três telas recebem tudo pronto. Isso protege a **decisão**, e não
+protege o **desenho**: nenhum teste desta base entra num `@Composable`.
+
+Os quatro defeitos que ficam descobertos, nomeados porque lacuna sem nome é lacuna que ninguém
+procura:
+
+| Defeito de tela | Por que nenhum teste pega | Onde se paga |
+|---|---|---|
+| `SeloDeLeitura` não ser chamado, ou o `if (marca != null)` invertido | A função pura devolve a marca certa; quem decide desenhá-la é a tela | 7.2, por `uiautomator` |
+| O selo desenhado com `marca.rotulo` no lugar de `marca.idade` — ou só o rótulo, sem a idade | As duas cadeias estão certas no tipo; qual delas vai para a tela é escolha do `@Composable` | 7.2 |
+| O aviso de atualização não desenhado, ou desenhado sem a segunda frase | A lista branca de `MarcaDeLeituraTest` prende o **texto**, não a presença dele na tela | 7.2 |
+| O botão `Atualizar` ligado a `abrirSessao` em vez de `atualizarSessao` | **O mais provável dos quatro**, e o único que não é esquecimento: as duas funções existem, fazem quase a mesma coisa, e a diferença — passar ou não por `Consultando` — só aparece na tela, em movimento | 7.2, conferindo que a lista não pisca para vazio |
+
+O último é o mesmo defeito de fiação que produziu 9b.1 e 9b.2 na fatia 4a: máquina certa, tela certa,
+ligação errada. **Não é mitigado, é conhecido.**
+
 ### O vermelho que não diz o motivo (tarefa 4.3, achado da remedição)
 
 `provas_com_pacote_guardado_sao_distinguiveis_das_sem` recusa pela **forma** do estado, e não pela
@@ -133,7 +152,7 @@ declaração num commit (`aad5ba4`), resultados no seguinte (`0ad3254`).
 
 | O que | Por quê |
 |---|---|
-| O que as telas **desenham** (tarefas 6.1 a 6.4) | Ainda não implementado. A escolha da frase e do estado mora fora do `@Composable`, e é lá que os testes chegam; o que nenhum teste desta base alcança é a tela **ignorar o parâmetro** — o defeito que produziu 9b.1 e 9b.2 na fatia 4a. Paga-se na seção 7, e não com afirmação de que está mitigado |
+| O que as telas **desenham** (tarefa 6.4) | Implementado, e a lacuna tem seção própria acima: os quatro defeitos de tela que esta fatia deixa descobertos, nomeados um a um. Paga-se na tarefa 7.2 |
 | Sobreviver à **morte do processo** | Os três testes instrumentados da tarefa 1.4 gravam sob o `filesDir` de verdade e releem por outra instância, o que exclui leitura de memória. Matar o processo e reabrir sem rede é conferência de aparelho: tarefa 7.1 |
 | A revogação **no disco** (tarefa 7.3) | O apagamento está verificado na JVM sobre a porta. Que a visão e os pacotes somem do `filesDir` depois de o vínculo cair no banco só o aparelho mostra — inspecionando o disco, e não a tela |
 | O **comando cheio do CI** (tarefa 8.1) | O que rodou até aqui é `:apps:android:testDebugUnitTest`. `./gradlew build` mais `connectedDebugAndroidTest` **sem filtro** é a 8.1, e o número vem do relatório, não do código de saída do Gradle (P5) |

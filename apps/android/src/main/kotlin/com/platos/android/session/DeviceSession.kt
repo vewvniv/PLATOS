@@ -54,6 +54,19 @@ class DeviceSession(
         private set
 
     /**
+     * Ha uma atualizacao **pedida pelo professor** no ar.
+     *
+     * Nao esta em [DeviceState] de proposito, e a razao e o requisito: atualizacao que falha nao
+     * esvazia a tela, entao pedir uma **nao muda o estado** — a tela continua apresentando o que
+     * apresentava. Um estado "atualizando" seria uma tela nova, e a tela nova e o esvaziamento que o
+     * requisito proibe.
+     *
+     * Ele tambem e o que reabre a guarda de [aoConsultarOrganizacoes] sem afrouxa-la: sem pedido, um
+     * resultado que chega fora de [DeviceState.Consultando] continua descartado (tarefa 3.8).
+     */
+    private var atualizacaoPedida = false
+
+    /**
      * Abertura do aplicativo.
      *
      * Com sessao guardada a entrada e dispensada, e o aplicativo vai consultar — porque o nome da
@@ -110,14 +123,33 @@ class DeviceSession(
             return
         }
 
-        if (state !is DeviceState.Consultando) return
+        // O pedido vale por **um** resultado, e e consumido aqui: sem isso, um pedido antigo
+        // autorizaria para sempre resultados atrasados a reescrever a tela, que e o defeito que a
+        // guarda de baixo existe para impedir.
+        val atual = state
+        val pedida = atualizacaoPedida
+        atualizacaoPedida = false
+
+        val atualizando = pedida && atual is DeviceState.Ativa
+        if (atual !is DeviceState.Consultando && !atualizando) return
+
         state = when (resultado) {
             is ResultadoDasOrganizacoes.Chegaram -> resolverOrganizacao(resultado.organizacoes)
             is ResultadoDasOrganizacoes.SessaoExpirada ->
                 error("tratada acima; o ramo existe para o `when` seguir exaustivo sem `else`")
-            is ResultadoDasOrganizacoes.SemRede -> semRede()
+
+            // **A atualizacao que nao chegou nao apaga o que estava na tela.** O estado continua o
+            // mesmo — mesma organizacao, mesma procedencia, mesma idade —, e o que entra e a causa
+            // da tentativa frustrada. Cair em `semRede()` aqui reconstruiria o estado a partir do
+            // disco: daria quase o mesmo, e perderia a distincao entre "abri sem rede" e "tentei
+            // atualizar e nao deu".
+            is ResultadoDasOrganizacoes.SemRede ->
+                if (atual is DeviceState.Ativa) atual.copy(falhaAoAtualizar = FalhaDaConsulta.SEM_REDE)
+                else semRede()
+
             is ResultadoDasOrganizacoes.Falhou ->
-                DeviceState.SemOrganizacao(FalhaDaConsulta.OUTRA)
+                if (atual is DeviceState.Ativa) atual.copy(falhaAoAtualizar = FalhaDaConsulta.OUTRA)
+                else DeviceState.SemOrganizacao(FalhaDaConsulta.OUTRA)
         }
     }
 
@@ -141,6 +173,21 @@ class DeviceSession(
             ?: return DeviceState.SemOrganizacao(FalhaDaConsulta.SEM_REDE)
 
         return DeviceState.Ativa(visao.organizacao, Procedencia.Cacheada(visao.vistaEm))
+    }
+
+    /**
+     * O professor pediu para atualizar a visao.
+     *
+     * **Nao muda o estado**, e e isso que o distingue de [abrir]: reabrir a sessao passa por
+     * [DeviceState.Consultando], que apaga a tela enquanto a consulta esta no ar. Aqui a tela fica, e
+     * o que muda e so a disposicao de aceitar o proximo resultado.
+     *
+     * Fora de [DeviceState.Ativa] nao ha o que atualizar, e o pedido e ignorado: sem dado apresentado
+     * o caminho e o "tentar de novo" da tela de falha, que reconstroi tudo do que esta gravado.
+     */
+    fun atualizar() {
+        if (state !is DeviceState.Ativa) return
+        atualizacaoPedida = true
     }
 
     /** A escolha de quem segura o aparelho, entre as organizacoes apresentadas. */

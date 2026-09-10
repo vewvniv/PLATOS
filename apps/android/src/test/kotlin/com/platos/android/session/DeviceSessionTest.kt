@@ -458,6 +458,160 @@ class DeviceSessionTest {
         assertTrue(sessao.state is DeviceState.Ativa, "veio ${sessao.state}")
     }
 
+    // --- Atualizar, e o que ela nao pode fazer com a tela (tarefas 6.1 e 6.3) ---
+
+    /**
+     * **A metade "nao esvazia" do requisito, sozinha num teste.**
+     *
+     * Separada da metade "diz que nao conseguiu" pela razao que a 5.2 registrou e a 4.3 pagou: com as
+     * duas asercoes juntas, a mutacao que apaga a tela e a que cala o aviso derrubariam o mesmo
+     * teste, e o vermelho nao diria qual das duas protecoes segurou.
+     */
+    @Test
+    fun atualizar_que_nao_chega_ao_servidor_nao_esvazia_a_tela() {
+        val sessao = comTelaDeTrabalhoCacheada()
+
+        sessao.atualizar()
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SemRede)
+
+        val estado = sessao.state
+        assertTrue(estado is DeviceState.Ativa, "a tela esvaziou depois de uma atualizacao: $estado")
+        assertEquals(escola, (estado as DeviceState.Ativa).organizacao)
+        assertEquals(
+            Procedencia.Cacheada(1_757_000_000_000),
+            estado.procedencia,
+            "a idade do dado mudou sem consulta que respondesse",
+        )
+    }
+
+    /** A outra metade: a tentativa frustrada aparece, e com a causa. */
+    @Test
+    fun atualizar_que_nao_chega_ao_servidor_diz_que_nao_conseguiu() {
+        val sessao = comTelaDeTrabalhoCacheada()
+
+        sessao.atualizar()
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SemRede)
+
+        assertEquals(
+            FalhaDaConsulta.SEM_REDE,
+            (sessao.state as DeviceState.Ativa).falhaAoAtualizar,
+            "a tentativa falhou e a tela nao teria como dizer isso",
+        )
+    }
+
+    /**
+     * Atualizar com rede: o dado passa a ser o novo, e a marca de cache **sai** da tela.
+     *
+     * O aviso da tentativa anterior sai junto, e a asercao e explicita: um aviso que sobrevive a
+     * consulta bem-sucedida diria "nao foi possivel atualizar" sobre dado que acabou de chegar.
+     */
+    @Test
+    fun atualizar_que_chega_troca_o_dado_e_tira_a_marca() {
+        val sessao = comTelaDeTrabalhoCacheada()
+        sessao.atualizar()
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SemRede)
+
+        sessao.atualizar()
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola)))
+
+        val estado = sessao.state as DeviceState.Ativa
+        assertEquals(Procedencia.Fresca, estado.procedencia)
+        assertNull(estado.falhaAoAtualizar, "o aviso da tentativa anterior ficou na tela")
+    }
+
+    /**
+     * **A guarda da tarefa 3.8 continua fechada**, e este teste e o que garante que atualizar nao a
+     * afrouxou: sem pedido, resultado que chega fora de `Consultando` continua descartado.
+     */
+    @Test
+    fun resultado_atrasado_sem_atualizacao_pedida_continua_descartado() {
+        val sessao = comTelaDeTrabalhoCacheada()
+        val antes = sessao.state
+
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SemRede)
+
+        assertEquals(antes, sessao.state, "um resultado sem pedido reescreveu a tela")
+    }
+
+    /**
+     * Um pedido vale por **um** resultado.
+     *
+     * Sem consumir o pedido, o primeiro toque em "atualizar" autorizaria para sempre qualquer
+     * resultado atrasado a reescrever a tela — que e exatamente o defeito que a guarda de 3.8 existe
+     * para impedir, reintroduzido pela porta dos fundos.
+     */
+    @Test
+    fun um_pedido_de_atualizacao_vale_por_um_resultado_so() {
+        val sessao = comTelaDeTrabalhoCacheada()
+        sessao.atualizar()
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola)))
+        val depois = sessao.state
+
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SemRede)
+
+        assertEquals(depois, sessao.state, "um pedido antigo autorizou um resultado atrasado")
+    }
+
+    /** Fora da tela de trabalho nao ha o que atualizar, e o pedido nao abre a guarda. */
+    @Test
+    fun atualizar_fora_da_tela_de_trabalho_nao_e_aceito() {
+        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas())
+        sessao.aoEntrar(ResultadoDaEntrada.CredencialRecusada)
+        val antes = sessao.state
+
+        sessao.atualizar()
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SemRede)
+
+        assertEquals(antes, sessao.state, "um pedido fora de Ativa reescreveu a entrada")
+    }
+
+    /**
+     * **Atualizacao frustrada sobre dado fresco nao o faz parecer cacheado.**
+     *
+     * Este e o cenario que de fato mede "nao esvazia", e o de cima nao mede — descobri isso pela
+     * mutacao da 6.3, e fica escrito porque e o tipo de coisa que passa por revisao: quando o dado ja
+     * era cacheado, esvaziar a tela e cair na visao **reconstroi um estado igual**, e nenhuma asercao
+     * sobre o estado final ve a diferenca. Partindo de dado fresco, ver: cair na visao trocaria
+     * `Fresca` por `Cacheada`, e a asercao pega.
+     *
+     * **A decisao que o cenario fixa, e ela e do tipo que nao pode ficar implicita:** tentativa
+     * frustrada **nao envelhece** o dado. `Procedencia` diz de **onde** o dado veio, e nao ha quanto
+     * tempo; o que chegou por resposta do servidor nesta sessao continua tendo vindo por resposta do
+     * servidor. Quem conta que a tentativa falhou e o aviso, nao a procedencia.
+     */
+    @Test
+    fun atualizar_que_falha_sobre_dado_fresco_nao_o_faz_parecer_cacheado() {
+        val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(visao))
+        sessao.abrir(temSessaoGuardada = true)
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola)))
+        val antes = sessao.state as DeviceState.Ativa
+
+        sessao.atualizar()
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SemRede)
+
+        val depois = sessao.state
+        assertTrue(depois is DeviceState.Ativa, "a tela esvaziou: $depois")
+        assertEquals(
+            antes,
+            (depois as DeviceState.Ativa).copy(falhaAoAtualizar = null),
+            "a atualizacao frustrada mudou mais do que o aviso",
+        )
+        // **Sem asercao sobre o aviso aqui, de proposito.** Quem afirma que o aviso aparece e
+        // `atualizar_que_nao_chega_ao_servidor_diz_que_nao_conseguiu`. Juntar as duas coisas neste
+        // cenario faria a mutacao "nao poe o aviso" e a mutacao "esvazia a tela" derrubarem o mesmo
+        // teste, e o vermelho deixaria de dizer qual das duas protecoes segurou (tarefa 6.3).
+    }
+
+    /** A tela de trabalho apresentando visao guardada, que e o ponto de partida das atualizacoes. */
+    private fun comTelaDeTrabalhoCacheada(): DeviceSession {
+        val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(visao))
+        sessao.abrir(temSessaoGuardada = true)
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SemRede)
+        return sessao
+    }
+
     // --- Sair apaga as quatro coisas (tarefa 3.6 da 4a-zero, 4.8 da 4a, e 5.1 desta) ---
 
     @Test

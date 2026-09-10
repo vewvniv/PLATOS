@@ -144,10 +144,45 @@
 
 ## 6. As telas
 
-- [ ] 6.1 Marca **visual** de leitura cacheada na tela de trabalho, com o instante da última consulta ao lado e uma ação explícita de atualizar. Resultado: procedência visível sem depender de o professor ler uma frase no meio da tela.
-- [ ] 6.2 A mesma marca na escolha da prova, mais a distinção da 4.2. Resultado: as duas telas que apresentam dado cacheado o declaram.
-- [ ] 6.3 Atualizar que falha **não esvazia a tela**: a visão anterior continua, ainda marcada, e o aplicativo diz que não conseguiu atualizar.
-- [ ] 6.4 Registrar como lacuna conhecida que nenhum teste desta base alcança `@Composable`: a escolha da frase e do estado mora fora da tela, e o que fica descoberto é a tela ignorar o parâmetro. É a lacuna que produziu 9b.1 e 9b.2 — ela se paga na seção 7, e não com uma afirmação de que está mitigada.
+- [x] 6.1 Marca **visual** de leitura cacheada na tela de trabalho, com o instante da última consulta ao lado e uma ação explícita de atualizar. Resultado: procedência visível sem depender de o professor ler uma frase no meio da tela. **Feito**, e com as duas perguntas abertas do `design.md` decididas aqui — ele as deixou para a implementação de propósito. **Qual marca:** selo com `errorContainer` e borda, rótulo `SEM CONEXAO` em maiúsculas e a idade embaixo — cor sozinha não serve para quem não a distingue, então o rótulo carrega a mesma informação em texto; e `errorContainer` em vez de `tertiary` porque estar sem conexão **é** um problema para quem trabalha, ainda que não seja falha do aplicativo. **Como apresentar a idade:** data e hora absolutas (`visto em 04/09/2025 as 12:33`), e não "há 2 h" — relativo precisa de relógio na composição e envelhece na tela sem recompor, e a decisão 2 (sem teto de validade) torna uma visão do ano passado consequência, não hipótese, o que também é por que o **ano** entra. A decisão de texto e de formato mora em `marcaDeLeitura`/`avisoDeAtualizacao`, funções puras, com **7 cenários de JVM**; a tela só desenha o que recebe pronto.
+- [x] 6.2 A mesma marca na escolha da prova, mais a distinção da 4.2. Resultado: as duas telas que apresentam dado cacheado o declaram. **Feito, e são três telas e não duas:** `TrabalhoScreen`, `EscolhaDaProvaScreen` e **`SemProvaScreen`**. A terceira não estava na tarefa e é a mais traiçoeira das três — "esta organização não tem prova publicada" é afirmação sobre o mundo, e afirmá-la a partir de uma visão de três dias sem dizer a idade é afirmar mais do que se sabe. O selo é **um só** (`SeloDeLeitura`), para as três: marca diferente por tela ensinaria duas linguagens a quem lê. A distinção da 4.2 já estava na tela desde aquela tarefa (`baixada` contra `precisa de rede`) e não mudou.
+- [x] 6.3 Atualizar que falha **não esvazia a tela**: a visão anterior continua, ainda marcada, e o
+  aplicativo diz que não conseguiu atualizar. **Feito, e o contrato veio antes** (regra 1):
+  `DeviceState.Ativa` e os dois estados de `EstadoDaProva` que apresentam dado passaram a carregar
+  `falhaAoAtualizar` — nulo é "nada pedido, ou o pedido chegou", não-nulo é a causa da tentativa
+  frustrada. Depois as máquinas: `atualizar()` em `DeviceSession` e em `PreparoDaProva`, e **a
+  característica que define as duas é não mudar o estado.** Reabrir a sessão passa por `Consultando`
+  e listar passa por `Listando`, e as duas apagam a tela enquanto a consulta está no ar; o requisito
+  proíbe exatamente isso. O pedido é **consumido** no resultado seguinte, senão o primeiro toque em
+  "atualizar" autorizaria para sempre resultados atrasados a reescrever a tela — a guarda da 3.8 pela
+  porta dos fundos. **16 cenários novos** entre `DeviceSessionTest`, `PreparoDaProvaTest` e
+  `MarcaDeLeituraTest`; suíte em **233 testes, 0 falhas, 0 erros**, contados no relatório XML.
+
+  **Terceiro caso, declarado para não ficar implícito:** tentativa frustrada **não envelhece o dado**.
+  `Procedencia` diz de **onde** o dado veio, não há quanto tempo — o que chegou por resposta do
+  servidor nesta sessão continua tendo vindo dela, e quem conta que a tentativa falhou é o aviso. A
+  alternativa (virar `Cacheada` ao falhar) faria o selo aparecer sobre dado que o servidor mandou
+  minutos antes, e o selo perderia o significado.
+
+  **Os conjuntos esperados, declarados antes de as mutações serem injetadas** — e este parágrafo é
+  commitado antes delas, como na remedição da 4.3:
+
+  | Mutação | O que ela faz | Vermelho esperado | Verde esperado |
+  |---|---|---|---|
+  | **(A)** | `atualizar()` volta a esvaziar: `state = Consultando` / `state = Listando`, mantida a guarda de estado | **5**: os dois cenários de dado fresco (`atualizar_que_falha_sobre_dado_fresco_nao_o_faz_parecer_cacheado`, `atualizar_que_falha_sobre_lista_fresca_nao_a_faz_parecer_cacheada`) e os três do aviso (`atualizar_que_nao_chega_ao_servidor_diz_que_nao_conseguiu` nas duas máquinas, `atualizar_em_sem_prova_publicada_tambem_nao_esvazia`) | os dois cenários de dado **cacheado** que dizem "não esvazia", e os de pedido consumido |
+  | **(B)** | os ramos de falha devolvem `atual` sem `copy(falhaAoAtualizar = …)` | **3**: só os do aviso | os dois de dado fresco, e todo o resto |
+
+  **Por que os dois conjuntos não são disjuntos, e por que isso não é desistência:** os três cenários
+  do aviso afirmam a metade "diz que não conseguiu", e as duas mutações a quebram — (A) por destruir
+  o estado que carregaria o aviso, (B) por não escrevê-lo. A independência está nos **dois cenários de
+  dado fresco**: eles caem só em (A). E eles existem por um achado desta tarefa, registrado porque
+  passaria por revisão sem ser visto: **partindo de dado cacheado, esvaziar a tela é indetectável no
+  estado final** — cair na visão reconstrói um estado igual, com as mesmas provas e a mesma idade, e
+  nenhuma asserção sobre o estado final vê diferença. É o sombreamento que a §3 do `rigorous.md`
+  descreve. Partindo de dado **fresco**, a diferença aparece: cair na visão trocaria `Fresca` por
+  `Cacheada`. Os cenários de cache que dizem "não esvazia" ficam, e ficam **nomeados como o que são**:
+  eles afirmam o conteúdo, e não a ausência do esvaziamento.
+- [x] 6.4 Registrar como lacuna conhecida que nenhum teste desta base alcança `@Composable`: a escolha da frase e do estado mora fora da tela, e o que fica descoberto é a tela ignorar o parâmetro. É a lacuna que produziu 9b.1 e 9b.2 — ela se paga na seção 7, e não com uma afirmação de que está mitigada. **Registrado em `docs/cobertura-fatia-4a-cache-referencia.md`**, na seção "o que ficou sem verificação automática", com o que exatamente fica descoberto nesta fatia: `SeloDeLeitura` não ser desenhado, `if (marca != null)` invertido, o selo desenhado com `marca.rotulo` no lugar de `marca.idade`, e o botão `Atualizar` ligado a `abrirSessao` em vez de `atualizarSessao` — este último é o mais provável dos quatro, porque as duas funções existem e fazem quase a mesma coisa. **Nenhum dos quatro é pego por teste nesta base**, e os quatro são conferíveis por `uiautomator` na tarefa 7.2. Não é mitigado, é conhecido (P8).
 
 ## 7. Conferência em aparelho — o critério de aceite
 
