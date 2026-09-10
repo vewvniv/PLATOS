@@ -182,6 +182,24 @@
   descreve. Partindo de dado **fresco**, a diferença aparece: cair na visão trocaria `Fresca` por
   `Cacheada`. Os cenários de cache que dizem "não esvazia" ficam, e ficam **nomeados como o que são**:
   eles afirmam o conteúdo, e não a ausência do esvaziamento.
+
+  **O que as rodadas deram** (2026-09-10, 12:29:58Z e 12:30:13Z, `timestamp` de XML crescente):
+
+  **(A) — 233 testes, 5 vermelhos: exatamente os cinco declarados.** Os três do aviso com
+  `expected: <SEM_REDE> but was: <null>`, e os dois de dado fresco com a mensagem que **mostra o
+  mecanismo** — `expected: <Ativa(…, procedencia=Fresca, falhaAoAtualizar=null)> but was:
+  <Ativa(…, procedencia=Cacheada(vistaEm=1757000000000), falhaAoAtualizar=null)>`. É o sombreamento
+  declarado, visto acontecer: o esvaziamento não deixa rastro no estado final, e o que denuncia é o
+  dado ter **envelhecido** no caminho. **E os dois cenários de cache que dizem "não esvazia" ficaram
+  verdes**, como declarado — eles afirmam o conteúdo, não a ausência do esvaziamento.
+
+  **(B) — 233 testes, 3 vermelhos: só os do aviso**, com a mesma mensagem `expected: <SEM_REDE> but
+  was: <null>`. **Os dois de dado fresco ficaram verdes**, e é essa a prova de independência que a
+  não-disjunção dos conjuntos pedia: (B) não toca a proteção de "não envelhece o dado".
+
+  **Reversão:** as duas revertidas, `grep MUTACAO` zero nos `.kt`, `git diff` vazio contra o commit da
+  declaração, e a reversão conferida **rodando** — 233 testes, 0 falhas, 0 erros, relatório com
+  `timestamp` 2026-09-10T12:30:27.652Z, posterior às duas rodadas de mutação.
 - [x] 6.4 Registrar como lacuna conhecida que nenhum teste desta base alcança `@Composable`: a escolha da frase e do estado mora fora da tela, e o que fica descoberto é a tela ignorar o parâmetro. É a lacuna que produziu 9b.1 e 9b.2 — ela se paga na seção 7, e não com uma afirmação de que está mitigada. **Registrado em `docs/cobertura-fatia-4a-cache-referencia.md`**, na seção "o que ficou sem verificação automática", com o que exatamente fica descoberto nesta fatia: `SeloDeLeitura` não ser desenhado, `if (marca != null)` invertido, o selo desenhado com `marca.rotulo` no lugar de `marca.idade`, e o botão `Atualizar` ligado a `abrirSessao` em vez de `atualizarSessao` — este último é o mais provável dos quatro, porque as duas funções existem e fazem quase a mesma coisa. **Nenhum dos quatro é pego por teste nesta base**, e os quatro são conferíveis por `uiautomator` na tarefa 7.2. Não é mitigado, é conhecido (P8).
 
 ## 7. Conferência em aparelho — o critério de aceite
