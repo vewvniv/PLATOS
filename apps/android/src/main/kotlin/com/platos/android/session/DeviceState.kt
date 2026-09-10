@@ -18,6 +18,23 @@ enum class FalhaDaConsulta {
 }
 
 /**
+ * De onde veio o que a tela esta apresentando.
+ *
+ * **Nao e detalhe de tela: e estado.** O requisito diz que todo nome apresentado veio da API, e o que
+ * a ausencia de rede muda e a **idade** do nome, nunca a procedencia dele. Com a idade no estado, a
+ * tela nao tem como esquecer de dizer de quando e o que mostra — e um `when` exaustivo quebra a
+ * compilacao quando alguem acrescentar uma terceira origem.
+ */
+sealed interface Procedencia {
+
+    /** A consulta respondeu agora. */
+    data object Fresca : Procedencia
+
+    /** Veio da visao guardada, vista em [vistaEm] — milissegundos de epoch. */
+    data class Cacheada(val vistaEm: Long) : Procedencia
+}
+
+/**
  * O que a tela desenha. Cinco estados, e nenhum deles e ausencia de estado.
  *
  * ```
@@ -46,10 +63,24 @@ sealed interface DeviceState {
     /**
      * Autenticado, com organizacao ativa. [organizacao] veio da API.
      *
-     * **O nome nunca e construido aqui.** Ele e o que a consulta devolveu, e quando ela nao devolve
-     * o estado e [SemOrganizacao] — nao esta com nome de reserva.
+     * **O nome nunca e construido aqui**, e continua nao sendo: ele e o que a consulta devolveu — ou
+     * agora, ou na ultima vez que ela respondeu, e [procedencia] diz qual dos dois. O que nao existe
+     * e nome de reserva; sem consulta e sem visao guardada o estado e [SemOrganizacao].
+     *
+     * **[falhaAoAtualizar] e sobre a ultima atualizacao pedida, e nao sobre o dado.** `null` e "nada
+     * foi pedido, ou o pedido chegou"; nao-nulo e "o professor pediu para atualizar e nao deu", com
+     * a causa. Os dois campos sao independentes de proposito: dado fresco cuja atualizacao seguinte
+     * falhou continua fresco, e dado cacheado continua cacheado depois de uma tentativa frustrada.
+     *
+     * Ele existe porque a alternativa e a tela **esvaziar** para dizer que nao conseguiu — e o
+     * requisito proibe exatamente isso: a visao anterior continua, ainda marcada, e o aplicativo diz
+     * que nao conseguiu atualizar.
      */
-    data class Ativa(val organizacao: Organizacao) : DeviceState
+    data class Ativa(
+        val organizacao: Organizacao,
+        val procedencia: Procedencia,
+        val falhaAoAtualizar: FalhaDaConsulta? = null,
+    ) : DeviceState
 
     /** Autenticado e sem saber a organizacao. A tela explica, e nao apresenta nome nenhum. */
     data class SemOrganizacao(val falha: FalhaDaConsulta) : DeviceState

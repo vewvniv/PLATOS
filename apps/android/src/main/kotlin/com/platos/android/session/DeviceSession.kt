@@ -1,5 +1,7 @@
 package com.platos.android.session
 
+import com.platos.android.pacote.PacotesGuardados
+
 /** O que a autenticacao devolveu, ja destilado pelo adaptador. */
 sealed interface ResultadoDaEntrada {
     data object Autenticado : ResultadoDaEntrada
@@ -42,10 +44,27 @@ interface SessaoGuardada {
  * ja resolvida. Ela nao e feita aqui e nao e feita por texto de mensagem: o adaptador olha o lado da
  * falha — excecao de transporte contra resposta 401 — e diz qual das tres foi.
  */
-class DeviceSession(private val guardada: SessaoGuardada) {
+class DeviceSession(
+    private val guardada: SessaoGuardada,
+    private val pacotes: PacotesGuardados,
+    private val visoes: VisoesGuardadas,
+) {
 
     var state: DeviceState = DeviceState.Entrada()
         private set
+
+    /**
+     * Ha uma atualizacao **pedida pelo professor** no ar.
+     *
+     * Nao esta em [DeviceState] de proposito, e a razao e o requisito: atualizacao que falha nao
+     * esvazia a tela, entao pedir uma **nao muda o estado** — a tela continua apresentando o que
+     * apresentava. Um estado "atualizando" seria uma tela nova, e a tela nova e o esvaziamento que o
+     * requisito proibe.
+     *
+     * Ele tambem e o que reabre a guarda de [aoConsultarOrganizacoes] sem afrouxa-la: sem pedido, um
+     * resultado que chega fora de [DeviceState.Consultando] continua descartado (tarefa 3.8).
+     */
+    private var atualizacaoPedida = false
 
     /**
      * Abertura do aplicativo.
@@ -88,39 +107,136 @@ class DeviceSession(private val guardada: SessaoGuardada) {
      * estado mora.
      */
     fun aoConsultarOrganizacoes(resultado: ResultadoDasOrganizacoes) {
-        if (state !is DeviceState.Consultando) return
+        // **A expiracao e a excecao a guarda, e precisa ser.** Ela nao e resultado de consulta: vem
+        // do interceptador de `clienteApi` e pode chegar de QUALQUER chamada autenticada. Ate a
+        // 4a-zero todas aconteciam em `Consultando`, e trata-la aqui dentro era seguro; a fatia 4a
+        // acrescentou `provas()` e `pacote()`, que rodam com o aparelho em `Ativa`, e para elas a
+        // guarda descartava o 401 em silencio — credencial expirada seguia guardada e a tela
+        // oferecia um "tentar de novo" que falharia para sempre (tarefa 9b.1, decisao 12).
+        //
+        // Sair continua sendo sair: expiracao que chega depois de o professor ja estar na entrada
+        // nao reescreve o motivo, senao a tela mentiria para quem saiu por vontade propria.
+        if (resultado is ResultadoDasOrganizacoes.SessaoExpirada) {
+            if (state is DeviceState.Entrada) return
+            guardada.apagarCredencial()
+            state = DeviceState.Entrada(MotivoDeEntrada.SESSAO_EXPIRADA)
+            return
+        }
+
+        // O pedido vale por **um** resultado, e e consumido aqui: sem isso, um pedido antigo
+        // autorizaria para sempre resultados atrasados a reescrever a tela, que e o defeito que a
+        // guarda de baixo existe para impedir.
+        val atual = state
+        val pedida = atualizacaoPedida
+        atualizacaoPedida = false
+
+        val atualizando = pedida && atual is DeviceState.Ativa
+        if (atual !is DeviceState.Consultando && !atualizando) return
+
         state = when (resultado) {
             is ResultadoDasOrganizacoes.Chegaram -> resolverOrganizacao(resultado.organizacoes)
-            is ResultadoDasOrganizacoes.SessaoExpirada -> {
-                guardada.apagarCredencial()
-                DeviceState.Entrada(MotivoDeEntrada.SESSAO_EXPIRADA)
-            }
+            is ResultadoDasOrganizacoes.SessaoExpirada ->
+                error("tratada acima; o ramo existe para o `when` seguir exaustivo sem `else`")
+
+            // **A atualizacao que nao chegou nao apaga o que estava na tela.** O estado continua o
+            // mesmo — mesma organizacao, mesma procedencia, mesma idade —, e o que entra e a causa
+            // da tentativa frustrada. Cair em `semRede()` aqui reconstruiria o estado a partir do
+            // disco: daria quase o mesmo, e perderia a distincao entre "abri sem rede" e "tentei
+            // atualizar e nao deu".
             is ResultadoDasOrganizacoes.SemRede ->
-                DeviceState.SemOrganizacao(FalhaDaConsulta.SEM_REDE)
+                if (atual is DeviceState.Ativa) atual.copy(falhaAoAtualizar = FalhaDaConsulta.SEM_REDE)
+                else semRede()
+
             is ResultadoDasOrganizacoes.Falhou ->
-                DeviceState.SemOrganizacao(FalhaDaConsulta.OUTRA)
+                if (atual is DeviceState.Ativa) atual.copy(falhaAoAtualizar = FalhaDaConsulta.OUTRA)
+                else DeviceState.SemOrganizacao(FalhaDaConsulta.OUTRA)
         }
+    }
+
+    /**
+     * O servidor **nao respondeu** — e isso nao e o mesmo que ele ter respondido sem a organizacao.
+     *
+     * Ate esta fatia os dois casos terminavam iguais, e o registro do §16 chama isso de risco de
+     * entrega da §10: com pacote conferido em disco, o aplicativo parava no arranque a dois passos
+     * dele. **O caso que a decisao 10 da 4a-zero decidiu continua decidido**: quando o servidor
+     * responde e o vinculo nao esta la, a escolha guardada cai — quem faz isso e `resolverOrganizacao`,
+     * e nao este ramo.
+     *
+     * Sem organizacao guardada, ou sem visao dela, nao ha o que apresentar: a tela explica e pede
+     * rede uma vez. Visao guardada e a **unica** origem do nome aqui; nada e construido.
+     */
+    private fun semRede(): DeviceState {
+        val escolhida = guardada.organizacaoEscolhida()
+            ?: return DeviceState.SemOrganizacao(FalhaDaConsulta.SEM_REDE)
+
+        val visao = visoes.ler(escolhida)
+            ?: return DeviceState.SemOrganizacao(FalhaDaConsulta.SEM_REDE)
+
+        return DeviceState.Ativa(visao.organizacao, Procedencia.Cacheada(visao.vistaEm))
+    }
+
+    /**
+     * O professor pediu para atualizar a visao.
+     *
+     * **Nao muda o estado**, e e isso que o distingue de [abrir]: reabrir a sessao passa por
+     * [DeviceState.Consultando], que apaga a tela enquanto a consulta esta no ar. Aqui a tela fica, e
+     * o que muda e so a disposicao de aceitar o proximo resultado.
+     *
+     * Fora de [DeviceState.Ativa] nao ha o que atualizar, e o pedido e ignorado: sem dado apresentado
+     * o caminho e o "tentar de novo" da tela de falha, que reconstroi tudo do que esta gravado.
+     */
+    fun atualizar() {
+        if (state !is DeviceState.Ativa) return
+        atualizacaoPedida = true
     }
 
     /** A escolha de quem segura o aparelho, entre as organizacoes apresentadas. */
     fun escolher(organizacao: Organizacao) {
         if (state !is DeviceState.Escolhendo) return
         guardada.guardarOrganizacaoEscolhida(organizacao.id)
-        state = DeviceState.Ativa(organizacao)
+        state = DeviceState.Ativa(organizacao, Procedencia.Fresca)
     }
 
     /**
      * Sair.
      *
-     * Apaga a credencial **e** a organizacao escolhida. A segunda nao e detalhe: o aparelho e
-     * compartilhado entre escolas, e a escolha do usuario anterior sobrevivendo a troca de conta e
-     * invisivel para quem entra depois.
+     * Apaga a credencial, a organizacao escolhida, **a visao guardada e os pacotes guardados sob
+     * ela**. Nenhuma das quatro e detalhe: o aparelho e compartilhado entre escolas, e o que o
+     * usuario anterior deixou sobrevivendo a troca de conta e invisivel para quem entra depois. A
+     * fatia 4a-zero pagou esse defeito com a organizacao; o pacote e o mesmo defeito um nivel
+     * abaixo, e por isso ADR-0013 manda cada fatia **nomear o que apaga** em vez de confiar num
+     * requisito generico de limpar dados locais.
+     *
+     * A visao entrou nesta lista nesta fatia, e ela e a **unica** das quatro que aparece em tela: sem
+     * este apagamento, quem entrasse depois no mesmo aparelho e abrisse sem rede leria o nome da
+     * organizacao anterior e a lista de provas dela.
+     *
+     * **A organizacao e lida antes de ser apagada.** Invertendo a ordem, o identificador ja teria
+     * sumido quando o cache fosse apagado, e o apagamento aconteceria sobre `null` — sem estourar, e
+     * sem apagar nada.
      */
     fun sair() {
+        val organizacao = organizacaoAtiva()
+
         guardada.apagarCredencial()
         guardada.apagarOrganizacaoEscolhida()
+        if (organizacao != null) {
+            visoes.apagarDaOrganizacao(organizacao)
+            pacotes.apagarDaOrganizacao(organizacao)
+        }
+
         state = DeviceState.Entrada(MotivoDeEntrada.SAIU)
     }
+
+    /**
+     * Qual organizacao esta ativa neste instante, para efeito de apagamento.
+     *
+     * O estado vem primeiro porque ele e o mais recente; o disco responde quando a tela nao esta em
+     * [DeviceState.Ativa] — sair a partir da escolha, por exemplo. Nao havendo nenhum dos dois, nao
+     * houve pull, porque puxar exige organizacao ativa.
+     */
+    private fun organizacaoAtiva(): String? =
+        (state as? DeviceState.Ativa)?.organizacao?.id ?: guardada.organizacaoEscolhida()
 
     /**
      * Uma organizacao so dispensa a escolha; mais de uma pede.
@@ -128,22 +244,56 @@ class DeviceSession(private val guardada: SessaoGuardada) {
      * Escolha guardada que nao esta mais na lista **volta a ser pedida**: perder o vinculo com uma
      * organizacao e possivel, e seguir com um identificador que a API nao devolve mais deixaria a
      * tela ativa sobre uma organizacao que o usuario nao tem.
+     *
+     * **Resposta sem organizacao nenhuma e revogacao tambem**, e isto e decisao desta fatia, nao
+     * heranca: a condicao que o requisito escreve — "o servidor respondeu e a organizacao nao esta
+     * mais entre as do usuario" — e satisfeita por uma lista vazia do mesmo jeito que por uma lista
+     * que nao a traz. Tratar a lista vazia como caso de falha, e nao de revogacao, deixaria o
+     * gabarito em cache exatamente na revogacao mais dura, a de quem perdeu todos os vinculos. O
+     * desfecho de tela nao muda ([DeviceState.SemOrganizacao]); o que muda e o que sai do disco.
      */
     private fun resolverOrganizacao(organizacoes: List<Organizacao>): DeviceState {
-        if (organizacoes.isEmpty()) return DeviceState.SemOrganizacao(FalhaDaConsulta.OUTRA)
-
         val guardadaAgora = guardada.organizacaoEscolhida()
-        val jaEscolhida = organizacoes.firstOrNull { it.id == guardadaAgora }
-        if (jaEscolhida != null) return DeviceState.Ativa(jaEscolhida)
 
-        if (guardadaAgora != null) guardada.apagarOrganizacaoEscolhida()
+        if (organizacoes.isEmpty()) {
+            if (guardadaAgora != null) revogar(guardadaAgora)
+            return DeviceState.SemOrganizacao(FalhaDaConsulta.OUTRA)
+        }
+
+        val jaEscolhida = organizacoes.firstOrNull { it.id == guardadaAgora }
+        if (jaEscolhida != null) return DeviceState.Ativa(jaEscolhida, Procedencia.Fresca)
+
+        if (guardadaAgora != null) revogar(guardadaAgora)
 
         val unica = organizacoes.singleOrNull()
         if (unica != null) {
             guardada.guardarOrganizacaoEscolhida(unica.id)
-            return DeviceState.Ativa(unica)
+            return DeviceState.Ativa(unica, Procedencia.Fresca)
         }
 
         return DeviceState.Escolhendo(organizacoes)
+    }
+
+    /**
+     * O vinculo caiu, e quem disse foi o servidor.
+     *
+     * Apaga a escolha, a **visao** e os **pacotes** daquela organizacao. A escolha sozinha ja caia
+     * desde a decisao 10 da 4a-zero; cair sem levar o resto deixava no aparelho o **gabarito** de uma
+     * organizacao que a instituicao ja revogou — e o gabarito nao aparece em tela nenhuma, entao
+     * ninguem tem como notar que ficou.
+     *
+     * **A ausencia de teto de tempo depende deste apagamento.** A decisao 2 do `design.md` recusou
+     * expirar a visao por calendario, e o que ela poe no lugar e isto: a visao vale enquanto o
+     * servidor nao disser o contrario, e no instante em que ele disser, o que estava guardado sob a
+     * organizacao vai junto. Sem esta funcao, "sem prazo de validade" viraria "para sempre".
+     *
+     * E o mesmo apagamento de [sair], com duas diferencas: a credencial continua valendo — o usuario
+     * segue sendo ele mesmo, e pode ter outras organizacoes —, e quem manda sair da organizacao e o
+     * servidor, e nao o professor.
+     */
+    private fun revogar(organizacao: String) {
+        guardada.apagarOrganizacaoEscolhida()
+        visoes.apagarDaOrganizacao(organizacao)
+        pacotes.apagarDaOrganizacao(organizacao)
     }
 }

@@ -28,7 +28,8 @@ fun textoSemOrganizacao(falha: FalhaDaConsulta): TextoSemOrganizacao = TextoSemO
     titulo = "Nao foi possivel obter sua organizacao",
     explicacao = when (falha) {
         FalhaDaConsulta.SEM_REDE ->
-            "Nao foi possivel falar com o servidor. Confira a conexao e tente de novo."
+            "Nao foi possivel falar com o servidor, e este aparelho ainda nao guardou nada desta " +
+                "organizacao. Conecte-se uma vez; depois disso ele abre sem rede."
         FalhaDaConsulta.OUTRA ->
             "O servidor respondeu, mas nao foi possivel usar a resposta. Tente de novo; se " +
                 "continuar, saia e entre novamente."

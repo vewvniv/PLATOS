@@ -2,6 +2,7 @@
 // sombreia o pacote, entao `java.util.Properties` nao compila.
 import com.android.build.api.variant.BuildConfigField
 import java.util.Properties
+import java.util.zip.ZipFile
 
 plugins {
     alias(libs.plugins.android.application)
@@ -192,34 +193,18 @@ android {
     }
 }
 
-/**
- * O pacote de referencia entra como asset do aplicativo.
+/*
+ * A fatia 4a removeu `EmbedPackageTask`, e a remocao e criterio de aceite e nao limpeza.
  *
- * Copia, e nao `assets.directories.add(fixtures)`: montar `fixtures/` inteiro embutiria os 60 MB do
- * corpus fotografado no APK. O `androidTest` monta a pasta toda porque as fotos sao o oracle dele;
- * o aplicativo precisa de um arquivo.
+ * Ate a 3c o pacote de referencia entrava como asset do aplicativo, e o proprio codigo marcava isso
+ * como provisorio. Com o pull de referencia imutavel, o asset deixou de existir junto com o
+ * `assets.open` que o lia (ADR-0013, decisao 5): um embutimento vivo com o consumidor removido
+ * deixaria o pacote dentro do APK sem ninguem para notar, e o portao binario de ADR-0009 morreria em
+ * silencio.
  *
- * A origem e provisoria e esta dita aqui: ate a fatia 4 trazer o pull de referencia imutavel, o
- * pacote so pode chegar ao aparelho embarcado no proprio APK.
+ * O `androidTest` continua montando `fixtures/` como assets **de teste**, que sao outro conjunto e
+ * nao vao para o APK de producao.
  */
-abstract class EmbedPackageTask : DefaultTask() {
-    @get:InputFile
-    abstract val source: RegularFileProperty
-
-    @get:OutputDirectory
-    abstract val outputDir: DirectoryProperty
-
-    @TaskAction
-    fun run() {
-        val destino = outputDir.get().asFile
-        destino.mkdirs()
-        source.get().asFile.copyTo(destino.resolve("prova-referencia.package.json"), overwrite = true)
-    }
-}
-
-val embedPackage = tasks.register<EmbedPackageTask>("embedPackage") {
-    source.set(rootProject.layout.projectDirectory.file("fixtures/prova-referencia.package.json"))
-}
 
 androidComponents {
     onVariants { variant ->
@@ -249,7 +234,6 @@ androidComponents {
             configuracao.map { BuildConfigField("String", "\"" + it.getValue("API_URL") + "\"", null) },
         )
 
-        variant.sources.assets?.addGeneratedSourceDirectory(embedPackage, EmbedPackageTask::outputDir)
     }
 }
 
@@ -310,3 +294,64 @@ tasks.withType<Test>().configureEach {
         rootProject.layout.projectDirectory.dir("fixtures").asFile.absolutePath,
     )
 }
+
+/**
+ * Nenhum pacote de prova entre os recursos empacotados (fatia 4a, tarefa 7.2).
+ *
+ * **Confere o APK, e nao o codigo.** A spec afirma que o aplicativo nao contem pacote de prova entre
+ * seus recursos, e essa e uma afirmacao sobre o artefato: um `grep` por `assets.open` diria que
+ * ninguem le, e nao que ninguem embutiu. O modo de falha que ADR-0013 decisao 5 chama de mais
+ * provavel e mais quieto e exatamente o embutimento sobrevivendo ao consumidor — tudo continua
+ * funcionando, e o que se perde e a garantia de que o pacote em uso foi conferido.
+ *
+ * A deteccao nao e por nome de arquivo. Um pacote renomeado continuaria sendo um pacote, entao o que
+ * se procura e a **forma**: um asset JSON que declare `answer_key` e `min_renderer_version` e um
+ * `ExamPackage`, chame-se como se chamar.
+ */
+abstract class VerificarApkSemPacoteTask : DefaultTask() {
+    @get:InputFiles
+    abstract val apks: ConfigurableFileCollection
+
+    @TaskAction
+    fun run() {
+        val encontrados = mutableListOf<String>()
+        var conferidos = 0
+
+        for (apk in apks.files.filter { it.isFile && it.extension == "apk" }) {
+            ZipFile(apk).use { zip ->
+                for (entrada in zip.entries()) {
+                    if (!entrada.name.startsWith("assets/")) continue
+                    if (!entrada.name.endsWith(".json")) continue
+                    conferidos++
+                    val texto = zip.getInputStream(entrada).use { it.readBytes().decodeToString() }
+                    if (texto.contains("\"answer_key\"") && texto.contains("\"min_renderer_version\"")) {
+                        encontrados += "${apk.name}!${entrada.name}"
+                    }
+                }
+            }
+        }
+
+        // Sem APK nenhum, a verificacao passaria por vacuidade e diria que esta tudo certo.
+        require(apks.files.any { it.isFile && it.extension == "apk" }) {
+            "nenhum APK para conferir; a tarefa depende de `assembleDebug`"
+        }
+
+        require(encontrados.isEmpty()) {
+            "ha pacote de prova entre os recursos empacotados: ${encontrados.joinToString()}. " +
+                "O pull de referencia imutavel e o unico caminho (ADR-0013, decisao 5)."
+        }
+
+        logger.lifecycle("APK sem pacote de prova: $conferidos asset(s) JSON conferido(s).")
+    }
+}
+
+val verificarApkSemPacote = tasks.register<VerificarApkSemPacoteTask>("verificarApkSemPacote") {
+    group = "verification"
+    description = "Confere que nenhum pacote de prova foi empacotado no APK"
+    dependsOn("assembleDebug")
+    // `.asFileTree`: um `ConfigurableFileCollection` alimentado por um diretorio traz o diretorio,
+    // e nao o conteudo dele. A guarda de vacuidade abaixo foi quem pegou isso.
+    apks.from(layout.buildDirectory.dir("outputs/apk/debug").map { it.asFileTree })
+}
+
+tasks.named("check") { dependsOn(verificarApkSemPacote) }

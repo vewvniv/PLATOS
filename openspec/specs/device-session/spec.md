@@ -20,16 +20,32 @@ A autenticação SHALL usar e-mail e senha contra o provedor de autenticação, 
 
 ### Requirement: A organização apresentada vem da API, e não do aparelho
 
-Depois de autenticar, o aplicativo SHALL obter as organizações do usuário pela API e SHALL apresentar o nome da organização ativa a partir do que a API devolveu.
+Depois de autenticar, o aplicativo SHALL obter as organizações do usuário pela API e SHALL apresentar
+o nome da organização ativa a partir do que a API devolveu.
 
-O aplicativo SHALL NOT apresentar nome digitado pelo usuário, embutido no aplicativo ou derivado da credencial. Quando a consulta não puder ser feita, o aplicativo SHALL dizer isso, e SHALL NOT apresentar nome nenhum.
+O aplicativo SHALL NOT apresentar nome digitado pelo usuário, embutido no aplicativo ou derivado da
+credencial.
+
+Quando a consulta não puder ser feita, o aplicativo SHALL apresentar o **último nome que a API
+devolveu para aquela organização**, marcado como leitura cacheada e com o instante em que foi visto,
+ou — não havendo nenhum — SHALL dizer que não conseguiu obter a organização e SHALL NOT apresentar
+nome nenhum.
+
+A regra que não mudou é a que importa: **todo nome apresentado veio da API**. O que a ausência de rede
+muda é a **idade** do nome, nunca a sua procedência, e a idade é apresentada junto com ele.
 
 #### Scenario: Entrada bem-sucedida
 - **WHEN** o usuário autentica com credencial válida e a consulta responde
-- **THEN** o nome apresentado é o que a API devolveu para aquela organização
+- **THEN** o nome apresentado é o que a API devolveu para aquela organização, sem marca de cache
+
+#### Scenario: A consulta falha depois de autenticar, e há visão guardada
+- **WHEN** a autenticação fecha, a consulta das organizações falha por falta de rede, e há visão
+  guardada para a organização
+- **THEN** o nome apresentado é o último que a API devolveu, marcado como leitura cacheada e com o
+  instante em que foi visto
 
 #### Scenario: A consulta falha depois de autenticar
-- **WHEN** a autenticação fecha e a consulta das organizações falha
+- **WHEN** a autenticação fecha e a consulta das organizações falha sem que haja visão guardada
 - **THEN** o aplicativo explica que não conseguiu obter a organização, e nenhum nome é apresentado
 
 #### Scenario: Entrar duas vezes não duplica nada
@@ -58,7 +74,17 @@ A escolha SHALL sobreviver ao fechamento do aplicativo. Quando a API devolver ex
 
 O aplicativo SHALL distinguir credencial recusada, ausência de rede e sessão expirada, e SHALL apresentar o motivo de cada uma. Ele SHALL NOT tratar uma como a outra, e SHALL NOT ficar em carregamento sem desfecho.
 
-Sessão expirada SHALL levar de volta à entrada no momento em que for detectada, e SHALL NOT ser deixada para falhar numa chamada posterior com mensagem que não seja sobre a sessão.
+Quando uma chamada autenticada é recusada por credencial expirada, o aplicativo SHALL descartar a
+credencial guardada e SHALL apresentar a entrada dizendo que a sessão expirou — **qualquer que seja
+o estado em que o aparelho esteja**, e não apenas durante a consulta das organizações.
+
+O requisito é escrito assim porque a fatia que criou as chamadas do pacote também criou o primeiro
+caso de chamada autenticada feita fora da consulta: listar provas e puxar pacote acontecem com a
+organização já ativa. Tratar a expiração só na consulta a descartava em silêncio, e o resultado era
+uma tela sem saída — credencial expirada ainda guardada, e um "tentar de novo" que falharia sempre.
+
+Recusa que chega depois de o usuário já ter saído SHALL NOT reescrever o motivo apresentado: quem
+saiu por vontade própria não viu a sessão expirar.
 
 #### Scenario: Credencial recusada
 - **WHEN** o usuário tenta entrar com credencial inválida
@@ -68,9 +94,19 @@ Sessão expirada SHALL levar de volta à entrada no momento em que for detectada
 - **WHEN** o usuário tenta entrar sem rede disponível
 - **THEN** o aplicativo diz que precisa de rede, e não apresenta isso como credencial recusada
 
-#### Scenario: Sessão expirada
-- **WHEN** a sessão guardada já não é aceita pela API
-- **THEN** o aplicativo volta à entrada dizendo que a sessão expirou
+#### Scenario: Expiração detectada durante a consulta das organizações
+- **WHEN** a consulta das organizações é recusada por credencial expirada
+- **THEN** a credencial é descartada e a entrada é apresentada dizendo que a sessão expirou
+
+#### Scenario: Expiração detectada com a organização já ativa
+- **WHEN** a listagem das provas ou o pull do pacote é recusado por credencial expirada, com o
+  aparelho já operando numa organização
+- **THEN** a credencial é descartada e a entrada é apresentada dizendo que a sessão expirou, e o
+  aplicativo NÃO apresenta falha de listagem nem oferece repetir a chamada
+
+#### Scenario: Expiração que chega depois de sair
+- **WHEN** a recusa por credencial expirada chega depois de o usuário já ter saído
+- **THEN** o motivo apresentado continua sendo o da saída, e não o de expiração
 
 ### Requirement: A credencial guardada não fica legível no aparelho
 
@@ -88,14 +124,313 @@ A organização escolhida não é credencial e não exige cifragem. Nenhuma das 
 
 ### Requirement: Sair apaga a sessão e a organização escolhida
 
-O aplicativo SHALL oferecer sair. Sair SHALL apagar do aparelho a sessão e a organização escolhida, e SHALL levar de volta à entrada.
+O aplicativo SHALL oferecer sair. Sair SHALL apagar do aparelho a sessão, a organização escolhida,
+**a última visão conhecida daquela organização** e os pacotes guardados sob ela, e SHALL levar de
+volta à entrada.
 
-Depois de sair, a entrada seguinte SHALL NOT vir com organização pré-selecionada, qualquer que seja o usuário que entrar.
+Depois de sair, a entrada seguinte SHALL NOT vir com organização pré-selecionada, qualquer que seja
+o usuário que entrar, e SHALL NOT alcançar pacote guardado antes da saída — a entrada seguinte refaz
+o pull.
+
+O apagamento dos pacotes é nomeado aqui, e não coberto por um requisito genérico de limpar dados
+locais, porque requisito genérico é fácil de dar como cumprido sem reler. O aparelho é compartilhado
+entre escolas, e o que o usuário anterior baixou sobrevivendo à troca de conta é invisível para quem
+entra depois. **A visão entra na mesma lista pela mesma razão, e é a única das quatro que aparece em
+tela:** sem apagá-la, quem entrasse depois no mesmo aparelho e abrisse sem rede leria o nome da
+organização anterior e a lista de provas dela.
 
 #### Scenario: Sair volta à entrada
 - **WHEN** o usuário sai
-- **THEN** o aplicativo apresenta a entrada, e nenhuma tela de trabalho é alcançável sem autenticar de novo
+- **THEN** o aplicativo apresenta a entrada, e nenhuma tela de trabalho é alcançável sem autenticar
+  de novo
 
 #### Scenario: A escolha do usuário anterior não é herdada
 - **WHEN** um usuário escolhe uma organização, sai, e outro usuário entra no mesmo aparelho
 - **THEN** nenhuma organização vem pré-selecionada para o segundo usuário
+
+#### Scenario: O pacote do usuário anterior não é herdado
+- **WHEN** um usuário baixa o pacote de uma prova, sai, e outro usuário entra no mesmo aparelho
+- **THEN** nenhum pacote daquela organização continua guardado, e escolher uma prova refaz o pull
+
+#### Scenario: Sair apaga a visão
+
+- **WHEN** o usuário sai
+- **THEN** nenhuma visão daquela organização continua guardada
+
+### Requirement: A prova a escanear é escolhida entre as que a API apresenta
+
+Com uma organização ativa, o aplicativo SHALL apresentar as provas publicadas dessa organização como
+vieram da API, e SHALL exigir que uma seja escolhida antes de qualquer escaneamento.
+
+O aplicativo SHALL NOT oferecer prova que não veio da consulta, nem permitir que o identificador de
+uma prova seja digitado ou embutido. Se nunca houve consulta bem-sucedida, não há de onde inventar a
+lista — é o mesmo princípio pelo qual o nome da organização vem da API.
+
+Quando a listagem não puder ser feita por falta de rede, o aplicativo SHALL apresentar as provas da
+**última listagem conhecida**, marcadas como leitura cacheada, e SHALL distinguir, antes da escolha,
+as que já têm pacote guardado das que não têm — escolher uma prova sem pacote guardado e sem rede
+termina em recusa, e o professor precisa saber disso antes de tocar.
+
+Falha da consulta sem visão guardada SHALL ser apresentada com motivo, distinguindo ausência de rede
+de outras falhas, e SHALL NOT ser apresentada como lista vazia. Organização que de fato não tem prova
+publicada SHALL ser apresentada como tal, e é estado diferente de consulta que falhou.
+
+#### Scenario: Provas apresentadas
+
+- **WHEN** a consulta devolve as provas publicadas da organização ativa
+- **THEN** o aplicativo apresenta essas provas, e escolher uma é o que leva ao escaneamento
+
+#### Scenario: Organização sem prova publicada
+
+- **WHEN** a consulta devolve nenhuma prova
+- **THEN** o aplicativo diz que a organização não tem prova publicada, e isso é distinguível de falha
+  na consulta
+
+#### Scenario: Consulta sem rede, com listagem conhecida
+
+- **WHEN** a listagem não chega ao servidor e há uma listagem anterior guardada
+- **THEN** as provas da última listagem são apresentadas, marcadas como leitura cacheada, e as que já
+  têm pacote guardado são distinguíveis das que não têm
+
+#### Scenario: Consulta sem rede
+
+- **WHEN** a listagem não chega ao servidor e nunca houve listagem bem-sucedida
+- **THEN** o aplicativo diz que está sem rede, e não apresenta lista vazia
+### Requirement: O aparelho guarda a última visão conhecida da organização e das provas
+
+A cada consulta bem-sucedida, o aplicativo SHALL guardar, por organização, o nome dela, as provas
+publicadas que a API devolveu — identificador, título e `content_hash` — e o instante em que aquilo
+foi visto.
+
+A visão guardada SHALL ser substituída **por inteiro** a cada consulta bem-sucedida, e SHALL NOT ser
+emendada: visão parcialmente antiga é indistinguível de visão correta para quem lê a tela.
+
+A visão guardada SHALL NOT conter dado pessoal. Ela descreve organização e provas, e nenhuma das duas
+é pessoa; roster e identidade de aluno seguem fora daqui.
+
+A visão guardada SHALL NOT ter prazo próprio de validade: enquanto o servidor não disser o contrário,
+ela vale. Quando o servidor responder e a organização não estiver mais entre as do usuário, o
+aplicativo SHALL apagar a visão **e** os pacotes guardados sob aquela organização.
+
+O que sair apaga é dito **uma vez**, no requisito de sair, e a visão entra naquela lista.
+
+#### Scenario: A visão é gravada quando a consulta responde
+
+- **WHEN** a consulta das organizações e a listagem das provas respondem
+- **THEN** o aparelho passa a guardar o nome da organização, as provas devolvidas e o instante da
+  consulta
+
+#### Scenario: A visão é substituída por inteiro
+
+- **WHEN** uma consulta posterior devolve um conjunto diferente de provas
+- **THEN** a visão guardada passa a ser a nova, sem restos da anterior
+
+#### Scenario: Vínculo revogado apaga a visão e os pacotes
+
+- **WHEN** o servidor responde e a organização guardada não está mais entre as do usuário
+- **THEN** a escolha cai, a visão daquela organização é apagada, e os pacotes guardados sob ela também
+
+### Requirement: Sem rede, o trabalho continua a partir da última visão conhecida
+
+Com credencial e organização guardadas, quando a consulta das organizações **não puder ser feita por
+falta de rede**, o aplicativo SHALL seguir para a tela de trabalho apresentando a última visão
+conhecida, e SHALL NOT parar antes de qualquer listagem.
+
+O aplicativo SHALL distinguir os dois casos que hoje terminam igual: **o servidor não respondeu** —
+segue com a última visão conhecida — e **o servidor respondeu e o vínculo não está lá** — a escolha
+cai. Esta segunda regra não muda.
+
+Sem visão conhecida para a organização guardada, o aplicativo SHALL recusar com motivo, dizendo que
+precisa de rede uma vez, e SHALL NOT apresentar tela de trabalho vazia.
+
+#### Scenario: Reabrir sem rede, com visão conhecida
+
+- **WHEN** o aplicativo é aberto sem rede, com credencial, organização e visão guardadas
+- **THEN** a tela de trabalho é apresentada a partir da visão guardada, e o escaneamento é alcançável
+  sem nenhuma chamada de rede
+
+#### Scenario: Reabrir sem rede, sem visão conhecida
+
+- **WHEN** o aplicativo é aberto sem rede e não há visão guardada para a organização
+- **THEN** o aplicativo diz que precisa de rede uma vez, e não apresenta tela de trabalho
+
+#### Scenario: A rede volta e o vínculo caiu
+
+- **WHEN** a consulta volta a responder e a organização guardada não está mais entre as do usuário
+- **THEN** a escolha guardada cai, como já caía, e o que estava guardado sob ela é apagado
+
+### Requirement: Dado apresentado a partir do cache é visualmente distinto de dado fresco
+
+Toda tela que apresente dado vindo da última visão conhecida SHALL marcá-lo de forma **visualmente
+distinta** — e não apenas por uma frase no meio do texto —, e SHALL dizer de quando ele é.
+
+O aplicativo SHALL oferecer, nessas telas, uma **ação explícita** de atualizar a visão.
+
+Quando a atualização falhar, o aplicativo SHALL continuar apresentando a visão anterior, ainda
+marcada, e SHALL NOT esvaziar a tela nem apresentar o dado como fresco.
+
+#### Scenario: Trabalho a partir do cache
+
+- **WHEN** a tela de trabalho é apresentada a partir da visão guardada
+- **THEN** a marca de leitura cacheada está visível, o instante da última consulta é apresentado, e há
+  uma ação de atualizar
+
+#### Scenario: Atualizar com rede
+
+- **WHEN** a ação de atualizar é acionada e a consulta responde
+- **THEN** a visão passa a ser a nova e a marca de leitura cacheada sai da tela
+
+#### Scenario: Atualizar sem rede
+
+- **WHEN** a ação de atualizar é acionada e a consulta não chega ao servidor
+- **THEN** a visão anterior continua apresentada e marcada, e o aplicativo diz que não conseguiu
+  atualizar
+
+### Requirement: O aparelho guarda o pacote puxado, endereçado pelo seu conteúdo e escopado pela organização
+
+Ao escolher uma prova, o aplicativo SHALL obter o pacote dela: do que já guarda, quando o conteúdo
+correspondente estiver presente e conferido, e da API caso contrário.
+
+O que o aparelho guarda SHALL ser endereçado pelo `content_hash` do conteúdo e SHALL ser separado
+por organização. O escopo por organização não é organização de arquivos: o que o aparelho guarda é
+um caminho de leitura que não passa pela fronteira do servidor, e num aparelho compartilhado ele
+entregaria a quem entrou depois um pacote que a API recusaria.
+
+A gravação SHALL ser atômica: SHALL NOT existir estado em que o conteúdo guardado sob um hash esteja
+incompleto. Queda de energia ou do aplicativo durante a gravação SHALL deixar o aparelho como se ela
+não tivesse começado.
+
+Pacote já guardado SHALL ser usado sem rede. Pacote ausente e sem rede SHALL levar à recusa
+explicada, e SHALL NOT levar a escaneamento.
+
+#### Scenario: Primeira vez que a prova é escolhida
+
+- **WHEN** uma prova é escolhida e o aparelho não guarda o conteúdo dela
+- **THEN** o pacote é puxado da API, conferido e guardado sob o hash do seu conteúdo, dentro do
+  escopo da organização ativa
+
+#### Scenario: Segunda vez, sem rede
+
+- **WHEN** a mesma prova é escolhida com o aparelho sem rede, depois de o pacote já ter sido guardado
+- **THEN** o pacote guardado é usado, e o escaneamento abre normalmente
+
+#### Scenario: Pacote ausente e sem rede
+
+- **WHEN** uma prova cujo pacote o aparelho não guarda é escolhida sem rede
+- **THEN** o aplicativo recusa abrir o escaneamento e diz que a prova precisa ser baixada com rede
+
+#### Scenario: Gravação interrompida
+
+- **WHEN** a gravação do pacote é interrompida antes de terminar
+- **THEN** o aparelho não passa a guardar conteúdo parcial sob aquele hash, e a próxima escolha
+  refaz o pull
+
+#### Scenario: Pacote de outra organização não é alcançável
+
+- **WHEN** um pacote é guardado sob uma organização e a organização ativa passa a ser outra
+- **THEN** aquele pacote não é usado, e escolher prova na organização ativa não o alcança
+
+### Requirement: Todo pacote é conferido antes de ser usado, e reconferido a cada leitura
+
+O aplicativo SHALL recusar usar pacote que não passe por duas conferências, e SHALL fazê-las tanto
+sobre o que chegou da API quanto sobre o que foi lido do que ele guarda.
+
+**Integridade do conteúdo:** o hash calculado sobre os bytes obtidos SHALL ser igual ao
+`content_hash` declarado — pela API, na entrega; pelo endereço sob o qual o conteúdo estava
+guardado. O hash SHALL ser recalculado sobre os bytes lidos, e SHALL NOT ser presumido do endereço:
+sem isso a conferência vale uma vez, na gravação, e todo uso seguinte é de conteúdo que ninguém mais
+olhou — corrupção em repouso, gravação truncada e adulteração local passariam caladas.
+
+**Fidelidade da interpretação:** reserializar canonicamente o pacote interpretado SHALL produzir os
+mesmos bytes que foram conferidos. Esta conferência responde uma pergunta diferente da primeira: o
+hash diz "recebi o que foi publicado?", e esta diz "eu entendi o que recebi?". O que ela pega é
+desalinhamento de versão — campo que uma versão antiga do aplicativo descarta em silêncio, valor
+padrão que ela injeta —, que um pacote íntegro tem e que o hash não acusa.
+
+Conteúdo guardado que falhe qualquer das duas SHALL ser descartado, e o aplicativo SHALL recair no
+pull. Conteúdo vindo da API que falhe qualquer das duas SHALL NOT ser guardado, e a recusa SHALL
+dizer qual conferência falhou.
+
+Nenhuma das duas conferências é autenticidade: o hash vem do mesmo servidor que os bytes, e quem
+controlar a resposta controla os dois. Autenticidade é do transporte cifrado.
+
+#### Scenario: Conteúdo guardado corrompido
+
+- **WHEN** o conteúdo guardado sob um hash é alterado e a prova é escolhida de novo
+- **THEN** a conferência de integridade falha, o conteúdo é descartado, e o aplicativo puxa de novo
+
+#### Scenario: Conteúdo entregue com hash divergente
+
+- **WHEN** a API entrega conteúdo cujo hash não bate com o declarado
+- **THEN** o pacote é recusado com motivo, nada é guardado, e o escaneamento não abre
+
+#### Scenario: Pacote que a versão do aplicativo não interpreta fielmente
+
+- **WHEN** o pacote é íntegro mas reserializá-lo canonicamente não reproduz os bytes conferidos
+- **THEN** o pacote é recusado dizendo que esta versão do aplicativo não o interpreta por inteiro, e
+  nenhuma nota é produzida a partir dele
+
+#### Scenario: Recusa é recusa, e não degradação
+
+- **WHEN** qualquer conferência falha
+- **THEN** o aplicativo não escaneia com o pacote recusado, e não apresenta resultado parcial
+
+### Requirement: O gate de pré-voo decide, antes da sessão, se ela pode abrir
+
+O aplicativo SHALL decidir antes de abrir o escaneamento se tem pacote conferido para a prova
+escolhida, e SHALL NOT abrir a câmera sem essa decisão ter passado.
+
+A decisão SHALL ser binária: com pacote conferido a sessão abre; sem ele, ela não abre e o motivo é
+apresentado. ADR-0009 fixa que não existe pacote parcialmente presente para uma prova.
+
+O gate SHALL recusar pacote que exija versão de renderizador maior que a do aplicativo, dizendo que
+o aplicativo precisa ser atualizado. Este é o mesmo guarda que já existe na renderização, aplicado
+ao caminho de captura — um pacote que o aplicativo não desenha por inteiro também não é um pacote
+que ele deva medir.
+
+Nenhum motivo de recusa SHALL ser apresentado como falha genérica: ausência de rede, pacote ausente,
+conferência falha e versão insuficiente são quatro estados distintos, com quatro frases distintas.
+
+#### Scenario: Gate passa
+
+- **WHEN** a prova escolhida tem pacote conferido no aparelho
+- **THEN** o escaneamento abre contra esse pacote
+
+#### Scenario: Gate barra por versão
+
+- **WHEN** o pacote conferido exige versão de renderizador maior que a do aplicativo
+- **THEN** o escaneamento não abre, e o aplicativo diz que precisa ser atualizado para esta prova
+
+#### Scenario: Gate barra por ausência
+
+- **WHEN** não há pacote conferido para a prova escolhida e o pull não pôde ser feito
+- **THEN** o escaneamento não abre, e o motivo apresentado distingue ausência de rede de falha de
+  conferência
+
+### Requirement: Voltar do escaneamento devolve à escolha da prova
+
+Quando o escaneamento fecha e a tela do preparo volta, o aplicativo SHALL apresentar de novo as
+provas da última consulta bem-sucedida, e SHALL NOT permanecer na tela de preparo.
+
+A volta SHALL NOT depender de rede. A lista apresentada é a que já veio, e escolher de novo a mesma
+prova usa o pacote já guardado: escanear é atividade de sala, e sala é onde não há sinal — uma volta
+que precisasse consultar de novo devolveria tela de falha a quem acabou de escanear.
+
+Nenhuma tela do preparo SHALL afirmar estado que não é o seu. "Preparando" é o que está sendo obtido
+e conferido; o que já passou pelo gate está abrindo a câmera. Dizer a mesma frase nos dois casos
+esconde exatamente o estado em que o aplicativo pode ficar parado.
+
+#### Scenario: Voltar do escaneamento
+
+- **WHEN** o escaneamento fecha e a tela do preparo volta
+- **THEN** as provas já apresentadas voltam à tela, e o aplicativo não fica na tela de preparo
+
+#### Scenario: Escanear a mesma prova outra vez
+
+- **WHEN** a mesma prova é escolhida de novo depois de voltar do escaneamento
+- **THEN** o preparo recomeça por ela, sem nova consulta de provas e usando o pacote já guardado
+
+#### Scenario: Volta que chega fora do escaneamento
+
+- **WHEN** a volta chega com o preparo em outro estado que não o de escaneamento aberto
+- **THEN** o estado do preparo não é reescrito

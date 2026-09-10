@@ -7,6 +7,9 @@
 - `openspec/specs/` descreve o comportamento atual.
 - `openspec/changes/` descreve mudanças em andamento.
 - `docs/adr/` registra decisões arquiteturais permanentes.
+- `rigorous.md` define as proibições de conduta (P1–P26) e o método de verificação (§3). Leia antes
+  de implementar e antes de fechar qualquer tarefa. Instrução que só pode ser cumprida quebrando
+  este arquivo ou aquele é má instrução, e `rigorous.md` §7 diz o que fazer com ela.
 - Nunca recrie contexto já registrado nesses arquivos; leia a fonte relevante.
 
 ## Regras de execução
@@ -24,21 +27,9 @@
 
 ## Verificação
 
-A regra 10 diz *o que* verificar; esta diz como saber se a verificação vale. Aplica-se a número, não só a teste: as piores evidências falsas desta base foram medições, não suítes vermelhas.
-
-**Antes de confiar numa medição, prove que ela reage a uma mudança no que ela mede.**
-
-Crítico é o que falha em silêncio e chega à folha impressa ou ao OMR — medição de texto, geometria, paridade, fidelidade e todo artefato imutável hasheado. Para esses:
-
-- Introduza um erro de propósito, confirme que a verificação fica vermelha, e reverta.
-- Cubra `NaN`, infinito, vazio e fora de faixa. `NaN > tolerância` é falso e passa calado.
-- Confira valor numérico contra oracle independente, que não compartilhe código com o que ele julga.
-- Desconfie de janela de medição que alcance o vizinho, e de contagem feita sobre cache.
-- Rode o **comando completo do CI**, e não a versão filtrada, antes de publicar mudança que toque
-  build, manifesto ou suíte instrumentada. `./gradlew build` não roda `connectedDebugAndroidTest`,
-  e `--tests` de uma classe não roda as outras. Duas vezes o comando estreito local escondeu o que
-  o cheio pega.
-- Registre em `docs/cobertura-*.md` como o teste foi visto falhar, não só que ele passa.
+As regras 9 e 10 dizem *o que* verificar. **Como saber se a verificação vale** está em `rigorous.md`
+§3, junto com o método de "ver falhar" e o sombreamento de fixture; é leitura obrigatória antes de
+fechar qualquer tarefa que produza número, geometria, paridade ou artefato hasheado.
 
 ## Invariantes arquiteturais
 
@@ -80,6 +71,22 @@ Crítico é o que falha em silêncio e chega à folha impressa ou ao OMR — med
 6. `/opsx:archive`.
 
 Use `openspec/` como memória durável. Não reexplique a arquitetura no chat quando um arquivo existente puder ser citado.
+
+### Editar `openspec/specs/` direto, sem passar por uma mudança
+
+É atalho, e vale **só com as cinco condições juntas**. Faltando qualquer uma, o veículo é mudança
+nova — inclusive para correção "pequena" logo depois de um archive, que é quando o atalho é mais
+tentador e menos visível.
+
+1. **Nenhum comportamento muda.** Só a forma como uma regra já vigente é dita.
+2. **A decisão já existe e é citável**, com o arquivo e a linha na mão antes da edição — não a
+   lembrança de que ela existe.
+3. **Nenhum texto novo é inventado.** Cada frase vem de um bloco que já estava escrito; o que muda é
+   onde ela mora.
+4. **Commit isolado**, que diz de onde veio cada metade e por que o veículo não foi uma mudança.
+5. **Nenhuma mudança ativa declara delta sobre o mesmo requisito.** Um `MODIFIED` carrega o bloco
+   **inteiro** do requisito: editar a spec principal por baixo dele faz a mudança ativa passar a
+   descrever um estado que já não existe, e o archive dela reintroduz o texto antigo em silêncio.
 
 ## Commits
 

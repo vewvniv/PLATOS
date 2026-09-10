@@ -47,6 +47,13 @@ tasks.test {
         "platos.fixtures.dir",
         rootProject.layout.projectDirectory.dir("fixtures").asFile.absolutePath,
     )
+
+    // A flag do harness de publicacao precisa ser **repassada** a JVM de teste: `-D` na linha de
+    // comando chega so a JVM do Gradle. Sem este repasse o harness nao falha -- ele passa,
+    // silenciosamente, sem ter publicado nada. Mesmo padrao de `platos.golden.write`.
+    providers.systemProperty("platos.publicar.fixtures").orNull?.let {
+        systemProperty("platos.publicar.fixtures", it)
+    }
 }
 
 dependencies {

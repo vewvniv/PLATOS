@@ -4,6 +4,7 @@ import com.platos.api.ApiDependencies
 import com.platos.api.billing.EntitlementResolver
 import com.platos.api.billing.PlanCatalog
 import com.platos.api.db.Tenancy
+import com.platos.api.exam.ExamQueries
 import com.platos.api.identity.IdentityBootstrap
 import com.platos.api.identity.OrganizationQueries
 import java.nio.file.Paths
@@ -21,6 +22,7 @@ object TestDependencies {
             tenancy = Tenancy(PostgresSupport.appDataSource),
             identityBootstrap = IdentityBootstrap(PostgresSupport.appDataSource),
             organizationQueries = OrganizationQueries(),
+            examQueries = ExamQueries(),
             entitlementResolver = EntitlementResolver(PlanCatalog.load(plansDir)),
             jwt = JwtTestFixture.config,
         )
