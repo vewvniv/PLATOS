@@ -47,6 +47,7 @@ interface SessaoGuardada {
 class DeviceSession(
     private val guardada: SessaoGuardada,
     private val pacotes: PacotesGuardados,
+    private val visoes: VisoesGuardadas,
 ) {
 
     var state: DeviceState = DeviceState.Entrada()
@@ -114,18 +115,39 @@ class DeviceSession(
             is ResultadoDasOrganizacoes.Chegaram -> resolverOrganizacao(resultado.organizacoes)
             is ResultadoDasOrganizacoes.SessaoExpirada ->
                 error("tratada acima; o ramo existe para o `when` seguir exaustivo sem `else`")
-            is ResultadoDasOrganizacoes.SemRede ->
-                DeviceState.SemOrganizacao(FalhaDaConsulta.SEM_REDE)
+            is ResultadoDasOrganizacoes.SemRede -> semRede()
             is ResultadoDasOrganizacoes.Falhou ->
                 DeviceState.SemOrganizacao(FalhaDaConsulta.OUTRA)
         }
+    }
+
+    /**
+     * O servidor **nao respondeu** — e isso nao e o mesmo que ele ter respondido sem a organizacao.
+     *
+     * Ate esta fatia os dois casos terminavam iguais, e o registro do §16 chama isso de risco de
+     * entrega da §10: com pacote conferido em disco, o aplicativo parava no arranque a dois passos
+     * dele. **O caso que a decisao 10 da 4a-zero decidiu continua decidido**: quando o servidor
+     * responde e o vinculo nao esta la, a escolha guardada cai — quem faz isso e `resolverOrganizacao`,
+     * e nao este ramo.
+     *
+     * Sem organizacao guardada, ou sem visao dela, nao ha o que apresentar: a tela explica e pede
+     * rede uma vez. Visao guardada e a **unica** origem do nome aqui; nada e construido.
+     */
+    private fun semRede(): DeviceState {
+        val escolhida = guardada.organizacaoEscolhida()
+            ?: return DeviceState.SemOrganizacao(FalhaDaConsulta.SEM_REDE)
+
+        val visao = visoes.ler(escolhida)
+            ?: return DeviceState.SemOrganizacao(FalhaDaConsulta.SEM_REDE)
+
+        return DeviceState.Ativa(visao.organizacao, Procedencia.Cacheada(visao.vistaEm))
     }
 
     /** A escolha de quem segura o aparelho, entre as organizacoes apresentadas. */
     fun escolher(organizacao: Organizacao) {
         if (state !is DeviceState.Escolhendo) return
         guardada.guardarOrganizacaoEscolhida(organizacao.id)
-        state = DeviceState.Ativa(organizacao)
+        state = DeviceState.Ativa(organizacao, Procedencia.Fresca)
     }
 
     /**
@@ -174,14 +196,14 @@ class DeviceSession(
 
         val guardadaAgora = guardada.organizacaoEscolhida()
         val jaEscolhida = organizacoes.firstOrNull { it.id == guardadaAgora }
-        if (jaEscolhida != null) return DeviceState.Ativa(jaEscolhida)
+        if (jaEscolhida != null) return DeviceState.Ativa(jaEscolhida, Procedencia.Fresca)
 
         if (guardadaAgora != null) guardada.apagarOrganizacaoEscolhida()
 
         val unica = organizacoes.singleOrNull()
         if (unica != null) {
             guardada.guardarOrganizacaoEscolhida(unica.id)
-            return DeviceState.Ativa(unica)
+            return DeviceState.Ativa(unica, Procedencia.Fresca)
         }
 
         return DeviceState.Escolhendo(organizacoes)

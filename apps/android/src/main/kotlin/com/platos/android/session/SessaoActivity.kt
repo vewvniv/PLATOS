@@ -111,7 +111,7 @@ class SessaoActivity : ComponentActivity() {
         // Mesma razao do cache de pacotes: quem sabe onde fica o armazenamento privado e o
         // `Activity`; a visao so sabe de arquivos, e e isso que a deixa verificavel na JVM.
         visoes = VisoesEmArquivo(java.io.File(filesDir, "visoes"))
-        sessao = DeviceSession(guardada, pacotes)
+        sessao = DeviceSession(guardada, pacotes, visoes)
         http = clienteHttp()
 
         autenticacao = AutenticacaoSupabase(
