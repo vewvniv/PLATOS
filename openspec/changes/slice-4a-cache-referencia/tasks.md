@@ -40,6 +40,39 @@
 
   **Uma armadilha de instrumento pega no caminho:** a primeira rodada da (ii) devolveu `BUILD SUCCESSFUL` com a task **`UP-TO-DATE`** e zero testes executados — exatamente o que P2 registra. As rodadas seguintes usaram `--rerun`.
 
+  **Remedição de 2026-09-10, e ela começa desmentindo o próprio parágrafo acima.** "Ver falhar, com
+  conjuntos disjuntos declarados ANTES das mutações" **é afirmação sem âncora**, e fica aqui marcada
+  como tal em vez de ser apagada (P7). Conferido no histórico, arquivo a arquivo: a tabela X/Y entrou
+  na árvore em `fe88bcc` (02:19), o **mesmo** commit que carrega os resultados dela; o `tasks.md`
+  autorado em `eea3ae1` (01:39) tinha **três** tarefas na seção 4 e nenhuma exigência de conjuntos
+  disjuntos — a 4.3 de então é a 4.4 de hoje. O registro não distingue "escrito na árvore antes de
+  rodar" de "escrito depois, no mesmo commit". O que **estava** escrito antes é a obrigação geral
+  (`rigorous.md` §3) e o par da **3.3**, esse sim autorado às 01:39 e implementado às 02:07.
+
+  O que a remedição acrescenta, e por que ela não é repetição: totais de suíte e **mensagem** de
+  asserção, que a primeira passada não colheu (ela deu só nomes), e uma declaração cuja ordem **tem**
+  âncora — a tabela abaixo é commitada antes de qualquer mutação ser injetada, e os resultados vêm em
+  commit separado.
+
+  | Mutação | O que ela faz | Vermelho esperado | Verde esperado, e o que ele prova |
+  |---|---|---|---|
+  | **(i)** | `semResposta()` devolve `ListagemFalhou(SEM_REDE)` sem consultar a visão | `listagem_sem_rede_cai_na_ultima_listagem_conhecida`, `visao_vazia_guardada_sem_rede_e_sem_prova_publicada_e_nao_falha`, `provas_com_pacote_guardado_sao_distinguiveis_das_sem` — **três**, todos do caminho X | `lista_vazia_que_chegou_nao_e_mascarada_pela_visao` (Y intacto), `listagem_sem_rede_sem_visao_guardada_continua_sendo_falha` e `listagem_sem_rede_nao_e_lista_vazia` (que já esperam falha, e por isso não medem X) |
+  | **(ii-b)** | lista vazia que chegou **e havendo visão guardada** não substitui a visão: apresenta o que havia | `lista_vazia_que_chegou_nao_e_mascarada_pela_visao` — **um** | as três de X, e também `listagem_vazia_que_chegou_grava_visao_vazia` e `organizacao_sem_prova_publicada_e_estado_proprio`, que rodam **sem** visão guardada e por isso não têm o que perder |
+  | **(ii-c)**, acrescentada nesta passada | a mesma coisa **sem** a guarda de "havendo visão": toda lista vazia que chega cai em `semResposta()` | as três do vazio: `lista_vazia_que_chegou_nao_e_mascarada_pela_visao`, `listagem_vazia_que_chegou_grava_visao_vazia`, `organizacao_sem_prova_publicada_e_estado_proprio` | as três de X |
+
+  **Por que a (ii-c) entra.** O registro da primeira passada diz que a (ii-b) derrubou "só" um
+  cenário, e isso é verdade da (ii-b) **com** a guarda — que é a forma plausível do defeito, porque
+  "não perca a lista" só faz sentido quando há lista a perder. A (ii-c) responde a pergunta que a
+  primeira passada deixou aberta: a proteção Y descansa num cenário só, ou em três? Se ela derrubar
+  três, o "só um" da (ii-b) é medida da **precisão da mutação**, e não da estreiteza da cobertura.
+
+  Suíte de referência desta passada: **211 testes** em `:apps:android:testDebugUnitTest`. Cada rodada
+  usa `--rerun` e é conferida pelo `timestamp` do relatório XML, e não pelo `BUILD` do Gradle — foi
+  exatamente um `UP-TO-DATE` com zero testes que enganou a primeira rodada da (ii) na passada
+  anterior (P2), e a rodada mais exposta a ele é a de **reversão**, cujas entradas voltam a ser as de
+  um build que já passou.
+
+
   **Terceiro caso, declarado para não virar decisão silenciosa:** `Falhou` — o servidor respondeu e a resposta não serve — **não** cai na visão. A spec fala em "falta de rede", e resposta inutilizável não é afirmação sobre o mundo nem ausência de servidor: é motivo para tentar de novo, e o aparelho está alcançando a rede. Fica com um cenário próprio.
 
 - [x] 4.4 **Ver falhar (4.2):** apresentar todas como disponíveis. **Resultado honesto: a mutação NÃO isolou** — derrubou **cinco** cenários, e não um: `provas_com_pacote_guardado_sao_distinguiveis_das_sem` mais quatro que comparam o estado apresentado por igualdade exata (`provas_que_chegam_viram_escolha`, `escolher_prova_que_nao_foi_apresentada_nao_faz_nada`, `resultado_de_pacote_que_chega_fora_do_preparo_e_descartado`, `voltar_do_escaneamento_devolve_a_escolha_da_prova`). A presença é **parte do estado**, e o estilo desta base é comparar o estado inteiro; então uma marca errada quebra em todo lugar que afirma o estado. **A leitura que isso permite, e a que não permite:** os cinco vermelhos apontam para a **mesma** proteção — não há ambiguidade sobre qual delas segurou, que é o que a §3 do `rigorous.md` quer impedir —, mas esta mutação não distingue camadas como a da 4.3 distingue. Fica registrado como isolamento **fraco**, e não como isolamento.
