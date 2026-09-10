@@ -172,6 +172,39 @@ elementos `<testcase>` contra o atributo `tests="49"` —, que é a mesma dupla 
 listam). Somar arquivos de relatório sem conferir a **qual task** cada um pertence é a lição da P3
 repetida um nível abaixo.
 
+## O serviço que respondeu esta sessão não veio do pipeline (2026-09-10)
+
+A conferência em aparelho inteira falou com `platos-api-latest.onrender.com`, e **a imagem que
+respondeu não foi publicada pelo caminho normal.** O `publicar-api.yml` dispara em `workflow_run` do
+CI com `branches: [main]` — mais `workflow_dispatch` manual —, e as rotas que a sessão usou
+(`/organizations/{id}/exams`, `/exams/{id}/package`) **não existem no `main`**: elas nasceram nesta
+branch. Logo, o que estava servindo veio de um `workflow_dispatch` disparado à mão a partir de uma
+branch não mesclada.
+
+**O que isso não invalida:** as medições da seção 7 valem, porque o que elas afirmam é o
+comportamento do **aplicativo** contra um servidor que respondeu de verdade — e ele respondeu, com
+os números e horários registrados.
+
+**O que isso cria, e é o motivo desta seção:** um estado de produção sem prazo. Imagem publicada à
+mão fora do pipeline fica servindo até alguém lembrar de reconciliá-la, e "até alguém lembrar" não é
+prazo. **A regra que falta é de operação, não de teste: deploy manual fora do pipeline padrão nasce
+com prazo de reconciliação com a `main`** — a branch que o originou é mesclada, ou a imagem é
+revertida para a do `main`, e a data disso é escrita junto com o disparo. Sem prazo, o registro do
+que está em produção passa a depender de memória, que é a forma mais barata de contradizer uma
+decisão sem perceber (P21).
+
+**E há um agravante que só apareceu quando tentei conferir o P26 depois do merge:** `/health` responde
+literalmente `"ok"`. A API **não sabe dizer qual build ela é**, e o Render segue a tag `latest`, que é
+mutável. A cadeia "publicado → implantado → servindo" tem os dois primeiros elos observáveis de fora
+(o run do workflow, e o digest de `latest` contra o de `sha-<curto>`) e o terceiro **não**. Pior: como
+a imagem em produção já foi construída desta branch, o build mesclado é funcionalmente idêntico ao
+que já servia — não existe sonda de comportamento que distinga os dois. **O deploy manual não só saiu
+do pipeline: ele deixou a própria reconciliação invisível.**
+
+O conserto durável é a API dizer qual build ela é — `/health` devolvendo o `sha-<curto>` que a
+imagem carrega. Fica nomeado abaixo, e **não** entra nesta fatia: é mudança de contrato de rota, com
+requisito próprio, e fazê-la aqui seria a refatoração fora de escopo que a P19 proíbe.
+
 ## Achados fora do escopo, com dono e fatia-limite
 
 Nenhum destes é defeito desta fatia, e nenhum foi consertado aqui (P19). Ficam nomeados porque
@@ -182,6 +215,8 @@ achado sem dono é achado que ninguém procura.
 | **Expiração de sessão não apaga o cache** — e está certo: quem expirou é o token, não o vínculo. Visto no disco às 15:29Z com token de 82 min. Não estava escrito em lugar nenhum | `DeviceSession.aoConsultarOrganizacoes`, ramo `SessaoExpirada` | nenhuma: é decisão a **documentar**, não a mudar. Cabe numa linha da spec de `device-session` |
 | **O título "Escolha a prova" fica sob a barra de status** — a `Column` não tem inset de topo. Cosmético, pré-existente (o título já nascia no topo antes desta fatia); na tela de trabalho não aparece porque o conteúdo é centralizado | `EscolhaDaProvaScreen` | a próxima que tocar essa tela |
 | **Não há troca de organização sem sair** — a tela de trabalho oferece escanear, atualizar e sair. Quem tem duas escolas precisa fazer logout para trocar. Exposto por acidente: a revogação derrubou a escolha, sobrou uma organização, ela foi guardada, e o aparelho ficou preso nela mesmo depois de o vínculo voltar | `TrabalhoScreen` / `DeviceSession.escolher` | 4b, quando professor com duas escolas deixa de ser hipótese |
+| **A API não sabe dizer qual build ela é** — `/health` responde `"ok"`, e o Render segue a tag mutável `latest`. Torna o terceiro elo do P26 ("está servindo o quê?") inobservável de fora. Conserto: `/health` devolvendo o `sha-<curto>` da imagem | `apps/api/http/Routes.kt` (`healthRoutes`) e `.github/workflows/publicar-api.yml` | a próxima fatia que tocar deploy ou operação |
+| **Deploy manual sem prazo de reconciliação** — a imagem que respondeu esta sessão veio de `workflow_dispatch` de branch não mesclada. Regra que falta: disparo manual nasce com data de reconciliação com a `main`, escrita junto | `docs/deploy-api.md` | a mesma da linha acima |
 | **A variante release não tem teste de unidade no grafo** — `testReleaseUnitTest` não é listada por `tasks --all`, e não há `beforeVariants` nem `enableUnitTest` em `.kts` nenhum da árvore. **Por que ela não existe não foi investigado**, e fica dito assim em vez de explicado por suposição (P6). Consequência: defeito que só apareça com configuração de release não é pego pelo `build` | `apps/android/build.gradle.kts` | a próxima que mexer em build ou variante |
 | **`connectedDebugAndroidTest` desinstala o aplicativo ao terminar** — e com ele vai o `filesDir`. É o que explica o cache que "sumiu sem que ninguém observasse" na 0.1, e é P3 em estado puro: estado que mora no instrumento não avisa quando desaparece | `apps/android/build.gradle.kts` (a suíte instrumentada) | nenhuma: é para o protocolo, e entra no §14.1 como pré-condição |
 
