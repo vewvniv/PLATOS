@@ -72,6 +72,49 @@
   anterior (P2), e a rodada mais exposta a ele é a de **reversão**, cujas entradas voltam a ser as de
   um build que já passou.
 
+  **O que as três rodadas deram** (2026-09-10, entre 12:07:00Z e 12:07:57Z, cada `timestamp` do XML
+  posterior ao da rodada anterior — o instrumento executou, não reaproveitou relatório):
+
+  **(i) — 211 testes, 3 vermelhos: exatamente os três declarados, e Y verde.**
+
+  - `listagem_sem_rede_cai_na_ultima_listagem_conhecida`: "veio ListagemFalhou(falha=SEM_REDE) ==>
+    expected: <true> but was: <false>";
+  - `visao_vazia_guardada_sem_rede_e_sem_prova_publicada_e_nao_falha`: "expected:
+    <SemProvaPublicada(procedencia=Cacheada(vistaEm=1757000000000))> but was:
+    <ListagemFalhou(falha=SEM_REDE)>";
+  - `provas_com_pacote_guardado_sao_distinguiveis_das_sem`: **`ClassCastException`**, e não asserção —
+    "class EstadoDaProva$ListagemFalhou cannot be cast to class EstadoDaProva$Escolhendo". **Achado
+    desta passada, e é o tipo de coisa que só a mensagem mostra:** o vermelho é real, mas ele fala da
+    **forma** do estado e não da proteção. A P9 pede que a asserção confira o motivo da recusa; este
+    cenário faz `state as EstadoDaProva.Escolhendo` antes de comparar, então sob qualquer mutação que
+    mude o estado ele estoura no cast. Fica como lacuna **conhecida, não mitigada** (P8): a asserção
+    de presença é boa, o preâmbulo dela é que não diz nada.
+
+  **(ii-b) — 211 testes, 1 vermelho: exatamente o declarado, com o motivo na mensagem.**
+  `lista_vazia_que_chegou_nao_e_mascarada_pela_visao`: "expected: <SemProvaPublicada(procedencia=Fresca)>
+  but was: <Escolhendo(provas=[…mat-7a-2026-1…, …mat-7b-2026-1…], procedencia=Cacheada(vistaEm=1757000000000))>".
+  A mensagem **é** o defeito escrito: as provas de ontem apresentadas como se existissem hoje. As três
+  de X ficaram verdes, então **(i) e (ii-b) caem em conjuntos disjuntos** — a disjunção que a primeira
+  passada afirmou, agora medida com total e mensagem.
+
+  **(ii-c) — 211 testes, 4 vermelhos, e eu havia declarado 3. A declaração estava incompleta.**
+  Além das três do vazio, caiu `listagem_sem_rede_nao_e_lista_vazia`: "expected: not equal but was:
+  <ListagemFalhou(falha=SEM_REDE)>". Era predizível e eu não predisse: aquele cenário compara os dois
+  estados **diretamente** (`assertNotEquals(vazia.state, semRede.state)`), e sem a guarda de "havendo
+  visão" uma lista vazia que chega sem visão nenhuma termina em `ListagemFalhou(SEM_REDE)` — o mesmo
+  estado de "não respondeu". Os dois colapsam, que é exatamente o defeito que a fatia 4a existiu para
+  distinguir, e há um cenário nomeado para pegá-lo.
+
+  **A resposta à pergunta que a (ii-c) foi injetada para responder:** a proteção Y descansa em
+  **quatro** cenários, não em um. O "só um" da (ii-b) é medida da **precisão daquela mutação** — ela
+  ataca só o caso em que há lista a perder —, e não da estreiteza da cobertura.
+
+  **Reversão:** as três revertidas, `grep MUTACAO` zero nos `.kt`, `git diff` vazio contra o commit da
+  declaração, e a reversão conferida **rodando** — 211 testes, 0 falhas, 0 erros, relatório com
+  `timestamp` 2026-09-10T12:07:56.823Z, posterior às três rodadas de mutação. É esta rodada que o
+  `UP-TO-DATE` da passada anterior teria mascarado, e é por isso que o sinal citado aqui é o
+  `timestamp` do relatório, e não o `BUILD SUCCESSFUL`.
+
 
   **Terceiro caso, declarado para não virar decisão silenciosa:** `Falhou` — o servidor respondeu e a resposta não serve — **não** cai na visão. A spec fala em "falta de rede", e resposta inutilizável não é afirmação sobre o mundo nem ausência de servidor: é motivo para tentar de novo, e o aparelho está alcançando a rede. Fica com um cenário próprio.
 
