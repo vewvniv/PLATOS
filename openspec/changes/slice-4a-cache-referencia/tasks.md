@@ -206,9 +206,70 @@
 
 ## 7. Conferência em aparelho — o critério de aceite
 
-- [ ] 7.1 **A 9.2 herdada, na íntegra:** puxar o pacote com rede, fechar o aplicativo com `am force-stop`, ligar o modo avião, reabrir e escanear. Acordar o serviço com `GET /health` **antes** e registrar horário e código, pela razão da 9.3: cold start no meio do teste chega ao aplicativo como falta de rede e faz o teste passar pelo motivo errado. Resultado: o caminho que a fatia 4 inteira existe para produzir.
-- [ ] 7.2 Conferir por `uiautomator` que a marca de cache e o instante estão na tela, e que atualizar sem rede mantém a visão em vez de esvaziá-la. Resultado: a lacuna da 6.4 paga em aparelho, e não por teste que não existe.
-- [ ] 7.3 Revogar o vínculo no banco, reconectar, e conferir que a visão e os pacotes daquela organização somem do `filesDir` — inspecionando o disco, e não a tela. **Ou registrar por que não é produzível hoje**, no formato da 8.6 da 4a.
+- [x] 7.1 **A 9.2 herdada, na íntegra:** puxar o pacote com rede, fechar o aplicativo com `am force-stop`, ligar o modo avião, reabrir e escanear. Acordar o serviço com `GET /health` **antes** e registrar horário e código, pela razão da 9.3: cold start no meio do teste chega ao aplicativo como falta de rede e faz o teste passar pelo motivo errado. Resultado: o caminho que a fatia 4 inteira existe para produzir. **Fechada em 2026-09-10, no
+  telefone `2511FPC34G` (Android 16, API 36), e a cadeia inteira num único processo.** O acordar
+  primeiro, pela razão da 9.3: `GET /health` **200 em 44,5 s** (14:00:29Z → 14:01:14Z) e, na chamada
+  seguinte, **200 em 0,205 s** — o serviço estava frio de verdade, e a diferença 44,5 s → 0,2 s é o
+  que diz que o processo subiu, não que ele respondeu uma vez. `GET /me/organizations` sem token:
+  **401** (§13.1, item 1). Depois: pull com rede; **o pacote conferido no disco com o SHA-256 batendo
+  em três lugares** — conteúdo lido do aparelho por `adb exec-out`, fixture do repositório e nome do
+  arquivo no cache, todos `26612ad5…909a`, 101.618 bytes, e o `sha256sum` do host é oráculo
+  independente do `MessageDigest` do aplicativo (P4); `am force-stop` com **pid 13980 → vazio**;
+  modo avião por `cmd connectivity`, com `ping 8.8.8.8` **de dentro do aparelho** devolvendo
+  `Network is unreachable` — a asserção é sobre a pilha de rede, não sobre um ícone; `am start` às
+  14:15:27Z abrindo em **pid novo 16591**. Nesse processo, e sem rede em nenhum instante da vida
+  dele: tela de trabalho vinda da visão, lista vinda da visão, e **a câmera abriu** às 14:27:27Z
+  (`mCurrentFocus=…ScanActivity`, preview ao vivo na captura). A âncora foi reconferida **depois** da
+  câmera abrir: modo avião ainda `enabled`, `Network is unreachable`, mesmo pid 16591 (P3).
+  **Achado da preparação:** o aplicativo **não estava instalado** — a suíte instrumentada da 1.4 o
+  desinstala ao terminar, e é isso que explica o `files/packages/<org>/` que havia sumido "sem que
+  ninguém observasse" na 0.1. O `filesDir` começou com **só** `profileInstalled`, então a ordem do
+  §14.3 é obrigatória e não preferência.
+- [x] 7.2 Conferir por `uiautomator` que a marca de cache e o instante estão na tela, e que
+  atualizar sem rede mantém a visão em vez de esvaziá-la. Resultado: a lacuna da 6.4 paga em
+  aparelho, e não por teste que não existe. **Fechada em 2026-09-10, e os quatro candidatos a bug
+  nomeados na 6.4 foram procurados um a um: nenhum existe.** O selo é desenhado (`SEM CONEXAO`), e a
+  captura de tela mostra que a marca é **visual** — caixa com fundo e borda, não frase no meio do
+  texto. O instante na tela é `visto em 10/09/2026 as 16:10`, **exatamente** o oráculo calculado em
+  Python a partir do `vista_em` do JSON no disco (`1789049423447` → 16:10:23 em `Europe/Madrid`):
+  disco contra tela, dois instrumentos, e o fuso do aparelho conferido antes (`Europe/Madrid`,
+  UTC+2) para que a diferença de duas horas não fosse lida como defeito. A mesma captura carrega o
+  ícone de avião e o relógio do sistema em **16:16** contra o selo em **16:10** — o dado é mesmo mais
+  velho que o agora, e isso está no mesmo artefato. Atualizar sem rede: a tela **não esvaziou**,
+  selo e nome ficaram, e apareceu `Nao foi possivel atualizar: o aparelho nao alcancou o servidor. O
+  que esta na tela continua valendo.` — **com a segunda frase**, que é a metade que o requisito pede
+  e a lista branca do `MarcaDeLeituraTest` prende. A idade **não envelheceu** (16:10 antes e depois),
+  e **a visão no disco ficou intocada** — 493 bytes, mesmo `vista_em` —, o que é o par em aparelho do
+  cenário de JVM "listagem que falha não grava". Isso mata os dois candidatos que só apareceriam em
+  movimento: o aviso **é** desenhado, e o botão está em `atualizarSessao` — com `abrirSessao` o aviso
+  seria **impossível**, porque naquele caminho o `falhaAoAtualizar` nunca é escrito. Na tela de
+  escolha da prova, o mesmo selo, e a distinção da 4.2 **assimétrica**: `slice-1 · baixada` contra
+  `slice-2 · precisa de rede` — se a mutação da 4.4 fosse verdade, as duas diriam a mesma coisa.
+- [x] 7.3 Revogar o vínculo no banco, reconectar, e conferir que a visão e os pacotes daquela
+  organização somem do `filesDir` — inspecionando o disco, e não a tela. **Ou registrar por que não é
+  produzível hoje**, no formato da 8.6 da 4a. **Fechada em 2026-09-10, e a asserção é conjuntiva.**
+  `delete from public.membership` da linha `teacher` do professor na escola (com `set role
+  app_owner`, senão a política recusa e a recusa parece erro de sintaxe), depois `force-stop` +
+  `am start` com rede. Antes: visão de 493 B e pacote de 101.618 B. Depois: **os dois sumiram** — e a
+  conferência que fecha por exaustão é `find files -type f`, que devolveu **só** `files/profileInstalled`;
+  o diretório `packages/<org>/` inteiro foi, não só o arquivo do hash. Se apenas a visão tivesse
+  sumido, seria a mutação da 5.3 acontecendo em produção. A tela caiu para `professor1`, a
+  organização pessoal, sem selo. **O ramo exercitado foi "respondeu sem a organização"**, porque o
+  professor tem organização pessoal: então a decisão que a 5.1 tomou — **lista vazia também é
+  revogação** — segue verificada **só na JVM**, e isso fica dito em vez de ser deixado ambíguo.
+  **Antes da conferência, o serviço estava frio de novo** (`/health` em 44,4 s às 15:28Z): sem
+  acordá-lo, a consulta chegaria ao aplicativo como falta de rede, que **não** revoga e cai na visão —
+  eu teria lido "a revogação não funciona" olhando um teste que nunca falou com o servidor. E o token
+  havia expirado (82 min > 60, sem refresh), então o primeiro arranque caiu em `Sua sessao expirou.
+  Entre de novo para continuar.` — o que rendeu de graça duas conferências: o caminho de expiração da
+  9b.1 funciona em aparelho, e **expiração de sessão não apaga o cache** (visão e pacote intactos no
+  disco), que é o correto — quem expirou é o token, não o vínculo. **Uma tentativa foi perdida por
+  sequenciamento meu:** eu mandei o SQL de restauração na mesma mensagem em que pedi o login, o
+  `membership` voltou antes de o aplicativo consultar, e a primeira rodada não mediu revogação
+  nenhuma — a tela mostrou a escola fresca. Refeito na ordem certa. Antes de perguntar qualquer coisa
+  ao desenvolvedor eu conferi que `/me/organizations` lista por **join com `membership`**
+  (`OrganizationQueries.listForCurrentUser`), porque se ela listasse por outro caminho o `delete`
+  nunca teria sido revogação e a premissa do roteiro estaria errada.
 - [ ] 7.4 Conferir que o caminho da 4a não regrediu: escolher prova, câmera abre, folha de outra prova continua recusada por identidade.
 
 ## 8. Verificação final

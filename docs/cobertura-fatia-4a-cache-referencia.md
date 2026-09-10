@@ -1,7 +1,7 @@
 # Cobertura de cenários — fatia 4a-cache-referencia (a visão guardada da organização)
 
-Documento **em construção**: a fatia está parcialmente implementada — as seções 1 a 6 do `tasks.md`
-fecharam, e a conferência em aparelho (7) não. O registro **por tarefa** vive em
+Documento **em construção**: as seções 1 a 6 do `tasks.md` fecharam, a conferência em aparelho (7)
+fechou as tarefas 7.1 a 7.3 em 2026-09-10, e falta a verificação final (8). O registro **por tarefa** vive em
 `openspec/changes/slice-4a-cache-referencia/tasks.md`; este documento existe para que um achado seja
 encontrável **por assunto**, e a tarefa 8.2 é quem o consolida no fim.
 
@@ -89,6 +89,63 @@ O apagamento de `sair` e o de `revogar` caem em conjuntos disjuntos. E há um ca
 outros: `vinculo_que_continua_valendo_nao_apaga_nem_visao_nem_pacote` — sem ele, "apagar a cada
 consulta bem-sucedida" passaria em todos os cenários de revogação, porque eles afirmam que o
 apagamento **aconteceu**, nunca que ele foi seletivo (P13).
+
+## A conferência em aparelho de 2026-09-10
+
+Telefone `2511FPC34G`, Android 16 (API 36), serviço real em `platos-api-latest.onrender.com`.
+Instrumento: `adb` para processo, rede e disco; `uiautomator dump` para ler a tela; `screencap` para
+o que é visual. **`adb shell input` está proibido neste aparelho** — a política da Xiaomi/HyperOS
+exige "Depuração USB (configurações de segurança)", que pede conta Mi —, então os toques foram
+manuais e a leitura foi automática. Isso não muda o método: o §14 já é roteiro manual.
+
+**O acordar do serviço não é cerimônia.** Duas vezes nesta sessão o `/health` levou ~44 s (14:00:29Z
+e 15:28Z) contra ~0,2 s na chamada seguinte: o serviço dorme, e uma consulta contra serviço frio
+chega ao aplicativo como **falta de rede**. Sem acordá-lo antes, a 7.1 passaria pelo motivo errado
+(cold start lido como cache funcionando) e a 7.3 **falharia** pelo motivo errado (falta de rede não
+revoga, cai na visão).
+
+| O que | Como foi observado | Resultado |
+|---|---|---|
+| O pacote no disco é o que o nome diz | `adb exec-out … cat` + `sha256sum` **do host**, contra a fixture do repositório e contra o nome do arquivo | os três `26612ad5…909a`, 101.618 bytes. Oráculo independente do `MessageDigest` do aplicativo (P4), e o contrário do que P2 proíbe — nome certo não é prova de conteúdo |
+| O processo morreu | `pidof` antes e depois do `force-stop` | 13980 → vazio |
+| Não havia rede | `cmd connectivity airplane-mode` **e** `ping 8.8.8.8` de dentro do aparelho | `enabled` e `Network is unreachable`. A asserção é sobre a pilha de rede, não sobre o ícone |
+| A tela de trabalho veio da visão | `am start` em pid **novo** (16591), `uiautomator` | `SEM CONEXAO` · `visto em 10/09/2026 as 16:10` · `Escola de Teste` |
+| O instante apresentado é o do disco | `vista_em` do JSON convertido em Python com `zoneinfo` | `1789049423447` → 16:10:23 `Europe/Madrid` = o texto da tela, ao minuto |
+| A marca é **visual** | `screencap` | caixa com fundo e borda, rótulo em maiúsculas e idade embaixo — não frase no meio do texto |
+| Atualizar sem rede não esvazia | `uiautomator` + `ls` no disco | selo e nome ficaram, aviso apareceu **com a segunda frase**, idade não envelheceu, e a visão no disco ficou intocada (493 B, mesmo `vista_em`) |
+| A distinção da 4.2, no mundo | `uiautomator` na tela de escolha | `slice-1 · baixada` contra `slice-2 · precisa de rede` — assimétrica |
+| A câmera abre sem rede | `mCurrentFocus` + `screencap` | `ScanActivity`, preview ao vivo, às 14:27:27Z, **no mesmo pid 16591** |
+| A âncora aguentou | reconferida **depois** do desfecho (P3) | modo avião ainda `enabled`, `Network is unreachable`, mesmo pid |
+| A revogação leva os dois | `delete from membership` + `find files -type f` | restou **só** `files/profileInstalled`: a visão e o **diretório** `packages/<org>/` inteiro foram |
+
+Toda a cadeia — arranque, tela de trabalho, atualizar frustrado, lista, câmera — aconteceu **no
+processo 16591**, que nasceu já em modo avião. Não é que ele não usou a rede: ela não existiu em
+nenhum instante da vida dele.
+
+**Um erro de sequenciamento, registrado porque custou uma rodada:** na primeira tentativa da 7.3 eu
+mandei o SQL de restauração na mesma mensagem em que pedi o login. O `membership` voltou antes de o
+aplicativo consultar, e a rodada não mediu revogação nenhuma — a tela mostrou a escola fresca, o que
+é o comportamento **correto** para vínculo válido. Antes de culpar o código eu conferi que
+`/me/organizations` lista por join com `membership`; se listasse por outro caminho, o `delete` nunca
+teria sido revogação. Refeito na ordem certa, com o SQL de restauração entregue **depois** da
+conferência.
+
+**Uma condição de vigia fraca, pela mesma família de erro que a P3 descreve:** um dos observadores
+disparava em "saiu da tela de entrada", e `Buscando suas organizacoes` satisfaz isso — ele pegou o
+`ConsultandoScreen` no ar e reportou disco cheio, como se a revogação não tivesse apagado nada. O
+gatilho precisa ser o estado **terminal**, não a saída do anterior.
+
+## Achados fora do escopo, com dono e fatia-limite
+
+Nenhum destes é defeito desta fatia, e nenhum foi consertado aqui (P19). Ficam nomeados porque
+achado sem dono é achado que ninguém procura.
+
+| Achado | Onde | Fatia-limite |
+|---|---|---|
+| **Expiração de sessão não apaga o cache** — e está certo: quem expirou é o token, não o vínculo. Visto no disco às 15:29Z com token de 82 min. Não estava escrito em lugar nenhum | `DeviceSession.aoConsultarOrganizacoes`, ramo `SessaoExpirada` | nenhuma: é decisão a **documentar**, não a mudar. Cabe numa linha da spec de `device-session` |
+| **O título "Escolha a prova" fica sob a barra de status** — a `Column` não tem inset de topo. Cosmético, pré-existente (o título já nascia no topo antes desta fatia); na tela de trabalho não aparece porque o conteúdo é centralizado | `EscolhaDaProvaScreen` | a próxima que tocar essa tela |
+| **Não há troca de organização sem sair** — a tela de trabalho oferece escanear, atualizar e sair. Quem tem duas escolas precisa fazer logout para trocar. Exposto por acidente: a revogação derrubou a escolha, sobrou uma organização, ela foi guardada, e o aparelho ficou preso nela mesmo depois de o vínculo voltar | `TrabalhoScreen` / `DeviceSession.escolher` | 4b, quando professor com duas escolas deixa de ser hipótese |
+| **`connectedDebugAndroidTest` desinstala o aplicativo ao terminar** — e com ele vai o `filesDir`. É o que explica o cache que "sumiu sem que ninguém observasse" na 0.1, e é P3 em estado puro: estado que mora no instrumento não avisa quando desaparece | `apps/android/build.gradle.kts` (a suíte instrumentada) | nenhuma: é para o protocolo, e entra no §14.1 como pré-condição |
 
 ## O que ficou sem verificação automática, e por quê
 
