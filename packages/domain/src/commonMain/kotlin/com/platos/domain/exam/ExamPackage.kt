@@ -1,6 +1,7 @@
 package com.platos.domain.exam
 
 import com.platos.domain.hash.Sha256
+import com.platos.domain.layout.DrawQr
 import com.platos.domain.layout.LayoutMap
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -71,17 +72,47 @@ data class PackageVariant(
 )
 
 /**
- * Uma atribuicao: qual variante cabe a qual aluno.
+ * O que distingue a folha de uma atribuicao da folha da variante: o QR dela.
+ *
+ * **Carrega o conteudo, e nao a geometria.** Posicao, lado e modulo do QR ficam onde sempre
+ * estiveram — na primitiva da geometria da variante —, e aqui ficam so o payload e a matriz que dele
+ * decorre. E isso que torna "folhas da mesma prova diferem so no QR" verdadeiro **por construcao**:
+ * uma folha com o QR em outro lugar nao e representavel.
+ *
+ * **Um QR, e nao uma lista.** A spec vigente exige exatamente uma regiao escaneavel por folha; QR
+ * repetido por regiao e D23, e quando ele chegar muda as duas specs juntas. Lista agora seria a
+ * abstracao prematura que a regra 8 proibe.
+ *
+ * [modules] vem ja codificada, como em `DrawQr`, e pela mesma razao: o payload e resolvido **uma
+ * vez**, na publicacao, e ninguem recodifica depois.
+ */
+@Serializable
+data class AssignmentQr(
+    val payload: String,
+    val modules: List<String>,
+)
+
+/**
+ * Uma atribuicao: qual variante cabe a qual aluno, e o QR que identifica a folha dele.
  *
  * **Traz apenas o token, e e aqui que I5 e decidida.** Nome, turma e matricula vivem no roster, que
  * e mutavel e nao entra neste artefato. A diferenca entre "fora do hash" e "fora do pacote" e o que
  * importa: campo dentro do pacote e excluido do hash continua sendo dado pessoal dentro de um
  * artefato imutavel copiado para dispositivo offline (ADR-0002).
+ *
+ * **O [qr] e nulavel no tipo, e a validacao e quem recusa a ausencia.** Nao e frouxidao: a spec
+ * exige um cenario de recusa para "atribuicao sem folha enderecavel", e campo nao-nulavel tornaria
+ * esse estado inconstruivel — a recusa ficaria sem como ser testada. Pacote com atribuicao sem QR
+ * existe o tempo suficiente para ser recusado antes de gravar, e nao mais que isso.
+ *
+ * Prova publicada sem roster nao tem atribuicao nenhuma — e o caso da folha avulsa, em que o campo
+ * de aluno do payload fica vazio.
  */
 @Serializable
 data class PackageAssignment(
     @SerialName("student_token") val studentToken: String,
     @SerialName("variant_id") val variantId: String,
+    val qr: AssignmentQr? = null,
 )
 
 /** Gabarito: item -> alternativa correta e pontuacao. */
@@ -123,7 +154,15 @@ data class ExamPackage(
     val items: List<PackageItem>,
     val variants: List<PackageVariant>,
     val assignments: List<PackageAssignment>,
-    /** Layout por variante. A geometria e a que o Layout Engine produziu; o pacote a embute. */
+    /**
+     * Layout por variante. A geometria e a que o Layout Engine produziu; o pacote a embute.
+     *
+     * **Uma geometria por variante, e nao uma por aluno.** O que distingue a folha de cada
+     * atribuicao e o QR dela, que viaja em [PackageAssignment.qr]; a folha de um aluno se obtem por
+     * [folhaDaAtribuicao]. Guardar um layout completo por aluno custaria 2,64 MB para trinta alunos
+     * contra 129,2 KB desta forma, medido sobre a fixture de referencia — e e este artefato que o
+     * aparelho puxa, confere por hash e cacheia.
+     */
     val layout: Map<String, LayoutMap>,
     @SerialName("answer_key") val answerKey: List<AnswerKeyEntry>,
     val scoring: Scoring,
@@ -155,3 +194,54 @@ data class ExamPackage(
 data class Scoring(
     @SerialName("max_score") val maxScore: Int,
 )
+
+/**
+ * A folha de uma atribuicao: a geometria da variante dela, com o QR dela no lugar do da variante.
+ *
+ * **A regra e mecanica de proposito**, porque ela e executada duas vezes — uma em Kotlin e uma no
+ * renderizador do web, que le o mesmo JSON (D-2a.1). Trocar dois campos de uma primitiva e o
+ * bastante pequeno para as duas implementacoes coincidirem, e a paridade entre plataformas e quem
+ * pega divergencia se elas nao coincidirem.
+ *
+ * Devolve `null` quando o token nao tem atribuicao neste pacote, e **estoura** quando a atribuicao
+ * existe e a variante dela nao tem layout: a primeira e pergunta legitima de quem le uma folha
+ * desconhecida, a segunda e pacote incoerente, que a validacao recusa antes de gravar.
+ */
+fun ExamPackage.folhaDaAtribuicao(studentToken: String): LayoutMap? {
+    val atribuicao = assignments.firstOrNull { it.studentToken == studentToken } ?: return null
+    val geometria = requireNotNull(layout[atribuicao.variantId]) {
+        "pacote incoerente: a atribuicao `$studentToken` aponta a variante `${atribuicao.variantId}`, " +
+            "que nao tem layout"
+    }
+    val qr = requireNotNull(atribuicao.qr) {
+        "pacote incoerente: a atribuicao `$studentToken` nao tem QR proprio"
+    }
+
+    return geometria.comQrDe(qr)
+}
+
+/**
+ * A mesma geometria, com o payload e a matriz do QR substituidos.
+ *
+ * Exige **exatamente um** QR no mapa, e essa exigencia e a spec vigente escrita em codigo: toda
+ * folha tem uma regiao escaneavel, com um QR dentro dela. Zero ou dois seria mapa que a validacao do
+ * layout nao deveria ter deixado passar, e trocar "o primeiro que aparecer" esconderia isso.
+ */
+private fun LayoutMap.comQrDe(qr: AssignmentQr): LayoutMap {
+    val quantos = pages.sumOf { pagina -> pagina.primitives.count { it is DrawQr } }
+    require(quantos == 1) { "esperava exatamente um QR no layout, e o mapa tem $quantos" }
+
+    return copy(
+        pages = pages.map { pagina ->
+            pagina.copy(
+                primitives = pagina.primitives.map { primitiva ->
+                    if (primitiva is DrawQr) {
+                        primitiva.copy(payload = qr.payload, modules = qr.modules)
+                    } else {
+                        primitiva
+                    }
+                },
+            )
+        },
+    )
+}
