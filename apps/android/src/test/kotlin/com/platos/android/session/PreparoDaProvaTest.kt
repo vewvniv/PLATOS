@@ -30,12 +30,36 @@ class PreparoDaProvaTest {
         File(fixtures, "prova-referencia.package.json").readText(),
     )
 
+    /**
+     * Um duplo em memoria. O que a porta faz sobre arquivos ja e conferido em `VisoesEmArquivoTest`;
+     * o que este arquivo verifica e **quando** a maquina grava, e nao como o disco responde.
+     */
+    private class VisoesEmMemoria : VisoesGuardadas {
+        val gravadas = mutableMapOf<String, VisaoDaOrganizacao>()
+        val apagadas = mutableListOf<String>()
+
+        override fun ler(organizacao: String): VisaoDaOrganizacao? = gravadas[organizacao]
+
+        override fun guardar(visao: VisaoDaOrganizacao) {
+            gravadas[visao.organizacao.id] = visao
+        }
+
+        override fun apagarDaOrganizacao(organizacao: String) {
+            apagadas += organizacao
+            gravadas.remove(organizacao)
+        }
+    }
+
+    private val visoes = VisoesEmMemoria()
+    private val escola = Organizacao("01a06ba4-cb43-7d97-842d-165352d010b5", "Escola de Teste")
+    private val agora = 1_757_000_000_000L
+
     private val provaA = ProvaPublicada("mat-7a-2026-1", "Prova de Matematica", "a".repeat(64))
     private val provaB = ProvaPublicada("mat-7b-2026-1", "Prova de Portugues", "b".repeat(64))
 
     private fun preparoEscolhendo(vararg provas: ProvaPublicada): PreparoDaProva {
-        val preparo = PreparoDaProva()
-        preparo.aoListar(ResultadoDasProvas.Chegaram(provas.toList()))
+        val preparo = PreparoDaProva(visoes, escola)
+        preparo.aoListar(ResultadoDasProvas.Chegaram(provas.toList()), agora)
         return preparo
     }
 
@@ -56,8 +80,8 @@ class PreparoDaProvaTest {
 
     @Test
     fun organizacao_sem_prova_publicada_e_estado_proprio() {
-        val preparo = PreparoDaProva()
-        preparo.aoListar(ResultadoDasProvas.Chegaram(emptyList()))
+        val preparo = PreparoDaProva(visoes, escola)
+        preparo.aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora)
 
         assertEquals(EstadoDaProva.SemProvaPublicada, preparo.state)
     }
@@ -70,8 +94,8 @@ class PreparoDaProvaTest {
      */
     @Test
     fun listagem_sem_rede_nao_e_lista_vazia() {
-        val semRede = PreparoDaProva().apply { aoListar(ResultadoDasProvas.SemRede) }
-        val vazia = PreparoDaProva().apply { aoListar(ResultadoDasProvas.Chegaram(emptyList())) }
+        val semRede = PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.SemRede, agora) }
+        val vazia = PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora) }
 
         assertEquals(EstadoDaProva.ListagemFalhou(FalhaDaListagem.SEM_REDE), semRede.state)
         assertNotEquals(vazia.state, semRede.state)
@@ -79,8 +103,8 @@ class PreparoDaProvaTest {
 
     @Test
     fun listagem_que_falha_por_outra_causa_e_distinta_de_sem_rede() {
-        val outra = PreparoDaProva().apply { aoListar(ResultadoDasProvas.Falhou) }
-        val semRede = PreparoDaProva().apply { aoListar(ResultadoDasProvas.SemRede) }
+        val outra = PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.Falhou, agora) }
+        val semRede = PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.SemRede, agora) }
 
         assertEquals(EstadoDaProva.ListagemFalhou(FalhaDaListagem.OUTRA), outra.state)
         assertNotEquals(semRede.state, outra.state)
@@ -90,9 +114,61 @@ class PreparoDaProvaTest {
     fun resultado_de_listagem_que_chega_fora_de_listando_e_descartado() {
         val preparo = preparoPreparando()
 
-        preparo.aoListar(ResultadoDasProvas.Chegaram(listOf(provaB)))
+        preparo.aoListar(ResultadoDasProvas.Chegaram(listOf(provaB)), agora)
 
         assertEquals(EstadoDaProva.Preparando(provaA), preparo.state)
+    }
+
+    // --- A gravacao da visao (tarefas 2.1 e 2.2) ---
+
+    /**
+     * Listagem que chegou grava a visao inteira: nome, provas e o instante.
+     *
+     * As tres partes sao afirmadas, e nao so a existencia da visao: sem o nome o arranque sem rede
+     * nao tem o que apresentar, sem as provas ele tem nome e nada para escanear, e sem o instante a
+     * tela nao consegue dizer de quando e o que mostra.
+     */
+    @Test
+    fun listagem_que_chega_grava_a_visao() {
+        val preparo = preparoEscolhendo(provaA, provaB)
+
+        val visao = requireNotNull(visoes.ler(escola.id)) { "nada foi gravado" }
+        assertEquals(escola, visao.organizacao)
+        assertEquals(listOf(provaA, provaB), visao.provas)
+        assertEquals(agora, visao.vistaEm)
+        assertTrue(preparo.state is EstadoDaProva.Escolhendo, "veio ${preparo.state}")
+    }
+
+    /**
+     * Organizacao que **de fato** nao tem prova publicada grava visao vazia.
+     *
+     * "Nao ha prova publicada" e uma afirmacao sobre o mundo, e a consulta que chegou a autoriza. O
+     * aparelho pode reproduzi-la sem rede em vez de pedir conexao para redescobrir um vazio.
+     */
+    @Test
+    fun listagem_vazia_que_chegou_grava_visao_vazia() {
+        PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora) }
+
+        val visao = requireNotNull(visoes.ler(escola.id)) { "lista vazia que chegou nao gravou" }
+        assertEquals(emptyList<ProvaPublicada>(), visao.provas)
+    }
+
+    /**
+     * **O cenario que a tarefa 2.2 protege.** Falha nao grava, e a razao nao e economia.
+     *
+     * A afirmacao forte e a segunda: uma visao boa **sobrevive** a uma listagem que falhou. Gravar
+     * no caminho de falha substituiria o que o aparelho sabia por um vazio, e o professor sem rede
+     * passaria a nao ver as provas que via um minuto antes.
+     */
+    @Test
+    fun listagem_que_falha_nao_grava_e_nao_apaga_o_que_havia() {
+        preparoEscolhendo(provaA, provaB)
+        val boa = requireNotNull(visoes.ler(escola.id))
+
+        PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.SemRede, agora + 1) }
+        PreparoDaProva(visoes, escola).apply { aoListar(ResultadoDasProvas.Falhou, agora + 2) }
+
+        assertEquals(boa, visoes.ler(escola.id), "uma listagem que falhou mexeu na visao guardada")
     }
 
     // --- A escolha ---

@@ -11,9 +11,9 @@
 
 ## 2. A gravação, na consulta bem-sucedida
 
-- [ ] 2.1 Gravar a visão quando a consulta das organizações e a listagem das provas respondem: nome, provas e o instante. Resultado: a visão passa a existir no aparelho; ninguém a lê ainda.
-- [ ] 2.2 Testar que consulta que **falha** não grava nada. Resultado: uma falha de rede não substitui visão boa por visão vazia — que seria pior do que não ter visão nenhuma.
-- [ ] 2.3 **Ver falhar:** gravar também no caminho de falha, e confirmar que o cenário da 2.2 fica vermelho enquanto o da 2.1 continua verde. Reverter e rodar.
+- [x] 2.1 Gravar a visão quando a consulta das organizações e a listagem das provas respondem: nome, provas e o instante. Resultado: a visão passa a existir no aparelho; ninguém a lê ainda. **Feito:** a escrita mora em `PreparoDaProva.aoListar`, e não na `Activity` — foi a fiação que produziu 9b.1 e 9b.2, e nenhum teste desta base a alcança. A máquina passou a receber a organização e a porta por construtor, e o instante por parâmetro do evento: relógio dentro dela tornaria a idade impossível de afirmar. `SessaoActivity` só constrói `VisoesEmArquivo(filesDir/visoes)` e passa `System.currentTimeMillis()`.
+- [x] 2.2 Testar que consulta que **falha** não grava nada. Resultado: uma falha de rede não substitui visão boa por visão vazia — que seria pior do que não ter visão nenhuma. **A asserção forte é a segunda**, e é ela que o teste faz: uma visão boa **sobrevive** a `SemRede` e a `Falhou`. Um terceiro cenário fixa a decisão de que lista vazia **que chegou** grava vazia — "não há prova publicada" é afirmação sobre o mundo, e a consulta que respondeu a autoriza.
+- [x] 2.3 **Ver falhar:** gravar também no caminho de falha, e confirmar que o cenário da 2.2 fica vermelho enquanto o da 2.1 continua verde. Reverter e rodar. **Feito:** com a gravação nos dois ramos de falha, **22 testes, 1 vermelho** — só `listagem_que_falha_nao_grava_e_nao_apaga_o_que_havia`, com "uma listagem que falhou mexeu na visao guardada". `listagem_que_chega_grava_a_visao` continuou verde, que é a disjunção que a tarefa pede. Revertida, suíte unitária completa re-rodada verde, e `grep MUTACAO` devolve zero.
 
 ## 3. A leitura no arranque — a primeira parede
 

@@ -45,6 +45,7 @@ class SessaoActivity : ComponentActivity() {
 
     private lateinit var guardada: SessaoGuardadaAndroid
     private lateinit var pacotes: PacotesEmArquivo
+    private lateinit var visoes: VisoesEmArquivo
     private lateinit var http: HttpClient
     private lateinit var autenticacao: AutenticacaoSupabase
     private lateinit var api: ApiPlatos
@@ -107,6 +108,9 @@ class SessaoActivity : ComponentActivity() {
         // Quem sabe onde fica o armazenamento privado do aplicativo e o `Activity`; o cache so sabe
         // de arquivos, e e isso que o deixa verificavel na JVM (decisao 4 do `design.md`).
         pacotes = PacotesEmArquivo(java.io.File(filesDir, "packages"))
+        // Mesma razao do cache de pacotes: quem sabe onde fica o armazenamento privado e o
+        // `Activity`; a visao so sabe de arquivos, e e isso que a deixa verificavel na JVM.
+        visoes = VisoesEmArquivo(java.io.File(filesDir, "visoes"))
         sessao = DeviceSession(guardada, pacotes)
         http = clienteHttp()
 
@@ -194,7 +198,8 @@ class SessaoActivity : ComponentActivity() {
 
     /** Abre o fluxo de escolha de prova sobre a organizacao ativa, e lista. */
     private fun prepararProva() {
-        val maquina = PreparoDaProva()
+        val organizacao = (state as? DeviceState.Ativa)?.organizacao ?: return
+        val maquina = PreparoDaProva(visoes, organizacao)
         preparo = maquina
         listarProvas()
     }
@@ -207,7 +212,9 @@ class SessaoActivity : ComponentActivity() {
         estadoDaProva = maquina.state
 
         lifecycleScope.launch {
-            maquina.aoListar(api.provas(organizacao).paraProvas())
+            // O instante vem daqui, e nao de dentro da maquina: relogio dentro dela tornaria a idade
+            // da visao impossivel de afirmar num teste, e a idade e o que a tela apresenta.
+            maquina.aoListar(api.provas(organizacao).paraProvas(), System.currentTimeMillis())
             estadoDaProva = maquina.state
             (maquina.state as? EstadoDaProva.Escolhendo)?.let { provasApresentadas = it.provas }
         }

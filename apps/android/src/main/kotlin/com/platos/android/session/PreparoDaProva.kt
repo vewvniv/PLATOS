@@ -38,9 +38,18 @@ sealed interface ResultadoDoPacote {
  * `when`. E a mesma fronteira que a 3a desenhou entre `vision/` e `omr/`, pela mesma razao.
  *
  * A organizacao ativa e pre-condicao, e nao estado daqui: sem ela nao ha o que listar, e quem sabe
- * disso e [DeviceSession].
+ * disso e [DeviceSession]. Ela entra por construtor porque a visao guardada e **por organizacao**, e
+ * porque um fluxo de preparo pertence a uma organizacao so — trocar de organizacao descarta o fluxo.
+ *
+ * **[visoes] e porta, e a escrita mora aqui e nao na `Activity`.** Foi a fiacao entre maquina pura e
+ * tela que produziu os dois defeitos da fatia 4a (9b.1 e 9b.2), e nenhum teste desta base a alcanca.
+ * Com a gravacao na maquina, "listagem que chega grava a visao" e "listagem que falha nao grava" sao
+ * cenarios de JVM.
  */
-class PreparoDaProva {
+class PreparoDaProva(
+    private val visoes: VisoesGuardadas,
+    private val organizacao: Organizacao,
+) {
 
     var state: EstadoDaProva = EstadoDaProva.Listando
         private set
@@ -51,21 +60,32 @@ class PreparoDaProva {
     }
 
     /**
-     * O resultado da listagem.
+     * O resultado da listagem, e a gravacao da visao quando ele chega.
      *
      * **Lista vazia e [EstadoDaProva.SemProvaPublicada], e falha e [EstadoDaProva.ListagemFalhou].**
      * Confundir os dois faria a tela afirmar que a organizacao nao tem prova quando o que houve foi
      * a consulta nao chegar — uma afirmacao sobre o mundo que a falha nao autoriza.
+     *
+     * **So listagem que chegou grava.** Falha nao grava nada, e a razao nao e economia: gravar no
+     * caminho de falha substituiria uma visao boa por uma visao vazia, e o aparelho sem rede passaria
+     * a nao saber o que ja sabia. Lista vazia que **chegou** grava, e grava vazia — "esta organizacao
+     * nao tem prova publicada" e uma afirmacao sobre o mundo, e o aparelho pode reproduzi-la offline.
+     *
+     * [agora] entra por parametro, em milissegundos de epoch, em vez de sair de um relogio aqui
+     * dentro: e o instante que a tela apresenta ao lado do nome, e relogio interno o tornaria
+     * impossivel de afirmar num teste.
      */
-    fun aoListar(resultado: ResultadoDasProvas) {
+    fun aoListar(resultado: ResultadoDasProvas, agora: Long) {
         if (state !is EstadoDaProva.Listando) return
         state = when (resultado) {
-            is ResultadoDasProvas.Chegaram ->
+            is ResultadoDasProvas.Chegaram -> {
+                visoes.guardar(VisaoDaOrganizacao(organizacao, resultado.provas, agora))
                 if (resultado.provas.isEmpty()) {
                     EstadoDaProva.SemProvaPublicada
                 } else {
                     EstadoDaProva.Escolhendo(resultado.provas)
                 }
+            }
 
             is ResultadoDasProvas.SemRede -> EstadoDaProva.ListagemFalhou(FalhaDaListagem.SEM_REDE)
             is ResultadoDasProvas.Falhou -> EstadoDaProva.ListagemFalhou(FalhaDaListagem.OUTRA)
