@@ -1,5 +1,7 @@
 package com.platos.domain.exam
 
+import com.platos.domain.capture.QrEncoder
+import com.platos.domain.capture.linhasDeModulo
 import com.platos.domain.layout.LayoutEngine
 import com.platos.domain.layout.LayoutProfile
 
@@ -12,15 +14,34 @@ import com.platos.domain.layout.LayoutProfile
  *
  * Quem grava e o servidor (D-2a.1). Aqui so se monta.
  *
- * [assignments] vem de fora porque atribuir aluno a variante e decisao de quem publica, e porque
- * **o token e a unica coisa de aluno que entra no pacote** (ADR-0002, I5). O nome vive no roster.
+ * [tokens] vem de fora porque atribuir aluno a variante e decisao de quem publica, e porque **o
+ * token e a unica coisa de aluno que entra no pacote** (ADR-0002, I5). O nome vive no roster.
+ *
+ * **Sao tokens, e nao atribuicoes prontas, de proposito.** O payload do QR e produzido aqui, uma vez
+ * por atribuicao, pelo mesmo escritor que a folha da variante usa. Aceitar atribuicao com QR ja
+ * montado deixaria o chamador fabricar payload — dois escritores, que e o que a fatia 2b fechou.
  */
 fun ExamDefinition.buildPackage(
     profile: LayoutProfile = LayoutProfile.DEFAULT,
     variantId: String = DEFAULT_VARIANT,
-    assignments: List<PackageAssignment> = emptyList(),
+    tokens: List<String> = emptyList(),
 ): ExamPackage {
     val map = LayoutEngine(profile = profile).layout(this)
+
+    // Uma atribuicao por token, e o QR de cada uma resolvido aqui. A geometria nao se repete: ela
+    // fica em `layout[variantId]`, e a folha do aluno e ela com este QR no lugar do da variante.
+    val assignments = tokens.map { token ->
+        val payload = LayoutEngine.qrPayloadDaAtribuicao(
+            examId = id,
+            studentToken = token,
+            variant = variantId,
+        )
+        PackageAssignment(
+            studentToken = token,
+            variantId = variantId,
+            qr = AssignmentQr(payload = payload, modules = linhasDeModulo(QrEncoder.encode(payload))),
+        )
+    }
 
     val items = questions.map { question ->
         PackageItem(

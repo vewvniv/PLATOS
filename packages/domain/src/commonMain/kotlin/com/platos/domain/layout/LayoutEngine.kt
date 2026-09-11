@@ -2,6 +2,7 @@ package com.platos.domain.layout
 
 import com.platos.domain.capture.CaptureGeometry
 import com.platos.domain.capture.QrEncoder
+import com.platos.domain.capture.linhasDeModulo
 import com.platos.domain.capture.QrPayload
 import com.platos.domain.exam.ExamDefinition
 import com.platos.domain.exam.requireSupported
@@ -254,7 +255,7 @@ class LayoutEngine(
             side = qrSide.raw,
             module = qrSide.divFloor(qrMatrix.size).raw,
             payload = payload,
-            modules = qrMatrix.modules.map { row -> row.joinToString("") { if (it) "1" else "0" } },
+            modules = linhasDeModulo(qrMatrix),
         )
 
         val bubbleLeft = left + marker + CaptureGeometry.QUIET_ZONE
@@ -555,8 +556,28 @@ class LayoutEngine(
         /** Da ultima linha de bolhas ate o fim da regiao, livrando os marcadores de baixo. */
         private val BOTTOM_CLEARANCE = CaptureGeometry.MARKER_SIDE + CaptureGeometry.QUIET_ZONE
 
-        /** Payload do QR da regiao. A regra mora em [QrPayload], junto do leitor dela. */
-        fun qrPayloadOf(examId: String, regionIndex: Int): String =
-            QrPayload.of(examId, regionIndex)
+        /**
+         * Payload do QR da regiao. A regra mora em [QrPayload], junto do leitor dela.
+         *
+         * Sem identidade por omissao: o mapa que o engine produz e a **geometria da variante**, de
+         * que as folhas dos alunos derivam, e ela nao pertence a aluno nenhum. Quem preenche token
+         * e variante e a publicacao, uma vez por atribuicao.
+         */
+        fun qrPayloadOf(
+            examId: String,
+            regionIndex: Int,
+            studentToken: String = "",
+            variant: String = "",
+        ): String = QrPayload.of(examId, regionIndex, studentToken, variant)
+
+        /**
+         * Payload da folha de uma atribuicao.
+         *
+         * O indice da regiao **nao** entra por parametro: ele e decisao do engine, e um chamador
+         * que o passasse errado produziria folha cujo QR discorda dos marcadores dela — a
+         * divergencia que a leitura confere e recusa, descoberta so na captura.
+         */
+        fun qrPayloadDaAtribuicao(examId: String, studentToken: String, variant: String): String =
+            qrPayloadOf(examId, REGION_INDEX, studentToken, variant)
     }
 }

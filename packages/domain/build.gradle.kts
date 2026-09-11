@@ -26,6 +26,7 @@ val embedFixtures = tasks.register<EmbedFixturesTask>("embedFixtures") {
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.json"),
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.layout.json"),
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.package.json"),
+        rootProject.layout.projectDirectory.file("fixtures/prova-referencia.turma.package.json"),
         rootProject.layout.projectDirectory.file("fixtures/prova-2.json"),
         rootProject.layout.projectDirectory.file("fixtures/folha-de-teste.layout.json"),
         rootProject.layout.projectDirectory.file("fixtures/formulas.manifest.json"),
@@ -133,6 +134,15 @@ tasks.withType<Test>().configureEach {
     systemProperty(
         "platos.package2.path",
         rootProject.layout.projectDirectory.file("fixtures/prova-2.package.json")
+            .asFile.absolutePath,
+    )
+    // A mesma prova de referencia, publicada com roster codificado. E o instrumento do caminho com
+    // atribuicao: sem um pacote que traga `assignments`, "um documento por aluno" nao e conferivel.
+    // A referencia continua SEM atribuicoes — token de aluno nao e coisa de arquivo versionado, e e
+    // o hash dela que os tres alvos afirmam.
+    systemProperty(
+        "platos.packageTurma.path",
+        rootProject.layout.projectDirectory.file("fixtures/prova-referencia.turma.package.json")
             .asFile.absolutePath,
     )
     // A folha de teste de impressao e artefato versionado pelo mesmo motivo do golden: e dela que

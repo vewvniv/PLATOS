@@ -2,6 +2,7 @@ package com.platos.api.exam
 
 import com.platos.api.support.PostgresSupport
 import com.platos.domain.exam.ExamDefinition
+import com.platos.domain.exam.ExamPackage
 import com.platos.domain.exam.ExamPackageException
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -97,6 +98,35 @@ class ExamPublicationTest {
 
         // E o dado pessoal esta onde deve: no roster, que pode mudar e ser apagado.
         assertEquals(2, contar("select count(*) from exam_roster"))
+    }
+
+    @Test
+    fun `cada aluno do roster ganha uma atribuicao, com a folha dele`() {
+        publicacao.publish(usuario, org, definicao, title = "Prova de referencia", roster = turma)
+
+        val pacote = Json.decodeFromString(ExamPackage.serializer(), coluna("content"))
+
+        // Uma por aluno, e nem uma a mais: atribuicao sobrando seria folha impressa sem dono, e
+        // faltando seria aluno sem folha no dia da prova.
+        assertEquals(turma.size, pacote.assignments.size, "atribuicoes: ${pacote.assignments}")
+        assertEquals(
+            turma.map { it.studentToken }.sorted(),
+            pacote.assignments.map { it.studentToken }.sorted(),
+        )
+
+        // E cada uma com a folha DELA. Payload repetido entre alunos e o defeito que a captura nao
+        // tem como desfazer: as duas folhas seriam do mesmo aluno.
+        val payloads = pacote.assignments.map { requireNotNull(it.qr).payload }
+        assertEquals(payloads.size, payloads.toSet().size, "payloads repetidos: $payloads")
+        for (atribuicao in pacote.assignments) {
+            assertTrue(
+                requireNotNull(atribuicao.qr).payload.contains(atribuicao.studentToken),
+                "o payload de `${atribuicao.studentToken}` nao carrega o token dele",
+            )
+        }
+
+        // A geometria NAO se repete: uma por variante, e e ela que as folhas compartilham.
+        assertEquals(1, pacote.layout.size, "layouts: ${pacote.layout.keys}")
     }
 
     @Test

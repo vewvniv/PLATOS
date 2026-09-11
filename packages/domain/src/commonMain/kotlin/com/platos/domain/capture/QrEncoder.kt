@@ -22,6 +22,16 @@ class QrCapacityException(message: String) : IllegalArgumentException(message)
  * nivel Q faria. As versoes param em 10 porque o payload de uma regiao e curto por construcao
  * (§8) e capacidade nao usada so vira codigo sem teste.
  */
+/**
+ * A matriz do QR como o `LayoutMap` a guarda: uma linha por string, `1` para modulo escuro.
+ *
+ * Num lugar so porque ha dois produtores de QR — a folha da variante, no Layout Engine, e a folha
+ * de cada atribuicao, na publicacao — e duas conversoes independentes da mesma matriz seriam duas
+ * chances de o desenho e a leitura discordarem sobre o que e escuro.
+ */
+internal fun linhasDeModulo(matriz: QrMatrix): List<String> =
+    matriz.modules.map { linha -> linha.joinToString("") { if (it) "1" else "0" } }
+
 internal object QrEncoder {
 
     private const val ECC_LEVEL_BITS = 0b00 // nivel M

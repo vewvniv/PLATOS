@@ -13,6 +13,8 @@ package com.platos.domain.exam
  * - item sem gabarito produz prova que nao pode ser corrigida offline, que e a proposta de valor
  *   inteira do Basic (§15, fatia 3);
  * - atribuicao para variante inexistente imprime folha sem prova;
+ * - atribuicao sem QR proprio imprime folha com o campo de aluno vazio, para um aluno que existe;
+ * - token repetido produz duas folhas com a mesma identidade, indistinguiveis na captura;
  * - layout divergente dos itens poe bolha onde nao ha questao, e o OMR le lixo em silencio.
  */
 fun ExamPackage.requireCoherent() {
@@ -61,6 +63,30 @@ fun ExamPackage.requireCoherent() {
         throw ExamPackageException(
             "atribuicoes apontam variante inexistente: " +
                 atribuicoesOrfas.map { "${it.studentToken} -> ${it.variantId}" }.sorted().joinToString(),
+        )
+    }
+
+    // A atribuicao existe para enderecar uma folha, e sem QR proprio ela nao endereca nenhuma.
+    // O desfecho errado seria silencioso: a folha sairia impressa com o campo de aluno vazio, para
+    // um aluno que existe, e ninguem notaria ate a captura nao ter a quem atribuir.
+    val semQr = assignments.filter { it.qr == null }
+    if (semQr.isNotEmpty()) {
+        throw ExamPackageException(
+            "atribuicoes sem QR proprio: " + semQr.map { it.studentToken }.sorted().joinToString() +
+                "; atribuicao sem QR nao endereca folha nenhuma, e imprimir a folha da variante no " +
+                "lugar dela produziria prova sem dono",
+        )
+    }
+
+    // Token repetido nao e engano de digitacao: e duas folhas com a mesma identidade. A captura de
+    // uma passaria pela outra, e a chave `(exam_id, student_id)` da idempotencia deixaria de
+    // distinguir os dois alunos.
+    val tokensRepetidos = assignments.groupingBy { it.studentToken }.eachCount()
+        .filterValues { it > 1 }.keys
+    if (tokensRepetidos.isNotEmpty()) {
+        throw ExamPackageException(
+            "atribuicoes com token repetido: " + tokensRepetidos.sorted().joinToString() +
+                "; duas folhas com a mesma identidade sao indistinguiveis na captura",
         )
     }
 

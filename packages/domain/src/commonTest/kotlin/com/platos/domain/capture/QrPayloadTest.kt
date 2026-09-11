@@ -4,6 +4,7 @@ import com.platos.domain.layout.LayoutEngine
 import com.platos.domain.layout.PrintTestSheet
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -35,7 +36,9 @@ class QrPayloadTest {
 
         assertEquals("prova-referencia-slice-1", payload.examShortId)
         assertEquals(0, payload.regionIndex)
-        // Vazios de proposito enquanto exam_assignment e variantes nao existirem (fatia 7).
+        // Vazios porque este payload nao pertence a aluno nenhum: e o da folha da variante, de
+        // que as folhas dos alunos derivam, e tambem o da folha avulsa (§7). Preenchidos, eles vem
+        // de uma atribuicao — ver `o payload de uma atribuicao carrega o token e a variante`.
         assertEquals("", payload.studentToken)
         assertEquals("", payload.variant)
     }
@@ -61,6 +64,69 @@ class QrPayloadTest {
         val payload = readOrFail(PrintTestSheet.qrPayload())
         assertEquals(PrintTestSheet.SHEET_ID, payload.examShortId)
         assertEquals(0, payload.regionIndex)
+    }
+
+    // --- a identidade da folha (tarefa 3.2) ---
+
+    @Test
+    fun `o payload de uma atribuicao carrega o token e a variante`() {
+        // O escritor da publicacao e chamado, e o leitor confere o que ele produziu — nao ha
+        // literal no meio. Um escritor que divergisse do leitor atribuiria a folha ao aluno errado
+        // em silencio, e e por isso que os dois moram juntos.
+        val payload = readOrFail(
+            LayoutEngine.qrPayloadDaAtribuicao("prova-referencia-slice-1", "tok-1", "v1"),
+        )
+
+        assertEquals("prova-referencia-slice-1", payload.examShortId)
+        assertEquals("tok-1", payload.studentToken)
+        assertEquals("v1", payload.variant)
+    }
+
+    @Test
+    fun `sem atribuicao o campo de aluno fica vazio, e nenhum valor de reserva aparece`() {
+        val payload = readOrFail(LayoutEngine.qrPayloadOf("prova-referencia-slice-1", 0))
+
+        // Igualdade com vazio, e nao "nao contem tal palavra": o requisito e sobre **o que pode
+        // estar ali**, e qualquer marcador enfiado no campo — `sem-aluno`, `-`, `0` — muda esta
+        // asercao. Valor inventado e indistinguivel de token verdadeiro para quem le a folha, que
+        // e a mesma familia do nome de reserva que a 4a-zero viu falhar.
+        assertEquals("", payload.studentToken)
+        assertEquals("", payload.variant)
+    }
+
+    @Test
+    fun `dois alunos da mesma prova produzem payloads diferentes`() {
+        val um = LayoutEngine.qrPayloadDaAtribuicao("prova", "tok-1", "v1")
+        val outro = LayoutEngine.qrPayloadDaAtribuicao("prova", "tok-2", "v1")
+
+        assertTrue(um != outro, "os dois alunos receberiam folhas com a mesma identidade: $um")
+        assertEquals("tok-1", readOrFail(um).studentToken)
+        assertEquals("tok-2", readOrFail(outro).studentToken)
+    }
+
+    @Test
+    fun `token com o separador e recusado na escrita`() {
+        // O separador dentro de um campo torna a leitura de volta ambigua, e a ambiguidade cai na
+        // atribuicao: o campo seguinte passaria a ser lido no lugar errado. Recusar na escrita e o
+        // que impede a folha de ser impressa assim.
+        val erro = assertFailsWith<IllegalArgumentException> {
+            QrPayload.of("prova", 0, studentToken = "tok.1")
+        }
+        assertTrue(
+            erro.message!!.contains("token de aluno"),
+            "a recusa nao disse que o problema era o token: ${erro.message}",
+        )
+    }
+
+    @Test
+    fun `variante com o separador e recusada na escrita`() {
+        val erro = assertFailsWith<IllegalArgumentException> {
+            QrPayload.of("prova", 0, variant = "v.1")
+        }
+        assertTrue(
+            erro.message!!.contains("variante"),
+            "a recusa nao disse que o problema era a variante: ${erro.message}",
+        )
     }
 
     @Test
