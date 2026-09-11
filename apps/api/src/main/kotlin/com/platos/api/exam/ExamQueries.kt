@@ -2,7 +2,9 @@ package com.platos.api.exam
 
 import com.platos.api.db.generated.tables.references.EXAM
 import com.platos.api.db.generated.tables.references.EXAM_PACKAGE
+import com.platos.api.db.generated.tables.references.EXAM_ROSTER
 import com.platos.api.http.dto.ExamSummaryDto
+import com.platos.api.http.dto.RosterEntryDto
 import org.jooq.DSLContext
 import java.util.UUID
 
@@ -73,6 +75,38 @@ class ExamQueries {
                 PackageContent(
                     content = record.value1() ?: "",
                     contentHash = record.value2() ?: "",
+                )
+            }
+
+    /**
+     * O roster de uma prova publicada, para quem pertence a organizacao dela.
+     *
+     * **Seleciona dois campos, e nao a linha.** `select *` traria `class_group` e `enrollment_id`
+     * junto, e bastaria alguem mapear um campo novo no DTO para dado pessoal comecar a descer sem
+     * ninguem decidir isso. Enumerar aqui faz a minimizacao ser uma escolha visivel no `select`.
+     *
+     * **`EXAM.ORGANIZATION_ID` no `where`, como as duas consultas de cima**, e nao so a RLS: a
+     * RLS e a rede de baixo, e afirmar autorizacao em um lugar so deixaria a consulta passando a
+     * responsabilidade para uma camada que este teste nao observa.
+     *
+     * Devolve **lista vazia** para prova publicada sem roster, e nao nulo: "esta prova nao tem
+     * roster" e afirmacao sobre o mundo, distinta de "esta prova nao existe" — e a folha avulsa do
+     * §7 depende dessa distincao. Quem decide o que e 404 e a rota, com o pacote na mao.
+     *
+     * Ordenado por token para a resposta ser estavel entre chamadas: ordem que varia faria duas
+     * leituras do mesmo roster parecerem diferentes.
+     */
+    fun findRoster(ctx: DSLContext, organizationId: UUID, shortId: String): List<RosterEntryDto> =
+        ctx.select(EXAM_ROSTER.STUDENT_TOKEN, EXAM_ROSTER.DISPLAY_NAME)
+            .from(EXAM_ROSTER)
+            .join(EXAM).on(EXAM.ID.eq(EXAM_ROSTER.EXAM_ID))
+            .where(EXAM.ORGANIZATION_ID.eq(organizationId))
+            .and(EXAM.SHORT_ID.eq(shortId))
+            .orderBy(EXAM_ROSTER.STUDENT_TOKEN)
+            .fetch { record ->
+                RosterEntryDto(
+                    studentToken = record.value1() ?: "",
+                    displayName = record.value2() ?: "",
                 )
             }
 }

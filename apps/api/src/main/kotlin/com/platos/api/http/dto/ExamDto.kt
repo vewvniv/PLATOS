@@ -20,3 +20,26 @@ data class ExamSummaryDto(
     val title: String,
     @SerialName("content_hash") val contentHash: String,
 )
+
+/**
+ * Contrato de `GET /organizations/{organizationId}/exams/{shortId}/roster`.
+ *
+ * **Dois campos, e a ausencia dos outros e o requisito.** `exam_roster` guarda tambem `class_group`
+ * e `enrollment_id`, e eles **nao** entram aqui: quem recebe o roster precisa saber de quem e a
+ * folha, e nao a matricula institucional do aluno. Cada campo que desce vira dado pessoal em cache
+ * no aparelho, e cai na lacuna da classe H que o §16 registra — enumerar e apagar. Dado que nao
+ * desce nao precisa de regra de apagamento.
+ *
+ * **Sem hash, e isso e decisao registrada e nao esquecimento.** ADR-0002 recusou um segundo hash
+ * sobre o roster: ou ele trava o dado que **deve** poder mudar — e a eliminacao morre com isso — ou
+ * e recalculado a cada mudanca e nao garante nada. O `content_hash` do pacote continua cobrindo so
+ * o que precisa ser imutavel.
+ *
+ * `studentToken` e a chave que atravessa a fronteira (ADR-0002, I5): ele esta no QR impresso e em
+ * `assignments[]` dentro do pacote, e e por ele que o nome daqui se liga a folha lida.
+ */
+@Serializable
+data class RosterEntryDto(
+    @SerialName("student_token") val studentToken: String,
+    @SerialName("display_name") val displayName: String,
+)
