@@ -239,6 +239,7 @@ para que "a imagem é velha" seja uma afirmação conferível em vez de uma supo
 | 2026-09-04 13:09Z | `ghcr.io/vewvniv/platos-api:latest` | `09f200b` (`main`) | `workflow_run` após CI |
 | 2026-09-08 14:47Z | `ghcr.io/vewvniv/platos-api:latest` e `:sha-9d4f3f8` | `9d4f3f8` (`vewvniv/slice-4a-pull-de-pacote`) | `workflow_dispatch` |
 | 2026-09-10 17:36Z | `ghcr.io/vewvniv/platos-api:latest` e `:sha-771bdbd` | `771bdbd0` (`main`) | `workflow_run` após CI |
+| 2026-09-11 16:47Z | `ghcr.io/vewvniv/platos-api:latest` e `:sha-cdd12e8` | `cdd12e8` (`main`) | `workflow_run` após CI |
 
 A segunda linha é da fatia 4a e saiu de branch **não mergeada** — `latest` aponta para código que a
 PR #31 ainda não levou para a `main`. É consequência aceita de publicar por `workflow_dispatch`, e
@@ -259,6 +260,35 @@ a versão nova no ar.
 O painel mostrou `Source: 6b72e80` para esse deploy. **Não é commit deste repositório** (`git
 cat-file -t` recusa, e nenhum commit começa com isso) — é identificador do lado do Render, e não
 serve para conferir qual código subiu. Quem confere isso é o par de rotas.
+
+### O deploy de 2026-09-11, e o que nele é relatado em vez de conferido
+
+A publicação da linha nova veio pelo caminho normal: a fatia 4b entrou na `main` pelas PRs #34, #32,
+#33 e #35, o CI de `cdd12e8` fechou verde, e o `publicar-api.yml` construiu e empurrou as duas tags
+no **mesmo digest** — `sha256:84cd51b7a41fa48a704a4dd29572592e89ad93a171c4f566a86051dfb3fe5328`, às
+16:47:48Z.
+
+**Dois `Manual Deploy → Deploy latest reference` foram disparados no painel, às ~18:43Z e ~18:46Z, e
+isso é RELATADO pelo mantenedor — não conferido por medição.** A distinção não é formalidade: quem
+observou o painel foi ele, e o registro diz de quem é a evidência.
+
+**O que a sessão mediu, e é menos do que parece:** o serviço respondeu depois dos dois deploys —
+`/health` 200 com corpo `ok`, `/me/organizations` 401, `/organizations/<uuid>/exams` 401, tudo abaixo
+de um segundo e sem cold start, medido às 18:43:08Z e às 18:46:24Z. Isso prova que o serviço está no
+ar com autenticação ativa e voltou dos reinícios sem quebrar. **Não prova qual digest está rodando.**
+
+**E aqui o par de rotas não serve, por uma razão nova — pior que a de 2026-09-10.** Naquele dia as
+duas imagens candidatas eram funcionalmente idênticas porque `apps/api` diferia em um arquivo de
+teste. Agora **o código de produção mudou de verdade** (`ExamPublication.kt`), e a imagem nova
+continua **indistinguível por HTTP**: conferido rota por rota, não há rota de publicação em
+`Routes.kt`, a listagem lê do banco, a entrega do pacote serve os bytes do banco sem reserializar, e
+`/health` responde a string `"ok"`. Repetir o deploy e repetir a sonda dá o mesmo resultado — a sonda
+é **estruturalmente cega** para esta distinção, e isso ficou visível quando o segundo deploy não
+mudou nada.
+
+Conclusão para quem ler depois: **publicado e implantado; "servindo o digest `84cd51b7…`" é relatado,
+não medido.** Os dois consertos já nomeados acima seguem sendo o que fecha isso — `/health` carregando
+o `sha-<curto>` da imagem, e o Deploy Hook.
 
 ### A reconciliação de 2026-09-10, e o par de rotas cego
 
