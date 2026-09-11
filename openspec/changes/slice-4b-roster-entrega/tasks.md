@@ -13,7 +13,7 @@
 
 ## 3. Verificação final
 
-- [ ] 3.1 Rodar o **comando cheio do CI** — `./gradlew build` com `--rerun-tasks`, porque `UP-TO-DATE` serve relatório velho com contagem plausível — e conferir os números **e o `timestamp`** de cada relatório. A metade instrumentada não é exigida: nada em `apps/android` muda, e a 3.3 confere isso arquivo a arquivo.
-- [ ] 3.2 Rodar `openspec validate slice-4b-roster-entrega --strict`.
-- [ ] 3.3 Conferir **arquivo a arquivo**, contra o commit em que esta mudança começou, as negativas da proposta: nada em `apps/android`, `apps/web`, `packages/domain`, `vision/` e `omr/`, e nenhuma spec fora de `exam-package`. Negativa larga não vale — nomear a exceção, se houver, e mostrá-la no `git diff`.
-- [ ] 3.4 Escrever `docs/cobertura-slice-4b-roster-entrega.md` com **como** cada verificação crítica foi vista falhar — a mutação, os cenários que caíram e a **mensagem** da asserção —, mais o que ficou sem teste automático e por quê. Nomear explicitamente: que esta fatia **não** cria cópia de dado pessoal fora do servidor — ela abre o caminho para a **β** criar —, e que as duas linhas de ponto de não-retorno do §16 têm fatia-limite lá, não aqui.
+- [x] 3.1 Rodar o **comando cheio do CI** — `./gradlew build` com `--rerun-tasks`, porque `UP-TO-DATE` serve relatório velho com contagem plausível — e conferir os números **e o `timestamp`** de cada relatório. A metade instrumentada não é exigida: nada em `apps/android` muda, e a 3.3 confere isso arquivo a arquivo.
+- [x] 3.2 Rodar `openspec validate slice-4b-roster-entrega --strict`.
+- [x] 3.3 Conferir **arquivo a arquivo**, contra o commit em que esta mudança começou, as negativas da proposta: nada em `apps/android`, `apps/web`, `packages/domain`, `vision/` e `omr/`, e nenhuma spec fora de `exam-package`. Negativa larga não vale — nomear a exceção, se houver, e mostrá-la no `git diff`.
+- [x] 3.4 Escrever `docs/cobertura-slice-4b-roster-entrega.md` com **como** cada verificação crítica foi vista falhar — a mutação, os cenários que caíram e a **mensagem** da asserção —, mais o que ficou sem teste automático e por quê. Nomear explicitamente: que esta fatia **não** cria cópia de dado pessoal fora do servidor — ela abre o caminho para a **β** criar —, e que as duas linhas de ponto de não-retorno do §16 têm fatia-limite lá, não aqui.
