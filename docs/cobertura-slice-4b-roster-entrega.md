@@ -157,3 +157,37 @@ em vez de 200 com `[]`.
 - **Se os dois caírem juntos**, "sem roster" e "não é seu" estão colapsados numa resposta só, que é
   exatamente a distinção de que a folha avulsa depende — e aí o achado é sobre os cenários, não
   sobre a mutação.
+
+## Resultados medidos — tarefas 2.3 e 2.4
+
+### Mutação da 2.3 — roster vazio vira 404
+
+| | declarado em `ad1ab63` | medido |
+|---|---|---|
+| vermelho | só `prova publicada sem roster responde 200 com lista vazia` | **igual** |
+| verde | os outros 17, incluindo o da organização alheia | **igual** |
+| totais | 18 testes, 1 falha | 18 testes, 1 falha |
+| `timestamp` | — | 2026-09-11T23:12:07.418Z |
+
+```
+org.opentest4j.AssertionFailedError: expected: <200 OK> but was: <404 Not Found>
+```
+
+O cenário da organização alheia ficou verde, como declarado: "sem roster" e "não é seu" **não**
+estão colapsados. Reversão conferida rodando: 18 testes, 0 falhas, `timestamp`
+2026-09-11T23:12:36.678Z.
+
+### 2.4 — a negativa "nada existente mudou", medida
+
+Baseline: `45f4b59`, o commit em que esta mudança começou.
+
+- `ExamPackageRouteTest`: `git diff --numstat` dá **116 acréscimos e 0 remoções**, e
+  `git diff | grep -E "^-[^-]"` não devolve linha nenhuma. Os 13 cenários de listagem e entrega do
+  pacote rodam sem edição.
+- `ExamPublicationTest`, `packages/domain/` e `fixtures/`: `git diff --numstat` devolve **vazio**.
+  O `content_hash` fixado em `ExamPublicationTest:32` continua
+  `26612ad52b0cb967309f49354e9858c501ad7a1b0c7b46db874c05d348e6909a`, e não por leitura do arquivo:
+  a suíte rodou — 9 testes, 0 falhas, `timestamp` 2026-09-11T23:13:15.114Z.
+
+A negativa é medida e não afirmada: o diff mostra ausência de remoção, e a suíte mostra que o hash
+ainda bate contra o banco.
