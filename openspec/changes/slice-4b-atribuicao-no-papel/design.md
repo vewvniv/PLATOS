@@ -147,5 +147,8 @@ fatia do push, e ela chega lá com o caso já isolado por requisito.
 
 ## Open Questions
 
-- **De quanto o QR cresce com o token preenchido**, e se ele sobe de versão. Não muda spec, forma nem
-  tarefas: muda um número que a implementação mede e registra.
+- ~~**De quanto o QR cresce com o token preenchido**, e se ele sobe de versão.~~ **Respondida em
+  2026-09-11 (tarefa 3.4): ele não cresce.** O payload foi de 32 para 40 caracteres e o QR ficou em
+  **29×29**, na mesma versão. Custo medido por atribuição: **1.044 bytes** (pacote de 101.618 sem
+  alunos contra 104.749 com três), o que dá **129,8 KB para 30 alunos** — contra os 129,2 KB
+  estimados na decisão 1, uma diferença de 0,5%. A forma escolhida não muda.

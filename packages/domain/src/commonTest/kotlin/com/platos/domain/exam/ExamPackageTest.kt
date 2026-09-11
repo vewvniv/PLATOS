@@ -26,11 +26,12 @@ class ExamPackageTest {
     )
 
     /**
-     * Uma atribuicao valida: com QR proprio, porque atribuicao sem ele e pacote incoerente.
+     * Uma atribuicao montada a mao, para os estados **invalidos** que `buildPackage` recusa.
      *
-     * O QR e montado a mao aqui de proposito. O assunto destes cenarios e hash, I5 e coerencia de
-     * variante; qual payload o Layout Engine produz e assunto de `LayoutEngineTest`, e amarrar os
-     * dois faria uma mudanca de payload quebrar testes que nao falam dele.
+     * Publicar passa tokens, e o QR sai do escritor unico; isto aqui existe para os cenarios que
+     * precisam de um pacote incoerente, montado por `copy` a partir de um valido. O payload e
+     * qualquer um de proposito: o assunto destes cenarios e a recusa, e amarra-los ao formato do
+     * payload faria uma mudanca dele quebrar teste que nao fala dele.
      */
     private fun atribuicao(token: String, variante: String = DEFAULT_VARIANT) = PackageAssignment(
         studentToken = token,
@@ -91,7 +92,7 @@ class ExamPackageTest {
     fun `atribuir alunos muda o hash, mas so pelo token`() {
         val semAlunos = exam.buildPackage().contentHash()
         val comAlunos = exam.buildPackage(
-            assignments = listOf(atribuicao("tok-1")),
+            tokens = listOf("tok-1"),
         ).contentHash()
         assertTrue(semAlunos != comAlunos)
     }
@@ -101,7 +102,7 @@ class ExamPackageTest {
     @Test
     fun `o pacote nao carrega nome de aluno`() {
         val pacote = exam.buildPackage(
-            assignments = listOf(atribuicao("tok-1"), atribuicao("tok-2")),
+            tokens = listOf("tok-1", "tok-2"),
         )
         val json = pacote.toCanonicalJson()
 
@@ -177,7 +178,7 @@ class ExamPackageTest {
     @Test
     fun `atribuicao apontando variante inexistente e recusada`() {
         // `buildPackage` ja valida, entao o estado invalido e montado a partir de um pacote valido.
-        val pacote = exam.buildPackage(assignments = listOf(atribuicao("tok-1")))
+        val pacote = exam.buildPackage(tokens = listOf("tok-1"))
         val quebrado = pacote.copy(assignments = listOf(atribuicao("tok-1", "variante-fantasma")))
         val erro = assertFailsWith<ExamPackageException> { quebrado.requireCoherent() }
         assertContains(erro.message!!, "variante-fantasma")
@@ -187,7 +188,7 @@ class ExamPackageTest {
     fun `atribuicao sem QR proprio e recusada`() {
         // O estado invalido e montado por `copy`, porque `buildPackage` valida: o cenario afirma o
         // que a VALIDACAO faz, e nao o que o construtor aceita.
-        val pacote = exam.buildPackage(assignments = listOf(atribuicao("tok-1")))
+        val pacote = exam.buildPackage(tokens = listOf("tok-1"))
         val quebrado = pacote.copy(
             assignments = listOf(PackageAssignment("tok-1", DEFAULT_VARIANT, qr = null)),
         )
@@ -202,7 +203,7 @@ class ExamPackageTest {
 
     @Test
     fun `token repetido entre atribuicoes e recusado`() {
-        val pacote = exam.buildPackage(assignments = listOf(atribuicao("tok-1")))
+        val pacote = exam.buildPackage(tokens = listOf("tok-1"))
         val quebrado = pacote.copy(
             assignments = listOf(atribuicao("tok-1"), atribuicao("tok-1", DEFAULT_VARIANT)),
         )

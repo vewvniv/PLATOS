@@ -76,9 +76,10 @@ class ExamPublication(private val tenancy: Tenancy) {
         // sem depender de rollback: quando a primeira linha e escrita, o pacote ja passou por
         // `requireCoherent()`. O rollback continua existindo — `asUser` e uma transacao —, mas nao
         // e ele que carrega a garantia.
-        val pacote = definition.buildPackage(
-            assignments = roster.map { PackageAssignment(it.studentToken, DEFAULT_VARIANT) },
-        )
+        // **Passa tokens, e nao atribuicoes prontas.** O QR de cada folha e resolvido dentro de
+        // `buildPackage`, pelo mesmo escritor que a folha da variante usa; montar a atribuicao aqui
+        // deixaria este ponto fabricar payload, e seriam dois escritores (o que a 2b fechou).
+        val pacote = definition.buildPackage(tokens = roster.map { it.studentToken })
 
         // Estes bytes sao o artefato. Serializar de novo na hora de gravar seria abrir espaco para
         // um segundo caminho de serializacao — e o hash e sobre este, nao sobre aquele.

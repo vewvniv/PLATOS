@@ -46,18 +46,35 @@ object QrPayload {
     private const val FIELD_COUNT = 5
 
     /**
-     * Payload de uma regiao de prova.
+     * Payload de uma regiao de prova, com a identidade que ela tiver.
      *
-     * `student_token` e `variant` ficam **vazios**, e nao inventados: `exam_assignment` e variantes
-     * sao fatia 7. A forma ja e a definitiva, entao o dia em que os dois campos existirem nada
-     * muda no leitor nem no formato impresso.
+     * [studentToken] e [variant] sao **vazios por omissao, e nunca inventados**. Vazio e o caso da
+     * folha avulsa — aluno fora da lista, atribuicao feita depois da captura (§7) — e tambem o da
+     * folha da variante, que e a geometria compartilhada de que as folhas dos alunos derivam.
+     *
+     * Preenchidos, eles vem de uma atribuicao do roster, e e por aqui que a folha passa a dizer de
+     * quem ela e. **Este e o unico escritor**, e o leitor mora ao lado: um leitor que divergisse do
+     * escritor nao quebraria teste nenhum — ele atribuiria a folha ao aluno errado, em silencio.
      */
-    fun of(examShortId: String, regionIndex: Int): String {
+    fun of(
+        examShortId: String,
+        regionIndex: Int,
+        studentToken: String = "",
+        variant: String = "",
+    ): String {
         require(!examShortId.contains(SEPARATOR)) {
             "identificador de prova nao pode conter '$SEPARATOR': $examShortId"
         }
+        // O separador dentro de um campo torna a leitura de volta ambigua, e a ambiguidade cairia
+        // na atribuicao: o campo seguinte passaria a ser lido no lugar errado.
+        require(!studentToken.contains(SEPARATOR)) {
+            "token de aluno nao pode conter '$SEPARATOR': $studentToken"
+        }
+        require(!variant.contains(SEPARATOR)) {
+            "identificador de variante nao pode conter '$SEPARATOR': $variant"
+        }
         require(regionIndex >= 0) { "indice de regiao nao pode ser negativo: $regionIndex" }
-        val body = "$examShortId$SEPARATOR$SEPARATOR$SEPARATOR$regionIndex"
+        val body = "$examShortId$SEPARATOR$studentToken$SEPARATOR$variant$SEPARATOR$regionIndex"
         return "$body$SEPARATOR${crc16(body)}"
     }
 
