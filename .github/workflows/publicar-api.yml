@@ -63,7 +63,10 @@ jobs:
           dono=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           imagem="ghcr.io/$dono/platos-api"
           curto=$(git rev-parse --short HEAD)
-          docker build -f apps/api/Dockerfile -t "$imagem:latest" -t "$imagem:sha-$curto" .
+          # `--build-arg` com o MESMO `$curto` que forma as tags, na mesma linha: assim o que
+          # /health declara e o que o nome da imagem diz nao podem divergir por edicao de um sem o
+          # outro. E o que torna "o que esta servindo" comparavel com o registro por igualdade.
+          docker build -f apps/api/Dockerfile --build-arg "PLATOS_BUILD=sha-$curto" -t "$imagem:latest" -t "$imagem:sha-$curto" .
           docker push "$imagem:latest"
           docker push "$imagem:sha-$curto"
           echo "Publicado:"

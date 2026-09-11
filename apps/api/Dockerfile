@@ -29,6 +29,19 @@ COPY plans/ /app/plans/
 # nao existe. Sem isto a imagem constroi e so falha ao subir, com "permission denied".
 RUN chmod +x /app/bin/api
 
+# Qual build esta nesta imagem, para /health declarar.
+#
+# **ARG, e nao variavel de execucao**, e a diferenca e o ponto: uma variavel que o operador pode
+# editar no painel sem reconstruir diria o que ele digitou, nao o que esta rodando — que e a propria
+# deriva que declarar o build existe para detectar. Assado aqui, o identificador e tao imutavel
+# quanto o conteudo que ele descreve.
+#
+# Sem `--build-arg` (build local, `docker build` a mao) ele fica vazio, e `AppConfig` declara
+# "desconhecido" — ausencia dita como ausencia, nunca valor inventado. Quem passa no caminho de
+# publicacao e `publicar-api.yml`, com o MESMO identificador que forma a tag.
+ARG PLATOS_BUILD=""
+ENV PLATOS_BUILD=$PLATOS_BUILD
+
 # Sem isto a JVM assume 1/4 da memoria do container como heap maximo, e numa instancia de 512 MB
 # isso deixa 128 MB para o heap enquanto o resto fica ocioso. O script do plugin `application`
 # repassa `JAVA_OPTS`.
