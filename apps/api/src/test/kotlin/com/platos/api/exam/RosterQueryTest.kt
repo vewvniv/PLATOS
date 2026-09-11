@@ -132,6 +132,34 @@ class RosterQueryTest {
         )
     }
 
+    @Test
+    fun `roster de prova de outra organizacao do mesmo professor`() {
+        val exame = comRoster()
+
+        // O professor pertence as **duas** organizacoes — `membership` e N:N por invariante, e um
+        // coordenador em duas escolas e o caso comum, nao o exotico.
+        val outra = PostgresSupport.createOrganization(name = "Escola B", identificationMode = "nominal")
+        PostgresSupport.addMembership(usuario, outra, "teacher")
+
+        // E pede o roster da prova da primeira organizacao **sob o id da segunda**.
+        val roster = PostgresSupport.tenancy.asUser(usuario) { ctx ->
+            queries.findRoster(ctx, outra, "mat-7a-2026-1")
+        }
+
+        // Vazio: e o predicado da consulta que garante isto, e nao a RLS. A RLS libera, porque o
+        // chamador e membro da organizacao dona da prova; o que ela nao sabe e qual organizacao
+        // veio no caminho. Sem `EXAM.ORGANIZATION_ID` no `where`, a consulta devolveria o roster de
+        // uma organizacao sob o identificador da outra — e este e o unico cenario capaz de ver
+        // isso, porque `short_id` e unico globalmente e os outros quatro ficam verdes sem o
+        // predicado.
+        assertEquals(emptyList<RosterEntryDto>(), roster)
+        assertEquals(
+            2,
+            contarComoAdmin("select count(*) from exam_roster where exam_id = ?", exame),
+            "o cenario precisa que o roster exista na organizacao dona para provar que nao vazou",
+        )
+    }
+
     private fun contarComoAdmin(sql: String, vararg args: Any?): Int =
         PostgresSupport.adminDataSource.connection.use { connection ->
             connection.prepareStatement(sql).use { statement ->

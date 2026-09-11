@@ -2,7 +2,7 @@
 
 - [x] 1.1 **Contrato antes do consumidor** (regra 1): `ExamQueries` ganha a leitura do roster de uma prova, devolvendo **token e nome de apresentação** e mais nada, com `EXAM.ORGANIZATION_ID` no `where` como `listPublished` e `findPackage` já fazem. Mais o DTO de resposta, ao lado de `ExamSummaryDto`. Resultado: código novo sem rota que o exponha, e nenhum comportamento muda.
 - [x] 1.2 Cenários contra **Postgres real** (Testcontainers, o instrumento que a 4a e a 4b já usam): o roster de uma prova com alunos vem com os dois campos; **turma e matrícula não aparecem em campo nenhum da resposta**; prova publicada sem roster devolve **lista vazia** e não nulo; e prova de outra organização devolve **nada**, mesmo com a linha existindo no banco.
-- [ ] 1.3 **Ver falhar, com os conjuntos declarados ANTES de injetar:** (A) acrescentar `class_group` e `enrollment_id` ao que a consulta devolve → vermelho esperado: só o cenário que afirma a ausência deles; verde: os outros três. (B) tirar `EXAM.ORGANIZATION_ID` do `where` → vermelho esperado: só o cenário da organização alheia; verde: os três restantes. Se (B) não derrubar nada, a RLS está carregando sozinha o que a consulta afirma carregar — e isso é achado a registrar, não a esconder.
+- [x] 1.3 **Ver falhar, com os conjuntos declarados ANTES de injetar:** (A) acrescentar `class_group` e `enrollment_id` ao que a consulta devolve → vermelho esperado: só o cenário que afirma a ausência deles; verde: os outros três. (B) tirar `EXAM.ORGANIZATION_ID` do `where` → vermelho esperado: só o cenário da organização alheia; verde: os três restantes. Se (B) não derrubar nada, a RLS está carregando sozinha o que a consulta afirma carregar — e isso é achado a registrar, não a esconder.
 
 ## 2. A rota
 
