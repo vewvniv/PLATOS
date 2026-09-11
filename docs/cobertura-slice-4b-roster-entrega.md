@@ -136,3 +136,24 @@ Item fora de escopo, com dono e fatia-limite (P19): `listPublished` e `findPacka
 forma e a mesma lacuna — o predicado de organização delas também sobreviveria à remoção sob a suíte
 atual. **Dono:** esta base. **Fatia-limite:** a próxima fatia que tocar qualquer uma das duas
 consultas. Não é "resolvido depois se der tempo": é adiado, registrado, com limite.
+
+## Declaração dos conjuntos esperados — tarefa 2.3
+
+**Escrita e comitada ANTES de injetar.** Mesma razão da 1.3.
+
+Base: `ExamPackageRouteTest` com 18 testes, 0 falhas, `timestamp`
+2026-09-11T23:10:56.036Z — 13 de listagem e entrega do pacote, já existentes, e os 5 do roster.
+
+### Mutação — a rota responde 404 para prova publicada sem roster
+
+A rota passa a tratar roster vazio como ausência: se `findRoster` devolve lista vazia, responde 404
+em vez de 200 com `[]`.
+
+- **Vermelho esperado:** só `prova publicada sem roster responde 200 com lista vazia`.
+- **Verde esperado:** os outros 17, e em especial `roster de organizacao alheia responde igual a
+  prova inexistente` — que continua verde porque nos dois casos dele o `findPackage` já devolveu
+  nulo, e a mutação não muda esse caminho.
+- **Totais esperados:** 18 testes, 1 falha.
+- **Se os dois caírem juntos**, "sem roster" e "não é seu" estão colapsados numa resposta só, que é
+  exatamente a distinção de que a folha avulsa depende — e aí o achado é sobre os cenários, não
+  sobre a mutação.
