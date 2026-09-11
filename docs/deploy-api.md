@@ -263,6 +263,7 @@ para que "a imagem é velha" seja uma afirmação conferível em vez de uma supo
 | 2026-09-08 14:47Z | `ghcr.io/vewvniv/platos-api:latest` e `:sha-9d4f3f8` | `9d4f3f8` (`vewvniv/slice-4a-pull-de-pacote`) | `workflow_dispatch` |
 | 2026-09-10 17:36Z | `ghcr.io/vewvniv/platos-api:latest` e `:sha-771bdbd` | `771bdbd0` (`main`) | `workflow_run` após CI |
 | 2026-09-11 16:47Z | `ghcr.io/vewvniv/platos-api:latest` e `:sha-cdd12e8` | `cdd12e8` (`main`) | `workflow_run` após CI |
+| 2026-09-11 21:32Z | `ghcr.io/vewvniv/platos-api:latest` e `:sha-59b9554` | `59b9554` (`main`) | `workflow_run` após CI |
 
 A segunda linha é da fatia 4a e saiu de branch **não mergeada** — `latest` aponta para código que a
 PR #31 ainda não levou para a `main`. É consequência aceita de publicar por `workflow_dispatch`, e
@@ -312,6 +313,25 @@ mudou nada.
 Conclusão para quem ler depois: **publicado e implantado; "servindo o digest `84cd51b7…`" é relatado,
 não medido.** Os dois consertos já nomeados acima seguem sendo o que fecha isso — `/health` carregando
 o `sha-<curto>` da imagem, e o Deploy Hook.
+
+### A publicação de 2026-09-11 21:32Z, e a primeira vez que "servindo" foi medido
+
+Imagem do commit `59b9554`, digest
+`sha256:5f8679683199e3a22931faf7f5830409b55f6d5edacbb5612bcaef9ad7f2fa36` nas duas tags, publicada às
+21:32:57Z pelo caminho normal. **É a primeira imagem que declara o próprio build.**
+
+O que as três leituras mostraram, em sequência:
+
+- **21:31:56Z**, antes da publicação: cabeçalho **ausente** — a imagem em execução precedia a mudança.
+- **21:33:41Z**, 44 s depois de a imagem estar no registro e **sem** deploy: cabeçalho **ainda
+  ausente**. É a frase desta seção — *publicar não redeploya* — medida, e não apenas afirmada.
+- **22:15:15Z**, depois do `Manual Deploy`: **`x-platos-build: sha-59b9554`**, igual por string à tag
+  publicada, com as outras rotas em 401.
+
+**O elo "está servindo o quê?" deixou de depender de relato.** Ele agora se mede com um comando, e a
+janela entre publicar e servir — 41 minutos neste caso, entre 21:33Z e 22:15Z — é observável em vez
+de suposta. É isso que torna o **Deploy Hook** deixar de ser conveniência: ele fecha essa janela sem
+depender de alguém lembrar.
 
 **Corrigido em 2026-09-11, e o parágrafo acima fica como está (P7):** o primeiro dos dois consertos
 **foi feito**. `/health` passou a declarar o build no cabeçalho `X-Platos-Build`, e a conferência está
