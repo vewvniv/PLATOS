@@ -238,10 +238,17 @@ para que "a imagem é velha" seja uma afirmação conferível em vez de uma supo
 |---|---|---|---|
 | 2026-09-04 13:09Z | `ghcr.io/vewvniv/platos-api:latest` | `09f200b` (`main`) | `workflow_run` após CI |
 | 2026-09-08 14:47Z | `ghcr.io/vewvniv/platos-api:latest` e `:sha-9d4f3f8` | `9d4f3f8` (`vewvniv/slice-4a-pull-de-pacote`) | `workflow_dispatch` |
+| 2026-09-10 17:36Z | `ghcr.io/vewvniv/platos-api:latest` e `:sha-771bdbd` | `771bdbd0` (`main`) | `workflow_run` após CI |
 
 A segunda linha é da fatia 4a e saiu de branch **não mergeada** — `latest` aponta para código que a
 PR #31 ainda não levou para a `main`. É consequência aceita de publicar por `workflow_dispatch`, e
 some quando a PR fechar. `:sha-9d4f3f8` existe para voltar atrás sem reconstruir.
+
+**Resolvida em 2026-09-10:** a PR #31 fechou às 17:25:16Z (merge commit `771bdbd0`), o `main` passou a
+conter aquele código, e a terceira linha da tabela é a publicação que veio dele pelo caminho normal —
+`workflow_run` após o CI, sem disparo manual. A nota fica onde está em vez de ser apagada: quem ler o
+histórico precisa saber que houve um período em que `latest` apontava para branch não mergeada, e
+quanto ele durou (dois dias).
 
 **O elo do Render foi fechado à mão em 2026-09-08, e o par mostrou as duas metades.** Às 14:50Z,
 três minutos depois do push, o serviço ainda respondia com a imagem de 09-04: controle em 401 e as
@@ -252,6 +259,38 @@ a versão nova no ar.
 O painel mostrou `Source: 6b72e80` para esse deploy. **Não é commit deste repositório** (`git
 cat-file -t` recusa, e nenhum commit começa com isso) — é identificador do lado do Render, e não
 serve para conferir qual código subiu. Quem confere isso é o par de rotas.
+
+### A reconciliação de 2026-09-10, e o par de rotas cego
+
+O merge da PR #31 publicou pelo caminho normal: run `34508945084`, evento `workflow_run`,
+`head_sha 771bdbd07eb…`, e **as duas tags no mesmo digest** —
+`sha256:45a8b4ca5905a481055aff055e29d02edb1ec4d72b2ce15ba0a919aaf079c8b7`. Isso fecha os elos
+"construído do commit certo" e "`latest` aponta para ele".
+
+**O par de rotas não fecha o terceiro elo desta vez, e a razão está medida.** Entre o commit da
+imagem que já servia (`9d4f3f8`) e o commit mesclado (`771bdbd0`), `git diff --name-only … --
+apps/api` devolve **dois** arquivos: `apps/api/build.gradle.kts` e
+`apps/api/src/test/kotlin/com/platos/api/exam/PublicarFixturesNoBancoRealTest.kt`. **Nenhuma linha de
+`src/main`.** As duas imagens candidatas têm comportamento idêntico, então nenhuma sonda de rota as
+distingue: o par separa `main` de `4a`, e não `4a-de-08/09` de `4a-mesclada`.
+
+Medido às 17:53Z: `/health` **200 em 0,170 s** com corpo `ok`, e `/organizations/<uuid>/exams` sem
+token **401 em 0,142 s**. O serviço **está no ar e servindo uma imagem com as rotas da 4a** — o que já
+era verdade antes do merge. Os cabeçalhos não ajudam: `rndr-id` muda a cada requisição, e nenhum
+carrega identidade de build.
+
+**Estado honesto: publicado, e não confirmado servindo o commit mesclado.** Não é hedge — é a
+distinção que este documento existe para preservar, e ela não é fechável de fora com o que existe
+hoje. As duas formas de fechar:
+
+1. **O digest que o Render puxou**, pelo painel ou pela API de deploys do serviço, comparado com
+   `sha256:45a8b4ca5905…`. É o caminho mais curto, e não exige mudar código.
+2. **`/health` devolvendo o `sha-<curto>` da imagem** — o conserto durável, porque tira a conferência
+   do painel e a põe na própria API. Junto com o **Deploy Hook** já nomeado acima, fecha os dois elos
+   que hoje dependem de alguém lembrar.
+
+Enquanto nenhuma das duas existir, a regra é a que a tabela acima implica: **disparo manual ou
+publicação nova nascem com data de reconciliação escrita**, e "publicado" nunca se lê como "no ar".
 
 ## Duas coisas para decidir com os olhos abertos
 
