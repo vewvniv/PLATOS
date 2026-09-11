@@ -74,10 +74,27 @@ caso que o `isNotBlank()` trata.
 
 | O que | Por quê |
 |---|---|
-| **Que o cabeçalho atravesse os intermediários de produção** | A resposta passa por Cloudflare e pelo Render. Cabeçalho `X-` customizado passa nos dois **hoje**, e a tarefa 4.2 mede isso em produção em vez de presumir. Se algum dia for removido, o sintoma é cabeçalho **ausente**, que o requisito obriga a distinguir de `desconhecido` |
+| ~~**Que o cabeçalho atravesse os intermediários de produção**~~ — **fechada por medição em 2026-09-12** | A linha fica, com a medição ao lado (P7): às 22:15:15Z o cabeçalho chegou em produção, atravessando Cloudflare e Render, com `x-platos-build: sha-59b9554`. Era suposição até então. O que **continua** valendo é o modo de falha: se algum dia for removido, o sintoma é cabeçalho **ausente**, que o requisito obriga a distinguir de `desconhecido` |
 | **Que o identificador corresponda ao digest** | O cabeçalho declara o **commit**, não o digest da imagem. Dois builds do mesmo commit têm digests diferentes e declarariam o mesmo identificador. Para o uso que motivou a mudança — "o Render puxou a imagem nova?" — o commit basta, porque a tag `sha-<curto>` é construída do mesmo commit. Fechar isso exigiria assar o digest, que não existe no momento em que a imagem é construída |
 | **`HEAD /health`** | Responde **405**, e isto ficou medido. A spec fala da resposta à verificação de saúde e não menciona método, então tratar `HEAD` seria escopo além dela. Fica nomeado: quem usar `-I` por hábito vê 405 e pode ler como serviço quebrado |
 | **A fiação em `Application.module`** | Que `healthRoutes(dependencies.build)` receba o valor certo é fiação, e nenhum teste desta base a alcança — é a mesma lacuna de `@Composable` do lado Android. Mitigado em parte por não haver valor padrão: o compilador cobra quem monta as dependências. Paga-se na 4.2, em produção |
+
+## O elo do P26, medido pela primeira vez (tarefa 4.2)
+
+Três leituras em sequência, na mesma sessão, e é a sequência que carrega o significado:
+
+1. **21:31:56Z**, antes da publicação — cabeçalho **ausente**. A imagem em execução precede esta
+   mudança, então ela não tem o código que emite o cabeçalho.
+2. **21:33:41Z**, 44 segundos depois de a imagem nova estar no registro (digest publicado às
+   21:32:57Z) e **sem** deploy — cabeçalho **ainda ausente**. É *"publicar imagem nova NÃO redeploya
+   o Render"* deixando de ser aviso escrito e passando a ser medição, com os dois horários ao lado.
+3. **22:15:15Z**, depois do `Manual Deploy` — **`x-platos-build: sha-59b9554`**, igual por **string**
+   à tag publicada. As outras rotas seguem em 401: a imagem subiu sem quebrar nada.
+
+**A distinção que a mutação A protegia é o que torna a sequência legível.** Se o cabeçalho fosse
+omitido quando o build é desconhecido, as leituras 1 e 2 seriam indistinguíveis de "imagem nova, sem
+identificador" — e a afirmação central, que o Render ainda servia a imagem anterior, não teria
+sustentação. O requisito que obriga a declarar ausência **como ausência** pagou no primeiro dia.
 
 ## Achados de método
 
