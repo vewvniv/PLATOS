@@ -21,8 +21,29 @@ data class AppConfig(
     val jwt: JwtConfig,
     val plansDir: Path,
     val port: Int,
+    /**
+     * Qual build esta servindo, para a resposta de saude declarar.
+     *
+     * **Assado na imagem em tempo de construcao**, e nao configuracao de operacao: identificador que
+     * o operador pode editar sem reconstruir diria o que ele digitou, e nao o que esta rodando — que
+     * e exatamente a deriva que declarar o build existe para detectar.
+     *
+     * Nunca vazio: ausencia e [BUILD_DESCONHECIDO], decidido num lugar so.
+     */
+    val build: String,
 ) {
     companion object {
+
+        /**
+         * O que se declara quando o artefato foi construido sem identificador.
+         *
+         * **Um lugar so, e valor nomeado em vez de nulo ou cabecalho omitido.** Cabecalho ausente e
+         * indistinguivel de intermediario que o removeu, e a resposta precisa separar "nao sei" de
+         * "ninguem me perguntou". Valor inventado seria pior: indistinguivel de identificador
+         * verdadeiro para quem le, e quem le esta justamente tentando descobrir o que esta no ar.
+         */
+        const val BUILD_DESCONHECIDO = "desconhecido"
+
         fun fromEnvironment(env: (String) -> String? = System::getenv): AppConfig {
             fun required(name: String): String =
                 env(name) ?: error("Variavel de ambiente obrigatoria ausente: $name")
@@ -42,6 +63,13 @@ data class AppConfig(
                 ),
                 plansDir = Paths.get(env("PLANS_DIR") ?: "plans"),
                 port = env("PORT")?.toInt() ?: 8080,
+                // **Opcional, e nunca `required`.** Exigir o identificador faria a API recusar subir
+                // sem ele, o que transformaria uma melhoria de observabilidade em modo novo de falha
+                // de arranque — e quebraria todo `installDist` local.
+                //
+                // `isNotBlank` porque vazio e o caso real: um `--build-arg` mal formado assa string
+                // vazia, que passaria por "presente" e declararia nada.
+                build = env("PLATOS_BUILD")?.takeIf { it.isNotBlank() } ?: BUILD_DESCONHECIDO,
             )
         }
     }
