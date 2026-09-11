@@ -2,6 +2,7 @@ package com.platos.api.exam
 
 import com.platos.api.http.dto.RosterEntryDto
 import com.platos.api.support.PostgresSupport
+import kotlinx.serialization.json.Json
 import java.util.UUID
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -77,10 +78,15 @@ class RosterQueryTest {
             "o cenario precisa que turma e matricula estejam gravadas para provar que nao descem",
         )
 
-        // Varredura sobre **tudo** o que a resposta carrega, e nao conferencia de campo por campo:
-        // um campo acrescentado por engano ao DTO apareceria aqui sem ninguem ter de lembrar de
-        // mencionar o nome dele na asercao.
-        val tudo = roster.joinToString(";") { entrada -> "${entrada.studentToken}=${entrada.displayName}" }
+        // Varredura sobre o **JSON serializado**, e nao sobre campo por campo: e a mesma forma que
+        // a rota vai por no corpo, e um campo acrescentado por engano ao DTO cai aqui sem ninguem
+        // ter de lembrar de mencionar o nome dele na asercao.
+        //
+        // A primeira versao desta varredura montava a string com `joinToString` nomeando os dois
+        // campos a mao — e portanto **sobreviveria** a mutacao (A) da tarefa 1.3, que e a unica
+        // coisa que ela existe para nao sobreviver. Achado ao declarar o conjunto esperado antes de
+        // injetar, que e exatamente para isso que a declaracao vem antes.
+        val tudo = Json.encodeToString(roster)
         for (proibido in listOf("9Z-noturno", "2026-MAT-7701", "2026-MAT-7702")) {
             assertTrue(proibido !in tudo, "`$proibido` saiu do servidor: $tudo")
         }
