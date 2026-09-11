@@ -7,7 +7,7 @@
 ## 2. A rota
 
 - [x] 2.1 `GET /organizations/{organizationId}/exams/{shortId}/roster`, autenticada, sob `tenancy.asUser`, respondendo JSON pelo `ContentNegotiation` já instalado. Prova inexistente e prova de outra organização SHALL produzir a **mesma** resposta. Resultado: o roster passa a ser obtenível por quem pertence à organização.
-- [ ] 2.2 Cenários de rota, no arquivo que já cobre a rota do pacote: 200 com os dois campos para quem pertence; **401** sem credencial; **a mesma resposta** para prova inexistente e para prova de organização alheia; e 200 com lista vazia para prova publicada sem roster. Cada asserção confere o **motivo** — código e corpo —, não só que houve recusa.
+- [x] 2.2 Cenários de rota, no arquivo que já cobre a rota do pacote: 200 com os dois campos para quem pertence; **401** sem credencial; **a mesma resposta** para prova inexistente e para prova de organização alheia; e 200 com lista vazia para prova publicada sem roster. Cada asserção confere o **motivo** — código e corpo —, não só que houve recusa.
 - [ ] 2.3 **Ver falhar:** fazer a rota responder 404 para prova sem roster. Esperado: só o cenário da lista vazia fica vermelho, e o da organização alheia continua verde — se os dois caírem juntos, "sem roster" e "não é seu" estão colapsados, que é exatamente a distinção que a folha avulsa depende. Reverter e conferir a reversão **rodando**, pelo `timestamp` do relatório.
 - [ ] 2.4 Conferir que **o pacote e a listagem não mudaram**: a suíte de rota existente roda sem edição, e o `content_hash` que `ExamPublicationTest` fixa continua o mesmo. Resultado: a negativa "nenhum contrato existente alterado" é medida, e não afirmada.
 
