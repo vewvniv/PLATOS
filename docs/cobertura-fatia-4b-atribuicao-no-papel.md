@@ -140,6 +140,32 @@ no documento de cobertura da fatia anterior, e continua aberto.
 | **A chave de idempotência da folha avulsa** | O §10 fixa `(exam_id, student_id)` e o §7 garante capturas em que `student_id` não existe. Esta fatia isola o caso por requisito — folha sem atribuição carrega campo vazio, nunca valor inventado — e **não** resolve a tensão. Pergunta da fatia do push |
 | **Um `LayoutMap` com zero ou dois QR** | `comQrDe` e a função irmã em TypeScript exigem exatamente um, e a spec vigente exige uma região escaneável por folha. Nenhum teste produz um mapa malformado para exercitar a recusa, porque produzir um exigiria contornar o `LayoutEngine` — e o mapa é gerado, não digitado. É lacuna **conhecida**, não mitigada |
 
+## O plano estava errado oito vezes, e o registro delas está nas tarefas
+
+Não é anedota: é a contagem, e ela importa porque um plano que erra oito vezes em 23 tarefas diz
+algo sobre quanto do plano é derivável antes de a implementação começar. Todas foram corrigidas no
+artefato, com o motivo, e nenhuma foi contornada em silêncio.
+
+| Tarefa | O que estava errado | Como foi resolvido |
+|---|---|---|
+| 2.1 | Enumerava **três** recusas; a terceira (layout órfão de atribuição) é irrepresentável na forma escolhida — o QR viaja dentro da atribuição. O mesmo erro estava na spec | `/opsx:update`: a spec passou a declarar a garantia **nomeando a construção** que a produz |
+| 4.1 | Supunha mais trabalho do que havia: a gravação do roster e o mapeamento para `assignments[]` já existiam | A mudança real foi uma linha, e isso ficou escrito |
+| 4.2 | Pedia um canário que **já existia** | Registrado como premissa corrigida; o que faltava (uma atribuição por aluno) entrou |
+| 4.3 | A mutação proposta exigia inventar um campo inexistente | Substituída pelo defeito bem-intencionado real: token "legível" com o nome dentro |
+| 4.4 | Afirmava que a recusa por modo "nunca foi exercitada com dado real" | Falso: roda contra Postgres real desde a fatia da LGPD. Marcada com a correção, sem teste redundante |
+| 6.1 | Contradizia decisão registrada no KDoc do writer | Veículo trocado por um terceiro pacote versionado, no precedente da `prova-2` |
+| 6.1 / 5.x | Ordem invertida — a 6.1 é pré-requisito da seção 5 | Reordenado, com o motivo escrito na 6.1 |
+| 6.3 | Dissolveu como consequência da correção de veículo | O que sobrou virou a guarda do artefato novo |
+
+**Duas famílias diferentes, que não entram nesta contagem e ficam ditas para não se misturarem:**
+
+- **Implementação minha errada, não a tarefa:** na 1.1 eu fiz `qr` não-opcional; o compilador acusou
+  em `ExamPublication.kt:80`, e o argumento decisivo veio da spec — campo não-opcional torna
+  "atribuição sem folha endereçável" inconstruível, e a spec exige cenário de **recusa** para esse
+  estado.
+- **Previsão minha incompleta:** 1.3 (dizia um vermelho, eram dois) e 3.3 (dizia quatro, foram oito).
+  As duas estão nas seções de mutação acima.
+
 ## Achados fora do escopo, com dono e fatia-limite
 
 Nenhum foi consertado aqui (P19).
