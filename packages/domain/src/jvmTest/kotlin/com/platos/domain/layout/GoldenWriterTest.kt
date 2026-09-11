@@ -75,6 +75,39 @@ class GoldenWriterTest {
     }
 
     /**
+     * A mesma prova de referencia, publicada **com roster**. E o instrumento do caminho com
+     * atribuicao.
+     *
+     * **Existe como artefato proprio, e nao como a referencia republicada**, e a razao esta no
+     * teste de cima: token de aluno nao e coisa de arquivo versionado, e e o hash da referencia que
+     * os tres alvos afirmam. Republica-la com roster desfaria as duas coisas por conveniencia de
+     * teste. Aqui vale o precedente da `prova-2`: quando um caminho precisa de um pacote diferente,
+     * o pacote e outro arquivo, com o motivo escrito.
+     *
+     * **Tres alunos, e os tokens sao codigos** — nao nomes civis, nem apelidos que identifiquem
+     * alguem. E o modo `coded` que ADR-0012 fez padrao de toda organizacao, e o que ele admite e
+     * "aluno por numero, codigo ou apelido". Um artefato versionado com nome de menor dentro seria
+     * o oposto do que ADR-0002 decidiu.
+     *
+     * Tres, e nao dois: com dois, "cada aluno tem a folha dele" e indistinguivel de "a segunda
+     * folha e a primeira invertida". Com tres, uma composicao que embaralhasse atribuicoes teria de
+     * acertar tres de tres.
+     */
+    @Test
+    fun `regrava o pacote da turma apenas quando solicitado`() {
+        if (System.getProperty("platos.golden.write") != "true") return
+        val destination = File(System.getProperty("platos.packageTurma.path"))
+
+        val pacote = exam.buildPackage(tokens = listOf("tok-a", "tok-b", "tok-c"))
+
+        destination.writeText(pacote.toCanonicalJson())
+        println(
+            "pacote da turma regravado: ${destination.absolutePath} (${destination.length()} bytes, " +
+                "hash ${pacote.contentHash()}, ${pacote.assignments.size} atribuicoes)",
+        )
+    }
+
+    /**
      * A segunda prova publicada, e ela e **adversarial** e nao apenas "outra".
      *
      * Ela declara os mesmos identificadores de item e as mesmas posicoes da `prova-referencia`,

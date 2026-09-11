@@ -117,12 +117,28 @@ folha *com* atribuição carrega o token, e que a folha *sem* atribuição carre
 um valor inventado. A pergunta — chave substituta para a avulsa, ou revisão explícita do §10 — é da
 fatia do push, e ela chega lá com o caso já isolado por requisito.
 
+### 6. O instrumento com atribuições é um artefato novo, não a referência republicada
+
+**Corrigido em 2026-09-11, durante a implementação.** O plano original republicava
+`prova-referencia.package.json` com roster. Isso contradiz uma decisão registrada no KDoc de
+`GoldenWriterTest`: *"Sem atribuicoes: a fixture nao tem roster, e token de aluno nao e coisa de
+arquivo versionado."* Desfazê-la por conveniência de teste é o que a regra 5 do `CLAUDE.md` proíbe.
+
+O veículo passa a ser um **terceiro pacote versionado** — `fixtures/prova-referencia.turma.package.json`,
+a mesma prova publicada com três alunos codificados —, seguindo o precedente de `prova-2.package.json`:
+writer próprio atrás da mesma flag, propriedade de sistema própria, e KDoc dizendo por que existe.
+
+Consequência: a referência fica intacta, o hash `26612ad5…909a` continua valendo, e nenhum lugar que
+o fixa precisa mudar. O artefato novo ganha a mesma guarda byte a byte que a referência tem — sem
+ela, seria um arquivo que não tem como estar errado.
+
 ## Risks / Trade-offs
 
-- **Regravar a fixture muda o `content_hash`** → A fixture de referência é republicada com roster, e
-  o hash `26612ad5…909a` deixa de valer. **P23 se aplica**: paridade e fidelidade fecham na **mesma
-  sessão** da regravação, com os artefatos dos dois lados gerados nela, e o hash novo atravessa os
-  testes que hoje o fixam.
+- **O caminho de desenho foi alterado, e a P23 se aplica mesmo sem regravar golden** → A conversão da
+  matriz do QR virou `linhasDeModulo`, compartilhada entre a folha da variante e a de cada
+  atribuição. Os artefatos versionados saíram **byte a byte idênticos** (quatro cenários verdes o
+  afirmam), o que prova que o `LayoutMap` não mudou — mas que a paridade continua fechada seria
+  inferência. Ela é medida nesta sessão, com os artefatos dos dois lados gerados nela.
 - **A geometria compartilhada cria um caminho de composição** → Montar "geometria + QR da atribuição"
   é passo novo entre pacote e desenho. Mitigação: o requisito de que as folhas difiram só no QR torna
   a composição conferível — dois layouts compostos da mesma variante têm de coincidir em tudo menos
