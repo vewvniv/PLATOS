@@ -17,7 +17,13 @@ const outputPath = process.argv[2]
   ? resolve(process.argv[2])
   : resolve(repoRoot, 'build/parity/web.pdf');
 
-const map: LayoutMap = await loadPublishedLayout();
+// **Sem aluno pedido, desenha a folha da variante**, e e isso que a paridade compara: nenhum
+// comando existente muda de comportamento. Com `PLATOS_STUDENT`, desenha a folha daquele aluno —
+// mesma geometria, o QR dele. E a mesma disciplina de `PLATOS_PACKAGE`: o caminho de producao e
+// parametro, e nao um segundo script que duplicaria como uma folha e desenhada.
+const studentToken = process.env.PLATOS_STUDENT || undefined;
+
+const map: LayoutMap = await loadPublishedLayout(undefined, studentToken);
 const rasters = await loadFormulaRasters();
 
 const pdf = await renderLayoutMap(map, await loadFontBytes(), rasters);
@@ -29,5 +35,6 @@ const imagens = map.pages.flatMap((page) =>
 );
 console.log(
   `PDF do web: ${outputPath} (${pdf.length} bytes, ${map.pages.length} paginas, ` +
-    `${imagens.length} formulas, prova ${map.exam_id})`,
+    `${imagens.length} formulas, prova ${map.exam_id}` +
+    `${studentToken ? `, aluno ${studentToken}` : ''})`,
 );
