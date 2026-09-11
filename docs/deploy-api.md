@@ -225,6 +225,29 @@ curl -s -o /dev/null -w "%{http_code}
 Controle **401** com alvo **404** é o estado "imagem publicada, Render não puxou". Sem o controle,
 o 404 do alvo é indistinguível de serviço fora do ar. Os dois em 401 é o deploy no ar.
 
+### A partir de 2026-09-11, a pergunta tem resposta direta
+
+`/health` declara qual build está servindo, no cabeçalho `X-Platos-Build`:
+
+```bash
+curl -s -D - -o /dev/null https://<seu-servico>.onrender.com/health | grep -i x-platos-build
+# X-Platos-Build: sha-cdd12e8
+```
+
+Compare com a tag publicada no GHCR. Iguais: o que está servindo é o que foi publicado. Diferentes:
+o Render não puxou, e a tag imutável `sha-<curto>` diz exatamente qual imagem ele ainda serve.
+
+**`curl -I` NÃO serve, e isto foi medido:** `-I` manda `HEAD`, a rota só responde `GET`, e o
+resultado é **405 Method Not Allowed** com o cabeçalho invisível. Use `-D -` como acima.
+
+**`X-Platos-Build: desconhecido`** é resposta legítima, e significa que a imagem foi construída fora
+do caminho de publicação — `docker build` à mão, sem `--build-arg`. Ausência dita como ausência; o
+que a resposta nunca traz é valor inventado.
+
+O par de rotas acima continua valendo para o que ele sempre mediu: que o serviço está no ar e com
+autenticação ativa. O que ele **não** distingue são duas imagens do mesmo repositório — e é isso que
+o cabeçalho resolve.
+
 Para o Render puxar: *Manual Deploy → Deploy latest reference* no painel, ou um **Deploy Hook**
 (*Settings → Deploy Hook*) chamado como último passo de `publicar-api.yml`. O hook fecha o elo e
 tira a etapa manual; enquanto ele não existir, publicar é duas ações e não uma.
@@ -289,6 +312,13 @@ mudou nada.
 Conclusão para quem ler depois: **publicado e implantado; "servindo o digest `84cd51b7…`" é relatado,
 não medido.** Os dois consertos já nomeados acima seguem sendo o que fecha isso — `/health` carregando
 o `sha-<curto>` da imagem, e o Deploy Hook.
+
+**Corrigido em 2026-09-11, e o parágrafo acima fica como está (P7):** o primeiro dos dois consertos
+**foi feito**. `/health` passou a declarar o build no cabeçalho `X-Platos-Build`, e a conferência está
+na seção "A partir de 2026-09-11, a pergunta tem resposta direta". Então "o terceiro elo é
+inobservável de fora" descreve o estado **até** esta data, e não o estado corrente — quem ler o
+trecho antigo sem esta nota repetiria a conclusão errada. **O que continua aberto é o Deploy Hook:**
+publicar ainda não redeploya, e o elo entre publicação e deploy segue dependendo de alguém disparar.
 
 ### A reconciliação de 2026-09-10, e o par de rotas cego
 
