@@ -29,6 +29,14 @@ class ApiDependencies(
     val examQueries: ExamQueries,
     val entitlementResolver: EntitlementResolver,
     val jwt: JwtConfig,
+    /**
+     * Qual build esta servindo, para a resposta de saude declarar. Ver `AppConfig.build`.
+     *
+     * **Sem valor padrao, de proposito.** Um padrao faria um esquecimento na fiacao responder
+     * "desconhecido" em producao **em silencio** — e a rota existe justamente para que ninguem
+     * precise adivinhar o que esta no ar. Assim o compilador cobra quem monta as dependencias.
+     */
+    val build: String,
 )
 
 fun main() {
@@ -46,6 +54,7 @@ fun main() {
         examQueries = ExamQueries(),
         entitlementResolver = EntitlementResolver(planCatalog),
         jwt = config.jwt,
+        build = config.build,
     )
 
     embeddedServer(Netty, port = config.port) {
@@ -62,7 +71,7 @@ fun Application.module(dependencies: ApiDependencies, jwkProvider: JwkProvider? 
     }
 
     routing {
-        healthRoutes()
+        healthRoutes(dependencies.build)
         identityRoutes(dependencies)
         examRoutes(dependencies)
     }

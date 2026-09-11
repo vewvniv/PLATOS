@@ -16,8 +16,37 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import java.util.UUID
 
-fun Route.healthRoutes() {
+/**
+ * Cabecalho que declara qual build esta servindo.
+ *
+ * Constante, e nao literal repetido, pela mesma razao de [PACKAGE_CONTENT_HASH_HEADER]: quem le a
+ * resposta e quem a escreve precisam concordar sobre o nome, e um erro de digitacao num dos dois
+ * lados nao quebraria teste nenhum — ele so faria a conferencia de producao nunca achar o cabecalho.
+ */
+const val BUILD_HEADER = "X-Platos-Build"
+
+/**
+ * A verificacao de saude: **o corpo continua sendo exatamente `ok`**, e o build vai no cabecalho.
+ *
+ * A forma foi escolhida com os consumidores do corpo na mao: `HealthTest` afirma `ok` por igualdade
+ * exata, e `docs/deploy-api.md` manda conferir isso. Cabecalho deixa a mudanca **aditiva** — quem le
+ * o corpo nao percebe diferenca, e quem quer saber o build faz `curl -sI`.
+ *
+ * **O cabecalho e emitido sempre, inclusive quando o build e desconhecido.** Omiti-lo naquele caso
+ * faria "nao sei" ficar indistinguivel de "um intermediario removeu o cabecalho no caminho", e quem
+ * consulta esta rota esta justamente tentando descobrir o que esta no ar.
+ *
+ * [build] entra por parametro e **sem valor padrao**: a fiacao e obrigacao de quem monta o
+ * `routing`, e um padrao faria um esquecimento em `Application` responder "desconhecido" em producao
+ * em silencio. Nao ha `ApiDependencies` aqui porque esta rota nao precisa de nenhuma — e e isso que
+ * a mantem testavel sem montar banco.
+ *
+ * Nao afirma alcance de banco de proposito: uma indisponibilidade de banco seria lida como servico
+ * fora do ar, e esse elo se observa por outra sonda.
+ */
+fun Route.healthRoutes(build: String) {
     get("/health") {
+        call.response.header(BUILD_HEADER, build)
         call.respondText("ok")
     }
 }
