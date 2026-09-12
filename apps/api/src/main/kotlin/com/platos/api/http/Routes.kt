@@ -30,7 +30,12 @@ const val BUILD_HEADER = "X-Platos-Build"
  *
  * A forma foi escolhida com os consumidores do corpo na mao: `HealthTest` afirma `ok` por igualdade
  * exata, e `docs/deploy-api.md` manda conferir isso. Cabecalho deixa a mudanca **aditiva** — quem le
- * o corpo nao percebe diferenca, e quem quer saber o build faz `curl -sI`.
+ * o corpo nao percebe diferenca, e quem quer saber o build le o cabecalho com
+ * `curl -s -D - -o /dev/null`, que e o comando que `docs/deploy-api.md` traz.
+ *
+ * **Nao e `curl -sI`, e esta linha ja mandou isso.** `-I` manda `HEAD`, a rota so responde
+ * `GET`, e a conferencia em producao mediu **405 Method Not Allowed** com o cabecalho
+ * invisivel. A instrucao errada fica dita em vez de apagada em silencio (P7).
  *
  * **O cabecalho e emitido sempre, inclusive quando o build e desconhecido.** Omiti-lo naquele caso
  * faria "nao sei" ficar indistinguivel de "um intermediario removeu o cabecalho no caminho", e quem
