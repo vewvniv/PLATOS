@@ -72,7 +72,7 @@ fun ScanScreen(
                 Text(state.reason, fontSize = 16.sp)
             }
             is ScanState.Scored -> Resultado(onRetomar) {
-                DeQuemE(alunoDaFolha(state.payload.studentToken, roster, ZoneId.systemDefault()))
+                DeQuemE(idAlunoDaFolha(state.payload.studentToken, roster, ZoneId.systemDefault()))
                 Nota(state.score)
             }
         }
@@ -144,12 +144,12 @@ private fun BoxScope.Resultado(
  * duas marcas para a mesma regra divergiriam na primeira mudanca.
  */
 @Composable
-private fun DeQuemE(identidade: AlunoDaFolha) {
+private fun DeQuemE(identidade: IdAlunoDaFolha) {
     when (identidade) {
-        is AlunoDaFolha.Nomeada ->
+        is IdAlunoDaFolha.Nomeada ->
             Text(identidade.nome, fontSize = 22.sp, fontWeight = FontWeight.Bold)
 
-        is AlunoDaFolha.ForaDoRoster -> {
+        is IdAlunoDaFolha.ForaDoRoster -> {
             Text(identidade.token, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Text(
                 "Esta folha nao esta no roster desta prova. A nota abaixo foi apurada normalmente.",

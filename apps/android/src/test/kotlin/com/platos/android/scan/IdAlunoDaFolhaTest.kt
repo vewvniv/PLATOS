@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test
  * **Nao confundir com `IdentidadeDaFolhaTest`**, que cobre a camada (c) de ADR-0013 — de qual
  * **prova** a folha e. Esta pressupoe aquela resolvida.
  */
-class AlunoDaFolhaTest {
+class IdAlunoDaFolhaTest {
 
     private val zona = ZoneId.of("America/Sao_Paulo")
     private val puxadoEm = 1_757_000_000_000L
@@ -28,10 +28,10 @@ class AlunoDaFolhaTest {
 
     @Test
     fun token_no_roster_vira_nome() {
-        val identidade = alunoDaFolha("tok-b", roster(ana, bruno), zona)
+        val identidade = idAlunoDaFolha("tok-b", roster(ana, bruno), zona)
 
-        assertEquals(AlunoDaFolha.Nomeada::class, identidade::class)
-        assertEquals("Bruno Alves", (identidade as AlunoDaFolha.Nomeada).nome)
+        assertEquals(IdAlunoDaFolha.Nomeada::class, identidade::class)
+        assertEquals("Bruno Alves", (identidade as IdAlunoDaFolha.Nomeada).nome)
     }
 
     /**
@@ -43,17 +43,17 @@ class AlunoDaFolhaTest {
      */
     @Test
     fun token_fora_do_roster_vira_o_proprio_token() {
-        val identidade = alunoDaFolha("tok-z", roster(ana, bruno), zona)
+        val identidade = idAlunoDaFolha("tok-z", roster(ana, bruno), zona)
 
-        assertEquals(AlunoDaFolha.ForaDoRoster::class, identidade::class)
-        assertEquals("tok-z", (identidade as AlunoDaFolha.ForaDoRoster).token)
+        assertEquals(IdAlunoDaFolha.ForaDoRoster::class, identidade::class)
+        assertEquals("tok-z", (identidade as IdAlunoDaFolha.ForaDoRoster).token)
     }
 
     @Test
     fun roster_vazio_nao_nomeia_ninguem() {
-        val identidade = alunoDaFolha("tok-a", roster(), zona)
+        val identidade = idAlunoDaFolha("tok-a", roster(), zona)
 
-        assertEquals(AlunoDaFolha.ForaDoRoster::class, identidade::class)
+        assertEquals(IdAlunoDaFolha.ForaDoRoster::class, identidade::class)
     }
 
     /**
@@ -65,9 +65,9 @@ class AlunoDaFolhaTest {
      */
     @Test
     fun sem_roster_nenhum_apresenta_o_token_sem_marca() {
-        val identidade = alunoDaFolha("tok-a", null, zona)
+        val identidade = idAlunoDaFolha("tok-a", null, zona)
 
-        assertEquals(AlunoDaFolha.ForaDoRoster::class, identidade::class)
+        assertEquals(IdAlunoDaFolha.ForaDoRoster::class, identidade::class)
         assertNull(identidade.marca, "apareceu marca de cache sem roster de onde tirar a idade")
     }
 
@@ -83,7 +83,7 @@ class AlunoDaFolhaTest {
      */
     @Test
     fun o_nome_vindo_do_roster_guardado_carrega_marca_com_idade() {
-        val identidade = alunoDaFolha("tok-a", roster(ana), zona)
+        val identidade = idAlunoDaFolha("tok-a", roster(ana), zona)
 
         val marca = identidade.marca
 

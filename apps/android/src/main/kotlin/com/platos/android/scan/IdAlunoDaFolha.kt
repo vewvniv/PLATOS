@@ -23,13 +23,13 @@ import java.time.ZoneId
  * em resultados ja apurados. E o comportamento certo — o roster e mutavel por construcao (ADR-0002),
  * e a nota nao muda.
  */
-sealed interface AlunoDaFolha {
+sealed interface IdAlunoDaFolha {
 
     /** A marca de dado cacheado, que a tela desenha ao lado do que ela identifica. */
     val marca: MarcaDeLeitura?
 
     /** O token esta no roster guardado, e o aluno tem nome. */
-    data class Nomeada(val nome: String, override val marca: MarcaDeLeitura?) : AlunoDaFolha
+    data class Nomeada(val nome: String, override val marca: MarcaDeLeitura?) : IdAlunoDaFolha
 
     /**
      * O token nao tem linha no roster guardado desta prova.
@@ -38,7 +38,7 @@ sealed interface AlunoDaFolha {
      * saber de quem e a folha. `exam-package` separa os dois casos ao entregar roster vazio em vez de
      * negar a prova, e e a folha avulsa do aluno fora da lista que depende disso.
      */
-    data class ForaDoRoster(val token: String, override val marca: MarcaDeLeitura?) : AlunoDaFolha
+    data class ForaDoRoster(val token: String, override val marca: MarcaDeLeitura?) : IdAlunoDaFolha
 }
 
 /**
@@ -58,16 +58,16 @@ sealed interface AlunoDaFolha {
  * Funcao, e nao metodo de [ScanState]: ela nao tem estado, e e isso que a poe ao alcance de um
  * cenario de JVM — o que a tela decide, nenhum teste desta base alcanca.
  */
-fun alunoDaFolha(
+fun idAlunoDaFolha(
     token: String,
     roster: RosterDaProva?,
     zona: ZoneId,
-): AlunoDaFolha {
+): IdAlunoDaFolha {
     val marca = roster?.let { marcaDeLeitura(Procedencia.Cacheada(it.puxadoEm), zona) }
     val aluno = roster?.alunos?.firstOrNull { it.token == token }
 
     return when (aluno) {
-        null -> AlunoDaFolha.ForaDoRoster(token, marca)
-        else -> AlunoDaFolha.Nomeada(aluno.nome, marca)
+        null -> IdAlunoDaFolha.ForaDoRoster(token, marca)
+        else -> IdAlunoDaFolha.Nomeada(aluno.nome, marca)
     }
 }
