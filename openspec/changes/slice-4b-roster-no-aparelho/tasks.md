@@ -87,17 +87,23 @@ ser gravado, para não existir janela em que o aparelho guarde nome de aluno sem
 
 ## 5. Verificação final
 
-- [ ] 5.1 Rodar o **comando cheio do CI** com `--rerun-tasks`, porque `UP-TO-DATE` serve relatório
+- [x] 5.1 Rodar o **comando cheio do CI** com `--rerun-tasks`, porque `UP-TO-DATE` serve relatório
   velho com contagem plausível, e conferir os números **e o `timestamp`** de cada relatório. Diferente
   da α: aqui `apps/android` muda, então a metade instrumentada **é** exigida — e a suíte instrumentada
   desinstala o aplicativo ao terminar, levando o `filesDir` junto (registrado na cobertura da 4a), o
   que precisa ser considerado ao ler um cenário de cache que "sumiu".
-- [ ] 5.2 Rodar `openspec validate slice-4b-roster-no-aparelho --strict`.
-- [ ] 5.3 Conferir **arquivo a arquivo**, contra o commit em que esta mudança começou, as negativas
+- [x] 5.2 Rodar `openspec validate slice-4b-roster-no-aparelho --strict`.
+- [x] 5.3 Conferir **arquivo a arquivo**, contra o commit em que esta mudança começou, as negativas
   da proposta: nada em `apps/api`, `apps/web`, `packages/domain`, `vision/` e `omr/`, nenhuma
   migração, e nenhuma spec fora de `device-session` e `scan-session`. Negativa larga não vale —
   nomear a exceção, se houver, e mostrá-la no `git diff`.
-- [ ] 5.4 Escrever `docs/cobertura-slice-4b-roster-no-aparelho.md` com **como** cada verificação
+- [x] 5.1b **Acrescentado durante a 5.1, e dito como acréscimo:** a suíte instrumentada passou com
+  49 cenários e **nenhum tocava o roster** — `filesDir/rosters` nunca foi exercitado em aparelho,
+  enquanto a visão e os pacotes têm esse par desde a 4a. Declarar a camada verificada pela prova
+  da vizinha é P16. `RosterEmRepousoInstrumentedTest` fecha a lacuna, espelhando
+  `VisaoEmRepousoInstrumentedTest`, inclusive o canário que impede "está em `filesDir`" de passar
+  para arquivo vazio.
+- [x] 5.4 Escrever `docs/cobertura-slice-4b-roster-no-aparelho.md` com **como** cada verificação
   crítica foi vista falhar — a mutação, os cenários que caíram e a **mensagem** da asserção —, mais o
   que ficou sem teste automático e por quê. Nomear explicitamente: que esta fatia **cria** a primeira
   cópia de dado pessoal de aluno fora do servidor e fecha a linha do §16 que trata dela; que o **teto
