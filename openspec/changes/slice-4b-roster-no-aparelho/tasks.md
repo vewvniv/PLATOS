@@ -41,20 +41,20 @@ ser gravado, para não existir janela em que o aparelho guarde nome de aluno sem
 
 ## 2. O pull, e o gate sobre dois artefatos
 
-- [ ] 2.1 `ClienteApi` ganha a chamada da rota que a α criou, devolvendo token e nome de
+- [x] 2.1 `ClienteApi` ganha a chamada da rota que a α criou, devolvendo token e nome de
   apresentação. Resultado: o roster é obtenível pelo aparelho, e ainda não muda tela nenhuma.
-- [ ] 2.2 `PreparoDaProva`/`EstadoDaProva`: escolher a prova passa a puxar e guardar o roster ao lado
+- [x] 2.2 `PreparoDaProva`/`EstadoDaProva`: escolher a prova passa a puxar e guardar o roster ao lado
   do pacote, e o gate passa a exigir os dois. **Roster ausente vira o quinto estado de recusa**, com
   frase própria, ao lado de ausência de rede, pacote ausente, conferência falha e versão
   insuficiente. Presença do arquivo é a afirmação de "puxado" (`design.md`, decisão 2).
-- [ ] 2.3 Cenários de gate, no arquivo que já cobre o gate: passa com roster de alunos; **passa com
+- [x] 2.3 Cenários de gate, no arquivo que já cobre o gate: passa com roster de alunos; **passa com
   roster vazio**; barra com roster nunca puxado; e a frase de recusa do roster ausente é **distinta**
   das outras quatro. Cada asserção confere o **motivo** apresentado, não só que houve recusa.
-- [ ] 2.3b Os dois cenários do ciclo de pull, que a auditoria achou sem tarefa: **primeira escolha da
+- [x] 2.3b Os dois cenários do ciclo de pull, que a auditoria achou sem tarefa: **primeira escolha da
   prova** puxa o roster da API e o guarda no escopo da organização ativa; **segunda escolha, sem
   rede**, usa o guardado e o escaneamento abre normalmente. O segundo é o que prova que o guardado
   serve para o que ele existe — sem ele, o cache estaria coberto só pela escrita.
-- [ ] 2.4 **Ver falhar:** fazer o gate barrar também com roster vazio. Esperado: só o cenário do
+- [x] 2.4 **Ver falhar:** fazer o gate barrar também com roster vazio. Esperado: só o cenário do
   roster vazio fica vermelho, e o do roster ausente continua verde — se os dois caírem juntos, "sem
   alunos" e "não sei quem são" estão colapsados, que é exatamente a distinção que a folha avulsa e a
   prova sem roster dependem. Reverter e conferir a reversão **rodando**, pelo `timestamp` do
@@ -62,26 +62,26 @@ ser gravado, para não existir janela em que o aparelho guarde nome de aluno sem
 
 ## 3. O nome na tela
 
-- [ ] 3.1 O resultado resolve o token contra o roster guardado **na hora de apresentar**, e
+- [x] 3.1 O resultado resolve o token contra o roster guardado **na hora de apresentar**, e
   SHALL NOT gravar o nome no resultado (`design.md`, decisão 4). Sem linha no roster: apresenta o
   token e diz que a folha não está no roster desta prova, sem tratar como falha de leitura.
-- [ ] 3.2 O nome vindo do roster guardado carrega a marca de dado cacheado que `device-session` já
+- [x] 3.2 O nome vindo do roster guardado carrega a marca de dado cacheado que `device-session` já
   exige — a marca existente, não uma nova.
-- [ ] 3.3 Cenários de resultado: folha de aluno no roster mostra o nome; folha de token fora do
+- [x] 3.3 Cenários de resultado: folha de aluno no roster mostra o nome; folha de token fora do
   roster mostra o token com a frase própria e a nota **apurada**; o nome aparece marcado como
   cacheado. Mais a negativa: **o resultado guardado não contém nome** — conferida no que é gravado,
   não na tela.
-- [ ] 3.4 **Ver falhar:** gravar o nome dentro do resultado. Esperado: só a negativa da 3.3 fica
+- [x] 3.4 **Ver falhar:** gravar o nome dentro do resultado. Esperado: só a negativa da 3.3 fica
   vermelha. Se ela passar mesmo com o nome gravado, a asserção está olhando a tela e não o gravado, e
   a fatia perderia a única garantia de que existe **uma** cópia do dado pessoal.
 
 ## 4. O registro que esta fatia fecha
 
-- [ ] 4.1 §16 do `ARQUITETURA-FINAL-v3.md`, linha "O roster cacheado sem regra de apagamento": a
+- [x] 4.1 §16 do `ARQUITETURA-FINAL-v3.md`, linha "O roster cacheado sem regra de apagamento": a
   linha diz que o **nome da mudança entra nela quando `/opsx:propose` criar a mudança**. Escrever
   `slice-4b-roster-no-aparelho` onde hoje está "ainda não proposta como mudança", **preservando** o
   texto corrigido em 2026-09-12 e o registro do engano (P7). Acrescentar parágrafo, não trocar.
-- [ ] 4.2 Conferir que a **outra** linha do §16 — a classe H que não enumera o roster baixado —
+- [x] 4.2 Conferir que a **outra** linha do §16 — a classe H que não enumera o roster baixado —
   **não** é tocada: o dono dela é jurídico externo e a fatia-limite é o piloto nominal. Mostrar no
   `git diff` que só uma linha da tabela mudou.
 
