@@ -1,5 +1,7 @@
 package com.platos.android.api
 
+import com.platos.android.roster.AlunoDoRoster
+
 import com.platos.android.net.CorpoCru
 import com.platos.android.net.Retorno
 import com.platos.android.net.retornoDe
@@ -88,6 +90,28 @@ class ApiPlatos(
 
     private suspend fun pedirPacote(organizacaoId: String, shortId: String): HttpResponse =
         autenticado.get("$urlBase/organizations/$organizacaoId/exams/$shortId/package")
+
+    /**
+     * O roster de uma prova: para cada aluno atribuido, o token e o nome de apresentacao.
+     *
+     * **Passa por [retornoDe]**, ao contrario do pacote, e a assimetria tem razao: la os bytes crus
+     * sao obrigatorios porque o `content_hash` foi calculado sobre eles, e reserializar entre receber
+     * e conferir tornaria a conferencia uma afirmacao sobre o parser. Aqui nao ha hash a proteger —
+     * ADR-0002 recusou um segundo hash sobre o roster —, entao desserializar e o caminho normal.
+     *
+     * **Lista vazia e resposta valida, e nao ausencia.** Prova publicada sem aluno atribuido devolve
+     * `[]`, e isso e afirmacao sobre o mundo: o gate abre com ela. Quem distingue "nao ha alunos" de
+     * "nunca puxei" e a presenca do arquivo no aparelho, e nao esta chamada.
+     */
+    suspend fun roster(organizacaoId: String, shortId: String): Retorno<List<AlunoDoRoster>> =
+        when (val retorno = retornoDe<List<RosterEntryDto>> { pedirRoster(organizacaoId, shortId) }) {
+            is Retorno.Respondeu -> Retorno.Respondeu(retorno.valor.map { it.paraAluno() })
+            is Retorno.Recusou -> retorno
+            is Retorno.SemRede -> Retorno.SemRede
+        }
+
+    private suspend fun pedirRoster(organizacaoId: String, shortId: String): HttpResponse =
+        autenticado.get("$urlBase/organizations/$organizacaoId/exams/$shortId/roster")
 
     companion object {
         /** Espelha `PACKAGE_CONTENT_HASH_HEADER` do servidor (ADR-0013, decisao 2). */
