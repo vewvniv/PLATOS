@@ -1,5 +1,7 @@
 package com.platos.android.session
 
+import com.platos.android.roster.RostersGuardados
+
 import com.platos.android.pacote.PacotesGuardados
 
 /** O que a autenticacao devolveu, ja destilado pelo adaptador. */
@@ -48,6 +50,7 @@ class DeviceSession(
     private val guardada: SessaoGuardada,
     private val pacotes: PacotesGuardados,
     private val visoes: VisoesGuardadas,
+    private val rosters: RostersGuardados,
 ) {
 
     var state: DeviceState = DeviceState.Entrada()
@@ -200,16 +203,22 @@ class DeviceSession(
     /**
      * Sair.
      *
-     * Apaga a credencial, a organizacao escolhida, **a visao guardada e os pacotes guardados sob
-     * ela**. Nenhuma das quatro e detalhe: o aparelho e compartilhado entre escolas, e o que o
+     * Apaga a credencial, a organizacao escolhida, **a visao guardada, os pacotes e os rosters
+     * guardados sob ela**. Nenhuma das cinco e detalhe: o aparelho e compartilhado entre escolas, e o que o
      * usuario anterior deixou sobrevivendo a troca de conta e invisivel para quem entra depois. A
      * fatia 4a-zero pagou esse defeito com a organizacao; o pacote e o mesmo defeito um nivel
      * abaixo, e por isso ADR-0013 manda cada fatia **nomear o que apaga** em vez de confiar num
      * requisito generico de limpar dados locais.
      *
-     * A visao entrou nesta lista nesta fatia, e ela e a **unica** das quatro que aparece em tela: sem
-     * este apagamento, quem entrasse depois no mesmo aparelho e abrisse sem rede leria o nome da
-     * organizacao anterior e a lista de provas dela.
+     * A visao entrou nesta lista na 4a, e ela aparece em tela: sem este apagamento, quem entrasse
+     * depois no mesmo aparelho e abrisse sem rede leria o nome da organizacao anterior e a lista de
+     * provas dela.
+     *
+     * **O roster entrou nesta fatia, e pela razao mais forte das cinco:** e o unico item da lista que
+     * e dado pessoal **de aluno**. Num aparelho compartilhado entre escolas, o nome de um menor
+     * sobrevivendo a troca de conta e um caminho novo pelo qual o direito de eliminacao deixaria de
+     * alcancar — o que o §16 registra sob "O roster cacheado sem regra de apagamento". Enquanto o
+     * parecer juridico nao fixar teto de retencao, esta e a leitura restritiva que vale.
      *
      * **A organizacao e lida antes de ser apagada.** Invertendo a ordem, o identificador ja teria
      * sumido quando o cache fosse apagado, e o apagamento aconteceria sobre `null` — sem estourar, e
@@ -223,6 +232,7 @@ class DeviceSession(
         if (organizacao != null) {
             visoes.apagarDaOrganizacao(organizacao)
             pacotes.apagarDaOrganizacao(organizacao)
+            rosters.apagarDaOrganizacao(organizacao)
         }
 
         state = DeviceState.Entrada(MotivoDeEntrada.SAIU)
@@ -277,7 +287,7 @@ class DeviceSession(
     /**
      * O vinculo caiu, e quem disse foi o servidor.
      *
-     * Apaga a escolha, a **visao** e os **pacotes** daquela organizacao. A escolha sozinha ja caia
+     * Apaga a escolha, a **visao**, os **pacotes** e os **rosters** daquela organizacao. A escolha sozinha ja caia
      * desde a decisao 10 da 4a-zero; cair sem levar o resto deixava no aparelho o **gabarito** de uma
      * organizacao que a instituicao ja revogou — e o gabarito nao aparece em tela nenhuma, entao
      * ninguem tem como notar que ficou.
@@ -290,10 +300,17 @@ class DeviceSession(
      * E o mesmo apagamento de [sair], com duas diferencas: a credencial continua valendo — o usuario
      * segue sendo ele mesmo, e pode ter outras organizacoes —, e quem manda sair da organizacao e o
      * servidor, e nao o professor.
+     *
+     * **O roster precisa estar aqui, e nao so em [sair], porque so um dos dois caminhos e acao do
+     * usuario.** Quem foi removido da escola nao vai sair do aplicativo para que o apagamento
+     * aconteca: o aparelho descobre a remocao pela resposta do servidor, e e nesse instante que a
+     * copia de nome de aluno deixa de ter qualquer base para existir ali. Deixa-la esperando um
+     * logout manteria dado pessoal de menor num aparelho cujo dono ja nao pertence a organizacao.
      */
     private fun revogar(organizacao: String) {
         guardada.apagarOrganizacaoEscolhida()
         visoes.apagarDaOrganizacao(organizacao)
         pacotes.apagarDaOrganizacao(organizacao)
+        rosters.apagarDaOrganizacao(organizacao)
     }
 }

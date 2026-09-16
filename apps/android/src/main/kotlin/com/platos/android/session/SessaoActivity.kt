@@ -1,5 +1,7 @@
 package com.platos.android.session
 
+import com.platos.android.roster.RostersEmArquivo
+
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -47,6 +49,7 @@ class SessaoActivity : ComponentActivity() {
     private lateinit var guardada: SessaoGuardadaAndroid
     private lateinit var pacotes: PacotesEmArquivo
     private lateinit var visoes: VisoesEmArquivo
+    private lateinit var rosters: RostersEmArquivo
     private lateinit var http: HttpClient
     private lateinit var autenticacao: AutenticacaoSupabase
     private lateinit var api: ApiPlatos
@@ -109,7 +112,10 @@ class SessaoActivity : ComponentActivity() {
         // Mesma razao do cache de pacotes: quem sabe onde fica o armazenamento privado e o
         // `Activity`; a visao so sabe de arquivos, e e isso que a deixa verificavel na JVM.
         visoes = VisoesEmArquivo(java.io.File(filesDir, "visoes"))
-        sessao = DeviceSession(guardada, pacotes, visoes)
+        // Mesma razao das duas de cima. Um diretorio por organizacao dentro deste, porque o
+        // apagamento que sair e a revogacao fazem e por organizacao inteira.
+        rosters = RostersEmArquivo(java.io.File(filesDir, "rosters"))
+        sessao = DeviceSession(guardada, pacotes, visoes, rosters)
         http = clienteHttp()
 
         autenticacao = AutenticacaoSupabase(
