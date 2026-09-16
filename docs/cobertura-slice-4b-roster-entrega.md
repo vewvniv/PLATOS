@@ -282,6 +282,13 @@ Nenhum destes foi tocado nesta fatia. Estão aqui para não ficarem só no corpo
    fatia e cairia como limpeza oportunista (CLAUDE.md, regra 6). **Dono:** esta base.
    **Fatia-limite:** a próxima fatia que tocar `healthRoutes` ou `docs/deploy-api.md`.
 
+   **Descarregado em 2026-09-16, e não pela fatia-limite acima.** A correção saiu antes de
+   qualquer fatia tocar `healthRoutes`, fora de fatia, em commit e branch próprios: `5e1e33c`, na
+   PR #40. O KDoc agora manda `curl -s -D - -o /dev/null`, e diz **ao lado** que `-sI` era o
+   engano e que o 405 era esperado — o engano fica dito em vez de apagado (P7), porque quem já
+   tentou `-I` precisa saber disso. A fatia-limite fica escrita em vez de removida: ela nunca
+   chegou a ser alcançada, e isso é informação sobre como o débito foi pago, não ruído.
+
 ## O que ficou sem teste automático, e por quê
 
 - **A rota rodando contra Supabase real.** Os cenários usam Postgres com as migrations aplicadas, e
