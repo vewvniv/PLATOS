@@ -1,5 +1,8 @@
 package com.platos.android.scan
 
+import com.platos.android.roster.RosterDaProva
+import com.platos.android.roster.RostersEmArquivo
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -53,6 +56,8 @@ import org.opencv.android.OpenCVLoader
 class ScanActivity : ComponentActivity() {
 
     private lateinit var examPackage: ExamPackage
+
+    private var roster: RosterDaProva? = null
     private lateinit var map: LayoutMap
     private lateinit var session: ScanSession
     private lateinit var analysisExecutor: ExecutorService
@@ -81,7 +86,7 @@ class ScanActivity : ComponentActivity() {
             PacotesEmArquivo(File(filesDir, "packages")).ler(organizacao, contentHash)
         }
 
-        if (doCache == null) {
+        if (doCache == null || organizacao == null) {
             // Recusa com motivo, e nunca degradacao. Chegar aqui significa que o pacote sumiu ou
             // deixou de conferir entre o gate e esta tela — disco cheio, arquivo removido, corrupcao
             // em repouso. O escaneamento nao abre, e quem escolheu a prova volta a escolher.
@@ -90,6 +95,13 @@ class ScanActivity : ComponentActivity() {
         }
 
         examPackage = doCache
+        // O roster sai do **mesmo** identificador contra o qual a folha e conferida
+        // (`examPackage.meta.examId`), e nao de um extra novo no `Intent`: com dois caminhos para
+        // dizer de qual prova se fala, eles divergiriam no dia em que um dos dois fosse esquecido.
+        //
+        // Lido uma vez, aqui, e nao a cada quadro: o escaneamento nao muda o roster, e reler a cada
+        // folha poria disco no caminho da camera sem nada a ganhar.
+        roster = RostersEmArquivo(File(filesDir, "rosters")).ler(organizacao, examPackage.meta.examId)
         map = examPackage.layout.values.single()
         session = ScanSession(examPackage)
         analysisExecutor = Executors.newSingleThreadExecutor()
@@ -97,6 +109,7 @@ class ScanActivity : ComponentActivity() {
         setContent {
             ScanScreen(
                 state = state,
+                roster = roster,
                 onPedirPermissao = { pedidoDePermissao.launch(Manifest.permission.CAMERA) },
                 onRetomar = {
                     session.resume()
