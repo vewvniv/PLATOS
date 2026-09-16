@@ -81,7 +81,7 @@ fun Route.identityRoutes(deps: ApiDependencies) {
 const val PACKAGE_CONTENT_HASH_HEADER = "X-Package-Content-Hash"
 
 /**
- * As rotas de prova publicada: escolher qual, e puxar o pacote dela.
+ * As rotas de prova publicada: escolher qual, puxar o pacote dela, e puxar o roster dela.
  *
  * **A organizacao vem no caminho, e nao do vinculo do chamador.** `short_id` e unique global, entao
  * `/exams/{shortId}/package` funcionaria — mas a organizacao ativa e uma escolha *do aparelho*
@@ -128,6 +128,44 @@ fun Route.examRoutes(deps: ApiDependencies) {
                 bytes = pacote.content.encodeToByteArray(),
                 contentType = ContentType.Application.Json,
             )
+        }
+
+        /**
+         * O roster da prova: para cada aluno atribuido, o token e o nome de apresentacao.
+         *
+         * **JSON negociado, e nao `respondBytes`.** A razao que obriga bytes crus na rota do pacote
+         * — o `content_hash` foi calculado sobre UTF-8 sem BOM — nao existe aqui: o roster nao e
+         * hasheado (ADR-0002 recusou um segundo hash), entao nao ha conferencia de bytes a
+         * proteger. Usar `respondBytes` por simetria custaria serializacao manual sem nada a ganhar.
+         *
+         * **A existencia da prova e decidida pelo `findPackage`, e nao por uma consulta propria.**
+         * Isto le o conteudo do pacote so para descartar, o que e desperdicio medivel — e o preco
+         * de uma garantia que uma consulta de existencia separada nao daria: "publicada" significa
+         * **exatamente** a mesma coisa nas duas rotas. Com dois oraculos, o aparelho poderia receber
+         * um roster para uma prova cujo pacote a outra rota diz nao existir, e a divergencia
+         * apareceria como pacote faltando no meio da aplicacao da prova. Se a leitura a mais pesar,
+         * o veiculo e uma mudanca com o numero na mao, e nao simetria invertida agora.
+         *
+         * **Sem o pacote, 404; com o pacote e sem roster, 200 com lista vazia.** As duas respostas
+         * dizem coisas diferentes sobre o mundo, e a folha avulsa do aluno fora da lista depende
+         * dessa diferenca: "esta prova nao tem roster" e afirmacao, "esta prova nao existe" e
+         * ausencia. Organizacao alheia cai no primeiro caso, indistinguivel de inexistente.
+         */
+        get("/organizations/{organizationId}/exams/{shortId}/roster") {
+            val organizationId = call.parameters["organizationId"]?.let(::uuidOrNull)
+                ?: return@get call.naoEncontrado()
+            val shortId = call.parameters["shortId"] ?: return@get call.naoEncontrado()
+
+            val userId = call.resolverUsuario(deps)
+            val roster = deps.tenancy.asUser(userId) { ctx ->
+                if (deps.examQueries.findPackage(ctx, organizationId, shortId) == null) {
+                    null
+                } else {
+                    deps.examQueries.findRoster(ctx, organizationId, shortId)
+                }
+            } ?: return@get call.naoEncontrado()
+
+            call.respond(roster)
         }
     }
 }

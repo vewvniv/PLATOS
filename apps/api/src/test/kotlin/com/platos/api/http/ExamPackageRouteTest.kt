@@ -256,6 +256,99 @@ class ExamPackageRouteTest {
         assertNull(resposta.headers[PACKAGE_CONTENT_HASH_HEADER])
     }
 
+    // ------------------------------------------------------------------ roster
+
+    /**
+     * O corpo e conferido por **igualdade exata**, e nao por desserializar e olhar campos.
+     *
+     * Desserializar com `ignoreUnknownKeys` aceitaria um campo a mais em silencio, que e justamente
+     * o risco desta rota: cada campo que desce vira dado pessoal em cache no aparelho. A igualdade
+     * literal tambem prende a ordem das chaves, a ausencia de envelope e a ordem das linhas — as
+     * quatro coisas que a rota afirma de uma vez.
+     */
+    @Test
+    fun `roster da prova vem com token e nome, sem envelope e sem campo a mais`() = comApp { client ->
+        val (userId, organizationId) = professorComOrganizacao(client)
+        val exame = PostgresSupport.createExam(organizationId, "mat-7a-2026-1", "Prova", userId)
+        PostgresSupport.publishPackage(organizationId, exame, CONTEUDO)
+        PostgresSupport.addRosterEntry(organizationId, exame, "tok-zrd", "Zoraide B.")
+        PostgresSupport.addRosterEntry(organizationId, exame, "tok-hlm", "Hildemar P.")
+
+        val resposta = client.rosterDe(organizationId, "mat-7a-2026-1")
+
+        assertEquals(HttpStatusCode.OK, resposta.status)
+        assertEquals(
+            """[{"student_token":"tok-hlm","display_name":"Hildemar P."},""" +
+                """{"student_token":"tok-zrd","display_name":"Zoraide B."}]""",
+            resposta.bodyAsText(),
+        )
+    }
+
+    @Test
+    fun `roster sem credencial e recusado sem revelar aluno nenhum`() = comApp { client ->
+        val (userId, organizationId) = professorComOrganizacao(client)
+        val exame = PostgresSupport.createExam(organizationId, "mat-7a-2026-1", "Prova", userId)
+        PostgresSupport.publishPackage(organizationId, exame, CONTEUDO)
+        PostgresSupport.addRosterEntry(organizationId, exame, "tok-secreto", "Aluno Secreto")
+
+        val resposta = client.get("/organizations/$organizationId/exams/mat-7a-2026-1/roster")
+
+        // Codigo **e** corpo: 401 sozinho nao diz que o nome nao foi para o corpo do erro.
+        assertEquals(HttpStatusCode.Unauthorized, resposta.status)
+        assertFalse(resposta.bodyAsText().contains("tok-secreto"))
+        assertFalse(resposta.bodyAsText().contains("Aluno Secreto"))
+    }
+
+    @Test
+    fun `roster de organizacao alheia responde igual a prova inexistente`() = comApp { client ->
+        val (_, propria) = professorComOrganizacao(client)
+        val alheia = organizacaoAlheiaComRoster()
+
+        val alheio = client.rosterDe(alheia, "prova-alheia")
+        val inexistente = client.rosterDe(propria, "nunca-existiu")
+
+        // A **mesma** resposta, e nao so o mesmo codigo: um corpo diferente distinguiria "existe e
+        // nao e sua" de "nao existe", que e o que a spec proibe revelar.
+        assertEquals(HttpStatusCode.NotFound, alheio.status)
+        assertEquals(inexistente.status, alheio.status)
+        assertEquals(inexistente.bodyAsText(), alheio.bodyAsText())
+        assertFalse(alheio.bodyAsText().contains("tok-alheio"))
+        assertFalse(alheio.bodyAsText().contains("Aluno Alheio"))
+    }
+
+    @Test
+    fun `prova publicada sem roster responde 200 com lista vazia`() = comApp { client ->
+        val (userId, organizationId) = professorComOrganizacao(client)
+        val exame = PostgresSupport.createExam(organizationId, "sem-roster", "Prova", userId)
+        PostgresSupport.publishPackage(organizationId, exame, CONTEUDO)
+
+        val resposta = client.rosterDe(organizationId, "sem-roster")
+
+        // 200 com `[]`, e nao 404: "esta prova nao tem roster" e afirmacao sobre o mundo, e a folha
+        // avulsa do aluno fora da lista depende dela ser distinta de "esta prova nao existe".
+        assertEquals(HttpStatusCode.OK, resposta.status)
+        assertEquals("[]", resposta.bodyAsText())
+    }
+
+    /**
+     * E o cenario que faz o oraculo de existencia da rota poder falhar.
+     *
+     * Prova sem pacote publicado tem roster vazio **pelos mesmos motivos aparentes** que a prova
+     * publicada sem roster: as duas devolveriam `[]` se a rota consultasse so o roster. O que as
+     * separa e o `findPackage` — e sem este cenario ninguem veria a diferenca.
+     */
+    @Test
+    fun `prova sem pacote publicado responde 404 no roster, e nao lista vazia`() = comApp { client ->
+        val (userId, organizationId) = professorComOrganizacao(client)
+        val exame = PostgresSupport.createExam(organizationId, "so-rascunho", "Rascunho", userId)
+        PostgresSupport.addRosterEntry(organizationId, exame, "tok-rascunho", "Aluno do Rascunho")
+
+        val resposta = client.rosterDe(organizationId, "so-rascunho")
+
+        assertEquals(HttpStatusCode.NotFound, resposta.status)
+        assertFalse(resposta.bodyAsText().contains("tok-rascunho"))
+    }
+
     // ------------------------------------------------------------------ ajudantes
 
     private suspend fun HttpClient.provasDe(organizationId: UUID): List<ExamSummaryDto> {
@@ -268,6 +361,11 @@ class ExamPackageRouteTest {
 
     private suspend fun HttpClient.pacoteDe(organizationId: UUID, shortId: String): HttpResponse =
         get("/organizations/$organizationId/exams/$shortId/package") {
+            header(HttpHeaders.Authorization, "Bearer ${JwtTestFixture.token(SUB, EMAIL, NOME)}")
+        }
+
+    private suspend fun HttpClient.rosterDe(organizationId: UUID, shortId: String): HttpResponse =
+        get("/organizations/$organizationId/exams/$shortId/roster") {
             header(HttpHeaders.Authorization, "Bearer ${JwtTestFixture.token(SUB, EMAIL, NOME)}")
         }
 
@@ -287,6 +385,24 @@ class ExamPackageRouteTest {
         PostgresSupport.publishPackage(alheia, exame, CONTEUDO)
         return alheia
     }
+
+    /** A alheia da entrega do pacote, mais uma linha de roster para o vazamento ter o que vazar. */
+    private fun organizacaoAlheiaComRoster(): UUID {
+        val alheia = organizacaoAlheiaComProva()
+        val exame = umaColunaUuid("select id from exam where short_id = 'prova-alheia'")
+        PostgresSupport.addRosterEntry(alheia, exame, "tok-alheio", "Aluno Alheio")
+        return alheia
+    }
+
+    private fun umaColunaUuid(sql: String): UUID =
+        PostgresSupport.adminDataSource.connection.use { connection ->
+            connection.prepareStatement(sql).use { statement ->
+                statement.executeQuery().use { rows ->
+                    check(rows.next())
+                    rows.getObject(1, UUID::class.java)
+                }
+            }
+        }
 
     private fun conteudoGravado(examId: UUID): String =
         umaColuna("select content from exam_package where exam_id = ?", examId)
