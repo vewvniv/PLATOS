@@ -13,7 +13,21 @@ artefatos e leva o nome do aluno à tela no lugar do token.
 **1. Esta fatia CRIA a primeira cópia de dado pessoal de aluno fora do servidor.** A α dizia, com
 todas as letras, que ela não criava — que abria o caminho para a β criar. Esta é a β. O que a torna
 aceitável não é o volume (token e nome de apresentação, e nada mais) e sim o apagamento: ele entra
-**antes** de existir o que apagar, nos três caminhos, e é medido por mutação em cada um.
+**antes** de existir o que apagar.
+
+São três caminhos, e eles **não** têm o mesmo grau de verificação — dizer "medido em cada um" seria
+chamar de medido o que é herdado (P6, P8):
+
+| Caminho | Como está verificado |
+|---|---|
+| `sair` | cenário próprio, **medido** pela mutação (C) |
+| revogação de vínculo | cenário próprio, **medido** pela mutação (D), em conjunto disjunto do de (C) |
+| desinstalação | **não verificado por esta base.** É garantia da plataforma — o Android apaga o `filesDir` —, e nenhum teste da árvore a exercita |
+
+A frase original desta seção dizia "nos três caminhos, e é medido por mutação em cada um", o que era
+falso para o terceiro e contradizia a seção de lacunas deste mesmo documento. Fica corrigida aqui, e
+o engano fica dito (P7): num documento cujo propósito inteiro é não chamar de mitigado o que é apenas
+conhecido, a afirmação larga estava na primeira frase.
 
 **2. A fatia fecha UMA das duas linhas de ponto de não-retorno do §16, e não as duas.**
 

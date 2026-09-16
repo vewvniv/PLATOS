@@ -190,8 +190,18 @@ marcada, e SHALL NOT esvaziar a tela nem apresentar o dado como fresco.
 
 ### Requirement: O aparelho guarda o roster puxado, escopado pela organização e pela prova
 
-Ao escolher uma prova, o aplicativo SHALL obter o roster dela: do que já guarda, quando houver roster
-guardado para aquela prova, e da API caso contrário.
+Ao escolher uma prova, o aplicativo SHALL obter o roster dela **da API**, e SHALL usar o que já
+guarda quando a API não responder ou recusar.
+
+A ordem é **o inverso** da do pacote guardado, e a diferença não é inconsistência: o pacote é imutável
+e endereçado por hash, então consultar o guardado primeiro é correto por construção — hash igual é
+conteúdo igual (ADR-0009). O roster é **mutável por construção** (ADR-0002): o nome de um aluno pode
+ter sido corrigido, e um aluno pode ter entrado ou saído desde o último pull. Preferir o guardado com
+a rede disponível apresentaria um nome que o servidor já corrigiu, e nada na tela diria isso.
+
+Falha de rede ou recusa SHALL NOT apagar o roster guardado. O pull que não chega não deixa o aparelho
+pior do que estava — é o mesmo critério de "atualizar sem rede não esvazia a tela" que esta capability
+já exige da visão.
 
 O que o aparelho guarda SHALL ser separado **por organização e por prova**. O escopo por organização
 é o mesmo do pacote guardado e existe pela mesma razão: o que o aparelho guarda é um caminho de
@@ -226,6 +236,17 @@ alcançaria.
 
 - **WHEN** uma prova é escolhida e o aparelho não guarda roster dela
 - **THEN** o roster é puxado da API e guardado dentro do escopo da organização ativa e daquela prova
+
+#### Scenario: Com rede, o que o servidor diz substitui o guardado
+
+- **WHEN** uma prova cujo roster o aparelho já guarda é escolhida com a API respondendo
+- **THEN** o roster guardado passa a ser o que a API devolveu, e um nome corrigido no servidor é o
+  que o aparelho passa a apresentar
+
+#### Scenario: Recusa da API preserva o roster guardado
+
+- **WHEN** a obtenção do roster é recusada pelo servidor e o aparelho já guardava um
+- **THEN** o roster guardado continua servindo, e não é apagado pela recusa
 
 #### Scenario: Segunda vez, sem rede
 

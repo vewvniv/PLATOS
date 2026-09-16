@@ -127,6 +127,35 @@ eliminação deixaria de alcançar, que é o que o §16 registra.
 argumento sobre dado pessoal, e o custo de incluir o roster numa lista que o código já percorre é
 próximo de zero.
 
+### 7. O pull consulta a rede primeiro, e o guardado é reserva
+
+`obterRoster` chama a API e só cai no guardado quando ela não responde ou recusa. É **o inverso** de
+`obterPacote`, que consulta o cache primeiro.
+
+**Por que o inverso, e por que isso não é inconsistência:** o pacote é imutável e endereçado por hash,
+então cache primeiro é correto por construção — hash igual é conteúdo igual (ADR-0009), e uma segunda
+chamada só gastaria rede para receber os mesmos bytes. O roster é **mutável por construção**
+(ADR-0002). Preferir o guardado com a rede disponível apresentaria um nome que o servidor já
+corrigiu, e **nada na tela diria isso** — a marca de cache diz de quando o dado é, não que ele está
+desatualizado em relação a um servidor que respondeu e não foi perguntado.
+
+**Falha e recusa preservam o guardado.** O pull que não chega não deixa o aparelho pior do que
+estava; é o mesmo critério de "atualizar sem rede não esvazia a tela" que a visão já segue. Quem
+transforma ausência em recusa explicada é o gate, e não esta função.
+
+**Custo aceito:** toda escolha de prova com rede gasta uma chamada de roster, mesmo quando nada mudou.
+Sem hash e sem ETag — a α registrou que ADR-0002 recusou os dois —, não há como perguntar "mudou?"
+mais barato do que perguntar "qual é?". O roster é pequeno. Se a medição mostrar que o custo importa,
+o veículo é mudança própria com o número na mão, e não uma inversão de ordem decidida sem ele.
+
+**Esta decisão nasceu durante a implementação, e a spec dizia o oposto até a auditoria (P7).** A
+redação original do requisito era "do que já guarda, quando houver roster guardado para aquela prova,
+e da API caso contrário" — cache primeiro, copiada da forma do requisito do pacote sem que a diferença
+entre imutável e mutável fosse considerada. O código foi escrito invertido, com a razão numa KDoc, e o
+contrato ficou para trás: é a regra 1 do `CLAUDE.md` quebrada na direção que ela existe para impedir.
+Fica dito em vez de apagado porque o erro não foi a inversão — ela está certa —, e sim **decidir no
+código o que o contrato já afirmava**, e não voltar para corrigi-lo.
+
 ## Risks / Trade-offs
 
 - **Esta fatia cria a primeira cópia de dado pessoal de aluno fora do servidor** → O apagamento ao
