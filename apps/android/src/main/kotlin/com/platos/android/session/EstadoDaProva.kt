@@ -26,6 +26,16 @@ enum class MotivoDaBarragem {
 
     /** O pacote exige um renderizador mais novo que o deste aplicativo. */
     VERSAO_INSUFICIENTE,
+
+    /**
+     * O pacote esta conferido, mas o roster desta prova **nunca foi puxado** neste aparelho.
+     *
+     * **Nao e o mesmo que roster vazio.** Prova publicada sem aluno atribuido e caso legitimo em
+     * `exam-package`, e ela abre: "nao ha alunos" e afirmacao sobre o mundo. O que este motivo
+     * barra e "nao sei quem sao" — abrir a sessao sobre isso faria o professor escanear uma turma
+     * inteira produzindo tokens, sem perceber que esta sem roster.
+     */
+    ROSTER_AUSENTE,
 }
 
 /**

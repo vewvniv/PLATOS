@@ -1,6 +1,7 @@
 package com.platos.android.session
 
 import com.platos.android.roster.RostersEmArquivo
+import com.platos.android.roster.obterRoster
 
 import android.content.Intent
 import android.os.Bundle
@@ -217,7 +218,7 @@ class SessaoActivity : ComponentActivity() {
     /** Abre o fluxo de escolha de prova sobre a organizacao ativa, e lista. */
     private fun prepararProva() {
         val organizacao = (state as? DeviceState.Ativa)?.organizacao ?: return
-        val maquina = PreparoDaProva(visoes, pacotes, organizacao)
+        val maquina = PreparoDaProva(visoes, pacotes, rosters, organizacao)
         preparo = maquina
         listarProvas()
     }
@@ -266,6 +267,14 @@ class SessaoActivity : ComponentActivity() {
         if (maquina.state !is EstadoDaProva.Preparando) return
 
         lifecycleScope.launch {
+            // O roster **antes** do pacote, e nao depois: o gate le o guardado, entao ele precisa ja
+            // estar la quando `aoObterPacote` decidir. Invertida, a ordem barraria por roster
+            // ausente uma prova cujo roster acabou de chegar.
+            //
+            // Falha do pull do roster **nao derruba o pull do pacote**: o guardado continua valendo,
+            // e quem transforma a ausencia em recusa explicada e o gate, com frase propria.
+            obterRoster(rosters, api, organizacao, prova, System.currentTimeMillis())
+
             maquina.aoObterPacote(obterPacote(pacotes, api, organizacao, prova))
             estadoDaProva = maquina.state
         }

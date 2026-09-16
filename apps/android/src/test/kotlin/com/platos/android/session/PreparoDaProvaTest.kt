@@ -1,5 +1,9 @@
 package com.platos.android.session
 
+import com.platos.android.roster.AlunoDoRoster
+import com.platos.android.roster.RosterDaProva
+import com.platos.android.roster.RostersGuardados
+
 import com.platos.android.pacote.MotivoDaRecusa
 import com.platos.android.render.RendererContract
 import com.platos.domain.exam.ExamPackage
@@ -64,10 +68,31 @@ class PreparoDaProvaTest {
         override fun apagarDaOrganizacao(organizacao: String) = Unit
     }
 
+    /**
+     * Rosters em memoria, com o **estado inicial explicito**: quais provas ja foram puxadas.
+     *
+     * O padrao dos cenarios existentes e "puxado", porque eles falam do pacote e nao do roster — um
+     * padrao "nunca puxado" faria o gate barrar em toda parte e transformaria quinze cenarios de
+     * pacote em cenarios de roster sem que ninguem tivesse escrito isso.
+     */
+    private class RostersEmMemoria(vararg puxados: Pair<String, RosterDaProva>) : RostersGuardados {
+        private val guardados = puxados.toMap().toMutableMap()
+
+        override fun ler(organizacao: String, prova: String): RosterDaProva? = guardados[prova]
+
+        override fun guardar(organizacao: String, prova: String, roster: RosterDaProva) {
+            guardados[prova] = roster
+        }
+
+        override fun apagarDaOrganizacao(organizacao: String) = guardados.clear()
+    }
+
     private val visoes = VisoesEmMemoria()
     private val pacotesGuardados = PacotesFalsos()
     private val escola = Organizacao("01a06ba4-cb43-7d97-842d-165352d010b5", "Escola de Teste")
     private val agora = 1_757_000_000_000L
+
+    private val ana = AlunoDoRoster("tok-a", "Ana Ribeiro")
 
     private val provaA = ProvaPublicada("mat-7a-2026-1", "Prova de Matematica", "a".repeat(64))
     private val provaB = ProvaPublicada("mat-7b-2026-1", "Prova de Portugues", "b".repeat(64))
@@ -75,14 +100,28 @@ class PreparoDaProvaTest {
     private fun apresentadas(vararg provas: ProvaPublicada) =
         provas.map { ProvaApresentada(it, pacotesGuardados.temConteudo(escola.id, it.contentHash)) }
 
-    private fun preparoEscolhendo(vararg provas: ProvaPublicada): PreparoDaProva {
-        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+    private fun rosterPuxado(vararg alunos: AlunoDoRoster) =
+        RosterDaProva(alunos.toList(), puxadoEm = agora)
+
+    private fun todosPuxados() = RostersEmMemoria(
+        provaA.shortId to rosterPuxado(ana),
+        provaB.shortId to rosterPuxado(ana),
+    )
+
+    private fun preparoEscolhendo(
+        vararg provas: ProvaPublicada,
+        rosters: RostersGuardados = todosPuxados(),
+    ): PreparoDaProva {
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, rosters, escola)
         preparo.aoListar(ResultadoDasProvas.Chegaram(provas.toList()), agora)
         return preparo
     }
 
-    private fun preparoPreparando(prova: ProvaPublicada = provaA): PreparoDaProva {
-        val preparo = preparoEscolhendo(prova)
+    private fun preparoPreparando(
+        prova: ProvaPublicada = provaA,
+        rosters: RostersGuardados = todosPuxados(),
+    ): PreparoDaProva {
+        val preparo = preparoEscolhendo(prova, rosters = rosters)
         preparo.escolher(prova)
         return preparo
     }
@@ -98,7 +137,7 @@ class PreparoDaProvaTest {
 
     @Test
     fun organizacao_sem_prova_publicada_e_estado_proprio() {
-        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola)
         preparo.aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora)
 
         assertEquals(EstadoDaProva.SemProvaPublicada(Procedencia.Fresca), preparo.state)
@@ -112,8 +151,8 @@ class PreparoDaProvaTest {
      */
     @Test
     fun listagem_sem_rede_nao_e_lista_vazia() {
-        val semRede = PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.SemRede, agora) }
-        val vazia = PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora) }
+        val semRede = PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola).apply { aoListar(ResultadoDasProvas.SemRede, agora) }
+        val vazia = PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola).apply { aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora) }
 
         assertEquals(EstadoDaProva.ListagemFalhou(FalhaDaListagem.SEM_REDE), semRede.state)
         assertNotEquals(vazia.state, semRede.state)
@@ -121,8 +160,8 @@ class PreparoDaProvaTest {
 
     @Test
     fun listagem_que_falha_por_outra_causa_e_distinta_de_sem_rede() {
-        val outra = PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.Falhou, agora) }
-        val semRede = PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.SemRede, agora) }
+        val outra = PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola).apply { aoListar(ResultadoDasProvas.Falhou, agora) }
+        val semRede = PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola).apply { aoListar(ResultadoDasProvas.SemRede, agora) }
 
         assertEquals(EstadoDaProva.ListagemFalhou(FalhaDaListagem.OUTRA), outra.state)
         assertNotEquals(semRede.state, outra.state)
@@ -165,7 +204,7 @@ class PreparoDaProvaTest {
      */
     @Test
     fun listagem_vazia_que_chegou_grava_visao_vazia() {
-        PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora) }
+        PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola).apply { aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora) }
 
         val visao = requireNotNull(visoes.ler(escola.id)) { "lista vazia que chegou nao gravou" }
         assertEquals(emptyList<ProvaPublicada>(), visao.provas)
@@ -183,8 +222,8 @@ class PreparoDaProvaTest {
         preparoEscolhendo(provaA, provaB)
         val boa = requireNotNull(visoes.ler(escola.id))
 
-        PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.SemRede, agora + 1) }
-        PreparoDaProva(visoes, pacotesGuardados, escola).apply { aoListar(ResultadoDasProvas.Falhou, agora + 2) }
+        PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola).apply { aoListar(ResultadoDasProvas.SemRede, agora + 1) }
+        PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola).apply { aoListar(ResultadoDasProvas.Falhou, agora + 2) }
 
         assertEquals(boa, visoes.ler(escola.id), "uma listagem que falhou mexeu na visao guardada")
     }
@@ -205,7 +244,7 @@ class PreparoDaProvaTest {
     @Test
     fun listagem_sem_rede_cai_na_ultima_listagem_conhecida() {
         comVisaoGuardada(provaA, provaB, vistaEm = 1_757_000_000_000)
-        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola)
 
         preparo.aoListar(ResultadoDasProvas.SemRede, agora + 5_000)
 
@@ -217,7 +256,7 @@ class PreparoDaProvaTest {
 
     @Test
     fun listagem_sem_rede_sem_visao_guardada_continua_sendo_falha() {
-        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola)
 
         preparo.aoListar(ResultadoDasProvas.SemRede, agora)
 
@@ -234,7 +273,7 @@ class PreparoDaProvaTest {
     @Test
     fun lista_vazia_que_chegou_nao_e_mascarada_pela_visao() {
         comVisaoGuardada(provaA, provaB)
-        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola)
 
         preparo.aoListar(ResultadoDasProvas.Chegaram(emptyList()), agora + 5_000)
 
@@ -250,7 +289,7 @@ class PreparoDaProvaTest {
     @Test
     fun visao_vazia_guardada_sem_rede_e_sem_prova_publicada_e_nao_falha() {
         comVisaoGuardada(vistaEm = 1_757_000_000_000)
-        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola)
 
         preparo.aoListar(ResultadoDasProvas.SemRede, agora + 5_000)
 
@@ -267,7 +306,7 @@ class PreparoDaProvaTest {
     @Test
     fun resposta_que_nao_serve_nao_cai_na_visao() {
         comVisaoGuardada(provaA, provaB)
-        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola)
 
         preparo.aoListar(ResultadoDasProvas.Falhou, agora + 5_000)
 
@@ -285,7 +324,7 @@ class PreparoDaProvaTest {
     fun provas_com_pacote_guardado_sao_distinguiveis_das_sem() {
         pacotesGuardados.passaAGuardar(provaA.contentHash)
         comVisaoGuardada(provaA, provaB)
-        val preparo = PreparoDaProva(visoes, pacotesGuardados, escola)
+        val preparo = PreparoDaProva(visoes, pacotesGuardados, todosPuxados(), escola)
 
         preparo.aoListar(ResultadoDasProvas.SemRede, agora)
 
@@ -491,6 +530,95 @@ class PreparoDaProvaTest {
         assertEquals(
             EstadoDaProva.Barrada(provaA, MotivoDaBarragem.VERSAO_INSUFICIENTE),
             preparo.state,
+        )
+    }
+
+    // --- O gate sobre dois artefatos ---
+
+    /**
+     * **Roster vazio abre a sessao**, e este e o cenario que separa "nao ha alunos" de "nao sei quem
+     * sao".
+     *
+     * `exam-package` declara que prova publicada sem aluno atribuido e entregue como roster vazio e
+     * e caso legitimo — barra-la tornaria inescaneavel uma prova que a publicacao declara valida, e
+     * a folha avulsa do aluno fora da lista depende dessa distincao.
+     */
+    @Test
+    fun roster_vazio_abre_o_escaneamento() {
+        val preparo = preparoPreparando(
+            rosters = RostersEmMemoria(provaA.shortId to rosterPuxado()),
+        )
+
+        preparo.aoObterPacote(ResultadoDoPacote.Conferido(pacote, provaA.contentHash))
+
+        assertEquals(EstadoDaProva.Pronta(provaA, provaA.contentHash), preparo.state)
+    }
+
+    /**
+     * **Roster nunca puxado barra**, com pacote conferido e tudo.
+     *
+     * Abrir aqui faria o professor escanear uma turma inteira produzindo tokens, sem perceber que
+     * esta sem roster — o modo de falha silencioso que a base recusa: estado que mora no instrumento
+     * e nao avisa quando falta.
+     */
+    @Test
+    fun roster_nunca_puxado_barra_mesmo_com_pacote_conferido() {
+        val preparo = preparoPreparando(rosters = RostersEmMemoria())
+
+        preparo.aoObterPacote(ResultadoDoPacote.Conferido(pacote, provaA.contentHash))
+
+        assertEquals(
+            EstadoDaProva.Barrada(provaA, MotivoDaBarragem.ROSTER_AUSENTE),
+            preparo.state,
+        )
+    }
+
+    /**
+     * **As cinco frases sao distintas**, e a asercao e sobre o texto e nao sobre o enum.
+     *
+     * O requisito nao diz "cinco motivos"; diz que nenhum motivo e apresentado como falha generica.
+     * Conferir os enums provaria so que o `when` tem cinco ramos — duas frases iguais em ramos
+     * diferentes passariam. O que o professor le e o texto, e e o texto que precisa distinguir.
+     */
+    @Test
+    fun as_cinco_frases_de_barragem_sao_distintas_entre_si() {
+        val frases = MotivoDaBarragem.entries.map { textoDaBarragem(it) }
+
+        assertEquals(5, MotivoDaBarragem.entries.size, "o numero de motivos mudou sem este teste")
+        assertEquals(
+            frases.size,
+            frases.toSet().size,
+            "duas barragens apresentam a mesma frase: $frases",
+        )
+    }
+
+    /**
+     * **Roster ausente nao e confundido com pacote ausente nem com falta de rede**, e as tres sao
+     * lidas pelo que o professor ve.
+     */
+    @Test
+    fun roster_ausente_e_barragem_distinta_das_do_pacote() {
+        val semRoster = preparoPreparando(rosters = RostersEmMemoria())
+            .apply { aoObterPacote(ResultadoDoPacote.Conferido(pacote, provaA.contentHash)) }
+        val semRede = preparoPreparando().apply { aoObterPacote(ResultadoDoPacote.SemRede) }
+        val semPacote = preparoPreparando().apply { aoObterPacote(ResultadoDoPacote.Ausente) }
+
+        val motivos = listOf(semRoster, semRede, semPacote).map {
+            (it.state as EstadoDaProva.Barrada).motivo
+        }
+
+        assertEquals(
+            listOf(
+                MotivoDaBarragem.ROSTER_AUSENTE,
+                MotivoDaBarragem.SEM_REDE,
+                MotivoDaBarragem.PACOTE_AUSENTE,
+            ),
+            motivos,
+        )
+        assertEquals(
+            3,
+            motivos.map { textoDaBarragem(it) }.toSet().size,
+            "duas das tres barragens dizem a mesma coisa ao professor",
         )
     }
 
