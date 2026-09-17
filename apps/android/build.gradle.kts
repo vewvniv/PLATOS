@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.ksp)
 }
 
 // `local.properties` ja e ignorado pelo git, e e de onde sai tudo que nao pode ser versionado.
@@ -274,6 +275,14 @@ dependencies {
     // entre escolas o que sobra e acesso fisico, e ai token em claro e credencial reutilizavel.
     implementation(libs.security.crypto)
 
+    // O outbox de resultado. Room guarda a correcao apurada antes de qualquer rede — ADR-0013 §3
+    // adiou Room ate "a 4b, onde o outbox e de fato relacional", e este e o outbox. WorkManager e
+    // quem tenta o envio quando ha rede, e quem sobrevive ao fim do processo do aplicativo.
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+    implementation(libs.workmanager.runtime)
+
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
     // `MockEngine` responde no lugar do servidor. E o que permite exercitar a classificacao de
@@ -282,6 +291,8 @@ dependencies {
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.workmanager.testing)
 }
 
 tasks.withType<Test>().configureEach {
