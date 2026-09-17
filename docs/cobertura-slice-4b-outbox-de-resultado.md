@@ -371,7 +371,12 @@ primeira que fizer envio concorrente — lote paralelo, ou mais de um aparelho e
    de catálogo invalida a configuração. Os outros 5 passaram de primeira, inclusive o maior da fatia.
    A retentativa, com o classloader quente, passou nas duas vezes. **É correlação de 7 pontos, e não
    causa medida:** o classloader não foi instrumentado, e afirmar `ServiceLoader` aqui seria suposição
-   apresentada como medição (P6). Importa porque o `ci.yml` roda `./gradlew :apps:api:generateJooq`
+   apresentada como medição (P6). **Atualizado em 2026-09-18, e a correlacao enfraqueceu:** um segundo `rebase --force-rebase --exec`,
+   sobre os quatro commits do conserto, passou **4 de 4 sem nenhuma retentativa** — inclusive o
+   primeiro, que e build apos reconfiguracao e era onde a previsao dizia que cairia. Entao "falha
+   apos reconfiguracao" descreve os casos observados mas **nao os prediz**: sao 2 de 7 num dia e 0 de
+   4 no outro. O que continua firme e so o fato bruto — o alvo falha de forma intermitente, sempre
+   com o mesmo erro. Importa porque o `ci.yml` roda `./gradlew :apps:api:generateJooq`
    como passo próprio na linha 43, num runner novo e sem retentativa — e um vermelho desses tem cara
    de regressão sem ser (P15). O CI está verde hoje, então ou o caso é específico de Windows, ou a
    ordem dos passos lá o evita; nenhuma das duas foi medida. **Dono:** mantenedor. **Fatia-limite:** a
