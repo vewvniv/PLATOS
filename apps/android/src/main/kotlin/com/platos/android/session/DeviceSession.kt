@@ -1,6 +1,5 @@
 package com.platos.android.session
 
-import com.platos.android.outbox.ResultadosPendentes
 import com.platos.android.roster.RostersGuardados
 
 import com.platos.android.pacote.PacotesGuardados
@@ -52,16 +51,6 @@ class DeviceSession(
     private val pacotes: PacotesGuardados,
     private val visoes: VisoesGuardadas,
     private val rosters: RostersGuardados,
-    /**
-     * A fila do outbox, **so para contar**.
-     *
-     * Ela esta aqui porque quem sai precisa saber quanto trabalho ficou por enviar, e por nenhuma
-     * outra razao: nem [sair] nem a revogacao a tocam. Estar em escopo e de proposito — e o que faz
-     * a mutacao que a apagasse ser uma mudanca de uma linha, e portanto uma mutacao que os testes
-     * desta classe conseguem derrubar. Uma guarda que nao estivesse aqui tornaria "sair preserva o
-     * pendente" verdade por acidente de fiacao, e nao por decisao.
-     */
-    private val pendentes: ResultadosPendentes,
 ) {
 
     var state: DeviceState = DeviceState.Entrada()
@@ -242,11 +231,22 @@ class DeviceSession(
      * feito. A classe H manda elimina-lo "apos a sincronizacao bem-sucedida", e sair nao e isso.
      *
      * O que sair faz com ele e **contar** e dizer quantos sao, para que ninguem deixe o aparelho
-     * achando que a turma subiu.
+     * achando que a turma subiu — e a contagem entra por [pendentes], ja resolvida.
+     *
+     * **[pendentes] e parametro, e nao uma guarda que esta classe consulte.** A primeira versao
+     * recebia `ResultadosPendentes` no construtor e chamava `quantosPendentes` daqui; como `sair` e
+     * chamada do fio principal, e o Room recusa acesso ao banco nele, o aplicativo **morria ao
+     * sair** — em aparelho real, todas as vezes. Fica dito em vez de apagado (P7): o argumento de
+     * entao era que ter a guarda em escopo tornava derrubavel a mutacao que a apagasse. O argumento
+     * valia, e custava um `IllegalStateException` no caminho mais comum do aplicativo.
+     *
+     * Com a contagem entrando resolvida, esta classe volta a ser o que ela diz ser — recebe
+     * resultados ja destilados e decide o que a tela mostra —, e "sair nao apaga o pendente" deixa
+     * de ser afirmacao testada e passa a ser **irrepresentavel**: nao ha o que apagar daqui.
      */
-    fun sair() {
+    fun sair(pendentes: Int = 0) {
         val organizacao = organizacaoAtiva()
-        val naoEnviados = organizacao?.let { pendentes.quantosPendentes(it) } ?: 0
+        val naoEnviados = pendentes
 
         guardada.apagarCredencial()
         guardada.apagarOrganizacaoEscolhida()
@@ -339,6 +339,8 @@ class DeviceSession(
      * O usuario revogado nao consegue mais envia-la: a rota recusa resultado de organizacao de que o
      * autenticado nao e membro, e essa recusa **nao apaga** o pendente. Quem a envia e o proximo
      * membro da organizacao que abrir sessao neste aparelho.
+     *
+     * Como [sair], esta funcao nao alcanca o outbox: ela nao o conhece.
      */
     private fun revogar(organizacao: String) {
         guardada.apagarOrganizacaoEscolhida()

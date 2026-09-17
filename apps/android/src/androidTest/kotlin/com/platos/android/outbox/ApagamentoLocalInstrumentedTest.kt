@@ -114,16 +114,13 @@ class ApagamentoLocalInstrumentedTest {
             PacotesEmArquivo(raizPacotes),
             VisoesEmArquivo(raizVisoes),
             RostersEmArquivo(raizRosters),
-            pendentes,
         )
     }
 
     @Before
     fun preparar() {
         context.deleteDatabase(nomeDaBase)
-        base = Room.databaseBuilder(context, BaseDoOutbox::class.java, nomeDaBase)
-            .allowMainThreadQueries()
-            .build()
+        base = Room.databaseBuilder(context, BaseDoOutbox::class.java, nomeDaBase).build()
         pendentes = ResultadosEmRoom(base.pendentes())
         listOf(raizPacotes, raizVisoes, raizRosters).forEach { it.deleteRecursively() }
     }
@@ -149,7 +146,7 @@ class ApagamentoLocalInstrumentedTest {
         assertEquals(1, arquivosDe(raizRosters).size)
         assertEquals(1, pendentes.quantosPendentes(escola.id))
 
-        sessao.sair()
+        sessao.sair(pendentes.quantosPendentes(escola.id))
 
         assertEquals("o pacote ficou no disco depois de sair", emptyList<String>(), arquivosDe(raizPacotes))
         assertEquals("a visao ficou no disco depois de sair", emptyList<String>(), arquivosDe(raizVisoes))
@@ -173,7 +170,7 @@ class ApagamentoLocalInstrumentedTest {
         montarOEstadoLocal(escola.id)
         montarSessao(escola.id)
 
-        sessao.sair()
+        sessao.sair(pendentes.quantosPendentes(escola.id))
 
         val arquivo = context.getDatabasePath(nomeDaBase)
         assertTrue("a base do outbox sumiu do disco: ${arquivo.absolutePath}", arquivo.exists())
@@ -186,7 +183,7 @@ class ApagamentoLocalInstrumentedTest {
         pendentes.guardar(umPendente("cap-2", escola.id))
         montarSessao(escola.id)
 
-        sessao.sair()
+        sessao.sair(pendentes.quantosPendentes(escola.id))
 
         assertEquals(
             2,
@@ -229,7 +226,7 @@ class ApagamentoLocalInstrumentedTest {
         pendentes.guardar(umPendente("cap-de-outra", pessoal.id))
         montarSessao(escola.id)
 
-        sessao.sair()
+        sessao.sair(pendentes.quantosPendentes(escola.id))
 
         assertEquals(1, pendentes.quantosPendentes(escola.id))
         assertEquals(1, pendentes.quantosPendentes(pessoal.id))
