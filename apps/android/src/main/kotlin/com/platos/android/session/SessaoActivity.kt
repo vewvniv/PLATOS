@@ -1,5 +1,8 @@
 package com.platos.android.session
 
+import com.platos.android.roster.RostersEmArquivo
+import com.platos.android.roster.prepararRoster
+
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -47,6 +50,7 @@ class SessaoActivity : ComponentActivity() {
     private lateinit var guardada: SessaoGuardadaAndroid
     private lateinit var pacotes: PacotesEmArquivo
     private lateinit var visoes: VisoesEmArquivo
+    private lateinit var rosters: RostersEmArquivo
     private lateinit var http: HttpClient
     private lateinit var autenticacao: AutenticacaoSupabase
     private lateinit var api: ApiPlatos
@@ -109,7 +113,10 @@ class SessaoActivity : ComponentActivity() {
         // Mesma razao do cache de pacotes: quem sabe onde fica o armazenamento privado e o
         // `Activity`; a visao so sabe de arquivos, e e isso que a deixa verificavel na JVM.
         visoes = VisoesEmArquivo(java.io.File(filesDir, "visoes"))
-        sessao = DeviceSession(guardada, pacotes, visoes)
+        // Mesma razao das duas de cima. Um diretorio por organizacao dentro deste, porque o
+        // apagamento que sair e a revogacao fazem e por organizacao inteira.
+        rosters = RostersEmArquivo(java.io.File(filesDir, "rosters"))
+        sessao = DeviceSession(guardada, pacotes, visoes, rosters)
         http = clienteHttp()
 
         autenticacao = AutenticacaoSupabase(
@@ -211,7 +218,7 @@ class SessaoActivity : ComponentActivity() {
     /** Abre o fluxo de escolha de prova sobre a organizacao ativa, e lista. */
     private fun prepararProva() {
         val organizacao = (state as? DeviceState.Ativa)?.organizacao ?: return
-        val maquina = PreparoDaProva(visoes, pacotes, organizacao)
+        val maquina = PreparoDaProva(visoes, pacotes, rosters, organizacao)
         preparo = maquina
         listarProvas()
     }
@@ -260,6 +267,10 @@ class SessaoActivity : ComponentActivity() {
         if (maquina.state !is EstadoDaProva.Preparando) return
 
         lifecycleScope.launch {
+            // A decisao de esperar ou nao mora em `prepararRoster`, e nao aqui: dentro da
+            // `Activity` ela nao teria teste, e e um cenario que so falha em rede ruim.
+            prepararRoster(rosters, api, organizacao, prova, System.currentTimeMillis(), this@launch)
+
             maquina.aoObterPacote(obterPacote(pacotes, api, organizacao, prova))
             estadoDaProva = maquina.state
         }
@@ -277,7 +288,8 @@ class SessaoActivity : ComponentActivity() {
         escaneamento.launch(
             Intent(this, ScanActivity::class.java)
                 .putExtra(ScanActivity.EXTRA_ORGANIZACAO, organizacao)
-                .putExtra(ScanActivity.EXTRA_CONTENT_HASH, pronta.contentHash),
+                .putExtra(ScanActivity.EXTRA_CONTENT_HASH, pronta.contentHash)
+                .putExtra(ScanActivity.EXTRA_SHORT_ID, pronta.prova.shortId),
         )
     }
 

@@ -1,5 +1,7 @@
 package com.platos.android.session
 
+import com.platos.android.roster.RostersGuardados
+
 import com.platos.android.pacote.MotivoDaRecusa
 import com.platos.android.pacote.PacotesGuardados
 import com.platos.android.render.RendererContract
@@ -50,6 +52,7 @@ sealed interface ResultadoDoPacote {
 class PreparoDaProva(
     private val visoes: VisoesGuardadas,
     private val pacotes: PacotesGuardados,
+    private val rosters: RostersGuardados,
     private val organizacao: Organizacao,
 ) {
 
@@ -201,8 +204,10 @@ class PreparoDaProva(
     /**
      * O resultado da obtencao do pacote, seguido do **gate de pre-voo**.
      *
-     * O gate e binario por construcao (ADR-0009): com pacote conferido a sessao abre, sem ele nao
-     * abre. Nao existe pacote parcialmente presente para uma prova.
+     * O gate e binario por construcao (ADR-0009), e desde esta fatia ele decide sobre **dois**
+     * artefatos: com pacote conferido **e roster puxado** a sessao abre; faltando qualquer um dos
+     * dois, nao abre. Nao existe pacote parcialmente presente para uma prova, e roster pela metade e
+     * lido como nunca puxado (`RostersEmArquivo.ler`).
      *
      * **A versao e conferida aqui, e nao so na renderizacao.** Ate esta fatia,
      * `min_renderer_version` era imposto ao desenhar e apenas declarado no caminho de captura — um
@@ -266,6 +271,17 @@ class PreparoDaProva(
         if (exigida > RendererContract.RENDERER_VERSION) {
             return EstadoDaProva.Barrada(prova, MotivoDaBarragem.VERSAO_INSUFICIENTE)
         }
+
+        // O segundo artefato. **A presenca do arquivo e a afirmacao de que o pull aconteceu**, e nao
+        // um campo dentro dele: um `puxado: true` gravado poderia divergir do fato, e criaria o
+        // estado "arquivo existe mas nao vale" que a gravacao atomica existe para impedir.
+        //
+        // Roster vazio passa por aqui **como roster**, e e essa a distincao inteira: `ler` devolve um
+        // `RosterDaProva` de lista vazia para prova sem aluno atribuido, e `null` so quando nunca
+        // houve pull. Colapsar os dois barraria uma prova que a publicacao declara valida.
+        if (rosters.ler(organizacao.id, prova.shortId) == null) {
+            return EstadoDaProva.Barrada(prova, MotivoDaBarragem.ROSTER_AUSENTE)
+        }
         return EstadoDaProva.Pronta(prova, conferido.contentHash)
     }
 }
@@ -291,6 +307,10 @@ fun textoDaBarragem(motivo: MotivoDaBarragem): String = when (motivo) {
 
     MotivoDaBarragem.VERSAO_INSUFICIENTE ->
         "Esta prova exige uma versao mais nova do aplicativo. Atualize para escanea-la."
+
+    MotivoDaBarragem.ROSTER_AUSENTE ->
+        "A lista de alunos desta prova ainda nao foi baixada. " +
+            "Conecte-se uma vez para baixa-la; sem ela as folhas seriam lidas sem nome."
 }
 
 /** A frase de cada falha de listagem, pelo mesmo criterio de [textoDaBarragem]. */

@@ -1,5 +1,9 @@
 package com.platos.android.scan
 
+import com.platos.android.roster.RosterDaProva
+import com.platos.android.session.SeloDeLeitura
+import java.time.ZoneId
+
 import android.view.ViewGroup
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
@@ -36,6 +40,7 @@ import com.platos.domain.scoring.ObjectiveScore
 @Composable
 fun ScanScreen(
     state: ScanState,
+    roster: RosterDaProva?,
     onPedirPermissao: () -> Unit,
     onRetomar: () -> Unit,
     onPreviewCriado: (PreviewView) -> Unit,
@@ -66,7 +71,10 @@ fun ScanScreen(
                 Text("Folha recusada", fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text(state.reason, fontSize = 16.sp)
             }
-            is ScanState.Scored -> Resultado(onRetomar) { Nota(state.score) }
+            is ScanState.Scored -> Resultado(onRetomar) {
+                DeQuemE(idAlunoDaFolha(state.payload.studentToken, roster, ZoneId.systemDefault()))
+                Nota(state.score)
+            }
         }
     }
 }
@@ -123,6 +131,34 @@ private fun BoxScope.Resultado(
             Button(onClick = onRetomar) { Text("Escanear outra folha") }
         }
     }
+}
+
+/**
+ * De quem e a folha, acima da nota.
+ *
+ * **Acima, e nao abaixo**: a pergunta que o professor faz ao ver o resultado e "de quem e", e a nota
+ * sem dono e a situacao que esta fatia existe para acabar.
+ *
+ * Quem decide o que apresentar e [idAlunoDaFolha]; aqui so se desenha. O selo e o mesmo
+ * [SeloDeLeitura] da tela de trabalho — a regra de marcar dado guardado mora em `device-session`, e
+ * duas marcas para a mesma regra divergiriam na primeira mudanca.
+ */
+@Composable
+private fun DeQuemE(identidade: IdAlunoDaFolha) {
+    when (identidade) {
+        is IdAlunoDaFolha.Nomeada ->
+            Text(identidade.nome, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+
+        is IdAlunoDaFolha.ForaDoRoster -> {
+            Text(identidade.token, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "Esta folha nao esta no roster desta prova. A nota abaixo foi apurada normalmente.",
+                fontSize = 14.sp,
+            )
+        }
+    }
+
+    identidade.marca?.let { SeloDeLeitura(it) }
 }
 
 /** A nota, e o que ela nao fecha. Quem decide o texto e [apresentar]; aqui so se desenha. */

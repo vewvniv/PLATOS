@@ -35,6 +35,20 @@ data class MarcaDeLeitura(
  */
 private val FORMATO = DateTimeFormatter.ofPattern("dd/MM/yyyy 'as' HH:mm")
 
+/** O rotulo do selo da visao guardada: ela so chega a tela **porque** a consulta falhou. */
+const val ROTULO_SEM_CONEXAO = "SEM CONEXAO"
+
+/**
+ * O rotulo do selo do roster guardado.
+ *
+ * **Nao fala de conexao, e a diferenca nao e de gosto.** A visao guardada so aparece quando a rede
+ * falhou, entao "SEM CONEXAO" e verdade toda vez que ela e vista. O roster guardado aparece em
+ * **toda** leitura de folha — o escaneamento acontece sobre o que foi puxado —, inclusive com o
+ * aparelho on-line e o pull recem-concluido. Dizer "sem conexao" ali seria falso na maioria das vezes
+ * em que o selo aparece, e ensinaria a ignorar o mesmo selo na tela onde ele e verdade.
+ */
+const val ROTULO_LISTA_BAIXADA = "LISTA BAIXADA"
+
 /**
  * O que marcar na tela, ou `null` quando nao ha nada a marcar.
  *
@@ -42,11 +56,21 @@ private val FORMATO = DateTimeFormatter.ofPattern("dd/MM/yyyy 'as' HH:mm")
  * chegar **nao leva selo**, senao o selo perde o significado e a tela passa a marcar tudo. `when`
  * exaustivo sem `else`, entao uma terceira procedencia quebra a compilacao aqui em vez de cair no
  * ramo silencioso.
+ *
+ * **[rotulo] entra por parametro, e a idade nao.** A regra — dado guardado leva selo, e o selo diz de
+ * quando o dado e — e **uma so**, e mora aqui; o que muda entre as telas e a palavra que o selo
+ * mostra, porque a visao e o roster chegam a tela por razoes diferentes. Parametrizar o rotulo mantem
+ * a regra num lugar; duplicar a funcao para trocar uma palavra faria as duas metades divergirem na
+ * primeira mudanca.
  */
-fun marcaDeLeitura(procedencia: Procedencia, zona: ZoneId): MarcaDeLeitura? = when (procedencia) {
+fun marcaDeLeitura(
+    procedencia: Procedencia,
+    zona: ZoneId,
+    rotulo: String = ROTULO_SEM_CONEXAO,
+): MarcaDeLeitura? = when (procedencia) {
     is Procedencia.Fresca -> null
     is Procedencia.Cacheada -> MarcaDeLeitura(
-        rotulo = "SEM CONEXAO",
+        rotulo = rotulo,
         idade = "visto em " + FORMATO.format(Instant.ofEpochMilli(procedencia.vistaEm).atZone(zona)),
     )
 }

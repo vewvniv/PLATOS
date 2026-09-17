@@ -1,5 +1,8 @@
 package com.platos.android.scan
 
+import com.platos.android.roster.RosterDaProva
+import com.platos.android.roster.RostersEmArquivo
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -53,6 +56,8 @@ import org.opencv.android.OpenCVLoader
 class ScanActivity : ComponentActivity() {
 
     private lateinit var examPackage: ExamPackage
+
+    private var roster: RosterDaProva? = null
     private lateinit var map: LayoutMap
     private lateinit var session: ScanSession
     private lateinit var analysisExecutor: ExecutorService
@@ -81,7 +86,7 @@ class ScanActivity : ComponentActivity() {
             PacotesEmArquivo(File(filesDir, "packages")).ler(organizacao, contentHash)
         }
 
-        if (doCache == null) {
+        if (doCache == null || organizacao == null) {
             // Recusa com motivo, e nunca degradacao. Chegar aqui significa que o pacote sumiu ou
             // deixou de conferir entre o gate e esta tela — disco cheio, arquivo removido, corrupcao
             // em repouso. O escaneamento nao abre, e quem escolheu a prova volta a escolher.
@@ -90,6 +95,16 @@ class ScanActivity : ComponentActivity() {
         }
 
         examPackage = doCache
+        // O roster e lido pela **mesma chave que os escritores usaram** — o `short_id` da prova,
+        // que chega pelo `Intent`. A primeira versao lia por `examPackage.meta.examId`, com a
+        // justificativa de evitar "dois caminhos para dizer de qual prova se fala"; a justificativa
+        // estava certa e a leitura, errada, porque os dois caminhos ja existiam: os escritores usam
+        // `prova.shortId`. Fica dito em vez de apagado.
+        //
+        // Lido uma vez, aqui, e nao a cada quadro: o escaneamento nao muda o roster, e reler a cada
+        // folha poria disco no caminho da camera sem nada a ganhar.
+        val shortId = intent.getStringExtra(EXTRA_SHORT_ID)
+        roster = shortId?.let { RostersEmArquivo(File(filesDir, "rosters")).ler(organizacao, it) }
         map = examPackage.layout.values.single()
         session = ScanSession(examPackage)
         analysisExecutor = Executors.newSingleThreadExecutor()
@@ -97,6 +112,7 @@ class ScanActivity : ComponentActivity() {
         setContent {
             ScanScreen(
                 state = state,
+                roster = roster,
                 onPedirPermissao = { pedidoDePermissao.launch(Manifest.permission.CAMERA) },
                 onRetomar = {
                     session.resume()
@@ -198,6 +214,18 @@ class ScanActivity : ComponentActivity() {
     companion object {
         /** A organizacao sob a qual o pacote esta guardado. */
         const val EXTRA_ORGANIZACAO = "com.platos.android.scan.ORGANIZACAO"
+
+        /**
+         * O `short_id` da prova escolhida, que e a chave sob a qual o roster foi guardado.
+         *
+         * **Vem no `Intent`, e nao de `examPackage.meta.examId`.** Os dois sao iguais hoje, mas por
+         * um contrato implicito entre a publicacao e o pacote que nada nesta base prende: os
+         * escritores do roster — o pull e o gate — usam `prova.shortId`, e ler por outro caminho
+         * faria o leitor depender de uma igualdade que ninguem afirma. Se ela se rompesse, `ler`
+         * devolveria `null` e **toda** folha cairia em silencio no token com "nao esta no roster" —
+         * sem erro, sem barragem, e com a fatia inteira desaparecida sem nada acusar.
+         */
+        const val EXTRA_SHORT_ID = "com.platos.android.scan.SHORT_ID"
 
         /** O endereco do pacote conferido. **O endereco, e nao o pacote** — ver `design.md`, 6. */
         const val EXTRA_CONTENT_HASH = "com.platos.android.scan.CONTENT_HASH"
