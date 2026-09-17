@@ -27,6 +27,18 @@ lifecycle = "2.8.7"
 camerax = "1.4.1"
 # Fatia 4a-zero, decisao 5: a credencial cifrada em repouso, com chave no Android Keystore.
 security-crypto = "1.1.0"
+# Fatia do outbox de resultado (§13, D21). Room e o armazenamento duravel do resultado apurado, e
+# WorkManager e quem tenta o envio quando ha rede. ADR-0013 §3 adiou Room com gatilho escrito — "a
+# 4b, onde o outbox e de fato relacional" — e este e o outbox.
+room = "2.8.5"
+# 2.11.2, e nao 2.12.0: o `group-index` do androidx lista 2.12.0, mas o artefato so existe em
+# alpha, beta e rc. O indice de grupo nao distingue pre-release de estavel, e ler dele foi o que
+# quebrou a primeira montagem desta fatia — `Could not find androidx.work:work-runtime-ktx:2.12.0`.
+workmanager = "2.11.2"
+# Ferramenta de build, e nao decisao de arquitetura: o Room precisa de um processador de anotacoes
+# para gerar o DAO, e nada do comportamento do sistema depende de qual processador o gera. A partir
+# do 2.3.0 o KSP tem versionamento proprio, desacoplado da versao do Kotlin.
+ksp = "2.3.12"
 
 [libraries]
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
@@ -80,6 +92,14 @@ ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 
+# Armazenamento duravel do resultado e agendamento do envio (fatia do outbox de resultado).
+room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
+room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
+workmanager-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "workmanager" }
+workmanager-testing = { module = "androidx.work:work-testing", version.ref = "workmanager" }
+
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
@@ -89,3 +109,4 @@ android-library = { id = "com.android.library", version.ref = "agp" }
 android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

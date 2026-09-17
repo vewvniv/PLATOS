@@ -3,6 +3,9 @@ package com.platos.api.http
 import com.platos.api.ApiDependencies
 import com.platos.api.auth.SUPABASE_AUTH
 import com.platos.api.auth.toAuthenticatedSubject
+import com.platos.api.http.dto.ResultAcceptedDto
+import com.platos.api.http.dto.ResultSubmissionDto
+import com.platos.api.http.dto.paraNota
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
@@ -13,7 +16,9 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
+import io.ktor.server.request.receive
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 import java.util.UUID
 
 /**
@@ -166,6 +171,58 @@ fun Route.examRoutes(deps: ApiDependencies) {
             } ?: return@get call.naoEncontrado()
 
             call.respond(roster)
+        }
+
+        /**
+         * O push do resultado apurado no aparelho (§10, push append-only).
+         *
+         * **A primeira rota de escrita da API.** Ate aqui o aparelho so puxava; este e o caminho de
+         * volta, e o unico. Ele e append-only do lado do banco tambem, e nao so por convencao da
+         * aplicacao: `grading_result` e `answer_observation` tem gatilho que recusa UPDATE e DELETE
+         * ate para o dono da tabela.
+         *
+         * **Ausencia continua sendo ausencia.** Prova inexistente, prova sem pacote e prova de
+         * organizacao a que o chamador nao pertence dao 404, exatamente como nas rotas de leitura —
+         * inclusive quando o vinculo do chamador com a organizacao foi revogado. 403 confirmaria
+         * que a prova existe, e o aparelho revogado nao precisa saber disso para agir certo: ele
+         * mantem o pendente e espera um membro da organizacao.
+         *
+         * **A existencia da prova e decidida pelo mesmo oraculo das outras rotas** — o pacote
+         * publicado —, pela razao registrada na rota do roster: com dois oraculos, "publicada"
+         * passaria a significar coisas diferentes em rotas diferentes.
+         *
+         * **Corpo incoerente e 400, e a mensagem diz o que nao fecha.** A conferencia nao e escrita
+         * aqui: `paraNota` reconstroi o `ObjectiveScore` do dominio, e sao as guardas dele — as
+         * mesmas que rodaram no aparelho — que recusam nota fora da escala, evidencia que nao soma a
+         * nota, item repetido e desencontro entre evidencia e pendencias. Uma segunda implementacao
+         * da mesma regra divergiria da primeira (regra 7).
+         */
+        post("/organizations/{organizationId}/exams/{shortId}/results") {
+            val organizationId = call.parameters["organizationId"]?.let(::uuidOrNull)
+                ?: return@post call.naoEncontrado()
+            val shortId = call.parameters["shortId"] ?: return@post call.naoEncontrado()
+
+            val submission = call.receive<ResultSubmissionDto>()
+            val nota = try {
+                submission.paraNota()
+            } catch (erro: IllegalArgumentException) {
+                return@post call.respondText(
+                    erro.message ?: "resultado incoerente",
+                    status = HttpStatusCode.BadRequest,
+                )
+            }
+
+            val userId = call.resolverUsuario(deps)
+            val revisao = deps.tenancy.asUser(userId) { ctx ->
+                val examId = deps.resultQueries.findPublishedExamId(ctx, organizationId, shortId)
+                if (examId == null) {
+                    null
+                } else {
+                    deps.resultQueries.record(ctx, organizationId, examId, submission, nota)
+                }
+            } ?: return@post call.naoEncontrado()
+
+            call.respond(ResultAcceptedDto(revision = revisao))
         }
     }
 }

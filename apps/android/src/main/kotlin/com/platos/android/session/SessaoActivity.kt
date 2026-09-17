@@ -1,5 +1,6 @@
 package com.platos.android.session
 
+import com.platos.android.outbox.ResultadosEmRoom
 import com.platos.android.roster.RostersEmArquivo
 import com.platos.android.roster.prepararRoster
 
@@ -116,7 +117,13 @@ class SessaoActivity : ComponentActivity() {
         // Mesma razao das duas de cima. Um diretorio por organizacao dentro deste, porque o
         // apagamento que sair e a revogacao fazem e por organizacao inteira.
         rosters = RostersEmArquivo(java.io.File(filesDir, "rosters"))
-        sessao = DeviceSession(guardada, pacotes, visoes, rosters)
+        sessao = DeviceSession(
+            guardada,
+            pacotes,
+            visoes,
+            rosters,
+            ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes()),
+        )
         http = clienteHttp()
 
         autenticacao = AutenticacaoSupabase(
@@ -310,6 +317,7 @@ class SessaoActivity : ComponentActivity() {
         when (val atual = state) {
             is DeviceState.Entrada -> EntradaScreen(
                 motivo = atual.motivo,
+                pendentes = atual.pendentes,
                 enviando = enviando,
                 onEntrar = ::entrar,
             )

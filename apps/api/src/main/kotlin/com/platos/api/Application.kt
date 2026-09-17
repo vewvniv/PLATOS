@@ -9,6 +9,7 @@ import com.platos.api.config.JwtConfig
 import com.platos.api.db.DataSourceFactory
 import com.platos.api.db.Tenancy
 import com.platos.api.exam.ExamQueries
+import com.platos.api.exam.ResultQueries
 import com.platos.api.http.examRoutes
 import com.platos.api.http.healthRoutes
 import com.platos.api.http.identityRoutes
@@ -27,6 +28,7 @@ class ApiDependencies(
     val identityBootstrap: IdentityBootstrap,
     val organizationQueries: OrganizationQueries,
     val examQueries: ExamQueries,
+    val resultQueries: ResultQueries,
     val entitlementResolver: EntitlementResolver,
     val jwt: JwtConfig,
     /**
@@ -52,6 +54,7 @@ fun main() {
         identityBootstrap = IdentityBootstrap(dataSource),
         organizationQueries = OrganizationQueries(),
         examQueries = ExamQueries(),
+        resultQueries = ResultQueries(),
         entitlementResolver = EntitlementResolver(planCatalog),
         jwt = config.jwt,
         build = config.build,

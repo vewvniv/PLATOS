@@ -28,6 +28,52 @@ data class PendingQuestion(
 )
 
 /**
+ * O que foi apurado numa questao: a evidencia da correcao, questao a questao.
+ *
+ * **Existe para nao jogar fora o que so existe agora.** O total responde "quanto o aluno tirou"; esta
+ * lista responde "em que", e e dela que a dimensao analitica sera derivada depois — o vinculo
+ * item->habilidade mora no `ExamPackage`, que e imutavel e hasheado, entao a juncao continua possivel
+ * enquanto o item estiver gravado. Sem ela, a prova corrigida hoje fica sem analise **para sempre**:
+ * nao por falta de codigo, e sim porque a folha de papel sai de circulacao e o dado nao volta.
+ *
+ * **Nao e nota por habilidade, e nem pode virar uma.** [worth] e [earned] estao na unidade que o
+ * professor declarou no gabarito — ponto por questao —, e nada aqui converte habilidade em ponto.
+ *
+ * [answer] e a propria leitura, e nao uma traducao dela: um segundo vocabulario para dizer "marcou A"
+ * seria uma copia que envelhece sozinha.
+ */
+data class QuestionOutcome(
+    val questionId: String,
+    /** O que a folha respondeu, na forma em que a leitura a entregou. */
+    val answer: QuestionAnswer,
+    /** Quanto o item valia, como o gabarito do pacote o declara. */
+    val worth: Int,
+    /** Quanto ele rendeu. Zero para erro, para em branco e para o que depende de revisao. */
+    val earned: Int,
+) {
+
+    /**
+     * Se esta questao depende de revisao humana.
+     *
+     * Derivado da forma da resposta, e nao copiado de quem apurou: e o que permite a guarda de
+     * [ObjectiveScore] conferir a lista de pendencias contra um segundo caminho. Os dois concordando
+     * nao prova muito; os dois discordando denuncia o laco que esqueceu de relatar uma pendencia.
+     */
+    val pendente: Boolean
+        get() = answer is QuestionAnswer.MultiplaMarcacao || answer is QuestionAnswer.Indecisa
+
+    init {
+        require(worth >= 0) { "item '$questionId' vale $worth ponto(s), e pontuacao nao e negativa" }
+        require(earned in 0..worth) {
+            "item '$questionId' rendeu $earned de $worth, e isso esta fora da escala dele"
+        }
+        require(!pendente || earned == 0) {
+            "item '$questionId' depende de revisao e mesmo assim rendeu $earned ponto(s)"
+        }
+    }
+}
+
+/**
  * A nota objetiva de uma folha (D4, §15).
  *
  * Traz a identidade do que a produziu — [packageHash] e [variantId] — porque a nota atravessa o
@@ -42,6 +88,8 @@ data class ObjectiveScore(
     /** Pontuacao maxima da prova, como o pacote a declara. */
     val maxScore: Int,
     val pending: List<PendingQuestion>,
+    /** A evidencia da correcao, uma entrada por questao da variante. */
+    val outcomes: List<QuestionOutcome>,
 ) {
 
     init {
@@ -52,6 +100,28 @@ data class ObjectiveScore(
         require(points in 0..maxScore) { "nota $points fora de 0..$maxScore" }
         require(points + pending.sumOf { it.points } <= maxScore) {
             "nota $points mais ${pending.sumOf { it.points }} em disputa passam de $maxScore"
+        }
+
+        // Dois numeros sobre a mesma apuracao sao duas chances de ela se contradizer, e a evidencia
+        // por questao e o segundo. As tres guardas abaixo prendem um ao outro; sem elas, uma
+        // evidencia incompleta acompanharia um total correto sem nada acusar, e quem derivasse
+        // analise dela leria menos questoes do que a prova teve.
+        val somado = outcomes.sumOf { it.earned }
+        require(somado == points) {
+            "a evidencia soma $somado ponto(s) e a nota apurada e $points"
+        }
+
+        val repetidos = outcomes.groupingBy { it.questionId }.eachCount().filterValues { it > 1 }.keys
+        require(repetidos.isEmpty()) {
+            "a evidencia repete o item: " + repetidos.sorted().joinToString(", ")
+        }
+
+        val pendentesNaEvidencia = outcomes.filter { it.pendente }.map { it.questionId }.toSet()
+        val pendentesRelatados = pending.map { it.questionId }.toSet()
+        require(pendentesNaEvidencia == pendentesRelatados) {
+            "a evidencia diz que dependem de revisao " +
+                "${pendentesNaEvidencia.sorted()} e a lista de pendencias diz " +
+                "${pendentesRelatados.sorted()}"
         }
     }
 
@@ -118,6 +188,7 @@ object ObjectiveScoring {
         val key = examPackage.answerKey.associateBy { it.itemId }
         var points = 0
         val pending = mutableListOf<PendingQuestion>()
+        val outcomes = mutableListOf<QuestionOutcome>()
 
         for (answer in answers) {
             val entry = key[answer.questionId]
@@ -125,27 +196,43 @@ object ObjectiveScoring {
                     "item '${answer.questionId}' nao tem entrada no gabarito do pacote",
                 )
 
-            when (answer) {
+            // O quanto a questao rendeu sai **deste** `when`, e nao de uma segunda passada sobre as
+            // respostas: o total e a evidencia vem do mesmo julgamento, entao nao ha como um dizer
+            // "acertou" e o outro "errou". A guarda de construcao de `ObjectiveScore` confere que
+            // eles fecham; esta e a razao de eles fecharem.
+            val rendeu = when (answer) {
                 // Acerto e erro sao definitivos. Em branco tambem: o aluno nao marcou, e a leitura
                 // tem certeza disso — nao ha o que revisar numa bolha que ninguem tocou.
                 is QuestionAnswer.Marcada ->
-                    if (answer.option == entry.correct) points += entry.points
-                is QuestionAnswer.EmBranco -> Unit
+                    if (answer.option == entry.correct) entry.points else 0
+                is QuestionAnswer.EmBranco -> 0
 
-                is QuestionAnswer.MultiplaMarcacao ->
+                is QuestionAnswer.MultiplaMarcacao -> {
                     pending += PendingQuestion(
                         answer.questionId,
                         PendingReason.MULTIPLA_MARCACAO,
                         entry.points,
                     )
+                    0
+                }
 
-                is QuestionAnswer.Indecisa ->
+                is QuestionAnswer.Indecisa -> {
                     pending += PendingQuestion(
                         answer.questionId,
                         PendingReason.INDECISA,
                         entry.points,
                     )
+                    0
+                }
             }
+
+            points += rendeu
+            outcomes += QuestionOutcome(
+                questionId = answer.questionId,
+                answer = answer,
+                worth = entry.points,
+                earned = rendeu,
+            )
         }
 
         return ScoringOutcome.Scored(
@@ -155,6 +242,7 @@ object ObjectiveScoring {
                 points = points,
                 maxScore = examPackage.scoring.maxScore,
                 pending = pending,
+                outcomes = outcomes,
             ),
         )
     }

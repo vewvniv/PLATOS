@@ -1,8 +1,10 @@
 package com.platos.android.scan
 
 import com.platos.android.vision.FrameOutcome
+import com.platos.domain.capture.CapturePayload
 import com.platos.domain.capture.InterpretedReading
 import com.platos.domain.exam.ExamPackage
+import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.ObjectiveScoring
 import com.platos.domain.scoring.ScoringOutcome
 
@@ -40,20 +42,46 @@ class ScanSession(private val examPackage: ExamPackage) {
         state = if (granted) ScanState.Searching else ScanState.NoPermission
     }
 
-    /** Volta a procurar, descartando o que estiver apresentado. E acao de quem segura o aparelho. */
+    /**
+     * Volta a procurar, descartando o que estiver apresentado. E acao de quem segura o aparelho.
+     *
+     * **Limpa tambem a marca de folha ja apurada**, e nao so o estado da tela. E o que faz
+     * reapresentar a mesma folha de proposito valer como captura nova — o professor que desconfia da
+     * leitura e escaneia de novo quer uma segunda correcao, e o servidor a grava como revisao nova.
+     * Sem isto, a segunda passada seria confundida com a folha que nunca saiu do quadro.
+     */
     fun resume() {
         if (state !is ScanState.NoPermission) state = ScanState.Searching
+        apurada = null
     }
 
     /**
-     * Um quadro analisado.
+     * A folha que ja foi apurada e entregue para gravar, identificada pelo payload dela.
+     *
+     * **O payload, e nao a leitura inteira.** Uma folha parada na frente da camera produz um quadro
+     * por vez, e cada um deles apura de novo; comparar a leitura faria o menor ruido de OMR — uma
+     * bolha que oscila na faixa de decisao entre dois quadros — parecer folha nova e gerar uma
+     * segunda captura da mesma folha. O payload e estavel enquanto a folha e a mesma.
+     *
+     * Limpo por [resume], e e isso que torna a reapresentacao deliberada da mesma folha uma
+     * **captura nova** — que o servidor grava como revisao nova, e nao como duplicata.
+     */
+    private var apurada: CapturePayload? = null
+
+    /**
+     * Um quadro analisado. Devolve a apuracao **quando ela e uma captura nova**, e `null` no resto.
      *
      * Um resultado novo **substitui o anterior por inteiro**, e nunca o emenda: o estado e
      * construido so a partir da leitura que chegou. Resultado obsoleto na tela e indistinguivel de
      * resultado correto para quem le, e essa e a forma de falha mais cara desta fatia.
+     *
+     * **Devolver, e nao gravar.** Gravar daqui poria disco dentro da classe que existe para ser
+     * testavel sem aparelho, e o `captureId` e o instante — que sao um identificador novo e um
+     * relogio — tornariam a apuracao nao-deterministica. Quem chama cunha os dois e grava; esta
+     * decide **se** ha o que gravar.
      */
-    fun onFrame(outcome: FrameOutcome) {
-        if (state is ScanState.NoPermission) return
+    fun onFrame(outcome: FrameOutcome): ApuracaoNova? {
+        if (state is ScanState.NoPermission) return null
 
         state = when (outcome) {
             is FrameOutcome.Read -> resultOf(outcome.reading)
@@ -61,6 +89,14 @@ class ScanSession(private val examPackage: ExamPackage) {
             is FrameOutcome.NotRead -> if (holdsResult) state else ScanState.NotRead(outcome.reason)
             is FrameOutcome.NoSheet -> if (holdsResult) state else ScanState.Searching
         }
+
+        val apuracao = state as? ScanState.Scored ?: return null
+        // Folha recusada nao chega aqui, e e o requisito: recusa nao e correcao, e nao vira
+        // resultado duravel. O `as?` acima e quem garante isso — `Rejected` nao e `Scored`.
+        if (apuracao.reading.payload == apurada) return null
+
+        apurada = apuracao.reading.payload
+        return ApuracaoNova(apuracao.reading, apuracao.score)
     }
 
     private fun resultOf(reading: InterpretedReading): ScanState {
@@ -78,3 +114,15 @@ class ScanSession(private val examPackage: ExamPackage) {
         }
     }
 }
+
+/**
+ * Uma apuracao que ainda nao foi gravada.
+ *
+ * Leva a leitura junto da nota porque quem grava precisa do **token do QR**, que esta no payload da
+ * leitura e nao na nota: a nota diz de qual pacote e de qual variante ela e, e a leitura diz de
+ * quem e a folha. Sao as duas metades da linha que sobe.
+ */
+data class ApuracaoNova(
+    val reading: InterpretedReading,
+    val score: ObjectiveScore,
+)

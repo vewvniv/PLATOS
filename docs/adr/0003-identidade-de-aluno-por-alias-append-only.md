@@ -28,6 +28,34 @@ alias.
 A **forma do schema** é decidida na fatia 2a, junto com o contrato do pacote. A **implementação** fica
 para a 3, que é quando os fatos passam a existir.
 
+### Atualização de 2026-09-17: o fato nasce chaveado pelo token, porque `student` ainda não existe
+
+A decisão acima diz que "a **implementação** fica para a 3, que é quando os fatos passam a existir".
+Os fatos **não** passaram a existir na 3: a 3c não persistiu nada, e eles passam a existir agora, na
+mudança `slice-4b-outbox-de-resultado`, que leva a correção do aparelho ao servidor.
+
+Quando esse gatilho disparou, o terreno era este, medido e não lembrado: **não há tabela `student`**,
+e `student_id` não aparece em nenhum arquivo do repositório — a busca em `.kt`, `.sql`, `.ts` e
+`.tsx` devolvia duas linhas, ambas comentários citando `(exam_id, student_id)` da §10 como coisa
+futura. O que o aparelho tem no momento da captura é o `student_token` do QR, e o pacote leva só ele
+porque I5 proíbe dado pessoal direto no artefato imutável.
+
+Então `grading_result` nasce chaveado por **`(exam_id, student_token)`**. Dentro de uma prova os dois
+são a mesma chave: `exam_roster` impõe `unique (exam_id, student_token)`, e a idempotência que a §10
+pede é intra-prova por definição — "recaptura cria nova revisão; a mais recente é a corrente".
+
+**Isto não substitui a decisão deste ADR, e é o contrário de contorná-la.** Ela diz que "os fatos
+continuam apontando para o `student_id` que existia quando foram gravados" e que a unificação
+acontece em **read model**, nunca por reescrita. Um fato que nasce apontando para o token é esse
+mesmo desenho um passo antes: quando `student` existir, `exam_roster` ganha a chave e o caminho
+`(exam_id, student_token)` → `exam_roster` → `student_id` resolve o histórico inteiro por junção, sem
+tocar em fato nenhum.
+
+**O que continua devendo, e onde:** `student`, `student_alias` e o read model do boletim ficam onde
+este ADR os pôs. A fatia do outbox respondeu só a metade que ela conseguia exercitar — criar o
+identificador permanente ali seria implementar este ADR inteiro mais a `exam_assignment` da fatia 7,
+para produzir uma chave que nenhum critério de aceite daquela fatia poderia reprovar.
+
 ## Consequências
 
 - I2 permanece intacta: nenhum fato é reescrito, nada é mesclado destrutivamente.

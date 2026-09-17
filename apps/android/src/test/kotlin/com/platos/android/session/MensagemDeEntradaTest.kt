@@ -43,4 +43,50 @@ class MensagemDeEntradaTest {
         // `null`, e nao string vazia: vazia desenharia uma faixa em branco, que le como defeito.
         assertNull(mensagemDeEntrada(null))
     }
+
+    /**
+     * A frase de saida diz quantas correcoes ficaram, e diz que elas **continuam no aparelho**.
+     *
+     * As duas metades importam. O numero, porque quem deixa o aparelho precisa saber que a turma nao
+     * subiu; e "continuam guardadas", porque sair **preserva** o pendente — uma frase que sugerisse
+     * perda faria o professor procurar a correcao onde ela nao esta, ou refazer trabalho que existe.
+     */
+    @Test
+    fun sair_com_pendentes_diz_quantos_sao_e_que_eles_ficaram() {
+        val frase = mensagemDeEntrada(MotivoDeEntrada.SAIU, pendentes = 3)!!
+
+        assertTrue(frase.contains("3"), "a frase precisa dizer quantas sao: $frase")
+        assertTrue(
+            frase.contains("guardadas neste aparelho"),
+            "a frase precisa dizer que o trabalho ficou, e nao que sumiu: $frase",
+        )
+    }
+
+    @Test
+    fun sair_com_um_pendente_fala_no_singular() {
+        val frase = mensagemDeEntrada(MotivoDeEntrada.SAIU, pendentes = 1)!!
+
+        assertTrue(frase.contains("1 correcao ainda nao foi enviada"), frase)
+        assertTrue(frase.contains("guardada neste aparelho"), frase)
+    }
+
+    @Test
+    fun sair_sem_pendente_nao_menciona_envio() {
+        val frase = mensagemDeEntrada(MotivoDeEntrada.SAIU, pendentes = 0)!!
+
+        assertEquals("Voce saiu. Entre para continuar.", frase)
+    }
+
+    /** Os outros tres motivos nao mudam de frase por causa do numero: eles nao vem de uma sessao. */
+    @Test
+    fun o_numero_de_pendentes_nao_contamina_os_outros_motivos() {
+        assertEquals(
+            mensagemDeEntrada(MotivoDeEntrada.SEM_REDE, pendentes = 0),
+            mensagemDeEntrada(MotivoDeEntrada.SEM_REDE, pendentes = 7),
+        )
+        assertEquals(
+            mensagemDeEntrada(MotivoDeEntrada.SESSAO_EXPIRADA, pendentes = 0),
+            mensagemDeEntrada(MotivoDeEntrada.SESSAO_EXPIRADA, pendentes = 7),
+        )
+    }
 }

@@ -12,7 +12,11 @@ import com.platos.android.session.ResultadoDasOrganizacoes
 import com.platos.android.session.ResultadoDasProvas
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 
 /**
  * A API do PLATOS, vista do aparelho.
@@ -112,6 +116,43 @@ class ApiPlatos(
 
     private suspend fun pedirRoster(organizacaoId: String, shortId: String): HttpResponse =
         autenticado.get("$urlBase/organizations/$organizacaoId/exams/$shortId/roster")
+
+    /**
+     * Empurra um resultado apurado. **A unica escrita que o aparelho faz.**
+     *
+     * **O corpo vai como texto, ja pronto, e nao como objeto para serializar aqui.** Ele foi
+     * congelado no momento da apuracao e guardado assim (`ResultadoPendenteEntity.corpo`): serializar
+     * no envio faria uma mudanca futura no caminho de serializacao reescrever, em silencio, notas
+     * apuradas por uma versao anterior do aplicativo. O que sobe e o que foi apurado, byte a byte.
+     *
+     * **`Retorno<Unit>`, e nao a revisao que o servidor devolve.** O aparelho nao tem consumidor
+     * para ela: confirmado e confirmado, e a revisao e a forma como o **servidor** organiza o
+     * historico. Devolve-la aqui seria numero sem consumidor.
+     *
+     * 404 chega como [Retorno.Recusou], e o chamador **nao apaga o pendente por causa dele**: prova
+     * de organizacao cujo vinculo foi revogado responde 404 — a rota nao distingue, de proposito —,
+     * e outro membro da organizacao consegue enviar o mesmo pendente depois.
+     */
+    suspend fun enviarResultado(
+        organizacaoId: String,
+        shortId: String,
+        corpo: String,
+    ): Retorno<Unit> =
+        when (val retorno = retornoDe<Unit> { pedirEnvio(organizacaoId, shortId, corpo) }) {
+            is Retorno.Respondeu -> Retorno.Respondeu(Unit)
+            is Retorno.Recusou -> retorno
+            is Retorno.SemRede -> Retorno.SemRede
+        }
+
+    private suspend fun pedirEnvio(
+        organizacaoId: String,
+        shortId: String,
+        corpo: String,
+    ): HttpResponse =
+        autenticado.post("$urlBase/organizations/$organizacaoId/exams/$shortId/results") {
+            contentType(ContentType.Application.Json)
+            setBody(corpo)
+        }
 
     companion object {
         /** Espelha `PACKAGE_CONTENT_HASH_HEADER` do servidor (ADR-0013, decisao 2). */

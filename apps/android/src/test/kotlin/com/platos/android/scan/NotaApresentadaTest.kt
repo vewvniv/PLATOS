@@ -1,8 +1,10 @@
 package com.platos.android.scan
 
+import com.platos.domain.capture.QuestionAnswer
 import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.PendingQuestion
 import com.platos.domain.scoring.PendingReason
+import com.platos.domain.scoring.QuestionOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -17,13 +19,45 @@ import org.junit.jupiter.api.Test
  */
 class NotaApresentadaTest {
 
-    private fun nota(pontos: Int, pendentes: List<PendingQuestion> = emptyList()) = ObjectiveScore(
-        packageHash = "hash-de-teste",
-        variantId = "v1",
-        points = pontos,
-        maxScore = 40,
-        pending = pendentes,
-    )
+    /**
+     * A nota como a tela a recebe.
+     *
+     * A evidencia por questao vai coerente com [pontos] e com [pendentes] porque a guarda de
+     * construcao de `ObjectiveScore` a exige — nao porque esta classe a use. O que a tela mostra
+     * continua sendo o total, o estado de fechamento e as pendencias; a evidencia atravessa a
+     * apresentacao sem ser lida por ela.
+     */
+    private fun nota(pontos: Int, pendentes: List<PendingQuestion> = emptyList()): ObjectiveScore {
+        val acertos = if (pontos > 0) {
+            listOf(
+                QuestionOutcome(
+                    questionId = "q00",
+                    answer = QuestionAnswer.Marcada("q00", "A"),
+                    worth = pontos,
+                    earned = pontos,
+                ),
+            )
+        } else {
+            emptyList()
+        }
+        val emRevisao = pendentes.map {
+            QuestionOutcome(
+                questionId = it.questionId,
+                answer = QuestionAnswer.Indecisa(it.questionId, listOf("A")),
+                worth = it.points,
+                earned = 0,
+            )
+        }
+
+        return ObjectiveScore(
+            packageHash = "hash-de-teste",
+            variantId = "v1",
+            points = pontos,
+            maxScore = 40,
+            pending = pendentes,
+            outcomes = acertos + emRevisao,
+        )
+    }
 
     @Test
     fun `nota sem pendencia e apresentada como fechada`() {
