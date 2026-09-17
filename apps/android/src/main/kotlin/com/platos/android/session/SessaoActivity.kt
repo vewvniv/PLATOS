@@ -1,5 +1,6 @@
 package com.platos.android.session
 
+import com.platos.android.outbox.EnvioDeResultadosWorker
 import com.platos.android.outbox.ResultadosEmRoom
 import com.platos.android.roster.RostersEmArquivo
 import com.platos.android.roster.prepararRoster
@@ -198,7 +199,30 @@ class SessaoActivity : ComponentActivity() {
     private fun aplicar(resultado: ResultadoDasOrganizacoes) {
         sessao.aoConsultarOrganizacoes(resultado)
         state = sessao.state
+        escoarPendentes()
     }
+
+    /**
+     * Da aos pendentes daquela organizacao uma chance de subir, agora que ha sessao aberta.
+     *
+     * **Sem isto, o requisito "o pendente preservado sobe na sessao seguinte de um membro da
+     * organizacao" nao tem implementacao.** Ele estava escrito na spec e o unico lugar que agendava
+     * envio era o escaneamento — entao um pendente que nao subisse na hora so ganhava outra chance
+     * quando alguem escaneasse outra folha. Encontrado na conferencia em aparelho: o worker rodou uma
+     * vez, devolveu sucesso sem drenar a fila, e a linha ficou parada sem caminho de volta.
+     *
+     * **E o que faz o caso do vinculo revogado funcionar.** Quem foi removido da escola nao consegue
+     * enviar — a rota recusa —, e o pendente dele espera **outro** membro abrir sessao neste
+     * aparelho. Esse "abrir sessao" e exatamente aqui.
+     *
+     * `ExistingWorkPolicy.KEEP` faz a chamada repetida ser barata: se ja ha trabalho agendado para a
+     * organizacao, este agendamento nao cria um segundo.
+     */
+    private fun escoarPendentes() {
+        val organizacao = organizacaoAtiva() ?: return
+        EnvioDeResultadosWorker.agendar(applicationContext, organizacao)
+    }
+
 
     private fun entrar(email: String, senha: String) {
         enviando = true
