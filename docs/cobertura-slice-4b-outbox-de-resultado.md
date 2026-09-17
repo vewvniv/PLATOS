@@ -207,6 +207,33 @@ rodados com `--rerun-tasks`, nesta sessão:
 
 O emulador é o `platos-atd34`, API 34, o mesmo alvo `aosp_atd` que o CI usa.
 
+### 4.1 Bisectabilidade, e três jeitos de o instrumento mentir
+
+A cadeia inteira foi replayada com `git rebase --force-rebase --exec './gradlew build'`, para que cada
+commit seja verificável isoladamente e não só a ponta. Resultado: **7 commits, 7 verdes, nenhum
+quebrado**, e `git diff` entre a árvore de antes e a de depois **vazio** — o replay não mudou uma
+linha.
+
+Chegar a esse número exigiu três tentativas, e as três primeiras falhas foram do **instrumento**, não
+do código. Ficam escritas porque cada uma produziria um verde sobre coisa nenhuma:
+
+1. **`tail -50` engoliu a evidência.** O comando terminava com um pipe que guardava só as últimas 50
+   linhas, e as sete execuções viraram o rabo de uma só. O rebase passou; o registro de qual commit
+   passou, não existia.
+2. **`Successfully rebased` sobre zero replay.** Sem `--force-rebase`, o git viu que a branch já
+   estava sobre `main`, fez fast-forward, rodou **um** `exec` de 5 segundos com 170 de 176 tasks
+   `UP-TO-DATE`, e imprimiu sucesso. O único sinal que denunciou foi o **hash inalterado**: replay de
+   verdade recria commits. É o mesmo defeito de `exit 0` do Gradle que a fatia 1 registrou, chegando
+   por outra porta.
+3. **A contagem de marcadores incluiu o próprio instrumento.** `grep -c '===COMMIT-OK'` devolveu 14 e
+   `'===COMMIT-QUEBRADO'` devolveu 7 — porque o git **imprime o comando do `exec`** antes de rodá-lo, e
+   aquele comando contém os dois literais. Sete linhas do medidor entraram na contagem do medido.
+   Ancorar em `^===` deu os números certos: 7, 0 e 2.
+
+E uma leitura errada que também fica dita (P7): a primeira falha do commit 1 foi chamada de
+"instabilidade aleatória" depois de **um** build manual que passou. Ela reproduziu em 3 de 3 rebases.
+O build manual passou porque o classloader já estava quente — a explicação está em 6.6.
+
 ---
 
 ## 5. O que ainda não foi verificado
@@ -278,7 +305,21 @@ primeira que fizer envio concorrente — lote paralelo, ou mais de um aparelho e
    `(exam_id, student_token)`, e a razão está no ADR-0003, na atualização de 2026-09-17.
 4. **`assessment_fact`, `capture_session`, `sync_cursor` e o modo degradado** ficaram fora. O insumo do
    primeiro está preservado em `answer_observation`; os outros três não têm consumidor neste fluxo.
-5. **A KDoc de `VisoesEmArquivo` diz "Room continua sendo da 4b".** Agora Room existe, e a frase ficou
+5. **`:apps:api:generateJooq` falha na primeira execução após o Gradle reconfigurar.** Achado ao
+   verificar bisectabilidade, e **fora do escopo funcional desta fatia** (P19), então fica como item e
+   não como conserto. O erro é sempre o mesmo: `java.sql.SQLException: No suitable driver found for
+   jdbc:postgresql://...`. Dos 7 commits replayados, os **2** que falharam na primeira tentativa são
+   exatamente os dois cujo build vem depois de uma reconfiguração — o primeiro do rebase, com daemons
+   parados e `apps/android/build` apagado, e o que altera `gradle/libs.versions.toml`, porque mudança
+   de catálogo invalida a configuração. Os outros 5 passaram de primeira, inclusive o maior da fatia.
+   A retentativa, com o classloader quente, passou nas duas vezes. **É correlação de 7 pontos, e não
+   causa medida:** o classloader não foi instrumentado, e afirmar `ServiceLoader` aqui seria suposição
+   apresentada como medição (P6). Importa porque o `ci.yml` roda `./gradlew :apps:api:generateJooq`
+   como passo próprio na linha 43, num runner novo e sem retentativa — e um vermelho desses tem cara
+   de regressão sem ser (P15). O CI está verde hoje, então ou o caso é específico de Windows, ou a
+   ordem dos passos lá o evita; nenhuma das duas foi medida. **Dono:** mantenedor. **Fatia-limite:** a
+   próxima que tocar o build da API, ou o primeiro vermelho de CI que custe investigação.
+6. **A KDoc de `VisoesEmArquivo` diz "Room continua sendo da 4b".** Agora Room existe, e a frase ficou
    imprecisa sobre o nome — o gatilho que ela cita, o outbox, está correto. `docs/cobertura-slice-4b-roster-no-aparelho.md:281`
    dava a esta fatia como fatia-limite dela. **Não foi corrigida**, porque é refatoração fora do escopo
    funcional desta mudança (P19) e a correção pertence a um commit de texto. **Dono:** esta base.
