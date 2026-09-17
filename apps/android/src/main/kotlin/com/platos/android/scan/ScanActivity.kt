@@ -95,13 +95,16 @@ class ScanActivity : ComponentActivity() {
         }
 
         examPackage = doCache
-        // O roster sai do **mesmo** identificador contra o qual a folha e conferida
-        // (`examPackage.meta.examId`), e nao de um extra novo no `Intent`: com dois caminhos para
-        // dizer de qual prova se fala, eles divergiriam no dia em que um dos dois fosse esquecido.
+        // O roster e lido pela **mesma chave que os escritores usaram** — o `short_id` da prova,
+        // que chega pelo `Intent`. A primeira versao lia por `examPackage.meta.examId`, com a
+        // justificativa de evitar "dois caminhos para dizer de qual prova se fala"; a justificativa
+        // estava certa e a leitura, errada, porque os dois caminhos ja existiam: os escritores usam
+        // `prova.shortId`. Fica dito em vez de apagado.
         //
         // Lido uma vez, aqui, e nao a cada quadro: o escaneamento nao muda o roster, e reler a cada
         // folha poria disco no caminho da camera sem nada a ganhar.
-        roster = RostersEmArquivo(File(filesDir, "rosters")).ler(organizacao, examPackage.meta.examId)
+        val shortId = intent.getStringExtra(EXTRA_SHORT_ID)
+        roster = shortId?.let { RostersEmArquivo(File(filesDir, "rosters")).ler(organizacao, it) }
         map = examPackage.layout.values.single()
         session = ScanSession(examPackage)
         analysisExecutor = Executors.newSingleThreadExecutor()
@@ -211,6 +214,18 @@ class ScanActivity : ComponentActivity() {
     companion object {
         /** A organizacao sob a qual o pacote esta guardado. */
         const val EXTRA_ORGANIZACAO = "com.platos.android.scan.ORGANIZACAO"
+
+        /**
+         * O `short_id` da prova escolhida, que e a chave sob a qual o roster foi guardado.
+         *
+         * **Vem no `Intent`, e nao de `examPackage.meta.examId`.** Os dois sao iguais hoje, mas por
+         * um contrato implicito entre a publicacao e o pacote que nada nesta base prende: os
+         * escritores do roster — o pull e o gate — usam `prova.shortId`, e ler por outro caminho
+         * faria o leitor depender de uma igualdade que ninguem afirma. Se ela se rompesse, `ler`
+         * devolveria `null` e **toda** folha cairia em silencio no token com "nao esta no roster" —
+         * sem erro, sem barragem, e com a fatia inteira desaparecida sem nada acusar.
+         */
+        const val EXTRA_SHORT_ID = "com.platos.android.scan.SHORT_ID"
 
         /** O endereco do pacote conferido. **O endereco, e nao o pacote** — ver `design.md`, 6. */
         const val EXTRA_CONTENT_HASH = "com.platos.android.scan.CONTENT_HASH"

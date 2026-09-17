@@ -3,8 +3,11 @@ package com.platos.android.scan
 import com.platos.android.roster.AlunoDoRoster
 import com.platos.android.roster.RosterDaProva
 import com.platos.android.session.MarcaDeLeitura
+import com.platos.android.session.Procedencia
+import com.platos.android.session.marcaDeLeitura
 import java.time.ZoneId
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -93,11 +96,40 @@ class IdAlunoDaFolhaTest {
         // fixa para esta data, e o literal vem de la — nao de reformatar aqui o que a producao
         // formata, que seria oraculo compartilhando codigo com o que ele julga.
         assertEquals(
-            MarcaDeLeitura("SEM CONEXAO", "visto em 04/09/2025 as 12:33"),
+            MarcaDeLeitura("LISTA BAIXADA", "visto em 04/09/2025 as 12:33"),
             marca,
             "a marca nao diz de quando o roster e, ou diz errado",
         )
     }
+
+    /**
+     * **O selo do roster nao afirma falta de conexao.**
+     *
+     * A visao guardada so chega a tela **porque** a consulta falhou, e por isso o selo dela pode
+     * dizer "SEM CONEXAO". O roster guardado chega a tela em **toda** leitura de folha — o
+     * escaneamento acontece sobre o que foi puxado —, inclusive com o aparelho on-line e o pull
+     * recem-concluido. Dizer "sem conexao" ali seria falso na maioria das vezes em que o selo
+     * aparece, e ensinaria a ignorar o mesmo selo na tela onde ele e verdade.
+     *
+     * A asercao e sobre o rotulo **da visao** tambem: se alguem unificasse os dois, este cenario
+     * cairia junto com a distincao.
+     */
+    @Test
+    fun o_selo_do_roster_nao_diz_sem_conexao() {
+        val doRoster = alunoDaFolhaMarca()
+        val daVisao = marcaDeLeitura(Procedencia.Cacheada(puxadoEm), zona)
+
+        assertEquals("LISTA BAIXADA", doRoster.rotulo)
+        assertEquals("SEM CONEXAO", daVisao!!.rotulo, "o selo da visao mudou de sentido")
+        assertNotEquals(
+            daVisao.rotulo,
+            doRoster.rotulo,
+            "o roster passou a afirmar falta de conexao em toda folha lida",
+        )
+        assertEquals(daVisao.idade, doRoster.idade, "as duas marcas deixaram de dizer de quando e")
+    }
+
+    private fun alunoDaFolhaMarca() = idAlunoDaFolha("tok-a", roster(ana), zona).marca!!
 
     /**
      * **A negativa: o resultado nao guarda o nome.**

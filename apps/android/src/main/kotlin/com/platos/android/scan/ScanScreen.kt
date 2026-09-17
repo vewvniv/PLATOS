@@ -139,7 +139,7 @@ private fun BoxScope.Resultado(
  * **Acima, e nao abaixo**: a pergunta que o professor faz ao ver o resultado e "de quem e", e a nota
  * sem dono e a situacao que esta fatia existe para acabar.
  *
- * Quem decide o que apresentar e [alunoDaFolha]; aqui so se desenha. O selo e o mesmo
+ * Quem decide o que apresentar e [idAlunoDaFolha]; aqui so se desenha. O selo e o mesmo
  * [SeloDeLeitura] da tela de trabalho — a regra de marcar dado guardado mora em `device-session`, e
  * duas marcas para a mesma regra divergiriam na primeira mudanca.
  */

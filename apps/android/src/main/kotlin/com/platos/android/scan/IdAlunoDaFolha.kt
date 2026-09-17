@@ -3,6 +3,7 @@ package com.platos.android.scan
 import com.platos.android.roster.RosterDaProva
 import com.platos.android.session.MarcaDeLeitura
 import com.platos.android.session.Procedencia
+import com.platos.android.session.ROTULO_LISTA_BAIXADA
 import com.platos.android.session.marcaDeLeitura
 import java.time.ZoneId
 
@@ -50,6 +51,10 @@ sealed interface IdAlunoDaFolha {
  * puxado ha dez segundos carrega a marca igual, e a idade e que diz isso a quem le; marcar so
  * quando a rede cai faria a ausencia da marca significar duas coisas diferentes.
  *
+ * **O rotulo e [ROTULO_LISTA_BAIXADA], e nao o da visao.** Como a marca vem sempre, um rotulo que
+ * dissesse "sem conexao" seria falso em toda leitura feita com o aparelho on-line — que sao quase
+ * todas.
+ *
  * [roster] nulo e tratado como token fora do roster, e nao como erro. O gate garante que ha roster
  * puxado antes de a camera abrir, mas entre o gate e a leitura o vinculo pode cair e o apagamento
  * levar o roster junto; apresentar o token e a resposta honesta, e inventar um nome ou estourar nao
@@ -63,7 +68,9 @@ fun idAlunoDaFolha(
     roster: RosterDaProva?,
     zona: ZoneId,
 ): IdAlunoDaFolha {
-    val marca = roster?.let { marcaDeLeitura(Procedencia.Cacheada(it.puxadoEm), zona) }
+    val marca = roster?.let {
+        marcaDeLeitura(Procedencia.Cacheada(it.puxadoEm), zona, ROTULO_LISTA_BAIXADA)
+    }
     val aluno = roster?.alunos?.firstOrNull { it.token == token }
 
     return when (aluno) {

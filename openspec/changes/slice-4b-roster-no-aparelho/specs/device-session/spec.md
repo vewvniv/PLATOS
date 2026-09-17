@@ -158,6 +158,12 @@ na primeira mudança. O nome de um aluno lido do roster guardado é exatamente o
 existe para cobrir: ele pode ter sido corrigido no servidor depois do último pull, e o roster é
 mutável por construção (ADR-0002), então "de quando ele é" diz mais aqui do que na visão.
 
+**A marca SHALL dizer de quando o dado é, e SHALL NOT afirmar o estado da rede.** A visão guardada só
+chega à tela **porque** a consulta falhou, e por isso a marca dela pode falar de conexão; o roster
+guardado chega à tela em toda leitura, inclusive com o aparelho on-line e o pull recém-concluído. Uma
+marca que dissesse "sem conexão" ali afirmaria algo falso na maioria das vezes em que aparece — e
+ensinaria a ignorar o mesmo selo na tela onde ele é verdade.
+
 O aplicativo SHALL oferecer, nessas telas, uma **ação explícita** de atualizar a visão.
 
 Quando a atualização falhar, o aplicativo SHALL continuar apresentando a visão anterior, ainda
@@ -179,6 +185,11 @@ marcada, e SHALL NOT esvaziar a tela nem apresentar o dado como fresco.
 - **WHEN** a ação de atualizar é acionada e a consulta não chega ao servidor
 - **THEN** a visão anterior continua apresentada e marcada, e o aplicativo diz que não conseguiu
   atualizar
+
+#### Scenario: A marca do roster não afirma falta de conexão
+
+- **WHEN** o nome de um aluno é apresentado a partir do roster guardado com o aparelho on-line
+- **THEN** a marca diz de quando o roster é, e não afirma que o aparelho está sem conexão
 
 #### Scenario: O nome do aluno vindo do roster guardado
 
@@ -202,6 +213,19 @@ a rede disponível apresentaria um nome que o servidor já corrigiu, e nada na t
 Falha de rede ou recusa SHALL NOT apagar o roster guardado. O pull que não chega não deixa o aparelho
 pior do que estava — é o mesmo critério de "atualizar sem rede não esvazia a tela" que esta capability
 já exige da visão.
+
+**O pull SHALL NOT atrasar a abertura da sessão quando o aparelho já guarda o roster daquela prova.**
+Havendo roster guardado, ele SHALL ser usado imediatamente e a atualização SHALL correr sem bloquear;
+não havendo, o pull SHALL ser esperado, porque sem ele o gate barra e a espera tem significado.
+
+Sem esta regra, escolher uma prova cujo pacote **e** roster já estão no aparelho passaria a depender
+de uma ida à rede: numa rede de escola associada a um ponto sem saída não há falha rápida, e a espera
+vai até o tempo limite antes de abrir com o que já estava em disco. Seria a sala sem sinal — o caso
+para o qual o guardado existe — piorada por ele.
+
+**Custo, dito aqui e não descoberto depois:** um nome corrigido no servidor passa a aparecer na
+escolha **seguinte** daquela prova, e não na primeira depois da correção. É a troca aceita; o que não
+se aceita é a abertura da sessão ficar refém da rede quando o aparelho já tem tudo de que precisa.
 
 O que o aparelho guarda SHALL ser separado **por organização e por prova**. O escopo por organização
 é o mesmo do pacote guardado e existe pela mesma razão: o que o aparelho guarda é um caminho de
@@ -236,6 +260,12 @@ alcançaria.
 
 - **WHEN** uma prova é escolhida e o aparelho não guarda roster dela
 - **THEN** o roster é puxado da API e guardado dentro do escopo da organização ativa e daquela prova
+
+#### Scenario: Roster já guardado não faz a sessão esperar a rede
+
+- **WHEN** uma prova cujo pacote e roster o aparelho já guarda é escolhida, e a rede não responde nem
+  falha depressa
+- **THEN** a sessão abre com o roster guardado sem esperar o pull terminar
 
 #### Scenario: Com rede, o que o servidor diz substitui o guardado
 

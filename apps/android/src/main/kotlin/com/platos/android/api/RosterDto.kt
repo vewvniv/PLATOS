@@ -8,8 +8,15 @@ import kotlinx.serialization.Serializable
  * O contrato de `GET /organizations/{id}/exams/{shortId}/roster`, espelhado do servidor.
  *
  * A fonte e `apps/api/src/main/kotlin/com/platos/api/http/dto/ExamDto.kt` (`RosterEntryDto`), e vale
- * aqui o mesmo que vale em [ProvaDto] e [OrganizacaoDto]: **espelho, e nao arquivo compartilhado**,
- * com a deriva entre os dois lados fechada pelo JSON literal que `ApiPlatosTest` fixa.
+ * aqui o mesmo que vale em [ProvaDto] e [OrganizacaoDto]: **espelho, e nao arquivo compartilhado**.
+ *
+ * A deriva entre os dois lados e fechada pelo JSON literal de `ObtencaoDeRosterTest.corpoComDois`, e
+ * a rota que o cliente bate esta prendida em `a_obtencao_bate_na_rota_que_o_servidor_expoe`.
+ *
+ * **A primeira redacao desta KDoc dizia que quem fixava o literal era `ApiPlatosTest`** — que nao tem
+ * uma linha sobre roster. A frase foi copiada de [ProvaDto], onde ela e verdadeira, sem conferir que
+ * valia aqui, e mandava quem lesse para uma cobertura inexistente. Fica dito em vez de apagado (P7):
+ * KDoc que aponta cobertura e afirmacao verificavel, e esta era falsa.
  *
  * **Dois campos, e a ausencia dos outros e o requisito** — o mesmo que o DTO do servidor registra.
  * `exam_roster` guarda tambem `class_group` e `enrollment_id`, e eles nao descem: cada campo que

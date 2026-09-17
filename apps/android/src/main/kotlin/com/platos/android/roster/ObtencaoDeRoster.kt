@@ -2,6 +2,8 @@ package com.platos.android.roster
 
 import com.platos.android.api.ApiPlatos
 import com.platos.android.net.Retorno
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import com.platos.android.session.ProvaPublicada
 
 /**
@@ -48,4 +50,37 @@ suspend fun obterRoster(
     }
 
     return cache.ler(organizacao, prova.shortId)
+}
+
+/**
+ * Prepara o roster para a abertura da sessao, e devolve **se o pull foi esperado**.
+ *
+ * **Espera so quando nao ha roster guardado.** Sem guardado, esperar tem significado: o gate barra
+ * sem ele. Com guardado, esperar seria pior do que nao pedir — `obterPacote` nao toca a rede quando o
+ * pacote esta em disco, entao a espera seria **so** do roster, e numa rede de escola associada a um
+ * ponto sem saida nao ha falha rapida: a tela ficaria parada ate o tempo limite antes de abrir com o
+ * que ja estava ali. Seria a sala sem sinal piorada pelo que existe para ela.
+ *
+ * **O custo esta no requisito, e nao escondido aqui:** um nome corrigido no servidor aparece na
+ * escolha **seguinte** daquela prova. A atualizacao corre em [escopo] e chega a tempo da proxima.
+ *
+ * O booleano de retorno existe para o teste, e nao para o chamador — nenhuma tela decide nada com
+ * ele. Sem ele, "nao esperou" so seria observavel por cronometro, e cronometro em teste e a forma
+ * mais comum de medicao que nao mede.
+ */
+suspend fun prepararRoster(
+    cache: RostersGuardados,
+    api: ApiPlatos,
+    organizacao: String,
+    prova: ProvaPublicada,
+    agora: Long,
+    escopo: CoroutineScope,
+): Boolean {
+    if (cache.ler(organizacao, prova.shortId) != null) {
+        escopo.launch { obterRoster(cache, api, organizacao, prova, agora) }
+        return false
+    }
+
+    obterRoster(cache, api, organizacao, prova, agora)
+    return true
 }

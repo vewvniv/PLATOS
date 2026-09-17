@@ -75,13 +75,24 @@ class PreparoDaProvaTest {
      * padrao "nunca puxado" faria o gate barrar em toda parte e transformaria quinze cenarios de
      * pacote em cenarios de roster sem que ninguem tivesse escrito isso.
      */
-    private class RostersEmMemoria(vararg puxados: Pair<String, RosterDaProva>) : RostersGuardados {
+    private class RostersEmMemoria(
+        private val organizacaoDona: String,
+        vararg puxados: Pair<String, RosterDaProva>,
+    ) : RostersGuardados {
         private val guardados = puxados.toMap().toMutableMap()
 
-        override fun ler(organizacao: String, prova: String): RosterDaProva? = guardados[prova]
+        /**
+         * **Chaveado pelo par, e nao so pela prova.** A primeira redacao deste duplo devolvia
+         * `guardados[prova]` e ignorava a organizacao — sombreamento de fixture em estado puro (§3):
+         * o gate passa `organizacao.id`, e com o duplo ignorando o argumento, **nenhum** cenario
+         * deste arquivo exercitava a metade do gate que confere escopo. Tirar o `organizacao.id` do
+         * gate teria deixado tudo verde.
+         */
+        override fun ler(organizacao: String, prova: String): RosterDaProva? =
+            if (organizacao == organizacaoDona) guardados[prova] else null
 
         override fun guardar(organizacao: String, prova: String, roster: RosterDaProva) {
-            guardados[prova] = roster
+            if (organizacao == organizacaoDona) guardados[prova] = roster
         }
 
         override fun apagarDaOrganizacao(organizacao: String) = guardados.clear()
@@ -103,7 +114,8 @@ class PreparoDaProvaTest {
     private fun rosterPuxado(vararg alunos: AlunoDoRoster) =
         RosterDaProva(alunos.toList(), puxadoEm = agora)
 
-    private fun todosPuxados() = RostersEmMemoria(
+    private fun todosPuxados(dona: String = escola.id) = RostersEmMemoria(
+        dona,
         provaA.shortId to rosterPuxado(ana),
         provaB.shortId to rosterPuxado(ana),
     )
@@ -546,7 +558,7 @@ class PreparoDaProvaTest {
     @Test
     fun roster_vazio_abre_o_escaneamento() {
         val preparo = preparoPreparando(
-            rosters = RostersEmMemoria(provaA.shortId to rosterPuxado()),
+            rosters = RostersEmMemoria(escola.id, provaA.shortId to rosterPuxado()),
         )
 
         preparo.aoObterPacote(ResultadoDoPacote.Conferido(pacote, provaA.contentHash))
@@ -563,7 +575,7 @@ class PreparoDaProvaTest {
      */
     @Test
     fun roster_nunca_puxado_barra_mesmo_com_pacote_conferido() {
-        val preparo = preparoPreparando(rosters = RostersEmMemoria())
+        val preparo = preparoPreparando(rosters = RostersEmMemoria(escola.id))
 
         preparo.aoObterPacote(ResultadoDoPacote.Conferido(pacote, provaA.contentHash))
 
@@ -598,7 +610,7 @@ class PreparoDaProvaTest {
      */
     @Test
     fun roster_ausente_e_barragem_distinta_das_do_pacote() {
-        val semRoster = preparoPreparando(rosters = RostersEmMemoria())
+        val semRoster = preparoPreparando(rosters = RostersEmMemoria(escola.id))
             .apply { aoObterPacote(ResultadoDoPacote.Conferido(pacote, provaA.contentHash)) }
         val semRede = preparoPreparando().apply { aoObterPacote(ResultadoDoPacote.SemRede) }
         val semPacote = preparoPreparando().apply { aoObterPacote(ResultadoDoPacote.Ausente) }
@@ -619,6 +631,31 @@ class PreparoDaProvaTest {
             3,
             motivos.map { textoDaBarragem(it) }.toSet().size,
             "duas das tres barragens dizem a mesma coisa ao professor",
+        )
+    }
+
+    /**
+     * **O gate confere o escopo por organizacao, e nao so a prova.**
+     *
+     * Este cenario nao existia, e a ausencia dele era invisivel porque o duplo ignorava o argumento
+     * `organizacao` — a fixture sombreava exatamente a camada que o cenario deveria testar (§3). Com
+     * o roster guardado sob **outra** organizacao, o gate tem de barrar: alcanca-lo seria o aparelho
+     * entregando a quem entrou depois um roster que a API recusaria, que e o caminho de vazamento
+     * que o escopo existe para fechar — e o que vazaria e nome de aluno.
+     */
+    @Test
+    fun roster_guardado_sob_outra_organizacao_nao_abre_o_escaneamento() {
+        val deOutraEscola = RostersEmMemoria(
+            "01a06ba4-0000-7d97-842d-165352d010b5",
+            provaA.shortId to rosterPuxado(ana),
+        )
+        val preparo = preparoPreparando(rosters = deOutraEscola)
+
+        preparo.aoObterPacote(ResultadoDoPacote.Conferido(pacote, provaA.contentHash))
+
+        assertEquals(
+            EstadoDaProva.Barrada(provaA, MotivoDaBarragem.ROSTER_AUSENTE),
+            preparo.state,
         )
     }
 

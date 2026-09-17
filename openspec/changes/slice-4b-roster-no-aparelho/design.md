@@ -156,6 +156,52 @@ contrato ficou para trás: é a regra 1 do `CLAUDE.md` quebrada na direção que
 Fica dito em vez de apagado porque o erro não foi a inversão — ela está certa —, e sim **decidir no
 código o que o contrato já afirmava**, e não voltar para corrigi-lo.
 
+**Atualizada depois da revisão de código, e o texto acima fica (P7).** A decisão — rede primeiro —
+continua certa, e a redação de cima não estava errada sobre ela. O que faltava era **quando esperar**.
+
+`obterPacote` não toca a rede quando o pacote está em disco, então numa prova já baixada a espera
+passava a ser **só** do roster. Numa rede de escola associada a um ponto sem saída não há
+`UnknownHostException` rápido: o pedido fica pendurado até o tempo limite, e a tela ficava em
+`Preparando` antes de abrir com pacote e roster que já estavam ali. Era a sala sem sinal — o caso
+para o qual o guardado existe — **piorada** por ele.
+
+`prepararRoster` passou a esperar o pull **só quando não há roster guardado**, que é quando esperar
+tem significado, porque o gate barra sem ele. Havendo guardado, ele serve na hora e a atualização
+corre solta. O custo entrou no requisito e não ficou escondido no código: um nome corrigido no
+servidor aparece na escolha **seguinte** daquela prova.
+
+### 8. O selo do roster não fala de conexão
+
+`marcaDeLeitura` ganhou o rótulo por parâmetro, com `ROTULO_SEM_CONEXAO` de padrão e
+`ROTULO_LISTA_BAIXADA` no caminho do roster.
+
+A regra continua **uma só** e no mesmo lugar — dado guardado leva selo, e o selo diz de quando o dado
+é. O que muda é a palavra, porque as duas telas chegam ao selo por razões diferentes: a visão
+guardada só aparece **porque** a consulta falhou, e o roster guardado aparece em toda leitura de
+folha, inclusive com o aparelho on-line e o pull recém-concluído.
+
+Deixar "SEM CONEXAO" ali afirmaria algo falso na maioria das vezes em que o selo aparece — e o custo
+não é só a mentira: ensinaria o professor a ignorar o mesmo selo na tela de trabalho, onde ele é
+verdade e é a única coisa que distingue dado de ontem de dado de agora.
+
+**Alternativa descartada: uma segunda função de marca para o roster.** Seria a duplicação que a
+decisão 5 recusou, agora pelo outro lado — duas cópias da regra "diz de quando é", divergindo na
+primeira mudança.
+
+### 9. O roster é lido pela mesma chave com que foi gravado
+
+`ScanActivity` recebe o `short_id` da prova por `Intent` e lê o roster por ele.
+
+**A primeira versão lia por `examPackage.meta.examId`**, com uma KDoc que justificava a escolha
+dizendo evitar "dois caminhos para dizer de qual prova se fala". A justificativa estava certa e a
+leitura, errada: os dois caminhos **já existiam**, porque os escritores — o pull e o gate — usam
+`prova.shortId`. Os dois valores são iguais hoje por um contrato implícito entre a publicação e o
+pacote que nada nesta base prende.
+
+Se ele se rompesse, `ler` devolveria `null` e **toda** folha cairia em silêncio no token com "não
+está no roster": sem erro, sem barragem, e com a fatia inteira desaparecida sem nada acusar. Um extra
+a mais no `Intent` é preço barato por não depender de uma igualdade que ninguém afirma.
+
 ## Risks / Trade-offs
 
 - **Esta fatia cria a primeira cópia de dado pessoal de aluno fora do servidor** → O apagamento ao

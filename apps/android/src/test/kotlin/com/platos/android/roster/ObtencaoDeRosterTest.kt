@@ -11,10 +11,19 @@ import io.ktor.http.headersOf
 import io.ktor.utils.io.ByteReadChannel
 import java.io.File
 import java.net.UnknownHostException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
@@ -47,13 +56,16 @@ class ObtencaoDeRosterTest {
     private sealed interface Resposta {
         data class Corpo(val status: Int, val corpo: String) : Resposta
         data object SemRede : Resposta
+        data object Pendurada : Resposta
     }
 
     private var chamadas = 0
+    private val pedidos = mutableListOf<io.ktor.client.request.HttpRequestData>()
 
     private fun api(responder: () -> Resposta): ApiPlatos {
-        val engine = MockEngine {
+        val engine = MockEngine { pedido ->
             chamadas++
+            pedidos += pedido
             when (val r = responder()) {
                 is Resposta.Corpo -> respond(
                     content = ByteReadChannel(r.corpo),
@@ -62,6 +74,11 @@ class ObtencaoDeRosterTest {
                 )
 
                 is Resposta.SemRede -> throw UnknownHostException("api.platos.example")
+
+                is Resposta.Pendurada -> {
+                    delay(Long.MAX_VALUE)
+                    error("inalcancavel")
+                }
             }
         }
         return ApiPlatos(
@@ -76,6 +93,15 @@ class ObtencaoDeRosterTest {
     private fun servidorComRosterVazio() = api { Resposta.Corpo(200, "[]") }
     private fun servidorSemRede() = api { Resposta.SemRede }
     private fun servidorQueRecusa() = api { Resposta.Corpo(404, """{"erro":"nao ha"}""") }
+
+    /**
+     * O servidor que **nunca responde**, e nao o que responde devagar.
+     *
+     * E a rede de escola associada a um ponto sem saida: nao ha falha rapida a esperar, e o pedido
+     * fica pendurado ate o tempo limite. Sem este duplo, o cenario da abertura so seria observavel
+     * por cronometro.
+     */
+    private fun servidorQueNuncaResponde() = api { Resposta.Pendurada }
 
     /**
      * **Primeira escolha da prova: o roster desce e fica guardado.**
@@ -192,5 +218,82 @@ class ObtencaoDeRosterTest {
 
         assertNull(roster, "sem rede e sem guardado, apareceu um roster do nada")
         assertNull(cache.ler(escola, prova.shortId))
+    }
+
+    /**
+     * **A rota que o cliente bate, prendida.**
+     *
+     * Sem esta asercao o `MockEngine` responde **qualquer** URL, e um erro de digitacao em
+     * `/roster` — ou a organizacao e o `short_id` trocados de posicao — passaria a suite de JVM
+     * inteira e so falharia em aparelho, contra o servidor real. E a forma que `ApiPlatosTest` ja
+     * usa para as rotas que existiam antes desta fatia.
+     */
+    @Test
+    fun a_obtencao_bate_na_rota_que_o_servidor_expoe() = runBlocking {
+        obterRoster(cache, servidorComRoster(), escola, prova, agora)
+
+        assertEquals(
+            "/organizations/$escola/exams/${prova.shortId}/roster",
+            pedidos.single().url.encodedPath,
+        )
+    }
+
+    // ------------------------------------------------- a abertura nao fica refem da rede
+
+    /**
+     * **Com roster guardado, a abertura nao espera o pull.**
+     *
+     * O servidor deste cenario **nunca responde** — e nao "responde devagar": e o unico jeito de
+     * falsificar "nao esperou" sem cronometro, que seria medicao que nao mede. Se `prepararRoster`
+     * esperasse, `withTimeout` estouraria e o teste ficaria vermelho.
+     *
+     * O caso real e a rede de escola associada a um ponto sem saida: nao ha `UnknownHostException`
+     * rapido, e a espera vai ate o tempo limite de 90 s antes de abrir com o que ja estava em disco.
+     */
+    @Test
+    fun com_roster_guardado_a_abertura_nao_espera_o_pull() = runBlocking {
+        cache.guardar(escola, prova.shortId, RosterDaProva(listOf(AlunoDoRoster("tok-a", "Ana Ribeiro")), agora))
+
+        // **Escopo separado para a atualizacao, e a razao e o que este teste mede.** Passando o
+        // escopo do proprio `withTimeout`, a atualizacao vira filha dele — e concorrencia estruturada
+        // faz o `withTimeout` esperar o filho pendurado, estourando mesmo com `prepararRoster` tendo
+        // devolvido na hora. Foi o que aconteceu na primeira redacao deste teste, e o vermelho era do
+        // teste e nao do codigo (P12): a mensagem dizia `TimeoutCancellationException`, e nao uma
+        // asercao sobre `esperou`.
+        val fundo = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val esperou = withTimeout(2_000) {
+                prepararRoster(cache, servidorQueNuncaResponde(), escola, prova, agora, fundo)
+            }
+
+            assertFalse(esperou, "a abertura esperou o pull mesmo com roster guardado")
+        } finally {
+            fundo.cancel()
+        }
+    }
+
+    /**
+     * **Sem roster guardado, a abertura espera — e isso tambem e afirmado.**
+     *
+     * O par do cenario acima, e ele e o que impede o conserto de virar "nunca espera". Sem guardado
+     * o gate barra, entao esperar tem significado: abrir para mostrar a barragem pediria a rede duas
+     * vezes. Com o servidor que nunca responde, esperar significa estourar o `withTimeout` — e e o
+     * estouro que se afirma.
+     */
+    @Test
+    fun sem_roster_guardado_a_abertura_espera_o_pull() = runBlocking {
+        var esperou: Boolean? = null
+
+        val estourou = try {
+            withTimeout(1_000) {
+                esperou = prepararRoster(cache, servidorQueNuncaResponde(), escola, prova, agora, this)
+                Unit
+            }
+            false
+        } catch (_: TimeoutCancellationException) {
+            true
+        }
+
+        assertTrue(estourou, "sem roster guardado a abertura nao esperou o pull; veio $esperou")
     }
 }

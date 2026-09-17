@@ -109,6 +109,50 @@ A negativa é medida na **estrutura do que é guardado**, e não na tela: uma as
 passaria com o nome gravado. E varre os campos em vez de conferir um campo chamado `nome` — conferir
 pelo nome deixaria passar `aluno`, `displayName` ou qualquer outro rótulo.
 
+### Os consertos do code review
+
+Seis achados de `/code-review`, todos confirmados no código antes de qualquer conserto. Três eram
+**afirmações falsas escritas por mim** — não defeitos de teste verde indevido, e sim documentação e
+cobertura afirmando mais do que existia.
+
+| Mutação | Esperado | Aconteceu |
+|---|---|---|
+| **(G)** `prepararRoster` volta a esperar sempre | só `com_roster_guardado_a_abertura_nao_espera_o_pull` | exatamente esse; o par que afirma a espera ficou verde |
+| **(H)** rótulo do roster volta a "SEM CONEXAO" | `o_selo_do_roster_nao_diz_sem_conexao` e `o_nome_vindo_do_roster_guardado_carrega_marca_com_idade` | exatamente esses dois |
+| **(I)** tirar `organizacao.id` do gate | só o cenário de outra organização | **cinco cenários, e não esse** — ver abaixo |
+| **(I′)** o duplo volta a ignorar a organização | só `roster_guardado_sob_outra_organizacao_nao_abre_o_escaneamento` | exatamente esse |
+| **(J)** rota `/rosters` no lugar de `/roster` | só `a_obtencao_bate_na_rota_que_o_servidor_expoe` | exatamente esse; os outros 9 passaram |
+
+**(I) não isolou a camada, e o conjunto declarado estava errado (P7).** Trocar `organizacao.id` por
+`""` faz o duplo não achar roster nenhum, então todos os cenários que esperam `Pronta` caem — e o de
+outra organização, que espera `Barrada`, fica **verde**. A mutação provava que o gate consulta o
+roster, e não que ele confere o escopo.
+
+**(I′) é a que isola**, e ela é a mais interessante da fatia: reintroduzir o sombreamento do duplo —
+`ler` ignorando o argumento `organizacao`, como estava antes do conserto — derruba **só** o cenário
+novo. É a prova direta de que aquele cenário é o que pega a fixture que sombreia, e de que sem ele a
+metade do gate que confere escopo por organização não era exercitada por teste nenhum. É o §3 em
+estado puro: a fixture mínima sombreia a camada que deveria testar.
+
+**(J) mostra o buraco que o achado apontou:** com a rota errada, **9 dos 10** cenários de
+`ObtencaoDeRosterTest` continuam passando, porque o `MockEngine` responde qualquer URL. Antes deste
+teste, um erro de digitação em `/roster` atravessaria a suíte inteira de JVM e só quebraria em
+aparelho, contra o servidor real.
+
+**O que eu tinha escrito de falso, e fica dito:**
+
+1. A KDoc de `RosterDto` afirmava que a deriva com o servidor estava "fechada pelo JSON literal que
+   `ApiPlatosTest` fixa". `ApiPlatosTest` **não tem uma linha sobre roster**. Copiei a frase de
+   `ProvaDto`, onde ela é verdadeira, sem conferir que valia aqui — e ela mandava o próximo leitor
+   para uma cobertura inexistente.
+2. A KDoc de `ScanActivity` afirmava que o roster era lido pelo "mesmo identificador" contra o qual a
+   folha é conferida. Não era: leitor e escritores usavam variáveis diferentes, iguais só por um
+   contrato implícito.
+3. O duplo `RostersEmMemoria` ignorava a organização, e nenhum cenário daquele arquivo exercitava o
+   escopo do gate.
+
+Nenhuma das três aparecia como teste vermelho. Todas apareceram na leitura.
+
 ---
 
 ## Verificação final
@@ -116,7 +160,9 @@ pelo nome deixaria passar `aluno`, `displayName` ou qualquer outro rótulo.
 **`./gradlew build --rerun-tasks`** — o comando cheio do CI, com `--rerun-tasks` porque `UP-TO-DATE`
 serve relatório velho com contagem plausível. **173 de 173 tasks executadas.**
 
-**1332 testes, 0 falhas**, e o `timestamp` de **cada** relatório conferido, não só a contagem.
+**1337 testes, 0 falhas**, e o `timestamp` de **cada** relatório conferido, não só a contagem. O
+`timestamp` mais velho entre todos é `2026-09-17T00:34:13Z`, de menos de um minuto antes da leitura —
+nenhum relatório de corrida anterior entrou na soma.
 
 **Um relatório fóssil foi encontrado e excluído da contagem:** `testReleaseUnitTest`, 6 testes,
 `timestamp` **2026-08-15T20:29:29.730Z** — um mês antes desta execução. É o mesmo fóssil que a
@@ -146,14 +192,27 @@ direto da linha contra `HEAD` devolve identidade. O arquivo inteiro tem 1 inser�
 
 ### A metade instrumentada
 
-`./gradlew :apps:android:connectedDebugAndroidTest`: **52 testes, 0 falhas**, `timestamp`
-`2026-09-16T23:21:33`.
+`./gradlew :apps:android:connectedDebugAndroidTest --rerun-tasks`: **52 testes, 0 falhas**,
+`timestamp` `2026-09-17T00:32:21`.
 
-Este carimbo é o da execução **final**, depois da reversão da mutação (F) — e não o da primeira
-corrida, que foi `23:16:45` com 49 cenários. A distinção não é preciosismo: a primeira redação desta
-seção citava o carimbo de `23:16:45` ao lado da contagem de 52, que são de corridas diferentes. Fica
-dito em vez de corrigido em silêncio (P7), porque é exatamente o defeito que esta mesma seção
-denuncia no relatório fóssil, um nível acima.
+**Este carimbo é o da execução contra a versão final do código**, depois dos seis consertos do code
+review. A corrida anterior — 52/52 em `2026-09-16T23:21:33` — vale para a árvore de antes deles, e os
+consertos mexeram em `ScanActivity`, `SessaoActivity`, `MarcaDeLeitura`, `IdAlunoDaFolha`,
+`ObtencaoDeRoster`, `ApiPlatos` e `PreparoDaProva`. Citá-la aqui seria relatório velho com contagem
+plausível, que é o defeito que esta seção denuncia um nível acima.
+
+A primeira redação desta seção chegou a citar o carimbo de `23:16:45` — da corrida de **49** cenários
+— ao lado da contagem de 52. Fica dito em vez de corrigido em silêncio (P7).
+
+Entre a corrida instrumentada e o build final, **uma KDoc foi corrigida** (a de `RosterDto`, item 1
+da lista de afirmações falsas acima). É mudança só de comentário, que não altera bytecode nem
+resultado de teste; o build de unidade foi refeito depois dela — `00:34:13Z` —, e a instrumentada
+não. Fica dito para que a diferença entre as duas árvores seja do leitor, e não uma omissão.
+
+**Uma corrida intermediária falhou sem ser vermelho de teste**, e isso também fica registrado: o
+aparelho desconectou entre o build cheio e a instrumentada, e a corrida seguinte parou com "failed to
+uninstall test APK" e **`Starting 0 tests`**. Zero teste rodou. Lida pela contagem de falhas — zero —
+ela pareceria verde; quem denunciou foi o log, e não o número (P15).
 
 **O instrumento é aparelho físico, e não emulador** — Xiaomi `2511FPC34G`, Android 16 (API 36), sem
 `ro.kernel.qemu`. Fica dito porque o serial do `adb` foi o que denunciou: chamá-lo de emulador
