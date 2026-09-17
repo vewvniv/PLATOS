@@ -252,40 +252,318 @@ class ObjectiveScoringTest {
         assertTrue(motivo.contains(itens.first()), "a mensagem precisa nomear o item: $motivo")
     }
 
+    /**
+     * Uma folha com os quatro desfechos, e nao so com acertos.
+     *
+     * **A folha toda correta sombreia a cobertura.** Com tudo certo, nao existe questao que renda
+     * zero, e uma apuracao que descartasse justamente essas continuaria devolvendo evidencia
+     * completa — o teste ficaria verde afirmando que cobre todas as questoes. Foi o que a mutacao da
+     * tarefa 1.5 mostrou: ela derrubou um cenario, e **nao** o que diz cobrir isto.
+     */
+    private fun folhaComOsQuatroDesfechos() = pacote.answerKey.mapIndexed { i, entrada ->
+        when {
+            i == 0 -> QuestionAnswer.MultiplaMarcacao(entrada.itemId, listOf("A", "B"))
+            i == 1 -> QuestionAnswer.Indecisa(entrada.itemId, listOf("C"))
+            i == 2 -> QuestionAnswer.EmBranco(entrada.itemId)
+            i % 2 == 0 -> QuestionAnswer.Marcada(entrada.itemId, entrada.correct)
+            else -> QuestionAnswer.Marcada(entrada.itemId, errada(entrada.correct))
+        }
+    }
+
+    @Test
+    fun `a evidencia cobre todas as questoes da variante, uma vez cada`() {
+        val nota = scored(ObjectiveScoring.score(pacote, payload, folhaComOsQuatroDesfechos()))
+
+        assertEquals(
+            itens.toSet(),
+            nota.outcomes.map { it.questionId }.toSet(),
+            "a evidencia precisa falar de todas as questoes, e so delas",
+        )
+        assertEquals(
+            itens.size,
+            nota.outcomes.size,
+            "uma entrada por questao: repeticao na evidencia contaria o item duas vezes na analise",
+        )
+        // O canario da cobertura (P13): sem questao que renda zero e nao seja pendencia, a
+        // assercao acima passa mesmo numa apuracao que descarte exatamente essas.
+        assertTrue(
+            nota.outcomes.any { it.earned == 0 && !it.pendente },
+            "a folha precisa ter questao que rende zero sem ser pendencia, ou este teste nao mede",
+        )
+    }
+
+    @Test
+    fun `a evidencia soma exatamente a nota apurada`() {
+        // Dez certas, trinta erradas: a conta a mao e 10, e a evidencia tem de chegar no mesmo 10
+        // por outro caminho — somando questao a questao em vez de ler o total.
+        val respostas = pacote.answerKey.mapIndexed { i, entrada ->
+            val alternativa = if (i < 10) entrada.correct else errada(entrada.correct)
+            QuestionAnswer.Marcada(entrada.itemId, alternativa)
+        }
+
+        val nota = scored(ObjectiveScoring.score(pacote, payload, respostas))
+
+        assertEquals(10, nota.points)
+        assertEquals(10, nota.outcomes.sumOf { it.earned }, "a evidencia tem de fechar com a nota")
+        assertEquals(
+            10,
+            nota.outcomes.count { it.earned > 0 },
+            "dez questoes renderam ponto, e as outras trinta renderam zero",
+        )
+    }
+
+    @Test
+    fun `a evidencia diz quanto cada questao valia, e isso vem do gabarito`() {
+        val nota = scored(ObjectiveScoring.score(pacote, payload, todasCorretas()))
+        val gabarito = pacote.answerKey.associateBy { it.itemId }
+
+        for (outcome in nota.outcomes) {
+            assertEquals(
+                gabarito.getValue(outcome.questionId).points,
+                outcome.worth,
+                "o que a questao ${outcome.questionId} vale sai do gabarito do pacote",
+            )
+        }
+    }
+
+    @Test
+    fun `questao pendente rende zero na evidencia e continua pendente`() {
+        val respostas = pacote.answerKey.mapIndexed { i, entrada ->
+            when (i) {
+                0 -> QuestionAnswer.MultiplaMarcacao(entrada.itemId, listOf("A", "B"))
+                1 -> QuestionAnswer.Indecisa(entrada.itemId, listOf("A"))
+                else -> QuestionAnswer.Marcada(entrada.itemId, entrada.correct)
+            }
+        }
+
+        val nota = scored(ObjectiveScoring.score(pacote, payload, respostas))
+        val pendentes = setOf(itens[0], itens[1])
+
+        assertEquals(
+            pendentes,
+            nota.outcomes.filter { it.pendente }.map { it.questionId }.toSet(),
+            "a evidencia precisa marcar as duas como dependentes de revisao",
+        )
+        assertEquals(
+            pendentes,
+            nota.pending.map { it.questionId }.toSet(),
+            "e a lista de pendencias precisa dizer exatamente as mesmas duas",
+        )
+        for (id in pendentes) {
+            assertEquals(
+                0,
+                nota.outcomes.first { it.questionId == id }.earned,
+                "questao que depende de revisao nao rende ponto: $id",
+            )
+        }
+        assertFalse(nota.closed)
+    }
+
+    @Test
+    fun `questao em branco rende zero na evidencia e nao aparece entre as pendencias`() {
+        val respostas = pacote.answerKey.mapIndexed { i, entrada ->
+            if (i == 0) QuestionAnswer.EmBranco(entrada.itemId)
+            else QuestionAnswer.Marcada(entrada.itemId, entrada.correct)
+        }
+
+        val nota = scored(ObjectiveScoring.score(pacote, payload, respostas))
+        val emBranco = nota.outcomes.first { it.questionId == itens[0] }
+
+        assertEquals(0, emBranco.earned, "em branco nao rende ponto")
+        assertFalse(emBranco.pendente, "em branco e resultado, e nao duvida")
+        assertTrue(nota.pending.isEmpty(), "e por isso nao entra na lista de pendencias")
+        assertTrue(nota.closed, "a nota fecha mesmo com questao em branco")
+    }
+
+    @Test
+    fun `a evidencia nao atribui ponto a habilidade`() {
+        // I1 garante que todo item do pacote declara habilidade. A guarda aqui e sobre o que a
+        // apuracao faz com isso: nada. A unidade continua sendo o ponto por questao do gabarito, e
+        // a soma da evidencia continua sendo a nota — nenhum peso de habilidade entra na conta.
+        assertTrue(
+            pacote.items.all { it.skills.isNotEmpty() },
+            "o pacote de referencia precisa declarar habilidade, ou este teste nao exercita nada",
+        )
+
+        val nota = scored(ObjectiveScoring.score(pacote, payload, todasCorretas()))
+
+        assertEquals(
+            pacote.answerKey.sumOf { it.points },
+            nota.outcomes.sumOf { it.earned },
+            "a nota e a soma dos pontos por questao, e nada alem disso",
+        )
+        assertEquals(nota.points, nota.outcomes.sumOf { it.earned })
+    }
+
+    @Test
+    fun `evidencia incoerente com a nota nao e representavel`() {
+        // As tres formas de a evidencia mentir sobre a mesma apuracao. Cada assercao le a mensagem,
+        // porque "recusou" nao distingue qual das tres guardas segurou.
+        val somaErrada = assertFailsWith<IllegalArgumentException> {
+            ObjectiveScore(
+                "hash",
+                "v1",
+                points = 10,
+                maxScore = 40,
+                pending = emptyList(),
+                outcomes = evidenciaDe(9),
+            )
+        }
+        assertTrue(
+            somaErrada.message.orEmpty().contains("a evidencia soma"),
+            "a recusa precisa ser pela soma: ${somaErrada.message}",
+        )
+
+        val repetida = assertFailsWith<IllegalArgumentException> {
+            ObjectiveScore(
+                "hash",
+                "v1",
+                points = 2,
+                maxScore = 40,
+                pending = emptyList(),
+                outcomes = evidenciaDe(1) + evidenciaDe(1),
+            )
+        }
+        assertTrue(
+            repetida.message.orEmpty().contains("repete o item"),
+            "a recusa precisa ser pela repeticao: ${repetida.message}",
+        )
+
+        val pendenciaSolta = assertFailsWith<IllegalArgumentException> {
+            ObjectiveScore(
+                "hash",
+                "v1",
+                points = 10,
+                maxScore = 40,
+                pending = listOf(PendingQuestion("q99", PendingReason.INDECISA, 1)),
+                outcomes = evidenciaDe(10),
+            )
+        }
+        assertTrue(
+            pendenciaSolta.message.orEmpty().contains("dependem de revisao"),
+            "a recusa precisa ser pelo desencontro entre evidencia e pendencias: " +
+                "${pendenciaSolta.message}",
+        )
+    }
+
+    @Test
+    fun `questao da evidencia fora da propria escala nao e representavel`() {
+        val rendeuDemais = assertFailsWith<IllegalArgumentException> {
+            QuestionOutcome("q01", QuestionAnswer.Marcada("q01", "A"), worth = 1, earned = 2)
+        }
+        assertTrue(
+            rendeuDemais.message.orEmpty().contains("fora da escala"),
+            "a recusa precisa ser pela escala do item: ${rendeuDemais.message}",
+        )
+
+        val pendenteComPonto = assertFailsWith<IllegalArgumentException> {
+            QuestionOutcome("q01", QuestionAnswer.Indecisa("q01", listOf("A")), worth = 1, earned = 1)
+        }
+        assertTrue(
+            pendenteComPonto.message.orEmpty().contains("depende de revisao"),
+            "questao em revisao que rende ponto e o defeito que transforma duvida em nota: " +
+                "${pendenteComPonto.message}",
+        )
+    }
+
+    /** Evidencia coerente com [pontos]: uma questao que valia tudo e rendeu tudo. */
+    private fun evidenciaDe(pontos: Int): List<QuestionOutcome> =
+        if (pontos <= 0) {
+            emptyList()
+        } else {
+            listOf(
+                QuestionOutcome(
+                    questionId = "q00",
+                    answer = QuestionAnswer.Marcada("q00", "A"),
+                    worth = pontos,
+                    earned = pontos,
+                ),
+            )
+        }
+
+    /** Uma questao indecisa na evidencia, para casar com a pendencia relatada de mesmo id. */
+    private fun indecisaNaEvidencia(id: String, vale: Int) = QuestionOutcome(
+        questionId = id,
+        answer = QuestionAnswer.Indecisa(id, listOf("A")),
+        worth = vale,
+        earned = 0,
+    )
+
     @Test
     fun `nota fora da escala nao e representavel`() {
         // A segunda guarda do furo que a auditoria encontrou. A conferencia por conjunto deixava
         // passar resposta repetida e a nota saia 41 de 40 — bem-formada, plausivel e errada. A
         // recusa por repeticao fecha a porta; este `require` fecha a janela, para o proximo
         // caminho que produza soma fora da escala.
-        assertFailsWith<IllegalArgumentException> {
-            ObjectiveScore("hash", "v1", points = 41, maxScore = 40, pending = emptyList())
+        //
+        // A evidencia vai **coerente** de proposito: se ela fosse vazia, a recusa viria da guarda de
+        // soma, e o teste ficaria verde dizendo que provou a escala. Cada assercao le a mensagem, e
+        // nao so a excecao.
+        val acima = assertFailsWith<IllegalArgumentException> {
+            ObjectiveScore(
+                "hash",
+                "v1",
+                points = 41,
+                maxScore = 40,
+                pending = emptyList(),
+                outcomes = evidenciaDe(41),
+            )
         }
-        assertFailsWith<IllegalArgumentException> {
-            ObjectiveScore("hash", "v1", points = -1, maxScore = 40, pending = emptyList())
+        assertTrue(
+            acima.message.orEmpty().contains("fora de 0..40"),
+            "a recusa precisa ser pela escala: ${acima.message}",
+        )
+
+        val abaixo = assertFailsWith<IllegalArgumentException> {
+            ObjectiveScore(
+                "hash",
+                "v1",
+                points = -1,
+                maxScore = 40,
+                pending = emptyList(),
+                outcomes = emptyList(),
+            )
         }
-        assertFailsWith<IllegalArgumentException> {
+        assertTrue(
+            abaixo.message.orEmpty().contains("fora de 0..40"),
+            "a recusa precisa ser pela escala: ${abaixo.message}",
+        )
+
+        val comDisputa = assertFailsWith<IllegalArgumentException> {
             ObjectiveScore(
                 "hash",
                 "v1",
                 points = 40,
                 maxScore = 40,
                 pending = listOf(PendingQuestion("q01", PendingReason.INDECISA, 1)),
+                outcomes = evidenciaDe(40) + indecisaNaEvidencia("q01", 1),
             )
         }
+        assertTrue(
+            comDisputa.message.orEmpty().contains("em disputa"),
+            "a recusa precisa ser pela soma com o que esta em disputa: ${comDisputa.message}",
+        )
     }
 
     @Test
     fun `nota no limite da escala e valida`() {
         // O par positivo: zero, o maximo, e a soma que fecha exatamente no maximo com pendencia.
-        ObjectiveScore("hash", "v1", points = 0, maxScore = 40, pending = emptyList())
-        ObjectiveScore("hash", "v1", points = 40, maxScore = 40, pending = emptyList())
+        ObjectiveScore("hash", "v1", points = 0, maxScore = 40, pending = emptyList(), outcomes = emptyList())
+        ObjectiveScore(
+            "hash",
+            "v1",
+            points = 40,
+            maxScore = 40,
+            pending = emptyList(),
+            outcomes = evidenciaDe(40),
+        )
         ObjectiveScore(
             "hash",
             "v1",
             points = 39,
             maxScore = 40,
             pending = listOf(PendingQuestion("q01", PendingReason.INDECISA, 1)),
+            outcomes = evidenciaDe(39) + indecisaNaEvidencia("q01", 1),
         )
     }
 
