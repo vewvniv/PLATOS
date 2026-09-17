@@ -238,29 +238,86 @@ O build manual passou porque o classloader já estava quente — a explicação 
 
 ## 5. O que ainda não foi verificado
 
-### 5.1 O fluxo de ponta a ponta — **nenhum elo observado no destino**
+### 5.1 O fluxo de ponta a ponta — **fechado em 2026-09-18, e o que ele custou**
 
-As tarefas 7.3 e 8.5 estão **desmarcadas**, e o que falta é papel: a câmera do emulador não enxerga
-folha impressa, e o caminho que elas pedem começa numa folha real diante de uma câmera real.
+*A redação anterior desta seção dizia "nenhum elo deste fluxo foi observado no destino", e listava
+três lacunas. Ela fica registrada em vez de apagada (P7), porque **as três eram reais e duas delas
+estavam quebradas** — o que a conferência encontrou justifica o registro melhor do que qualquer
+argumento a favor dele.*
 
-O que isso deixa **sem** verificação, dito pelo nome:
+A conferência em aparelho real — Xiaomi `2511FPC34G`, Android 16, folhas impressas das provas
+`prova-referencia-slice-1` e `slice-2` — encontrou **dois defeitos mergeados**, e nenhum deles
+aparecia em 1479 testes verdes.
 
-- **O `ScanActivity` gravando de fato.** A decisão de quando gravar está coberta em JVM
-  (`ScanSessionTest`, cinco cenários de captura nova) e a gravação está coberta em aparelho
-  (`OutboxEmRepousoInstrumentedTest`), mas a **costura** entre as duas — o `if (apuracao != null)
-  gravar(apuracao)` dentro do laço da câmera — não foi exercitada por teste nenhum. É o tipo de
-  defeito que P16 descreve: as duas camadas vizinhas verdes não afirmam nada sobre a junta.
-- **O `WorkManager` disparando.** `EnvioDeResultados` está coberto em JVM contra uma função de envio
-  de mentira, e `EnvioDeResultadosWorker` — o agendamento, a `Constraints` de rede, o `KEEP`, a
-  credencial lida do `SessaoGuardadaAndroid` — **não tem teste nenhum**. Não é mitigado, é
-  **conhecido** (P8).
-- **A rota implantada gravando.** `ResultRouteTest` exercita a rota contra Postgres real via
-  Testcontainers, o que é forte; mas a API **implantada** nunca recebeu um resultado. O `/health` dela
-  respondeu 200 nesta sessão, e isso não é alcançar o banco — P26 e o incidente `544dafe` registram
-  exatamente essa confusão.
+**Defeito 1: Room acessado no fio principal, em dois pontos.** `ScanActivity.gravar` e
+`DeviceSession.sair` chamavam o banco do fio principal, e o Room recusa isso por padrão. Cinco
+`IllegalStateException` em aparelho: quatro ao tocar em sair — **sair nunca funcionou** — e uma ao
+escanear folha válida. Nenhum resultado era gravado.
 
-**Dono:** mantenedor. **Fatia-limite:** antes do primeiro piloto com turma real — que é quando um
-resultado que não sobe deixa de ser bug e passa a ser nota perdida.
+*Por que nenhum teste pegou, e a resposta é desconfortável:* `OutboxEmRepousoInstrumentedTest` abria
+o banco com `allowMainThreadQueries()`, com um comentário dizendo que era "só neste teste". **O
+oráculo foi afrouxado exatamente na trava que a produção impõe**, e então aprovou o que a produção
+recusa. E a KDoc de `gravar` afirmava que a escrita síncrona no fio principal era *deliberada* — uma
+propriedade do Room que nunca foi medida, escrita como decisão (P6).
+
+**Defeito 2: nada agendava o envio fora do escaneamento.** `grep` por `EnvioDeResultadosWorker.agendar`
+dava **uma** ocorrência, em `ScanActivity`. Mas a spec exige que o pendente preservado suba "quando um
+membro dela abrir sessão no aparelho" — requisito **sem implementação**. A consequência composta era
+pior: como o worker devolve `success` quando o servidor recusa, um pendente que falhasse não tinha
+caminho de volta até alguém escanear outra folha.
+
+**A guarda que faltava, e que foi vista falhar.** `GravacaoNoFioPrincipalInstrumentedTest` chama o
+caminho da câmera **do fio principal**, com o banco aberto como a produção o abre. Sob a mutação que
+restaura a gravação síncrona, 2 dos 3 cenários caem; o terceiro — que afirma que o Room ainda recusa
+leitura no fio principal — fica de pé, porque mede o Room e não a função.
+
+*E a primeira tentativa de aplicar essa mutação não aplicou nada*: o `replace` não casou por um
+espaço na assinatura, falhou em silêncio, e o teste rodou contra o código correto. O verde foi lido
+como se significasse algo. A mutação passou a entrar com verificação de que entrou.
+
+**Os elos, observados onde cada um termina (P26):**
+
+| Elo | Observado em | Evidência |
+|---|---|---|
+| Recusa da folha adversarial | `databases/` no aparelho | vazio; nenhum `outbox.db` criado |
+| Captura offline | `outbox.db` puxado por `exec-out` | 1 linha, `student_token` nulo, 40 observações |
+| Morte de processo | PID | 30743 → vazio; linha intacta |
+| Envio | `WM-WorkerWrapper` | `60c6af82` SUCCESS em **3,85 s**; a execução com fila vazia levou 0,06 s |
+| Gravação no servidor | `grading_result` em produção | `capture_id = d671e626-…`, `revision` 1, `points` 0 de 40 |
+| Evidência por questão | `answer_observation` | 40 linhas, soma 0, um único `answer_kind` |
+
+**A âncora do modelo offline:** `captured_at` 21:26:20 UTC contra `created_at` 22:32:06 UTC — **1h06**
+entre apurar sem rede e gravar no servidor.
+
+### 5.1.1 Três elos de implantação que ninguém observa automaticamente
+
+A conferência esbarrou em três paredes antes de chegar ao aplicativo, e as três são de operação:
+
+1. **A API implantada estava em `sha-59b9554`** — o merge da PR #37, sem a rota de roster e sem a de
+   resultados. O roster dava 404, o gate barrava, e `/health` respondia 200 o tempo todo. A imagem
+   `sha-fe9909a` estava publicada no registro desde as 18:01Z; publicar não é implantar, e é o
+   incidente que P2 já cita por `04d2f30`. **Foi a decisão de `/health` declarar o build — tomada
+   justamente por causa daquele incidente — que transformou o diagnóstico numa consulta de trinta
+   segundos.**
+2. **A migration nunca foi aplicada em produção.** Nenhum workflow a aplica; o CI só a roda num
+   Postgres efêmero para gerar as classes jOOQ. Com o código novo servindo e o schema antigo, o push
+   deu **HTTP 500**.
+3. **O worker era mudo.** "Rodou e devolveu sucesso" não distinguia credencial ausente de 401, 404 e
+   500. Só depois de o resumo ir para o `output` do `WorkSpec` é que o 500 apareceu — e com ele a
+   causa. *Essa observabilidade ainda tem furo: trabalho único substitui o `WorkSpec` anterior, então
+   o diagnóstico da execução bem-sucedida foi sobrescrito pelo agendamento seguinte, e a prova do
+   envio teve de vir do logcat e do servidor.*
+
+### 5.1.2 O que continua sem verificação
+
+- **O segundo membro da organização.** Quem reabriu a sessão foi o mesmo usuário. O escopo por
+  organização está verificado em JVM e em aparelho, e o caminho de código é o mesmo com outra
+  credencial — mas isso é inferência, e não medição. **Dono:** mantenedor. **Fatia-limite:** a
+  primeira que tratar aparelho compartilhado entre professores.
+- **`Result.success` em recusa do servidor.** O worker não distingue 4xx de 5xx: um 500 transitório é
+  tratado como recusa definitiva, e só o agendamento seguinte tenta de novo. Foi o que aconteceu com
+  o 500 da migration ausente. **Dono:** esta base. **Fatia-limite:** a primeira que tiver retentativa
+  com política, ou o primeiro relato de resultado que demorou a subir.
 
 ### 5.2 Duas folhas avulsas seguidas são uma captura só
 

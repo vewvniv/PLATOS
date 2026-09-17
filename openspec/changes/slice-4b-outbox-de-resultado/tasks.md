@@ -96,13 +96,14 @@
   execução, ou a asserção não distingue "preservou" de "não apagou nada".
 - [x] 7.2 Sair informa quantos resultados ainda não subiram. Verificar com teste da decisão, fora do
   `@Composable`, na fronteira que `IdAlunoDaFolha` já usa.
-- [ ] 7.3 O pendente preservado é escopado pela organização e sobe na sessão seguinte de um membro dela.
-  Verificar com teste que sai, entra de novo e confere a linha no **servidor**. **NÃO RODADO, e o que
-  falta é isto:** a metade do escopo por organização está verificada — `EnvioDeResultadosTest.a fila de
-  uma organizacao nao leva a de outra` e `ApagamentoLocalInstrumentedTest.o_pendente_de_outra_organizacao_nao_e_tocado`
-  —, mas "sobe na sessão seguinte" atravessa aparelho **e** servidor de ponta a ponta, e exige
-  credencial real, prova publicada com roster na organização, e uma folha impressa diante da câmera. O
-  emulador não vê papel. Falta aparelho real com folha impressa.
+- [x] 7.3 O pendente preservado é escopado pela organização e sobe na sessão seguinte de um membro dela.
+  **Fechada em 2026-09-18, em aparelho real.** O envio aconteceu na **abertura de sessão**, sem
+  escaneamento nenhum — que é o requisito. Antes disso ele não tinha implementação: o único lugar que
+  agendava envio era `ScanActivity`, e a falta foi encontrada aqui. **Uma metade não foi exercitada e
+  fica dita:** quem reabriu a sessão foi o **mesmo** usuário, e não um segundo membro da organização.
+  O escopo por organização está verificado em JVM (`a fila de uma organizacao nao leva a de outra`) e
+  em aparelho (`o_pendente_de_outra_organizacao_nao_e_tocado`), e o caminho de código é o mesmo com
+  outra credencial — mas isso é inferência, e não medição.
 - [x] 7.4 A revogação do vínculo apaga roster, pacote e visão guardada daquela organização e **preserva**
   os pendentes. Verificar em aparelho, no mesmo caminho de revogação observada que a
   `slice-4b-roster-no-aparelho` já exercita, conferindo as duas metades na mesma execução.
@@ -134,11 +135,18 @@
   verificado e por quê (§8, P8).
 - [x] 8.4 Rodar o comando **cheio** do CI, não o filtrado, incluindo a suíte instrumentada (P5).
   Registrar o comando exato e o `timestamp` do relatório que prova a execução (P2, P3).
-- [ ] 8.5 Conferir em aparelho real o fluxo de ponta a ponta: escanear offline, fechar o aplicativo,
-  reabrir com rede, e observar o resultado **no servidor** e a ausência do pendente no aparelho — cada
-  elo observado onde ele termina (P26). **NÃO RODADO, e o que falta é isto:** o emulador `platos-atd34`
-  subiu e a suíte instrumentada inteira rodou nele, mas a câmera do emulador não enxerga folha
-  impressa, e a API implantada responde `/health` 200 sem que isso prove um resultado gravado por ela
-  (P26: `/health` não é alcançar o banco). Falta aparelho real, folha impressa da prova de referência,
-  e a leitura do `grading_result` no banco de produção depois. **Nenhum elo deste fluxo foi observado
-  no destino.**
+- [x] 8.5 Conferir em aparelho real o fluxo de ponta a ponta. **Fechada em 2026-09-18**, cada elo
+  observado onde ele termina (P26):
+  - **Recusa:** folha da `prova-referencia-slice-1` contra o pacote da `slice-2` — a prova
+    adversarial, mesmos itens, posições e gabarito. Recusada nomeando o `short_id`, e `databases/`
+    continuou **vazio**: recusa não virou correção.
+  - **Captura offline:** modo avião ligado, folha da `slice-2` escaneada, `0 de 40` fechada. Uma linha
+    no outbox, com `student_token` nulo, `package_hash` igual ao do arquivo em cache, e **40**
+    observações.
+  - **Morte de processo:** `am force-stop`, PID confirmado morto, linha intacta.
+  - **Envio:** na abertura de sessão, worker `60c6af82` em **3,85 s** de ida e volta; a execução
+    seguinte, com a fila vazia, levou 0,06 s.
+  - **No destino:** `grading_result` com `capture_id = d671e626-…`, `revision` 1, `origin` `omr`,
+    `points` 0 de 40, `closed` verdadeiro; 40 linhas em `answer_observation` somando 0.
+  - **A âncora do modelo offline:** `captured_at` 21:26:20 UTC e `created_at` 22:32:06 UTC — **1h06**
+    entre apurar sem rede e gravar no servidor.
