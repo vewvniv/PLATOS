@@ -271,4 +271,101 @@ class ScanSessionTest {
     private companion object {
         const val VARIANTE = "v1"
     }
+
+    // ------------------------------------------------------------------ a captura que sobe
+
+    @Test
+    fun `folha apurada entrega uma apuracao para gravar`() {
+        val sessao = sessaoAberta()
+
+        val apuracao = sessao.onFrame(FrameOutcome.Read(leitura(token = "aluno-1")))
+
+        assertTrue(apuracao != null, "a folha apurada precisa produzir o que gravar")
+        assertEquals("aluno-1", apuracao!!.reading.payload.studentToken)
+        assertEquals(40, apuracao.score.points)
+        assertEquals(40, apuracao.score.outcomes.size, "a evidencia por questao precisa vir junto")
+    }
+
+    /**
+     * A folha parada na frente da camera e **uma** captura.
+     *
+     * Sem esta regra, cada quadro viraria uma linha na fila e uma revisao no servidor: escanear uma
+     * folha por tres segundos produziria dezenas de revisoes da mesma correcao, e a mais recente —
+     * que e a corrente — seria escolhida por acaso entre quadros identicos.
+     */
+    @Test
+    fun `a mesma folha em quadros seguidos nao vira captura nova`() {
+        val sessao = sessaoAberta()
+
+        val primeira = sessao.onFrame(FrameOutcome.Read(leitura(token = "aluno-1")))
+        val segunda = sessao.onFrame(FrameOutcome.Read(leitura(token = "aluno-1")))
+        val terceira = sessao.onFrame(FrameOutcome.Read(leitura(token = "aluno-1")))
+
+        assertTrue(primeira != null, "a primeira apresentacao precisa gravar")
+        assertEquals(null, segunda, "a folha que nao saiu do quadro ja foi gravada")
+        assertEquals(null, terceira)
+    }
+
+    @Test
+    fun `outra folha na sequencia vira captura nova`() {
+        val sessao = sessaoAberta()
+
+        sessao.onFrame(FrameOutcome.Read(leitura(token = "aluno-1")))
+        val outra = sessao.onFrame(FrameOutcome.Read(leitura(token = "aluno-2")))
+
+        assertTrue(outra != null, "folha de outro aluno e outra captura")
+        assertEquals("aluno-2", outra!!.reading.payload.studentToken)
+    }
+
+    /**
+     * Reapresentar a mesma folha de proposito e captura nova.
+     *
+     * E o professor que desconfiou da leitura e escaneou de novo. O servidor grava isso como revisao
+     * nova, e a mais recente passa a ser a corrente — que e exatamente o que ele pediu ao repetir.
+     */
+    @Test
+    fun `depois de voltar a procurar, a mesma folha vira captura nova`() {
+        val sessao = sessaoAberta()
+
+        sessao.onFrame(FrameOutcome.Read(leitura(token = "aluno-1")))
+        sessao.resume()
+        val denovo = sessao.onFrame(FrameOutcome.Read(leitura(token = "aluno-1")))
+
+        assertTrue(denovo != null, "reapresentacao deliberada precisa valer como captura nova")
+    }
+
+    @Test
+    fun `folha de outra prova nao produz nada para gravar`() {
+        val sessao = sessaoAberta()
+        val deOutraProva = leitura().let {
+            it.copy(payload = it.payload.copy(examShortId = "prova-de-outra-escola"))
+        }
+
+        val apuracao = sessao.onFrame(FrameOutcome.Read(deOutraProva))
+
+        assertEquals(null, apuracao, "recusa nao e correcao, e nao vira resultado duravel")
+        assertTrue(sessao.state is ScanState.Rejected)
+    }
+
+    @Test
+    fun `quadro ilegivel nao produz nada para gravar`() {
+        val sessao = sessaoAberta()
+
+        val apuracao = sessao.onFrame(FrameOutcome.Unreadable("folha dobrada"))
+
+        assertEquals(null, apuracao)
+    }
+
+    /**
+     * O canario desta secao (P13): sem uma folha que **nao** e apurada por outro motivo, os testes
+     * acima passariam tambem numa sessao que nunca produz apuracao nenhuma.
+     */
+    @Test
+    fun `a sessao produz apuracao em algum caso, e nao em nenhum`() {
+        val sessao = sessaoAberta()
+        assertTrue(
+            sessao.onFrame(FrameOutcome.Read(leitura())) != null,
+            "se nem a folha correta produz apuracao, os testes de ausencia nao medem nada",
+        )
+    }
 }

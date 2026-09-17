@@ -25,7 +25,12 @@ import com.platos.android.pacote.PacotesEmArquivo
 import com.platos.domain.capture.OmrThreshold
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.layout.LayoutMap
+import com.platos.android.outbox.EnvioDeResultadosWorker
+import com.platos.android.outbox.ResultadoPendente
+import com.platos.android.outbox.ResultadosEmRoom
+import com.platos.android.outbox.ResultadosPendentes
 import java.io.File
+import java.util.UUID
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import org.opencv.android.OpenCVLoader
@@ -60,6 +65,9 @@ class ScanActivity : ComponentActivity() {
     private var roster: RosterDaProva? = null
     private lateinit var map: LayoutMap
     private lateinit var session: ScanSession
+    private lateinit var pendentes: ResultadosPendentes
+    private var organizacao: String? = null
+    private var prova: String? = null
     private lateinit var analysisExecutor: ExecutorService
 
     private var state by mutableStateOf<ScanState>(ScanState.NoPermission)
@@ -107,6 +115,11 @@ class ScanActivity : ComponentActivity() {
         roster = shortId?.let { RostersEmArquivo(File(filesDir, "rosters")).ler(organizacao, it) }
         map = examPackage.layout.values.single()
         session = ScanSession(examPackage)
+        // A fila do outbox. Aberta aqui e nao no `Application` porque e aqui que ela e usada, e a
+        // organizacao e a prova ja estao resolvidas neste ponto.
+        pendentes = ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes())
+        this.organizacao = organizacao
+        this.prova = shortId
         analysisExecutor = Executors.newSingleThreadExecutor()
 
         setContent {
@@ -199,8 +212,9 @@ class ScanActivity : ComponentActivity() {
                         // A sessao vive na thread principal, e so nela: ela nao e thread-safe, e
                         // nao precisa ser.
                         ContextCompat.getMainExecutor(this).execute {
-                            session.onFrame(resultado)
+                            val apuracao = session.onFrame(resultado)
                             state = session.state
+                            if (apuracao != null) gravar(apuracao)
                         }
                     },
                 ),
@@ -209,6 +223,38 @@ class ScanActivity : ComponentActivity() {
             provider.unbindAll()
             provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, analise)
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    /**
+     * Grava a correcao apurada, **antes de qualquer rede**.
+     *
+     * A gravacao e sincrona e no fio principal de proposito: e uma linha numa tabela local, e o
+     * custo dela e menor que o do quadro que acabou de ser analisado. Joga-la para outra thread
+     * abriria a janela em que a tela mostra a nota e o aparelho ainda nao a guardou — e e exatamente
+     * nessa janela que o aplicativo sendo morto perde a correcao.
+     *
+     * **O `captureId` e cunhado aqui, uma vez por captura.** Ele nao e derivado do conteudo: uma
+     * recaptura que desse exatamente a mesma nota e recaptura, e nao reenvio, e um identificador
+     * derivado do conteudo as confundiria.
+     *
+     * **Token vazio vira nulo.** O QR da folha avulsa traz o campo vazio (§8), e o servidor espera
+     * ausencia — vazio faria todas as avulsas da mesma prova colidirem no unique de revisao.
+     */
+    private fun gravar(apuracao: ApuracaoNova) {
+        val organizacao = organizacao ?: return
+        val prova = prova ?: return
+
+        pendentes.guardar(
+            ResultadoPendente(
+                captureId = UUID.randomUUID().toString(),
+                organizacao = organizacao,
+                prova = prova,
+                studentToken = apuracao.reading.payload.studentToken.ifEmpty { null },
+                apuradoEm = System.currentTimeMillis(),
+                nota = apuracao.score,
+            ),
+        )
+        EnvioDeResultadosWorker.agendar(applicationContext, organizacao)
     }
 
     companion object {
