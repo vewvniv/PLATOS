@@ -1,5 +1,6 @@
 package com.platos.android.session
 
+import com.platos.android.outbox.ResultadosPendentes
 import com.platos.android.roster.RostersGuardados
 
 import com.platos.android.pacote.PacotesGuardados
@@ -51,6 +52,16 @@ class DeviceSession(
     private val pacotes: PacotesGuardados,
     private val visoes: VisoesGuardadas,
     private val rosters: RostersGuardados,
+    /**
+     * A fila do outbox, **so para contar**.
+     *
+     * Ela esta aqui porque quem sai precisa saber quanto trabalho ficou por enviar, e por nenhuma
+     * outra razao: nem [sair] nem a revogacao a tocam. Estar em escopo e de proposito — e o que faz
+     * a mutacao que a apagasse ser uma mudanca de uma linha, e portanto uma mutacao que os testes
+     * desta classe conseguem derrubar. Uma guarda que nao estivesse aqui tornaria "sair preserva o
+     * pendente" verdade por acidente de fiacao, e nao por decisao.
+     */
+    private val pendentes: ResultadosPendentes,
 ) {
 
     var state: DeviceState = DeviceState.Entrada()
@@ -223,9 +234,19 @@ class DeviceSession(
      * **A organizacao e lida antes de ser apagada.** Invertendo a ordem, o identificador ja teria
      * sumido quando o cache fosse apagado, e o apagamento aconteceria sobre `null` — sem estourar, e
      * sem apagar nada.
+     *
+     * **O resultado pendente NAO entra nesta lista, e a ausencia dele e requisito.** As quatro
+     * coisas apagadas acima sao **copia de referencia puxada do servidor**: o original esta la, e a
+     * copia se refaz na entrada seguinte. O pendente e o contrario — ele so existe no aparelho ate
+     * subir, e apaga-lo ao sair nao elimina uma copia, destroi o unico exemplar de um trabalho ja
+     * feito. A classe H manda elimina-lo "apos a sincronizacao bem-sucedida", e sair nao e isso.
+     *
+     * O que sair faz com ele e **contar** e dizer quantos sao, para que ninguem deixe o aparelho
+     * achando que a turma subiu.
      */
     fun sair() {
         val organizacao = organizacaoAtiva()
+        val naoEnviados = organizacao?.let { pendentes.quantosPendentes(it) } ?: 0
 
         guardada.apagarCredencial()
         guardada.apagarOrganizacaoEscolhida()
@@ -235,7 +256,7 @@ class DeviceSession(
             rosters.apagarDaOrganizacao(organizacao)
         }
 
-        state = DeviceState.Entrada(MotivoDeEntrada.SAIU)
+        state = DeviceState.Entrada(MotivoDeEntrada.SAIU, pendentes = naoEnviados)
     }
 
     /**
@@ -306,6 +327,18 @@ class DeviceSession(
      * aconteca: o aparelho descobre a remocao pela resposta do servidor, e e nesse instante que a
      * copia de nome de aluno deixa de ter qualquer base para existir ali. Deixa-la esperando um
      * logout manteria dado pessoal de menor num aparelho cujo dono ja nao pertence a organizacao.
+     */
+    /**
+     * **O pendente nao entra aqui tambem.**
+     *
+     * A revogacao apaga o dado de **referencia** daquela organizacao, e nao o trabalho. A regra da
+     * classe H e a mesma nos tres caminhos de apagamento: pendente sai depois da sincronizacao, e
+     * nenhum evento local a antecipa. Revogar o vinculo de um professor nao e motivo para destruir a
+     * correcao que a escola ja fez — ela pertence a organizacao, e nao a quem segurava o aparelho.
+     *
+     * O usuario revogado nao consegue mais envia-la: a rota recusa resultado de organizacao de que o
+     * autenticado nao e membro, e essa recusa **nao apaga** o pendente. Quem a envia e o proximo
+     * membro da organizacao que abrir sessao neste aparelho.
      */
     private fun revogar(organizacao: String) {
         guardada.apagarOrganizacaoEscolhida()

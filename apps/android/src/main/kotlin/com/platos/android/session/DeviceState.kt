@@ -52,7 +52,20 @@ sealed interface Procedencia {
 sealed interface DeviceState {
 
     /** Ninguem entrou. [motivo] diz por que, quando a entrada e consequencia de alguma coisa. */
-    data class Entrada(val motivo: MotivoDeEntrada? = null) : DeviceState
+    /**
+     * [pendentes] e quantos resultados ainda nao subiram quando a sessao terminou.
+     *
+     * **Vive no estado, e nao numa consulta que a tela faca.** Sair **nao apaga** o pendente — a
+     * regra da classe H so o elimina depois da sincronizacao —, e por isso quem sai precisa saber
+     * quanto trabalho ficou por enviar. No estado, a tela nao tem como esquecer de dizer.
+     *
+     * Zero fora do caminho de saida: as outras entradas — credencial recusada, sem rede, sessao
+     * expirada — nao passaram por uma sessao que apurasse coisa alguma.
+     */
+    data class Entrada(
+        val motivo: MotivoDeEntrada? = null,
+        val pendentes: Int = 0,
+    ) : DeviceState
 
     /** Autenticado, e as organizacoes ainda nao chegaram. */
     data object Consultando : DeviceState

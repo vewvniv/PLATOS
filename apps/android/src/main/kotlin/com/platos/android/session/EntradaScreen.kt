@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun EntradaScreen(
     motivo: MotivoDeEntrada?,
+    /** Quantas correcoes ficaram por enviar quando a sessao terminou. Ver [DeviceState.Entrada]. */
+    pendentes: Int = 0,
     enviando: Boolean,
     onEntrar: (email: String, senha: String) -> Unit,
     modifier: Modifier = Modifier,
@@ -62,7 +64,7 @@ fun EntradaScreen(
     ) {
         Text(text = "PLATOS", fontSize = 28.sp, fontWeight = FontWeight.Bold)
 
-        mensagemDeEntrada(motivo)?.let { faixa ->
+        mensagemDeEntrada(motivo, pendentes)?.let { faixa ->
             Text(
                 text = faixa,
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
