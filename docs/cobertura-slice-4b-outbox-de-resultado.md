@@ -381,6 +381,16 @@ primeira que fizer envio concorrente — lote paralelo, ou mais de um aparelho e
    de regressão sem ser (P15). O CI está verde hoje, então ou o caso é específico de Windows, ou a
    ordem dos passos lá o evita; nenhuma das duas foi medida. **Dono:** mantenedor. **Fatia-limite:** a
    próxima que tocar o build da API, ou o primeiro vermelho de CI que custe investigação.
+
+   **Fechado em 2026-09-18 pela mudança `generatejooq-sem-registro-automatico`, e o que ela fechou é
+   menos do que parece.** A aquisição de conexão deixou de passar pela busca que produz aquela
+   mensagem, e o estado em que o erro é obrigatório foi produzido de propósito e atravessado — o
+   código antigo falha com a mensagem literal, o novo passa, na mesma task e no mesmo daemon. **A
+   causa da intermitência continua sem medição**, como este item já dizia: a hipótese do
+   `ServiceLoader` não foi promovida a nada. Uma leitura intermediária — "a inicialização preguiçosa
+   do `DriverManager` é observável" — foi feita e **retirada**, porque o instrumento que a produziu
+   carregava a classe do driver entre as duas medições. Ver
+   `docs/cobertura-generatejooq-sem-registro-automatico.md`, §4 e §5.1.
 6. **A KDoc de `VisoesEmArquivo` diz "Room continua sendo da 4b".** Agora Room existe, e a frase ficou
    imprecisa sobre o nome — o gatilho que ela cita, o outbox, está correto. `docs/cobertura-slice-4b-roster-no-aparelho.md:281`
    dava a esta fatia como fatia-limite dela. **Não foi corrigida**, porque é refatoração fora do escopo

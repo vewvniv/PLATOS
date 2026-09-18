@@ -37,6 +37,17 @@ jobs:
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      # `./gradlew build` nao alcanca teste de buildSrc: medido em 2026-09-18 com uma sonda que
+      # chama `fail()` por construcao — o build ficou verde e `:buildSrc:` parou em `jar`. Sem este
+      # passo, a guarda de `conectarAoPostgres` existiria sem nunca rodar, que e a forma mais cara de
+      # teste: a que da confianca sem dar sinal.
+      #
+      # Vem antes do codegen de proposito. Os dois usam a mesma aquisicao de conexao, e se ela
+      # quebrar e melhor o vermelho sair do teste que nomeia o defeito do que do passo que so diz
+      # que o codegen falhou.
+      - name: Teste do buildSrc
+        run: ./gradlew -p buildSrc test
+
       # Sobe Postgres efemero, aplica supabase/migrations em ordem e gera as classes tipadas
       # (D-0.7). Divergencia entre migration e codigo quebra o build aqui, nao em producao.
       - name: Codegen jOOQ
