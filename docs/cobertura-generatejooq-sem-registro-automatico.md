@@ -240,3 +240,9 @@ argumento sobre o código, não um sinal observado. Nenhum golden foi regravado,
 acionado; o que fica é a lacuna dita em vez de coberta por raciocínio. **Dono:** esta base.
 **Fatia-limite:** o merge desta mudança — o CI roda o job ao abrir a PR, e é lá que a inferência vira
 sinal.
+
+**Fechado em 2026-09-18, na fatia-limite escrita.** O job rodou três vezes e passou nas três:
+`paridade: success` na PR #49, na PR #50, e no `main` depois dos dois merges
+(`build: success  web: success  paridade: success`). A inferência virou sinal exatamente onde este
+parágrafo dizia que viraria, e o que fecha o item é o job verde — não o argumento de que ele não
+poderia ter quebrado.
