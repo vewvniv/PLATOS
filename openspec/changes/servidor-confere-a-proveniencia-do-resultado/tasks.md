@@ -25,29 +25,41 @@ A numeração é a ordem dos commits (regra 0.3 do plano; `CLAUDE.md` regra 1, P
 
 ## 2. Commit 2 — a conferência
 
-- [ ] 2.1 `findPublishedExamId` passa a devolver também o `content_hash` — a consulta **já faz
+- [x] 2.1 `findPublishedExamId` passa a devolver também o `content_hash` — a consulta **já faz
       `join` em `EXAM_PACKAGE`**, então é uma coluna a mais, e **não** uma consulta a mais
       (`design.md` decisão 1). O `null` continua cobrindo as mesmas três situações de ausência, e
       continua indistinguível entre elas. Verificar com `./gradlew :apps:api:compileKotlin`.
-- [ ] 2.2 A comparação de `package_hash` acontece **dentro da mesma transação de `asUser`, antes de
+- [x] 2.2 A comparação de `package_hash` acontece **dentro da mesma transação de `asUser`, antes de
       qualquer `insert`** (`design.md` decisão 2, R2: o fato é append-only e não tem conserto).
-- [ ] 2.3 A validação do `variant_id` sai do **pacote publicado**: o `content` já está a um `select`
+- [x] 2.3 A validação do `variant_id` sai do **pacote publicado**: o `content` já está a um `select`
       de distância e `ExamPackage.variants` o declara. **Não** se escreve uma segunda lista de
       variantes (`design.md` decisão 3). Verificar por leitura do diff que nenhuma coluna, tabela ou
       constante nova de variantes foi introduzida.
-- [ ] 2.4 O status é **400**, e não 404: ausência continua sendo ausência (prova inexistente, prova
+- [x] 2.4 O status é **400**, e não 404: ausência continua sendo ausência (prova inexistente, prova
       sem pacote, organização alheia), e um corpo incoerente é decisão do servidor sobre o pedido —
       que é exatamente a faixa que o aparelho já classifica como **definitiva** e não retentável
       (`Retorno.Recusou`, `eTransitoria()`). Um 5xx aqui faria o aparelho repetir para sempre um
       envio que nunca será aceito. A mensagem diz **qual** dos dois campos não fecha. Verificar pelos
       cenários da tarefa 2.5, e que os cenários de 404 já existentes continuam em 404.
-- [ ] 2.5 Dois cenários novos em `ResultRouteTest`, um por campo, **com a guarda de vacuidade
+- [x] 2.5 Dois cenários novos em `ResultRouteTest`, um por campo, **com a guarda de vacuidade
       (P13), que é a forma do dado** (`design.md` decisão 9): o `package_hash` falso precisa ser
       **64 hexadecimais bem formados** e o `variant_id` do cenário A precisa ser **válido** — senão a
       recusa pode vir do `check` da coluna ou da outra trava, e o cenário mede a camada vizinha. E a
       contagem de linhas se faz **no banco**, nunca no corpo da resposta: uma rota que responda 400 e
       grave assim mesmo passa em qualquer asserção sobre o corpo. Verificar com
       `./gradlew :apps:api:test` verde, **com Docker no ar**.
+
+      **O `CONTEUDO` de `ResultRouteTest` teve de virar um `ExamPackage` de verdade, e isso alcança
+      todos os cenários já existentes do arquivo.** Não é escopo acrescentado: é a consequência
+      direta da decisão 3 — a trava de `variant_id` **lê** o `content`, e o esboço
+      `{"meta":{"exam_id":"prova-r"},"items":[],"answer_key":[]}` não decodifica. Ele bastava
+      enquanto nada no servidor lesse o pacote. Continua sendo literal escrito à mão, pela razão que
+      o cabeçalho do arquivo já dá.
+
+      `./gradlew :apps:api:test --tests "com.platos.api.http.ResultRouteTest"`,
+      2026-09-18T23:20:53Z–23:21:11Z — **11 de 11 verdes**, os dois novos entre eles.
+      `./gradlew :apps:api:test`, 2026-09-18T23:21:16Z–23:21:35Z — **165 testes, 0 falhas, 0 erros,
+      0 pulados**, contados nos XML de `build/test-results/test/`, e não no "BUILD SUCCESSFUL".
 
 ## 3. Ver falhar — duas mutações, conjuntos disjuntos
 

@@ -3,6 +3,8 @@ package com.platos.api.http
 import com.platos.api.ApiDependencies
 import com.platos.api.auth.SUPABASE_AUTH
 import com.platos.api.auth.toAuthenticatedSubject
+import com.platos.api.exam.Proveniencia
+import com.platos.api.exam.conferirProveniencia
 import com.platos.api.http.dto.ResultAcceptedDto
 import com.platos.api.http.dto.ResultSubmissionDto
 import com.platos.api.http.dto.paraNota
@@ -196,6 +198,17 @@ fun Route.examRoutes(deps: ApiDependencies) {
          * mesmas que rodaram no aparelho — que recusam nota fora da escala, evidencia que nao soma a
          * nota, item repetido e desencontro entre evidencia e pendencias. Uma segunda implementacao
          * da mesma regra divergiria da primeira (regra 7).
+         *
+         * **A proveniencia declarada e conferida contra o pacote publicado, e tambem da 400.** E a
+         * segunda faixa de 400 desta rota, e ela cobre o que `paraNota` nao alcanca: `package_hash`
+         * e `variant_id` eram gravados exatamente como o aparelho os enviou, sem oraculo nenhum
+         * (achado 2.2). `ObjectiveScore` nao podia conferi-los — ele roda offline no aparelho, onde
+         * o pacote publicado do servidor nao existe —, entao isto nao e a mesma regra duas vezes.
+         *
+         * **A conferencia acontece dentro da transacao e antes de qualquer `insert`.** Nao e
+         * preciosismo: `grading_result` e append-only por gatilho, e um `package_hash` errado
+         * gravado nao tem conserto. Gravar e desfazer por rollback seria correto por transacao e
+         * errado por desenho.
          */
         post("/organizations/{organizationId}/exams/{shortId}/results") {
             val organizationId = call.parameters["organizationId"]?.let(::uuidOrNull)
@@ -213,16 +226,33 @@ fun Route.examRoutes(deps: ApiDependencies) {
             }
 
             val userId = call.resolverUsuario(deps)
-            val revisao = deps.tenancy.asUser(userId) { ctx ->
-                val examId = deps.resultQueries.findPublishedExamId(ctx, organizationId, shortId)
-                if (examId == null) {
+            val desfecho = deps.tenancy.asUser(userId) { ctx ->
+                val publicada = deps.resultQueries.findPublishedExamId(ctx, organizationId, shortId)
+                if (publicada == null) {
                     null
                 } else {
-                    deps.resultQueries.record(ctx, organizationId, examId, submission, nota)
+                    when (val proveniencia = conferirProveniencia(publicada.pacote, nota)) {
+                        is Proveniencia.NaoConfere -> Desfecho.Recusado(proveniencia.motivo)
+                        Proveniencia.Confere -> Desfecho.Gravado(
+                            deps.resultQueries.record(
+                                ctx,
+                                organizationId,
+                                publicada.examId,
+                                submission,
+                                nota,
+                            ),
+                        )
+                    }
                 }
             } ?: return@post call.naoEncontrado()
 
-            call.respond(ResultAcceptedDto(revision = revisao))
+            when (desfecho) {
+                is Desfecho.Recusado -> call.respondText(
+                    desfecho.motivo,
+                    status = HttpStatusCode.BadRequest,
+                )
+                is Desfecho.Gravado -> call.respond(ResultAcceptedDto(revision = desfecho.revision))
+            }
         }
     }
 }
@@ -255,6 +285,21 @@ private suspend fun io.ktor.server.application.ApplicationCall.naoEncontrado() =
  * 400 diria "voce escreveu errado" para quem pediu uma organizacao que nao existe, e a diferenca
  * entre as duas respostas e informacao sobre o que existe do outro lado.
  */
+/**
+ * Os dois desfechos que existem **depois** de a prova ter sido encontrada.
+ *
+ * A ausencia nao esta aqui, e a omissao e o ponto: ela continua sendo o `null` que a transacao
+ * devolve, traduzido em 404 por um `?:` que nao mudou. Tres desfechos num tipo so diluiriam a
+ * distincao que esta rota existe para manter — **ausencia e incoerencia sao coisas diferentes**, e e
+ * o classificador do aparelho que consome a diferenca: 4xx e recusa definitiva, e o pendente para de
+ * ser reapresentado sozinho; 5xx seria transitorio, e o aparelho repetiria para sempre um envio que
+ * nunca sera aceito.
+ */
+private sealed interface Desfecho {
+    data class Gravado(val revision: Int) : Desfecho
+    data class Recusado(val motivo: String) : Desfecho
+}
+
 private fun uuidOrNull(texto: String): UUID? = try {
     UUID.fromString(texto)
 } catch (_: IllegalArgumentException) {
