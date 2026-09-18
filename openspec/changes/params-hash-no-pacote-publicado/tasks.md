@@ -103,16 +103,16 @@ que fechou paridade ao mexer no `PLATOS_PACKAGE` sem regravar golden nenhum.
 
 **Ambiente: emulador** para `connectedDebugAndroidTest` — **P22 vale, perguntar antes.**
 
-- [ ] 5.1 Cenário novo em `ConferenciaDePacoteTest`: o pacote do contrato anterior, apresentado com o
+- [x] 5.1 Cenário novo em `ConferenciaDePacoteTest`: o pacote do contrato anterior, apresentado com o
       `content_hash` **dele** (o de antes), é **recusado**, e a asserção confere **o motivo** —
       recusa por fidelidade de interpretação (`INTERPRETACAO`), e não por integridade
       (`rigorous.md` §3: "a asserção SHALL conferir o motivo da recusa, e não só que houve recusa").
-- [ ] 5.2 **A guarda de vacuidade que isola a camada:** no mesmo cenário, afirmar que aquele mesmo
+- [x] 5.2 **A guarda de vacuidade que isola a camada:** no mesmo cenário, afirmar que aquele mesmo
       pacote **passa** na camada (a) — `sha256(bytes) == content_hash` declarado. Sem isso a recusa
       poderia ser por integridade, e o cenário estaria medindo a camada vizinha. É literalmente o
       sombreamento de fixture que o `rigorous.md` §3 descreve, e que já aconteceu duas vezes nesta
       base.
-- [ ] 5.3 **Ver falhar.** A mutação é **neutralizar a camada (b)** em `ConferenciaDePacote` — e não
+- [x] 5.3 **Ver falhar.** A mutação é **neutralizar a camada (b)** em `ConferenciaDePacote` — e não
       a óbvia, que seria tirar o campo de novo e ver os literais caírem: essa mede a aritmética do
       SHA-256 e não prova nada interessante. Rodar a suíte sob a mutação e registrar **quais**
       cenários caem, contra esta tabela:
@@ -127,7 +127,36 @@ que fechou paridade ao mexer no `PLATOS_PACKAGE` sem regravar golden nenhum.
       **Se os de integridade caírem junto, a mutação não isolou a camada — pare** (regra 0.5 do
       plano; `design.md` decisão 10). Conjunto real diferente do previsto, em qualquer direção, é
       motivo de parada e de registro — não de conserto do instrumento.
-- [ ] 5.4 Verificar que a mutação **entrou** antes de ler o resultado, e reverter rodando (P10):
+
+      **REAL, e a regra de parada disparou numa linha.** `:apps:android:testDebugUnitTest` sob a
+      mutação, 2026-09-18T22:29:45Z–22:29:58Z, 303 cenários, 3 caídos:
+
+      | Cenário | Previsto | Real |
+      |---|---|---|
+      | pacote do contrato anterior recusado por fidelidade | **sim** | **caiu** |
+      | os demais cenários de fidelidade já existentes | **sim** | **2 de 5** |
+      | cenários de integridade | **não** | **nenhum caiu** |
+      | cenários de identidade | **não** | **nenhum caiu** |
+
+      **A condição de parada explícita foi cumprida:** nenhum cenário de integridade caiu, e a
+      mutação isolou a camada. O desvio está na segunda linha — caíram `campo com valor padrao
+      omitido` e `ordem de campo trocada`; não caíram `campo desconhecido`, `bytes que nao sao json`
+      e `json valido que nao e um pacote`.
+
+      **O que ele significa:** `INTERPRETACAO` tem **dois produtores independentes** dentro de
+      `verificarPacote` — o `catch` à volta do `decodeFromString` (parse estrito) e a comparação de
+      reserialização —, e a mutação neutralizou só o segundo. Os três que sobreviveram estouram no
+      parse e nem chegam à comparação. A linha 2 da tabela tratava os cinco como um bloco, e são
+      dois mecanismos sob um motivo só.
+
+      **Isso refina a previsão em vez de a contradizer, e é a favor do cenário novo:** a consequência
+      que ADR-0014 decisão 3 aceitou é exatamente a do segundo mecanismo — `encodeDefaults` injeta um
+      campo, o parse **não** estoura, e só a comparação vê. O cenário novo caiu com os dois que
+      compartilham esse mecanismo, e não com os três do parse: é a prova de que ele mede o que devia.
+
+      **Não medido, e fica dito (P8):** que os três do parse caem sob uma mutação do parse estrito.
+      Seria uma segunda mutação, e ela não foi feita.
+- [x] 5.4 Verificar que a mutação **entrou** antes de ler o resultado, e reverter rodando (P10):
       `grep -rn "MUTACAO"` fora de `build/` em `0` e a suíte rodada **depois** da reversão, com
       `timestamp`.
 
