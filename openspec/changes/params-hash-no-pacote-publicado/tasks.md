@@ -83,10 +83,10 @@ Não é opcional porque "só mudou o pacote": `apps/web/scripts/examPackage.ts` 
 `build/parity/web.pdf` — **a fixture do pacote está no caminho da paridade**. O precedente é a 4a,
 que fechou paridade ao mexer no `PLATOS_PACKAGE` sem regravar golden nenhum.
 
-- [ ] 3.1 Rodar os passos de `fidelidade.mjs`, `compare.mjs` e `tinta.mjs` do `ci.yml`, com os PDFs
+- [x] 3.1 Rodar os passos de `fidelidade.mjs`, `compare.mjs` e `tinta.mjs` do `ci.yml`, com os PDFs
       **gerados nesta sessão dos dois lados**. Verificar que cada um passa e registrar o `timestamp`
       de **cada artefato** (P23, P3).
-- [ ] 3.2 Registrar na cobertura os `timestamp` dos PDFs dos dois lados e o desfecho de cada um dos
+- [x] 3.2 Registrar na cobertura os `timestamp` dos PDFs dos dois lados e o desfecho de cada um dos
       três passos. Verificar que nenhum artefato citado é de sessão anterior — artefato herdado não
       fecha P23.
 
