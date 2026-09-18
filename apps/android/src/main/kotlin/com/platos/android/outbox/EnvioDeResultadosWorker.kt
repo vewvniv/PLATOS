@@ -74,18 +74,15 @@ class EnvioDeResultadosWorker(
             http.close()
         }
 
-        // `retry` so pelo que a rede explica. Recusa do servidor nao melhora tentando de novo em
-        // seguida: ela sobe quando houver trabalho agendado de novo — ao escanear outra folha, ou ao
-        // abrir sessao, que e o caminho que `SessaoActivity.escoarPendentes` criou. Repetir aqui
-        // seria laco quente contra um servidor que ja disse nao.
         val saida = diagnostico(
             desfecho = if (resumo.confirmados > 0) "enviou" else "nada-confirmado",
             confirmados = resumo.confirmados,
             semRede = resumo.semRede,
+            transitorios = resumo.transitorios,
             recusados = resumo.recusados,
             ultimoStatus = ultimoStatus,
         )
-        return if (resumo.semRede > 0) Result.retry() else Result.success(saida)
+        return if (valeTentarDeNovo(resumo)) Result.retry() else Result.success(saida)
     }
 
     companion object {
@@ -118,12 +115,35 @@ private fun diagnostico(
     desfecho: String,
     confirmados: Int = 0,
     semRede: Int = 0,
+    transitorios: Int = 0,
     recusados: Int = 0,
     ultimoStatus: Int = 0,
 ): Data = Data.Builder()
     .putString("desfecho", desfecho)
     .putInt("confirmados", confirmados)
     .putInt("sem_rede", semRede)
+    .putInt("transitorios", transitorios)
     .putInt("recusados", recusados)
     .putInt("ultimo_status", ultimoStatus)
     .build()
+
+/**
+ * Se a passada merece outra tentativa agendada pelo proprio `WorkManager`.
+ *
+ * **Funcao, e nao uma linha dentro de `doWork`.** Dentro do `doWork` esta decisao so e alcancavel por
+ * teste instrumentado, e ficaria coberta por inferencia — os quatro casos que importam sao
+ * combinacoes de tres numeros, e eles se exercitam na JVM em milissegundos.
+ *
+ * **`transitorios` entrou; `recusados` nao.** Falha do servidor pode aceitar o mesmo envio depois,
+ * sem que nada no aparelho mude — foi o 500 da migration ausente, lido como recusa definitiva, que
+ * deixou um pendente parado ate alguem escanear outra folha. Recusa definitiva nao melhora tentando
+ * de novo em seguida: ela sobe quando houver trabalho agendado de novo — ao escanear outra folha, ou
+ * ao abrir sessao, que e o caminho que `SessaoActivity.escoarPendentes` criou.
+ *
+ * **Sem teto de tentativas, e isso e deliberado.** O backoff exponencial do `WorkManager` ja limita a
+ * frequencia, e um numero escolhido aqui sem evidencia de pressao seria numero sem consumidor. Tentar
+ * indefinidamente e o desfecho certo para uma fila cujo conteudo nao existe em nenhum outro lugar: o
+ * fato e append-only e o servidor e idempotente por `capture_id`, entao a repeticao nao degrada nada.
+ */
+internal fun valeTentarDeNovo(resumo: ResumoDoEnvio): Boolean =
+    resumo.semRede > 0 || resumo.transitorios > 0
