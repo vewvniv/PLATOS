@@ -3,11 +3,11 @@
 A ordem é a da ETAPA 3: as quatro decisões precisam estar escritas **antes de o primeiro commit
 existir**. O commit 1 já deixa o build vermelho, e vermelho sem decisão registrada é ambíguo.
 
-- [ ] 0.1 Escrever `docs/adr/0014-a-tripla-de-proveniencia-no-artefato-imutavel.md` com as quatro
+- [x] 0.1 Escrever `docs/adr/0014-a-tripla-de-proveniencia-no-artefato-imutavel.md` com as quatro
       decisões de `design.md` — §2 vence §5; a semântica dos três campos; a consequência aceita; e
       `meta.exam_id` não renomeado. Verificar por leitura cruzada: cada decisão com o arquivo e a
       linha que a sustentam, e `Status: aceito` com data.
-- [ ] 0.2 Corrigir a lista de `meta` do `ARQUITETURA-FINAL-v3.md` §5, acrescentando `params_hash`,
+- [x] 0.2 Corrigir a lista de `meta` do `ARQUITETURA-FINAL-v3.md` §5, acrescentando `params_hash`,
       **com a contradição dita e não apagada** (P7): a lista estava incompleta e I3 sempre exigiu os
       três. Verificar que o texto antigo continua legível ao lado da correção, e que o ponteiro para
       ADR-0014 está na linha.
