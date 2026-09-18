@@ -293,6 +293,9 @@ dependencies {
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.room.testing)
     androidTestImplementation(libs.workmanager.testing)
+    // Mesmo artefato que o `testImplementation` ja usa, agora tambem no alvo instrumentado: o teste
+    // do segundo membro precisa ler o cabecalho que saiu, e `MockEngine` e quem o entrega.
+    androidTestImplementation(libs.ktor.client.mock)
 }
 
 tasks.withType<Test>().configureEach {

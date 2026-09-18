@@ -314,10 +314,25 @@ A conferência esbarrou em três paredes antes de chegar ao aplicativo, e as tr�
   organização está verificado em JVM e em aparelho, e o caminho de código é o mesmo com outra
   credencial — mas isso é inferência, e não medição. **Dono:** mantenedor. **Fatia-limite:** a
   primeira que tratar aparelho compartilhado entre professores.
+
+  **Fechado pela metade em 2026-09-18, pela mudança `envio-distingue-recusa-transitoria`.** A metade do
+  aparelho deixou de ser inferência: `SegundoMembroInstrumentedTest` grava um pendente sob a credencial
+  de um usuário, chama o caminho de saída, guarda a credencial de outro e afirma **qual** credencial
+  saiu no cabeçalho. Sob a mutação do cache de processo, os dois cenários caem com
+  `expected:<[Bearer …-b]> but was:<[Bearer …-a]>`. A metade do servidor continua **simulada** por
+  `MockEngine`, e as duas contas reais contra produção continuam item com o mesmo dono e a mesma
+  fatia-limite. Ver `docs/cobertura-envio-distingue-recusa-transitoria.md` §5.1.
 - **`Result.success` em recusa do servidor.** O worker não distingue 4xx de 5xx: um 500 transitório é
   tratado como recusa definitiva, e só o agendamento seguinte tenta de novo. Foi o que aconteceu com
   o 500 da migration ausente. **Dono:** esta base. **Fatia-limite:** a primeira que tiver retentativa
   com política, ou o primeiro relato de resultado que demorou a subir.
+
+  **Fechado em 2026-09-18, pela mudança `envio-distingue-recusa-transitoria`.** Esta é a fatia que o
+  item nomeava. 5xx passou a contar separado de 4xx, e só o transitório pede nova tentativa ao
+  `WorkManager`; o pendente continua intacto nos dois casos. O que **não** foi medido é o
+  `Result.retry()` chegando ao `WorkSpec` — a ligação entre a decisão e o reagendamento é linha de
+  código lida, e não comportamento observado. Ver
+  `docs/cobertura-envio-distingue-recusa-transitoria.md` §5.4.
 
 ### 5.2 Duas folhas avulsas seguidas são uma captura só
 
