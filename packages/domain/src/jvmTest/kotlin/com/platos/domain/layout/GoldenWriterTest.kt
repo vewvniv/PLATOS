@@ -134,4 +134,25 @@ class GoldenWriterTest {
                 "hash ${pacote.contentHash()})",
         )
     }
+
+    /*
+     * `fixtures/pacote-do-contrato-anterior.json` NAO e escrito por esta classe, e nao e por
+     * esquecimento.
+     *
+     * Ele e o `prova-referencia.package.json` **do contrato anterior a ADR-0014** — antes de
+     * `params_hash` existir em `PackageMeta` —, congelado byte a byte em 2026-09-18, com
+     * `sha256 = 26612ad52b0cb967309f49354e9858c501ad7a1b0c7b46db874c05d348e6909a` e 101.618 bytes.
+     *
+     * **Ele existe para ser recusado.** ADR-0014 decisao 3 aceita que acrescentar o campo faz todo
+     * pacote publicado antes dela deixar de passar na camada (b) de ADR-0013 — `encodeDefaults =
+     * true` injeta `"params_hash":null` que nao estava nos bytes, e reserializar deixa de reproduzir
+     * o original. Essa consequencia so tem como ser exercitada se sobrar um pacote do contrato
+     * antigo, e depois da regravacao nao sobra nenhum nesta arvore. Esta e a unica janela, e o
+     * arquivo e ela.
+     *
+     * **Regera-lo destroi o que ele prova.** Um pacote do contrato antigo regerado pelo codigo atual
+     * e um pacote do contrato atual — passa nas duas camadas, e o cenario que o consome vira verde
+     * vazio. Se algum dia esta classe ganhar um metodo que o escreva, o cenario de
+     * `ConferenciaDePacoteTest` que o usa deixa de afirmar qualquer coisa **sem ficar vermelho**.
+     */
 }

@@ -56,21 +56,21 @@ existir**. O commit 1 já deixa o build vermelho, e vermelho sem decisão regist
 
 ## 2. Commit 2 — as fixtures, regravadas pelo caminho que já existe
 
-- [ ] 2.1 **Antes de regravar**, congelar `fixtures/pacote-do-contrato-anterior.json`: cópia byte a
+- [x] 2.1 **Antes de regravar**, congelar `fixtures/pacote-do-contrato-anterior.json`: cópia byte a
       byte de `fixtures/prova-referencia.package.json` **como está hoje**, com KDoc ou cabeçalho
       dizendo que é artefato do contrato antigo, deliberadamente **não** regerado, e que o
       `GoldenWriterTest` não o escreve. Verificar por `sha256` que a cópia é idêntica ao original
       antes da regravação, e que o hash bate com o `HASH_DA_FIXTURE` **anterior**.
-- [ ] 2.2 Regravar pelo caminho que já existe, e por nenhum outro:
+- [x] 2.2 Regravar pelo caminho que já existe, e por nenhum outro:
       `./gradlew :packages:domain:jvmTest -Dplatos.golden.write=true`.
-- [ ] 2.3 **A guarda de vacuidade desta etapa (P13).** O comando regrava cinco artefatos.
+- [x] 2.3 **A guarda de vacuidade desta etapa (P13).** O comando regrava cinco artefatos.
       **Exatamente três devem mudar**: `fixtures/prova-referencia.package.json`,
       `fixtures/prova-2.package.json` e `fixtures/prova-referencia.turma.package.json`.
       `prova-referencia.layout.json` e `folha-de-teste.layout.json` **não podem mudar** —
       `params_hash` está no `ExamPackage`, não no `LayoutMap`. Conferir no `git diff` e colar a saída
       na cobertura. **Se um arquivo de layout mudou, pare:** alguma coisa alcançou a geometria, e a
       etapa mudou de tamanho.
-- [ ] 2.4 No mesmo commit, atualizar os dois literais de hash:
+- [x] 2.4 No mesmo commit, atualizar os dois literais de hash:
       `packages/domain/src/commonTest/.../ExamPackageTest.kt:21` (`HASH_DA_FIXTURE`) e
       `apps/api/src/test/.../ExamPublicationTest.kt:32` (`hashDaFixture`) — cujo próprio comentário
       já manda "Regravar junto com a fixture". **`ApiPlatosPacoteTest.HASH` não é da fixture** — é

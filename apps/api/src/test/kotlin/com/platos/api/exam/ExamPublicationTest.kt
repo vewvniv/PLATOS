@@ -29,7 +29,7 @@ class ExamPublicationTest {
      * Android calculam, o pacote deixaria de ser verificavel no dispositivo que o consome — e a
      * divergencia apareceria so na fatia 4, com pacote ja distribuido. Regravar junto com a fixture.
      */
-    private val hashDaFixture = "26612ad52b0cb967309f49354e9858c501ad7a1b0c7b46db874c05d348e6909a"
+    private val hashDaFixture = "277d2f8cd0a7a87e6e26e5ecf47d2f5610dd6e173e724ab38a65373000ac391a"
 
     private val definicao: ExamDefinition = Json { ignoreUnknownKeys = false }.decodeFromString(
         ExamDefinition.serializer(),
