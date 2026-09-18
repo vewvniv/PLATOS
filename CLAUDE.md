@@ -99,7 +99,13 @@ tentador e menos visível.
 
 - Kotlin: Ktor 3, jOOQ, kotlinx.serialization.
 - Banco: PostgreSQL/Supabase, RLS, pgvector, migrations via Supabase CLI.
-- Android: CameraX, OpenCV, ZXing-C++, Room, WorkManager, Compose, supabase-kt.
+- Android: CameraX, OpenCV, ZXing-C++, Room, WorkManager, Compose, `ktor-client`.
+  Esta linha dizia `supabase-kt`, e a decisão de **não** usá-lo já estava tomada, com medição:
+  decisão 9 do `design.md` da `slice-4a-zero-device-auth` (o probe bateu no endpoint pelas duas
+  vias e recebeu a mesma resposta; a biblioteca descarta `HttpRequestException.cause`, que é o
+  material da distinção que a spec exige) e decisão 2 do ADR-0013 (o caminho direto à tabela
+  passaria o `content` por mais uma etapa de codificação, contra ADR-0008). Correção de registro
+  contra decisão já tomada — não é mudança de stack, e por isso não abre ADR.
 - Web: React, TypeScript, Vite, TanStack Query.
 - Compartilhado: KMP.
 - CI: GitHub Actions; observabilidade: Sentry + logs estruturados.
