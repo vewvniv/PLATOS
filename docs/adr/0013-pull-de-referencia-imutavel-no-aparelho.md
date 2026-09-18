@@ -1,7 +1,23 @@
 # ADR-0013 — O aparelho puxa o pacote por rota própria, confere em três camadas e cacheia por conteúdo
 
-**Status:** proposto · **Data:** 2026-08-29 · **Fatia-limite:** 4a
+**Status:** aceito · **Data:** 2026-08-29 · **Aceito em:** 2026-09-18 · **Fatia-limite:** 4a
 **Referências:** `ARQUITETURA-FINAL-v3.md` §10 (sincronização e offline), §13 (stack) · ADR-0008 · ADR-0009 · `openspec/specs/scan-session` · `CLAUDE.md` regras 2 e 8
+
+> **Correção de registro, 2026-09-18.** Este ADR foi escrito em 2026-08-29 e permaneceu em
+> `Status: proposto` até hoje, enquanto cinco mudanças eram construídas sobre ele e arquivadas:
+> `slice-4a-zero-device-auth` (04-09), `slice-4a-package-pull` e `slice-4a-cache-referencia`
+> (10-09), `slice-4b-roster-no-aparelho` (17-09) e `slice-4b-outbox-de-resultado` (18-09). Nesse
+> período o `ARQUITETURA-FINAL-v3.md` §16 já o citava como autoridade estabelecida. Pela precedência
+> do `rigorous.md` §0, a linha 1 é "ADR **aceito**": por 20 dias a base decidiu por um documento
+> que, pelo critério dela mesma, ainda não tinha essa força.
+>
+> **O estado errado fica dito como estado errado** (P7). A linha acima dizia `**Status:**
+> proposto`, e não "proposto porque algo faltava decidir" — nada faltava. A razão não é desacordo
+> técnico: é ausência de dono. Nenhum passo do `/opsx:archive` lê o status do ADR que a mudança
+> citou, então o campo nunca foi reaberto depois do dia em que foi escrito. É o achado 7 da
+> `docs/auditoria-2026-09-18-antes-da-fatia-5.md`, e o padrão que ele nomeia — o que vence depois
+> do archive não tem quem o cobre — é o que a ETAPA 8 do
+> `docs/plano-de-correcao-antes-da-fatia-5.md` trata.
 
 ## Contexto
 
