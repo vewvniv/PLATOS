@@ -194,6 +194,16 @@ alcança. A afirmação pode ter sido verdadeira quando foi escrita; hoje o log 
 corrigida aqui**, porque é texto fora do escopo funcional desta mudança (P19) e o passo redundante não
 faz mal. **Dono:** esta base. **Fatia-limite:** a próxima que tocar o `ci.yml`.
 
+**Fechado em 2026-09-18, por commit de texto próprio.** A fatia-limite acima estava mal escolhida, e
+fica dito: um comentário **medidamente falso** sobre cobertura é pior que nenhum — ele diz a quem
+reorganizar o arquivo que aquele passo é a única cobertura do alvo, o que levaria a decisões erradas
+nos dois sentidos. Adiá-lo até "a próxima que tocar o `ci.yml`" era adiar justamente a leitura que
+induz ao erro.
+
+O comentário passou a registrar as três coisas: a redação original e o incidente real que a motivou, a
+medição que a contradiz, e a razão de o passo **ficar** mesmo redundante — removê-lo se apoiaria numa
+única medição de uma propriedade que já mudou sozinha uma vez.
+
 ### 5.5 A contagem de 1411 da fatia anterior não é comparável, e o motivo está medido
 
 `./gradlew build --rerun-tasks` desta sessão deu **1409** testes, 0 falhas, **176 de 176 tasks
