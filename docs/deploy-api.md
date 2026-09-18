@@ -34,15 +34,40 @@ uma migration mudar sem que o build quebrasse.
   depois de o CI fechar verde no mesmo commit.
 
 A imagem foi construída e exercitada localmente antes de existir workflow: contra um Postgres com
-as oito migrations aplicadas, conectada como `app_backend`, `GET /health` respondeu `200 ok` e
+as migrations aplicadas, conectada como `app_backend`, `GET /health` respondeu `200 ok` e
 `GET /me/organizations` sem token respondeu `401`. Arranque em 0,4 s, imagem de 136 MB.
 
-## Antes de tudo: o schema ainda não existe no Supabase
+> **Correção de registro, 2026-09-18** (achado 4.5 da auditoria). Esta frase dizia "as **oito**
+> migrations aplicadas". São **nove** hoje: `20260917134500_result_tables.sql` entrou na
+> `slice-4b-outbox-de-resultado`. O número antigo não era erro quando foi escrito — em `b1ad242`,
+> 2026-09-03, `supabase/migrations/` tinha oito arquivos, e foi contra essas oito que a imagem
+> rodou. Era certo de ontem passando por certo de hoje, que é o vizinho do que P7 trata. Contar
+> arquivos em `supabase/migrations/` é mais confiável do que ler o número aqui.
 
-As migrations em `supabase/migrations/` **nunca foram aplicadas ao projeto real**. Elas rodam em
-Postgres efêmero, no `generateJooq` e nos testes. No painel, *Database* aparece sem tabela nenhuma —
-e não é engano de quem olha, é o estado do projeto. (O Supabase também não lista bancos: cada
-projeto **é** um banco `postgres`.)
+## Antes de tudo: o schema existe em produção desde 2026-09-18
+
+> **Correção de registro, 2026-09-18** (achado 4.5 da `docs/auditoria-2026-09-18-antes-da-fatia-5.md`).
+> Este título dizia **"o schema ainda não existe no Supabase"**, e o parágrafo abaixo dizia que as
+> migrations **nunca foram aplicadas ao projeto real**. Deixou de ser verdade: a conferência de ponta
+> a ponta da `slice-4b-outbox-de-resultado` aplicou o schema e **gravou em produção** — `grading_result`
+> com `capture_id = d671e626-…`, `revision` 1, e `answer_observation` com 40 linhas
+> (`docs/cobertura-slice-4b-outbox-de-resultado.md` §5.1, tabela "Os elos, observados onde cada um
+> termina"). O texto antigo fica abaixo, marcado, porque ele é o estado de quando foi escrito e
+> porque quem ler só o trecho antigo repete o erro (P7).
+>
+> **O que continua verdade, e é o que importa aqui:** nada aplica migration automaticamente. Aquela
+> mesma conferência subiu código novo contra schema antigo e o push deu **HTTP 500**, com `/health`
+> respondendo 200 o tempo todo (§5.1.1, item 2). O passo abaixo continua manual, e por isso continua
+> sendo este documento que alguém abre sob pressão. O risco está agora na tabela de ponto de
+> não-retorno do `ARQUITETURA-FINAL-v3.md` §16, com fatia-limite e dono.
+
+*Texto de quando este roteiro foi escrito, antes de 2026-09-18 — falso hoje, mantido por P7:*
+
+> As migrations em `supabase/migrations/` **nunca foram aplicadas ao projeto real**. Elas rodam em
+> Postgres efêmero, no `generateJooq` e nos testes. No painel, *Database* aparece sem tabela nenhuma —
+> e não é engano de quem olha, é o estado do projeto.
+
+O Supabase não lista bancos: cada projeto **é** um banco `postgres`.
 
 Nada nas migrations é específico do Supabase: a RLS decide por
 `current_setting('app.current_user_id')`, e não por `auth.uid()`. São Postgres comum, e por isso o
@@ -88,9 +113,20 @@ se alguma migration voltar a trazer senha literal.
 
 ### Conferir que a chave anônima não enxerga dado de domínio
 
-As oito tabelas têm RLS habilitada **e** `force row level security`, e as migrations não concedem
+As **dez** tabelas têm RLS habilitada **e** `force row level security`, e as migrations não concedem
 nada a `anon` nem a `authenticated` — esses papéis nem são mencionados. O `force` importa porque faz
 a política valer inclusive para o dono da tabela.
+
+> **Correção de registro, 2026-09-18** (achado 4.5 da auditoria). Esta frase dizia **oito**. São dez:
+> `app_user`, `organization`, `membership`, `subscription`, `credit_ledger`, `exam`,
+> `exam_package`, `exam_roster`, `grading_result` e `answer_observation`. Afirmação de segurança
+> em forma de número envelhece a cada migration, e quem auditasse por ela conferiria oito e
+> passaria por cima de duas.
+>
+> **E o número não é o que garante.** Quem garante é `ConnectionRoleTest`, que deriva a lista do
+> **catálogo** — não de uma constante — e reprova o build se alguma tabela de domínio nascer sem
+> RLS forçada. É ele que o leitor deve consultar: a contagem acima é orientação, e não grandeza
+> verificada por este documento.
 
 Vale conferir mesmo assim, porque o Supabase aplica privilégios padrão a tabelas novas em `public`:
 
