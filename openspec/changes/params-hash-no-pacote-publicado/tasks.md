@@ -14,15 +14,45 @@ existir**. O commit 1 já deixa o build vermelho, e vermelho sem decisão regist
 
 ## 1. Commit 1 — contrato, e só ele
 
-- [ ] 1.1 `PackageMeta` ganha `@SerialName("params_hash") val paramsHash: String? = null`, ao lado
+- [x] 1.1 `PackageMeta` ganha `@SerialName("params_hash") val paramsHash: String? = null`, ao lado
       dos outros dois. **Nenhum consumidor muda.** A KDoc perde a frase "não há o que retrofitar" e
       passa a dizer o que os três campos são e quando são nulos. Verificar com
       `./gradlew :packages:domain:compileKotlinJvm` — compila.
-- [ ] 1.2 **O build fica vermelho neste commit, e isso é esperado.** Rodar
+- [x] 1.2 **O build fica vermelho neste commit, e isso é esperado.** Rodar
       `./gradlew build` e registrar **quais** asserções caem: a previsão é `HASH_DA_FIXTURE` em
       `ExamPackageTest` e `hashDaFixture` em `ExamPublicationTest`, e **nada além**. Se cair mais
       alguma coisa, **pare** — algo além do hash depende do formato de `meta` (regra de parada,
       `design.md` decisão 10). O vermelho esperado vai na mensagem do commit.
+
+      **PREVISTO 2 · REAL 14. A regra de parada disparou**, e o conjunto real fica escrito ao lado
+      do previsto (P7, P12, P14). `./gradlew build --continue`, 2026-09-18T21:13:54Z–21:15:21Z:
+
+      | Suíte | Cenários | Previsto? |
+      |---|---|---|
+      | `ExamPublicationTest` (api) — `hashDaFixture` | 1 | **sim** |
+      | `ExamPackageTest` — `HASH_DA_FIXTURE` | 1 | **sim** |
+      | `PacoteVersionadoTest` | 2 | não |
+      | `ConferenciaDePacoteTest` | 2 | não |
+      | `ObtencaoDePacoteTest` | 3 | não |
+      | `PacotesEmArquivoTest` | 5 | não |
+
+      (os três alvos de `packages:domain` repetem os mesmos 3 cenários; 14 são os **distintos**.)
+
+      **O que o conjunto real significa, e não é "a previsão foi só curta".** As 12 não previstas têm
+      **uma** causa, e é a mesma: a fixture versionada ainda é do contrato **antigo**, o código já lê
+      o **novo**, e a camada (b) a recusa —
+      `Recusado(motivo=INTERPRETACAO, detalhe=... reserializa-lo nao reproduz os bytes conferidos)`.
+      `ObtencaoDePacote` e `PacotesEmArquivo` caem **em cascata**, porque guardam e leem pacote
+      através de `verificarPacote`.
+
+      **Isto é a consequência da decisão 3 do ADR-0014 acontecendo dentro da suíte**, antes de
+      existir o cenário deliberado da tarefa 5.1 — e é a favor da mudança, não contra: a recusa
+      prevista pelo ADR é real, alta e reprodutível. O erro da previsão foi contar **literais de
+      hash** quando o que depende da fixture é a **cadeia inteira de manuseio de pacote no aparelho**.
+
+      As 12 voltam ao verde na tarefa 2, quando a fixture for regravada. É por isso que o
+      congelamento da 2.1 é o que mantém a consequência exercitável — sem ele, depois da regravação
+      não sobra nenhum pacote do contrato antigo nesta árvore.
 
 ## 2. Commit 2 — as fixtures, regravadas pelo caminho que já existe
 
