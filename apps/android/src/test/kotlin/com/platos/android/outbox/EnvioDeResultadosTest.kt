@@ -61,6 +61,13 @@ class EnvioDeResultadosTest {
         assertEquals(listOf("cap-1"), guarda.linhas.map { it.captureId }, "a linha foi mexida")
     }
 
+    /**
+     * **A assercao de classificacao deste cenario mudou, e a de preservacao nao.**
+     *
+     * Ele afirmava `recusados == 1` para um 500. O requisito e que mudou — 5xx passou a ser
+     * transitorio —, e nao a assercao que enfraqueceu (P12): o que o cenario existe para provar e que
+     * **o pendente fica**, e essa linha esta intacta abaixo.
+     */
     @Test
     fun `recusa do servidor nao apaga o pendente`() = runBlocking {
         val guarda = GuardaEmMemoria(listOf(envelope("cap-1")))
@@ -68,8 +75,90 @@ class EnvioDeResultadosTest {
 
         val resumo = envio.enviarPendentesDa(ORG)
 
-        assertEquals(1, resumo.recusados)
+        assertEquals(1, resumo.transitorios)
+        assertEquals(0, resumo.recusados, "500 e o servidor falhando, e nao decidindo sobre o pedido")
         assertEquals(listOf("cap-1"), guarda.linhas.map { it.captureId })
+    }
+
+    /**
+     * 503 e transitorio, e a fila **nao encolhe** por causa disso.
+     *
+     * As duas assercoes sao independentes de proposito: uma classificacao certa com expurgo errado
+     * passaria na primeira e falharia na segunda, e e a segunda que a classe H exige.
+     */
+    @Test
+    fun `falha do servidor conta como transitoria e o pendente fica`() = runBlocking {
+        val guarda = GuardaEmMemoria(listOf(envelope("cap-503")))
+        var statusVisto = 0
+        val envio = EnvioDeResultados(guarda) { statusVisto = 503; Retorno.Recusou(503) }
+
+        val resumo = envio.enviarPendentesDa(ORG)
+
+        assertEquals(503, statusVisto, "o teste precisa ter exercitado o 503, e nao outro status")
+        assertEquals(1, resumo.transitorios)
+        assertEquals(0, resumo.recusados)
+        assertEquals(1, resumo.pendentesRestantes)
+        assertEquals(listOf("cap-503"), guarda.linhas.map { it.captureId }, "a linha foi mexida")
+    }
+
+    /**
+     * 404 e definitivo, e a fila tambem **nao encolhe**.
+     *
+     * Este cenario e o par do de cima, e eles existem juntos: sem o 404, a afirmacao "5xx e
+     * transitorio" passaria numa implementacao que chamasse **tudo** de transitorio.
+     */
+    @Test
+    fun `decisao do servidor conta como definitiva e o pendente fica`() = runBlocking {
+        val guarda = GuardaEmMemoria(listOf(envelope("cap-404")))
+        var statusVisto = 0
+        val envio = EnvioDeResultados(guarda) { statusVisto = 404; Retorno.Recusou(404) }
+
+        val resumo = envio.enviarPendentesDa(ORG)
+
+        assertEquals(404, statusVisto, "o teste precisa ter exercitado o 404, e nao outro status")
+        assertEquals(1, resumo.recusados)
+        assertEquals(0, resumo.transitorios)
+        assertEquals(1, resumo.pendentesRestantes)
+        assertEquals(listOf("cap-404"), guarda.linhas.map { it.captureId }, "a linha foi mexida")
+    }
+
+    /**
+     * Fila mista numa passada so: um confirmado, um 503 e um 404, nesta ordem.
+     *
+     * A ordem importa. O 404 vem **depois** do 503, entao se um transitorio interrompesse o laco o
+     * ultimo nunca seria tentado — e o requisito de que um recusado nao bloqueia a fila valeria so
+     * para a recusa definitiva, que foi a unica forma testada ate aqui.
+     */
+    @Test
+    fun `os tres desfechos convivem na mesma passada`() = runBlocking {
+        val guarda = GuardaEmMemoria(
+            listOf(envelope("cap-ok"), envelope("cap-503"), envelope("cap-404")),
+        )
+        val tentados = mutableListOf<String>()
+        val envio = EnvioDeResultados(guarda) { envelope ->
+            tentados += envelope.captureId
+            when (envelope.captureId) {
+                "cap-503" -> Retorno.Recusou(503)
+                "cap-404" -> Retorno.Recusou(404)
+                else -> Retorno.Respondeu(Unit)
+            }
+        }
+
+        val resumo = envio.enviarPendentesDa(ORG)
+
+        assertEquals(
+            listOf("cap-ok", "cap-503", "cap-404"),
+            tentados,
+            "o transitorio no meio da fila prendeu quem vinha depois",
+        )
+        assertEquals(1, resumo.confirmados)
+        assertEquals(1, resumo.transitorios)
+        assertEquals(1, resumo.recusados)
+        assertEquals(
+            listOf("cap-503", "cap-404"),
+            guarda.linhas.map { it.captureId },
+            "so o confirmado sai da fila",
+        )
     }
 
     /**
