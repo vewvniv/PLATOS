@@ -25,7 +25,9 @@ import com.platos.android.pacote.PacotesEmArquivo
 import com.platos.domain.capture.OmrThreshold
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.layout.LayoutMap
+import androidx.lifecycle.lifecycleScope
 import com.platos.android.outbox.EnvioDeResultadosWorker
+import com.platos.android.outbox.gravarEAgendar
 import com.platos.android.outbox.ResultadoPendente
 import com.platos.android.outbox.ResultadosEmRoom
 import com.platos.android.outbox.ResultadosPendentes
@@ -228,14 +230,16 @@ class ScanActivity : ComponentActivity() {
     /**
      * Grava a correcao apurada, **antes de qualquer rede**.
      *
-     * A gravacao e sincrona e no fio principal de proposito: e uma linha numa tabela local, e o
-     * custo dela e menor que o do quadro que acabou de ser analisado. Joga-la para outra thread
-     * abriria a janela em que a tela mostra a nota e o aparelho ainda nao a guardou — e e exatamente
-     * nessa janela que o aplicativo sendo morto perde a correcao.
+     * **A escrita nao acontece aqui, e nao acontece no fio principal.** Ela vai para
+     * [gravarEAgendar], fora da `Activity`, porque o Room recusa acesso ao banco no fio principal e
+     * este metodo e chamado de dentro do laco da camera. A primeira versao gravava direto, e o
+     * aplicativo morria ao escanear uma folha valida — o conserto e a funcao, e nao um
+     * `allowMainThreadQueries` que desligaria a trava em vez de respeita-la.
      *
      * **O `captureId` e cunhado aqui, uma vez por captura.** Ele nao e derivado do conteudo: uma
      * recaptura que desse exatamente a mesma nota e recaptura, e nao reenvio, e um identificador
-     * derivado do conteudo as confundiria.
+     * derivado do conteudo as confundiria. Cunha-lo aqui, e nao dentro da corrotina, mantem a
+     * identidade presa ao instante da captura e nao ao da gravacao.
      *
      * **Token vazio vira nulo.** O QR da folha avulsa traz o campo vazio (§8), e o servidor espera
      * ausencia — vazio faria todas as avulsas da mesma prova colidirem no unique de revisao.
@@ -244,17 +248,18 @@ class ScanActivity : ComponentActivity() {
         val organizacao = organizacao ?: return
         val prova = prova ?: return
 
-        pendentes.guardar(
-            ResultadoPendente(
-                captureId = UUID.randomUUID().toString(),
-                organizacao = organizacao,
-                prova = prova,
-                studentToken = apuracao.reading.payload.studentToken.ifEmpty { null },
-                apuradoEm = System.currentTimeMillis(),
-                nota = apuracao.score,
-            ),
+        val resultado = ResultadoPendente(
+            captureId = UUID.randomUUID().toString(),
+            organizacao = organizacao,
+            prova = prova,
+            studentToken = apuracao.reading.payload.studentToken.ifEmpty { null },
+            apuradoEm = System.currentTimeMillis(),
+            nota = apuracao.score,
         )
-        EnvioDeResultadosWorker.agendar(applicationContext, organizacao)
+
+        lifecycleScope.gravarEAgendar(pendentes, resultado) {
+            EnvioDeResultadosWorker.agendar(applicationContext, organizacao)
+        }
     }
 
     companion object {

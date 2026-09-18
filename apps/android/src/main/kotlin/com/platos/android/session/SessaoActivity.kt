@@ -1,5 +1,6 @@
 package com.platos.android.session
 
+import com.platos.android.outbox.EnvioDeResultadosWorker
 import com.platos.android.outbox.ResultadosEmRoom
 import com.platos.android.roster.RostersEmArquivo
 import com.platos.android.roster.prepararRoster
@@ -27,7 +28,9 @@ import com.platos.android.pacote.obterPacote
 import com.platos.android.scan.ScanActivity
 import io.ktor.client.HttpClient
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * O `Activity` de lancamento: a entrada, e o que vem depois dela.
@@ -57,6 +60,7 @@ class SessaoActivity : ComponentActivity() {
     private lateinit var api: ApiPlatos
     private lateinit var sessao: DeviceSession
 
+    private lateinit var pendentes: com.platos.android.outbox.ResultadosPendentes
     private var state by mutableStateOf<DeviceState>(DeviceState.Entrada())
 
     /**
@@ -117,13 +121,10 @@ class SessaoActivity : ComponentActivity() {
         // Mesma razao das duas de cima. Um diretorio por organizacao dentro deste, porque o
         // apagamento que sair e a revogacao fazem e por organizacao inteira.
         rosters = RostersEmArquivo(java.io.File(filesDir, "rosters"))
-        sessao = DeviceSession(
-            guardada,
-            pacotes,
-            visoes,
-            rosters,
-            ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes()),
-        )
+        sessao = DeviceSession(guardada, pacotes, visoes, rosters)
+        // A fila vive na `Activity`, e nao dentro de `DeviceSession`: quem a le precisa de
+        // dispatcher, e `DeviceSession` e Kotlin puro de proposito.
+        pendentes = ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes())
         http = clienteHttp()
 
         autenticacao = AutenticacaoSupabase(
@@ -198,7 +199,30 @@ class SessaoActivity : ComponentActivity() {
     private fun aplicar(resultado: ResultadoDasOrganizacoes) {
         sessao.aoConsultarOrganizacoes(resultado)
         state = sessao.state
+        escoarPendentes()
     }
+
+    /**
+     * Da aos pendentes daquela organizacao uma chance de subir, agora que ha sessao aberta.
+     *
+     * **Sem isto, o requisito "o pendente preservado sobe na sessao seguinte de um membro da
+     * organizacao" nao tem implementacao.** Ele estava escrito na spec e o unico lugar que agendava
+     * envio era o escaneamento — entao um pendente que nao subisse na hora so ganhava outra chance
+     * quando alguem escaneasse outra folha. Encontrado na conferencia em aparelho: o worker rodou uma
+     * vez, devolveu sucesso sem drenar a fila, e a linha ficou parada sem caminho de volta.
+     *
+     * **E o que faz o caso do vinculo revogado funcionar.** Quem foi removido da escola nao consegue
+     * enviar — a rota recusa —, e o pendente dele espera **outro** membro abrir sessao neste
+     * aparelho. Esse "abrir sessao" e exatamente aqui.
+     *
+     * `ExistingWorkPolicy.KEEP` faz a chamada repetida ser barata: se ja ha trabalho agendado para a
+     * organizacao, este agendamento nao cria um segundo.
+     */
+    private fun escoarPendentes() {
+        val organizacao = organizacaoAtiva() ?: return
+        EnvioDeResultadosWorker.agendar(applicationContext, organizacao)
+    }
+
 
     private fun entrar(email: String, senha: String) {
         enviando = true
@@ -214,10 +238,28 @@ class SessaoActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Sair, com a contagem de pendentes lida **fora do fio principal**.
+     *
+     * `DeviceSession` nao conhece mais o outbox: ela recebe o numero ja resolvido, como recebe tudo
+     * o mais. A leitura acontece aqui porque e aqui que existe corrotina e dispatcher — e porque a
+     * primeira versao lia de dentro de `DeviceSession.sair`, no fio principal, e o Room derrubava o
+     * aplicativo toda vez que alguem tocava em sair.
+     *
+     * A troca de tela so acontece depois da contagem, e nao antes: sair antes e contar depois
+     * mostraria a faixa sem o numero, ou com o numero de outra organizacao.
+     */
     private fun sair() {
-        sessao.sair()
-        state = sessao.state
-        preparo = null
+        val organizacao = organizacaoAtiva()
+        lifecycleScope.launch {
+            val naoEnviados = organizacao?.let {
+                withContext(Dispatchers.IO) { pendentes.quantosPendentes(it) }
+            } ?: 0
+
+            sessao.sair(naoEnviados)
+            state = sessao.state
+            preparo = null
+        }
     }
 
     // --- O preparo da prova ---

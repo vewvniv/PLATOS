@@ -50,11 +50,13 @@ class OutboxEmRepousoInstrumentedTest {
     private val prova = "prova-referencia-slice-1"
 
     private fun abrir(): BaseDoOutbox =
-        Room.databaseBuilder(context, BaseDoOutbox::class.java, nomeDaBase)
-            // So neste teste: o fio principal do runner instrumentado e onde as assercoes moram, e a
-            // producao grava de dentro do laco da camera, que tambem e o principal.
-            .allowMainThreadQueries()
-            .build()
+        // **Sem `allowMainThreadQueries`, e a ausencia e o requisito.** Ele estava aqui, com um
+        // comentario dizendo que era "so neste teste", e foi ele que deixou passar o defeito que a
+        // conferencia em aparelho encontrou: a producao abre o banco **sem** ele, e as duas chamadas
+        // de producao vinham do fio principal. O teste afrouxou exatamente a trava que o sistema
+        // impoe, e entao aprovou o que a producao recusa. O runner instrumentado nao roda os testes
+        // no fio principal, entao ele nunca foi necessario aqui.
+        Room.databaseBuilder(context, BaseDoOutbox::class.java, nomeDaBase).build()
 
     private fun nota(pontos: Int = 1, comPendencia: Boolean = false): ObjectiveScore {
         val marcada = QuestionOutcome("q01", QuestionAnswer.Marcada("q01", "A"), 1, pontos.coerceAtMost(1))

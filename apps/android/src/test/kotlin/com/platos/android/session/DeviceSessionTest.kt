@@ -3,9 +3,6 @@ package com.platos.android.session
 import com.platos.android.pacote.PacotesGuardados
 import com.platos.android.roster.AlunoDoRoster
 import com.platos.android.roster.RosterDaProva
-import com.platos.android.outbox.EnvelopeDeEnvio
-import com.platos.android.outbox.ResultadoPendente
-import com.platos.android.outbox.ResultadosPendentes
 import com.platos.android.roster.RostersGuardados
 import com.platos.domain.exam.ExamPackage
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -116,37 +113,12 @@ class DeviceSessionTest {
     private val prova = ProvaPublicada("mat-7a-2026-1", "Prova de Matematica", "a".repeat(64))
 
 
-    /**
-     * A fila do outbox, de mentira.
-     *
-     * **Guarda os pendentes de verdade, e nao so conta**, porque o requisito e sobre o **estado**:
-     * sair e a revogacao nao podem esvazia-la. Um dublê que so devolvesse um numero passaria por uma
-     * implementacao que apagasse tudo e devolvesse o numero de antes.
-     */
-    private class PendentesFalsos(vararg iniciais: Pair<String, String>) : ResultadosPendentes {
-        val linhas = iniciais.map { (org, id) -> org to id }.toMutableList()
-
-        override fun guardar(resultado: ResultadoPendente) {
-            linhas += resultado.organizacao to resultado.captureId
-        }
-
-        override fun pendentesDa(organizacao: String): List<EnvelopeDeEnvio> =
-            linhas.filter { it.first == organizacao }
-                .map { EnvelopeDeEnvio(it.second, it.first, "prova", "{}") }
-
-        override fun quantosPendentes(organizacao: String): Int =
-            linhas.count { it.first == organizacao }
-
-        override fun apagarConfirmado(captureId: String) {
-            linhas.removeAll { it.second == captureId }
-        }
-    }
 
     // --- Os tres estados de falha, distintos (tarefa 3.2) ---
 
     @Test
     fun credencial_recusada_fica_na_entrada_dizendo_isso() {
-        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.aoEntrar(ResultadoDaEntrada.CredencialRecusada)
 
         val estado = sessao.state as DeviceState.Entrada
@@ -155,7 +127,7 @@ class DeviceSessionTest {
 
     @Test
     fun sem_rede_na_entrada_nao_e_apresentado_como_credencial_recusada() {
-        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.aoEntrar(ResultadoDaEntrada.SemRede)
 
         val estado = sessao.state as DeviceState.Entrada
@@ -165,7 +137,7 @@ class DeviceSessionTest {
     @Test
     fun sessao_expirada_volta_para_a_entrada_no_momento_em_que_e_detectada() {
         val guardada = Guardada("org-1")
-        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SessaoExpirada)
 
@@ -186,7 +158,7 @@ class DeviceSessionTest {
     @Test
     fun sessao_expirada_em_ativa_tambem_volta_para_a_entrada() {
         val guardada = Guardada("org-1")
-        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola)))
         assertTrue(sessao.state is DeviceState.Ativa, "pre-condicao: o aparelho tem de estar ativo")
@@ -206,7 +178,7 @@ class DeviceSessionTest {
     @Test
     fun expiracao_que_chega_depois_de_sair_nao_mente_sobre_a_causa() {
         val guardada = Guardada("org-1")
-        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola)))
         sessao.sair()
@@ -224,12 +196,12 @@ class DeviceSessionTest {
     @Test
     fun os_tres_motivos_de_falha_sao_distintos_entre_si() {
         fun motivoDe(resultado: ResultadoDaEntrada): MotivoDeEntrada? {
-            val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+            val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos())
             sessao.aoEntrar(resultado)
             return (sessao.state as DeviceState.Entrada).motivo
         }
 
-        val expirada = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos()).let {
+        val expirada = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos()).let {
             it.abrir(temSessaoGuardada = true)
             it.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SessaoExpirada)
             (it.state as DeviceState.Entrada).motivo
@@ -247,7 +219,7 @@ class DeviceSessionTest {
 
     @Test
     fun o_nome_apresentado_e_o_que_a_consulta_devolveu() {
-        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.aoEntrar(ResultadoDaEntrada.Autenticado)
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola)))
 
@@ -257,7 +229,7 @@ class DeviceSessionTest {
 
     @Test
     fun consulta_que_falha_nao_produz_nome_nenhum() {
-        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.aoEntrar(ResultadoDaEntrada.Autenticado)
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SemRede)
 
@@ -272,12 +244,12 @@ class DeviceSessionTest {
     @Test
     fun entrar_duas_vezes_nao_muda_o_que_e_apresentado() {
         val guardada = Guardada()
-        val primeira = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val primeira = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         primeira.aoEntrar(ResultadoDaEntrada.Autenticado)
         primeira.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola)))
         val antes = (primeira.state as DeviceState.Ativa).organizacao
 
-        val segunda = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val segunda = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         segunda.abrir(temSessaoGuardada = true)
         segunda.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola)))
 
@@ -288,7 +260,7 @@ class DeviceSessionTest {
 
     @Test
     fun duas_organizacoes_pedem_escolha() {
-        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.aoEntrar(ResultadoDaEntrada.Autenticado)
         sessao.aoConsultarOrganizacoes(
             ResultadoDasOrganizacoes.Chegaram(listOf(escola, pessoal)),
@@ -300,7 +272,7 @@ class DeviceSessionTest {
 
     @Test
     fun uma_organizacao_so_nao_pede_escolha() {
-        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.aoEntrar(ResultadoDaEntrada.Autenticado)
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(pessoal)))
 
@@ -310,12 +282,12 @@ class DeviceSessionTest {
     @Test
     fun a_escolha_sobrevive_ao_fechamento_do_aplicativo() {
         val guardada = Guardada()
-        val antes = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val antes = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         antes.aoEntrar(ResultadoDaEntrada.Autenticado)
         antes.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola, pessoal)))
         antes.escolher(pessoal)
 
-        val depois = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val depois = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         depois.abrir(temSessaoGuardada = true)
         depois.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola, pessoal)))
 
@@ -329,7 +301,7 @@ class DeviceSessionTest {
     @Test
     fun escolha_guardada_que_saiu_da_lista_volta_a_ser_pedida() {
         val guardada = Guardada("org-que-nao-existe-mais")
-        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
         sessao.aoConsultarOrganizacoes(
             ResultadoDasOrganizacoes.Chegaram(listOf(escola, pessoal)),
@@ -351,7 +323,7 @@ class DeviceSessionTest {
     @Test
     fun sem_rede_com_visao_guardada_abre_a_tela_de_trabalho() {
         val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
-        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(visao), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(visao), RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
 
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SemRede)
@@ -371,7 +343,7 @@ class DeviceSessionTest {
      */
     @Test
     fun sem_rede_sem_visao_guardada_pede_rede_uma_vez() {
-        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
 
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SemRede)
@@ -397,7 +369,7 @@ class DeviceSessionTest {
     fun servidor_que_responde_sem_a_organizacao_derruba_a_escolha_mesmo_com_visao() {
         val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
         val guardada = Guardada(escola.id)
-        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(visao), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(visao), RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
 
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(pessoal)))
@@ -424,7 +396,7 @@ class DeviceSessionTest {
     fun revogacao_observada_apaga_a_visao_da_organizacao() {
         val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
         val visoes = VisoesFalsas(visao)
-        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), visoes, RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), visoes, RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
 
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(pessoal)))
@@ -448,7 +420,7 @@ class DeviceSessionTest {
     fun revogacao_observada_apaga_tambem_os_pacotes_da_organizacao() {
         val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
         val pacotes = PacotesFalsos()
-        val sessao = DeviceSession(Guardada(escola.id), pacotes, VisoesFalsas(visao), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(escola.id), pacotes, VisoesFalsas(visao), RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
 
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(pessoal)))
@@ -484,7 +456,7 @@ class DeviceSessionTest {
             prova.shortId,
             RosterDaProva(listOf(AlunoDoRoster("tok-a", "Ana")), puxadoEm = 1_757_000_000_000),
         )
-        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(visao), rosters, PendentesFalsos())
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(visao), rosters)
         sessao.abrir(temSessaoGuardada = true)
 
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(pessoal)))
@@ -518,7 +490,7 @@ class DeviceSessionTest {
         val guardada = Guardada(escola.id)
         val visoes = VisoesFalsas(visao)
         val pacotes = PacotesFalsos()
-        val sessao = DeviceSession(guardada, pacotes, visoes, RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(guardada, pacotes, visoes, RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
 
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(emptyList()))
@@ -545,7 +517,7 @@ class DeviceSessionTest {
         val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
         val visoes = VisoesFalsas(visao)
         val pacotes = PacotesFalsos()
-        val sessao = DeviceSession(Guardada(escola.id), pacotes, visoes, RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(escola.id), pacotes, visoes, RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
 
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola, pessoal)))
@@ -652,7 +624,7 @@ class DeviceSessionTest {
     /** Fora da tela de trabalho nao ha o que atualizar, e o pedido nao abre a guarda. */
     @Test
     fun atualizar_fora_da_tela_de_trabalho_nao_e_aceito() {
-        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.aoEntrar(ResultadoDaEntrada.CredencialRecusada)
         val antes = sessao.state
 
@@ -679,7 +651,7 @@ class DeviceSessionTest {
     @Test
     fun atualizar_que_falha_sobre_dado_fresco_nao_o_faz_parecer_cacheado() {
         val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
-        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(visao), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(visao), RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola)))
         val antes = sessao.state as DeviceState.Ativa
@@ -703,7 +675,7 @@ class DeviceSessionTest {
     /** A tela de trabalho apresentando visao guardada, que e o ponto de partida das atualizacoes. */
     private fun comTelaDeTrabalhoCacheada(): DeviceSession {
         val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
-        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(visao), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(visao), RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.SemRede)
         return sessao
@@ -714,7 +686,7 @@ class DeviceSessionTest {
     @Test
     fun sair_apaga_a_credencial_e_a_organizacao_escolhida() {
         val guardada = Guardada()
-        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.aoEntrar(ResultadoDaEntrada.Autenticado)
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola, pessoal)))
         sessao.escolher(escola)
@@ -737,7 +709,7 @@ class DeviceSessionTest {
     fun sair_apaga_os_pacotes_guardados_sob_a_organizacao_ativa() {
         val guardada = Guardada()
         val pacotes = PacotesFalsos()
-        val sessao = DeviceSession(guardada, pacotes, VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(guardada, pacotes, VisoesFalsas(), RostersFalsos())
         sessao.aoEntrar(ResultadoDaEntrada.Autenticado)
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(escola, pessoal)))
         sessao.escolher(escola)
@@ -758,7 +730,7 @@ class DeviceSessionTest {
     fun sair_com_organizacao_vinda_do_disco_tambem_apaga_os_pacotes() {
         val guardada = Guardada(escola.id)
         val pacotes = PacotesFalsos()
-        val sessao = DeviceSession(guardada, pacotes, VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(guardada, pacotes, VisoesFalsas(), RostersFalsos())
 
         sessao.sair()
 
@@ -775,7 +747,7 @@ class DeviceSessionTest {
     fun sair_sem_organizacao_escolhida_nao_apaga_nada() {
         val pacotes = PacotesFalsos()
         val visoes = VisoesFalsas()
-        val sessao = DeviceSession(Guardada(), pacotes, visoes, RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(), pacotes, visoes, RostersFalsos())
 
         sessao.sair()
 
@@ -795,7 +767,7 @@ class DeviceSessionTest {
     fun sair_apaga_a_visao_junto_com_o_resto() {
         val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
         val visoes = VisoesFalsas(visao)
-        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), visoes, RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), visoes, RostersFalsos())
 
         sessao.sair()
 
@@ -823,7 +795,7 @@ class DeviceSessionTest {
             prova.shortId,
             RosterDaProva(listOf(AlunoDoRoster("tok-a", "Ana")), puxadoEm = 1_757_000_000_000),
         )
-        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(), rosters, PendentesFalsos())
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(), rosters)
 
         sessao.sair()
 
@@ -841,7 +813,7 @@ class DeviceSessionTest {
     @Test
     fun a_escolha_do_usuario_anterior_nao_e_herdada_pelo_seguinte() {
         val guardada = Guardada()
-        val anterior = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val anterior = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         anterior.aoEntrar(ResultadoDaEntrada.Autenticado)
         anterior.aoConsultarOrganizacoes(
             ResultadoDasOrganizacoes.Chegaram(listOf(escola, pessoal)),
@@ -854,7 +826,7 @@ class DeviceSessionTest {
             "o segundo usuario herdaria a organizacao do primeiro",
         )
 
-        val seguinte = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val seguinte = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         seguinte.aoEntrar(ResultadoDaEntrada.Autenticado)
         seguinte.aoConsultarOrganizacoes(
             ResultadoDasOrganizacoes.Chegaram(listOf(escola, pessoal)),
@@ -870,7 +842,7 @@ class DeviceSessionTest {
 
     @Test
     fun retorno_da_mesma_chamada_nao_sobrescreve_a_sessao_ja_expirada() {
-        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(Guardada(), PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
 
         // O interceptador acusa o 401 durante a chamada.
@@ -889,7 +861,7 @@ class DeviceSessionTest {
     @Test
     fun consulta_que_responde_depois_de_sair_nao_ressuscita_a_tela_de_trabalho() {
         val guardada = Guardada()
-        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos())
+        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos())
         sessao.abrir(temSessaoGuardada = true)
         sessao.aoConsultarOrganizacoes(
             ResultadoDasOrganizacoes.Chegaram(listOf(Organizacao("org-1", "Escola"))),
@@ -908,118 +880,67 @@ class DeviceSessionTest {
         )
     }
 
-    // --- O pendente do outbox: preservado nos dois caminhos de apagamento ---
+    // --- O pendente do outbox: agora fora do alcance desta classe ---
 
     /**
-     * Sair apaga a referencia e **preserva** o trabalho.
+     * `DeviceSession` **nao conhece o outbox**, e e isso que esta afirmado aqui.
      *
-     * As duas metades sao conferidas na **mesma execucao**, e isso nao e zelo: uma assercao que so
-     * olhasse o pendente nao distinguiria "preservou o pendente" de "nao apagou nada", e passaria
-     * numa `sair()` quebrada que tivesse deixado tambem o roster para tras.
+     * A versao anterior destes testes montava um `PendentesFalsos`, chamava `sair`, e conferia que a
+     * fila continuava cheia. Aquilo deixou de medir alguma coisa no momento em que a guarda saiu do
+     * construtor: hoje a assercao passaria com qualquer implementacao, porque nao ha caminho daqui
+     * ate a fila. **Teste que nao pode falhar nao e teste**, e mante-lo verde seria pior do que nao
+     * ter — ele daria a impressao de cobrir o que a conferencia em aparelho encontrou quebrado.
      *
-     * A razao de a regra ser esta esta no `design.md`, decisao 6: roster, pacote e visao sao copia
-     * de referencia puxada do servidor — o original esta la, e a copia se refaz na entrada seguinte.
-     * O pendente so existe aqui ate subir; apaga-lo ao sair nao elimina uma copia, destroi o unico
-     * exemplar de um trabalho ja feito.
+     * Quem afirma a preservacao agora e `ApagamentoLocalInstrumentedTest`, com as guardas de verdade
+     * e o SQLite de verdade, e a mutacao que apaga o pendente continua derrubando aquele.
+     *
+     * O que sobrou para esta classe e o que ela de fato faz: repetir no estado o numero que recebeu.
      */
     @Test
-    fun sair_preserva_o_resultado_pendente_e_apaga_o_resto() {
-        val rosters = RostersFalsos()
-        rosters.guardar(
-            escola.id,
-            prova.shortId,
-            RosterDaProva(listOf(AlunoDoRoster("tok-a", "Ana")), puxadoEm = 1_757_000_000_000),
-        )
-        val pendentes = PendentesFalsos(escola.id to "cap-1", escola.id to "cap-2")
+    fun sair_leva_para_a_entrada_o_numero_de_pendentes_que_recebeu() {
         val sessao = DeviceSession(
-            Guardada(escola.id), PacotesFalsos(), VisoesFalsas(), rosters, pendentes,
+            Guardada(escola.id), PacotesFalsos(), VisoesFalsas(), RostersFalsos(),
         )
 
-        sessao.sair()
-
-        assertEquals(
-            2,
-            pendentes.quantosPendentes(escola.id),
-            "sair apagou correcao que ainda nao subiu",
-        )
-        assertNull(
-            rosters.ler(escola.id, prova.shortId),
-            "o roster precisa continuar sendo apagado: a metade de referencia nao muda",
-        )
-    }
-
-    @Test
-    fun sair_diz_quantas_correcoes_nao_subiram() {
-        val pendentes = PendentesFalsos(escola.id to "cap-1", escola.id to "cap-2")
-        val sessao = DeviceSession(
-            Guardada(escola.id), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), pendentes,
-        )
-
-        sessao.sair()
+        sessao.sair(pendentes = 2)
 
         val estado = sessao.state as DeviceState.Entrada
         assertEquals(MotivoDeEntrada.SAIU, estado.motivo)
-        assertEquals(2, estado.pendentes, "quem sai precisa saber quanto trabalho ficou por enviar")
+        assertEquals(2, estado.pendentes)
     }
 
     @Test
     fun sair_sem_nada_pendente_nao_inventa_aviso() {
         val sessao = DeviceSession(
-            Guardada(escola.id), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), PendentesFalsos(),
+            Guardada(escola.id), PacotesFalsos(), VisoesFalsas(), RostersFalsos(),
         )
 
-        sessao.sair()
+        sessao.sair(pendentes = 0)
 
         assertEquals(0, (sessao.state as DeviceState.Entrada).pendentes)
     }
 
-    /** O pendente de outra organizacao nao entra na conta de quem saiu desta. */
-    @Test
-    fun sair_conta_so_os_pendentes_da_organizacao_ativa() {
-        val pendentes = PendentesFalsos(escola.id to "cap-1", pessoal.id to "cap-de-outra")
-        val sessao = DeviceSession(
-            Guardada(escola.id), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), pendentes,
-        )
-
-        sessao.sair()
-
-        assertEquals(1, (sessao.state as DeviceState.Entrada).pendentes)
-    }
-
     /**
-     * A revogacao apaga a referencia e **preserva** o trabalho, sem o usuario sair.
+     * Sair continua apagando o dado de referencia — a metade que **nao** mudou.
      *
-     * Conjunto disjunto do teste de `sair` de proposito: se uma mutacao derrubasse os dois, sair e
-     * revogar seriam o mesmo codigo, e nenhum dos dois caminhos estaria provado separadamente.
-     *
-     * O usuario revogado nao consegue mais enviar este pendente — a rota recusa —, e nao e ele quem
-     * vai envia-lo: e o proximo membro da organizacao que abrir sessao neste aparelho.
+     * Separado do teste do numero de proposito: uma mutacao que tirasse o roster da lista de
+     * apagamento tem de derrubar este, e nao aquele.
      */
     @Test
-    fun revogacao_preserva_o_resultado_pendente_e_apaga_a_referencia() {
-        val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
+    fun sair_continua_apagando_a_referencia() {
         val rosters = RostersFalsos()
         rosters.guardar(
             escola.id,
             prova.shortId,
             RosterDaProva(listOf(AlunoDoRoster("tok-a", "Ana")), puxadoEm = 1_757_000_000_000),
         )
-        val pendentes = PendentesFalsos(escola.id to "cap-1")
         val sessao = DeviceSession(
-            Guardada(escola.id), PacotesFalsos(), VisoesFalsas(visao), rosters, pendentes,
+            Guardada(escola.id), PacotesFalsos(), VisoesFalsas(), rosters,
         )
-        sessao.abrir(temSessaoGuardada = true)
 
-        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(pessoal)))
+        sessao.sair(pendentes = 1)
 
-        assertEquals(
-            1,
-            pendentes.quantosPendentes(escola.id),
-            "a revogacao apagou correcao que ainda nao subiu",
-        )
-        assertNull(
-            rosters.ler(escola.id, prova.shortId),
-            "a referencia precisa continuar sendo apagada na revogacao",
-        )
+        assertEquals(listOf(escola.id), rosters.apagadas)
+        assertNull(rosters.ler(escola.id, prova.shortId))
     }
 }

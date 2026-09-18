@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.platos.android.BuildConfig
 import com.platos.android.api.ApiPlatos
+import com.platos.android.net.Retorno
 import com.platos.android.net.clienteHttp
 import com.platos.android.session.SessaoGuardadaAndroid
 
@@ -43,7 +44,7 @@ class EnvioDeResultadosWorker(
         // Sem credencial nao ha o que tentar, e **nao e falha**: e o aparelho depois de sair. O
         // pendente fica onde esta, e sobe quando um membro da organizacao entrar — que e o que a
         // decisao 6 do `design.md` fixa, e o motivo de este `return` nao apagar nada.
-        if (guardada.credencial() == null) return Result.success()
+        if (guardada.credencial() == null) return Result.success(diagnostico("sem-credencial"))
 
         val http = clienteHttp()
         // `aoExpirarSessao` vazio, e nao uma volta a tela de entrada: nao ha tela aqui. Sessao
@@ -57,8 +58,14 @@ class EnvioDeResultadosWorker(
             aoExpirarSessao = {},
         )
         val pendentes = ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes())
+        // O ultimo status recusado, so para o diagnostico. Sem isto, "rodou e nao drenou" nao
+        // distingue credencial ausente de 401, de 404 e de 502 — e foi exatamente essa
+        // indistinguibilidade que travou a conferencia em aparelho.
+        var ultimoStatus = 0
         val envio = EnvioDeResultados(pendentes) { envelope ->
-            api.enviarResultado(envelope.organizacao, envelope.prova, envelope.corpo)
+            val retorno = api.enviarResultado(envelope.organizacao, envelope.prova, envelope.corpo)
+            if (retorno is Retorno.Recusou) ultimoStatus = retorno.status
+            retorno
         }
 
         val resumo = try {
@@ -68,9 +75,17 @@ class EnvioDeResultadosWorker(
         }
 
         // `retry` so pelo que a rede explica. Recusa do servidor nao melhora tentando de novo em
-        // seguida: ela sobe na proxima vez que houver trabalho agendado, ou quando outro membro da
-        // organizacao entrar. Repetir agora seria laco quente contra um servidor que ja disse nao.
-        return if (resumo.semRede > 0) Result.retry() else Result.success()
+        // seguida: ela sobe quando houver trabalho agendado de novo — ao escanear outra folha, ou ao
+        // abrir sessao, que e o caminho que `SessaoActivity.escoarPendentes` criou. Repetir aqui
+        // seria laco quente contra um servidor que ja disse nao.
+        val saida = diagnostico(
+            desfecho = if (resumo.confirmados > 0) "enviou" else "nada-confirmado",
+            confirmados = resumo.confirmados,
+            semRede = resumo.semRede,
+            recusados = resumo.recusados,
+            ultimoStatus = ultimoStatus,
+        )
+        return if (resumo.semRede > 0) Result.retry() else Result.success(saida)
     }
 
     companion object {
@@ -90,3 +105,25 @@ class EnvioDeResultadosWorker(
         }
     }
 }
+
+/**
+ * O resumo da passada, gravado no `output` do trabalho.
+ *
+ * **Existe porque "rodou e devolveu sucesso" nao diz nada.** Na conferencia em aparelho o `WorkSpec`
+ * marcava `SUCCEEDED` com a fila intacta, e os dois caminhos que produzem isso — credencial ausente e
+ * recusa do servidor — eram indistinguiveis de fora. `output` e lido por `adb` sem depender de
+ * logcat, que ja tinha sido limpo quando a pergunta apareceu.
+ */
+private fun diagnostico(
+    desfecho: String,
+    confirmados: Int = 0,
+    semRede: Int = 0,
+    recusados: Int = 0,
+    ultimoStatus: Int = 0,
+): Data = Data.Builder()
+    .putString("desfecho", desfecho)
+    .putInt("confirmados", confirmados)
+    .putInt("sem_rede", semRede)
+    .putInt("recusados", recusados)
+    .putInt("ultimo_status", ultimoStatus)
+    .build()
