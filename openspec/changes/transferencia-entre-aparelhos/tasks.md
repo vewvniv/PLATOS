@@ -4,18 +4,18 @@ A ordem é a regra 1 do `CLAUDE.md` e a decisão de `design.md` — *Migration P
 comportamento entra antes da guarda, para que a guarda possa ser vista falhar contra o estado
 anterior.
 
-- [ ] 1.1 Criar `apps/android/src/main/res/xml/regras-de-extracao-de-dados.xml` com as seções
+- [x] 1.1 Criar `apps/android/src/main/res/xml/regras_de_extracao_de_dados.xml` com as seções
       `<cloud-backup>` e `<device-transfer>`, cada uma excluindo os domínios `file`, `database` e
       `sharedpref` por inteiro (`path="."`), conforme `design.md` decisões 1 e 2. Verificar com
       `./gradlew :apps:android:assembleDebug` — o recurso inválido falha o `processDebugResources`,
       então o build verde é a afirmação de que o XML é válido para o `aapt2`.
-- [ ] 1.2 Acrescentar `android:dataExtractionRules="@xml/regras-de-extracao-de-dados"` ao `<application>`
+- [x] 1.2 Acrescentar `android:dataExtractionRules="@xml/regras_de_extracao_de_dados"` ao `<application>`
       do `apps/android/src/main/AndroidManifest.xml`, **mantendo** `android:allowBackup="false"`.
       Verificar lendo os manifestos mesclados das duas variantes
       (`build/intermediates/merged_manifest/{debug,release}/…/AndroidManifest.xml`): os dois SHALL
       trazer o atributo novo e continuar com `allowBackup="false"`, como em §1 de
       `docs/cobertura-transferencia-entre-aparelhos.md`.
-- [ ] 1.3 Atualizar o comentário do `<application>` que hoje justifica só o `allowBackup`, dizendo
+- [x] 1.3 Atualizar o comentário do `<application>` que hoje justifica só o `allowBackup`, dizendo
       que são **dois** caminhos de cópia automática e que o atributo antigo deixou de alcançar o
       segundo. Citar a medição por caminho de arquivo. Verificar por leitura: o comentário não deve
       afirmar nada que a medição não tenha produzido (P6).
