@@ -154,6 +154,31 @@ Mexer em `buildSrc` invalida a configuração do Gradle, que é a condição em 
 vezes em 7. Os builds desta sessão passaram. **Isso é amostra, não prova**: 0 de 4 num dia já havia
 contrariado a previsão antes, e verde sobre um alvo intermitente é o sinal mais fraco que existe.
 
+**E a amostra do outro lado apareceu, no fim da mesma sessão.** Ao replayar a branch
+`envio-distingue-recusa-transitoria` com `git rebase --force-rebase --exec './gradlew build'`, o
+**primeiro** commit ficou vermelho com a mensagem literal:
+
+```
+java.sql.SQLException: No suitable driver found for jdbc:postgresql://localhost:64256/test?loggerLevel=OFF
+```
+
+É a primeira reprodução **espontânea** registrada — todas as anteriores desta sessão foram provocadas.
+Três coisas que ela diz, e uma que ela não diz:
+
+- **Não é regressão daquele commit.** Ele toca dois arquivos, ambos em `apps/android`, e não há
+  caminho por onde alcancem o codegen. É o procedimento de P15 aplicado: ler o log e o histórico antes
+  de chamar vermelho de regressão.
+- **A retentativa no mesmo commit passou**, com o classloader quente — o mesmo padrão dos 2 de 7.
+- **Aconteceu num build após reconfiguração:** a rebase levou o `buildSrc` de volta à versão de `main`,
+  invalidando a configuração. A correlação que a fatia anterior tinha enfraquecido ganha um ponto —
+  **e continua sendo correlação**, agora de 3 ocorrências em ~12 execuções ao longo de dois dias.
+- **O que ela não diz é a causa.** Nada aqui mediu por que o driver não estava registrado naquela
+  execução, e §5.1 continua valendo inteira.
+
+**A consequência prática é de ordem de merge, e não de código:** enquanto esta mudança não entrar,
+`main` fica intermitentemente vermelho por este defeito, e qualquer PR aberta contra ele pode herdar um
+vermelho que parece regressão sem ser. Esta branch entra antes da outra.
+
 ### 5.3 O comando cheio não cobre `buildSrc`, e agora há um segundo comando
 
 `./gradlew build` não alcança `:buildSrc:test` — medido em §1. A guarda depende de um passo próprio no
