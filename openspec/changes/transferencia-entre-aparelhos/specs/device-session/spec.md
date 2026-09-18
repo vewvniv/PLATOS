@@ -27,10 +27,15 @@ conhece é um caminho pelo qual o direito de eliminação deixa de alcançar, e 
 que ainda não existe em nenhum outro lugar**, e uma cópia dele é uma nota de aluno fora de qualquer
 fronteira de organização.
 
-A regra SHALL ser **negação por domínio de armazenamento**, e SHALL cobrir os três domínios em que
-esses dados vivem — arquivos, bancos e preferências. Negar só o domínio de arquivos deixaria a fila
-de pendentes passando, porque ela não é arquivo comum: é banco, e mora noutra árvore. A distinção não
-é detalhe de implementação, é onde a regra falha em silêncio se for escrita pela metade.
+A regra SHALL ser **negação por domínio de armazenamento**, e SHALL cobrir **todo** o diretório de
+dados do aplicativo: os domínios de arquivos, bancos e preferências, onde vivem os dados nomeados
+acima, **e a raiz do diretório de dados**, onde nasce tudo o que ainda não tem domínio próprio.
+
+Negar só o domínio de arquivos deixaria a fila de pendentes passando, porque ela não é arquivo
+comum: é banco, e mora noutra árvore. E negar apenas os três domínios dos dados nomeados deixaria
+passar qualquer diretório que o aplicativo crie direto na raiz — o que **foi medido acontecendo**, com
+os três já negados. A distinção não é detalhe de implementação: é onde a regra falha em silêncio se
+for escrita pela metade, e a primeira tentativa falhou exatamente assim.
 
 #### Scenario: A credencial não está em claro
 - **WHEN** a sessão é guardada e o armazenamento do aplicativo é lido diretamente
@@ -46,8 +51,8 @@ de pendentes passando, porque ela não é arquivo comum: é banco, e mora noutra
 - **THEN** o aplicativo é recusado pela transferência, ou o conteúdo transferido NÃO contém o roster,
   nem a fila de pendentes, nem a credencial
 
-#### Scenario: A recusa vale para as três árvores de armazenamento
+#### Scenario: A recusa vale para todo o diretório de dados
 - **WHEN** a transferência entre aparelhos é executada com dado do aplicativo em arquivos, em banco
-  local e em preferências ao mesmo tempo
-- **THEN** nenhuma das três árvores é incluída, e a ausência de uma delas NÃO é suficiente para dar a
-  regra por cumprida
+  local, em preferências e num diretório criado direto na raiz do diretório de dados
+- **THEN** nenhuma das quatro árvores é incluída, e a ausência de uma delas NÃO é suficiente para dar
+  a regra por cumprida

@@ -1,5 +1,9 @@
 # Cobertura — ETAPA 2, a medição do achado 4.3
 
+> Este documento tem **duas partes**. A **Parte I** é a medição que decidiu abrir a mudança, de
+> 2026-09-18 pela manhã. A **Parte II**, no fim, é a medição repetida **depois** da correção. A
+> Parte I não se apaga (P7): ela é o estado que a Parte II corrigiu.
+
 **Veículo:** medição primeiro. **Resultado: o risco se confirma.**
 **Plano:** `docs/plano-de-correcao-antes-da-fatia-5.md`, ETAPA 2 · **Achado:** 4.3 da `docs/auditoria-2026-09-18-antes-da-fatia-5.md`
 **Data:** 2026-09-18, janela `15:10Z`–`15:19Z` · **Ambiente autorizado pelo mantenedor (P22)**
@@ -300,3 +304,208 @@ A mudança **fecha com esta medição repetida no aparelho, depois dela** — e 
 o que já está fixado aqui, antes de a correção existir (ADR-0007): sob o transporte
 `D2dTransport`, o veredito para `com.platos.android` passa de `Success` a `Backup is not allowed`,
 ou o fluxo deixa de conter as entradas `f/rosters/…`, `db/outbox.db` e `sp/platos-sessao-cifrada.xml`.
+
+---
+
+# Parte II — A medição repetida, depois da correção
+
+**Data:** 2026-09-18, janela `18:24Z`–`18:40Z` · **Mudança:** `transferencia-entre-aparelhos`
+**Aparelho e instrumento:** os mesmos da Parte I (§1). **Ambiente autorizado pelo mantenedor (P22).**
+
+A Parte I fica inteira, e nada nela se apaga (P7): ela é o estado que esta parte corrigiu.
+
+---
+
+## 9. O critério, recopiado antes do resultado
+
+De §8, escrito **antes** de a correção existir (ADR-0007), e **não** alterado:
+
+> Sob o transporte `D2dTransport`, o veredito para `com.platos.android` passa de `Success` a
+> `Backup is not allowed`, **ou** o fluxo deixa de conter as entradas `f/rosters/…`, `db/outbox.db`
+> e `sp/platos-sessao-cifrada.xml`.
+
+**Ocorreu o segundo ramo, e o veredito literal é um terceiro texto que nenhum dos dois previa.**
+Isso fica dito em vez de arredondado (P12, P14): a previsão nomeava dois desfechos possíveis para o
+veredito, e o real foi `Transport rejected package because it wasn't able to process it at the time`.
+O critério **não** foi escrito sobre o veredito — foi escrito sobre o fluxo, e o fluxo é inequívoco.
+A disjunção da decisão 5 do `design.md` existia exatamente para este caso, e foi ela que impediu a
+tentação de reescrever o critério depois de ver o resultado.
+
+---
+
+## 10. A medição, em duas passadas — e a primeira não fechou
+
+### 10.1 Primeira passada: três domínios negados
+
+`18:34:34Z`, com `file`, `database` e `sharedpref` negados nas duas seções.
+
+```
+Package com.platos.android with progress: 2048/512
+Package com.platos.android with result: Success
+```
+
+**512 medidos**, contra **17 920** da Parte I. O roster, o `outbox.db`, a credencial e os quatro PDFs
+que a suíte instrumentada deixou **sumiram do fluxo** — o agente já nem os media. Mas o fluxo não
+ficou vazio:
+
+```
+I/file_backup_helper: Name: apps/com.platos.android/_manifest
+I/file_backup_helper: Name: apps/com.platos.android/r/app_dxmaker_cache
+```
+
+**O prefixo `r/` é o domínio `root`, e ele não estava negado.** `app_dxmaker_cache` é um diretório
+vazio criado pelo `dexmaker`, e só existe porque a suíte instrumentada roda — o achado não é sobre
+ele. É sobre o que ele demonstra: **qualquer diretório criado por `getDir()`, que é API pública,
+nasce fora de uma regra que cite apenas `file`, `database` e `sharedpref`.**
+
+**Isto refutou uma justificativa que eu havia escrito.** A decisão 1 do `design.md` considerou
+`<exclude domain="root" path="." />` e a **rejeitou** por legibilidade, argumentando que as três
+linhas "nomeiam as três árvores que a medição encontrou". O argumento estava errado, e a medição é
+que o mostrou: `root` não é um domínio a mais na lista — é o que contém tudo o que ainda não tem
+domínio próprio. O texto da decisão 1 não se apaga; ganha a correção ao lado.
+
+### 10.2 Segunda passada: `root` acrescentado aos outros três
+
+`18:37:04Z`, com `root`, `file`, `database` e `sharedpref` negados nas duas seções.
+
+```
+Package com.platos.android with result: Transport rejected package because it wasn't able to
+                                        process it at the time
+Backup finished with result: Success
+```
+
+E o transporte diz, por palavras dele, o que aconteceu:
+
+```
+I/Backup [D2dTransport]: Package com.platos.android doesn't have any backup data.
+I/Backup [D2dTransport]: Canceling full backup of com.platos.android
+I/Backup [D2dTransport]: Deleting partial backup data file: com.platos.android due to error: 5
+W/PFTBT: Error -1002 backing up com.platos.android
+I/PFTBT: Transport rejected backup of com.platos.android, skipping
+```
+
+**Entradas escritas no fluxo: nenhuma.** A busca por `file_backup_helper … Name:` no `logcat` da
+passada devolve **zero** ocorrências. O que o agente mediu resume-se a diretórios vazios de
+`/data/user_de/0/` e ao externo:
+
+```
+measured [/data/user_de/0/com.platos.android/files]        at 0
+measured [/data/user_de/0/com.platos.android/databases]    at 0
+measured [/data/user_de/0/com.platos.android/shared_prefs] at 0
+measured [/storage/emulated/0/Android/data/com.platos.android/files] at 0
+```
+
+### 10.3 A guarda contra o verde vazio
+
+"Não havia dado a copiar" tem **duas** causas possíveis, e só uma delas é a regra. A outra é o disco
+estar vazio — e aí a medição não provaria nada. Conferido **depois** da passada:
+
+```
+$ run-as com.platos.android find files databases shared_prefs -type f
+files/android-teste.pdf      files/sem-formula.pdf      files/nao-deve-existir.pdf
+files/android.pdf            files/profileInstalled
+files/rosters/11111111-1111-4111-8111-111111111111/MEDICAO42.json
+databases/outbox.db
+shared_prefs/platos-sessao-cifrada.xml   shared_prefs/platos-sessao.xml
+
+$ run-as com.platos.android sha256sum …
+c41f39b5…5f3297d  …/MEDICAO42.json     ← idêntico ao da Parte I §1
+6c33fd05…566ff96  …/outbox.db          ← idêntico ao da Parte I §1
+
+$ run-as com.platos.android cat …/MEDICAO42.json
+{"puxado_em": 1758200000000, "alunos": [{"token": "MEDICAO-TOKEN-0001", "nome": "MEDICAO-4.3 ALUNO UM"}, …]}
+```
+
+**Nove arquivos no aparelho, os dois `sha256` idênticos aos da Parte I, e o roster ainda legível com
+nome de aluno — e o transporte de transferência diz que não há dado nenhum.** É a regra que esvaziou
+o fluxo, e não o disco.
+
+### 10.4 Os outros três transportes, para saber que nada mais mudou
+
+| Transporte | Antes (Parte I) | Depois |
+|---|---|---|
+| `…gms/.backup.BackupTransportService` | `Backup is not allowed` | `Backup is not allowed` |
+| `…localtransport/.LocalTransport` | `Backup is not allowed` | `Backup is not allowed` |
+| `…apps.restore/.transport.BackupTransportService` | `Backup is not allowed` | `Backup is not allowed` |
+| **`…migrate.service.D2dTransport`** | **`Success`, 19 968 bytes, 3 entradas** | **rejeitado, sem dado, 0 entradas** |
+
+---
+
+## 11. A guarda barata, e como ela foi vista falhar
+
+`RegrasDeExtracaoInstrumentedTest`, quatro cenários, lendo o `AndroidManifest.xml` **de dentro do
+APK instalado** pelo `AssetManager` — e não `src/main/res/`. A razão está na decisão 4 do
+`design.md`: a classe de falha desta mudança é "a intenção está no arquivo e não alcança o sistema".
+
+**Mutação 1 — remover `android:dataExtractionRules` do manifesto.** Previsto **4**, real **4**:
+
+| Cenário | Como caiu |
+|---|---|
+| `o_aplicativo_instalado_declara_regras_de_extracao` | `AssertionError … Actual: 0` |
+| `a_transferencia_entre_aparelhos_nega_os_quatro_dominios` | `Resources$NotFoundException: Resource ID #0x0` |
+| `o_backup_em_nuvem_nega_os_mesmos_quatro` | idem |
+| `a_exclusao_cobre_a_raiz_de_cada_dominio` | idem |
+
+**O conjunto bateu, e isso não bastava.** Os quatro caem por **uma** causa — não há recurso a
+resolver —, o que não prova que os cenários de domínio medem domínios. Um teste que só verificasse a
+existência do atributo passaria por todos os quatro.
+
+**Mutação 2 — remover só `<exclude domain="database">`, e só da seção `<device-transfer>`.**
+Previsto **1**, real **1**:
+
+```
+a_transferencia_entre_aparelhos_nega_os_quatro_dominios
+  expected:<[root, file, database, sharedpref]> but was:<[root, file, sharedpref]>
+```
+
+Os outros três ficaram verdes — inclusive `o_backup_em_nuvem_nega_os_mesmos_quatro`, que lê a outra
+seção do mesmo arquivo. **Os cenários são disjuntos e as duas seções são medidas em separado.**
+
+**Duas coisas deram errado no caminho, e ficam ditas.** A primeira forma da mutação 1 não entrou: um
+comentário dentro da tag `<application>` é XML inválido, e o build falhou em vez do teste. E a
+verificação de que a mutação entrou **também** falhou, por frouxidão minha — o `grep` casou com a
+prosa do comentário da tarefa 1.3 em vez do atributo. Corrigido para
+`android:dataExtractionRules\s*=`, e só então a ausência foi confirmada no manifesto mesclado. É o
+mesmo defeito que a fatia do outbox registrou em §5.1 — *"a mutação passou a entrar com verificação
+de que entrou"* —, com a lição a mais de que **a verificação também precisa ser conferida**.
+
+**Reversão rodada (P10):** `MUTACAO` em `0` fora de prosa, árvore idêntica ao commit, e a suíte
+instrumentada **inteira** em `OK (78 tests)`, `18:32:42Z`–`18:33:00Z`.
+
+---
+
+## 12. O ambiente, devolvido
+
+| O que foi mexido | Início | Fim |
+|---|---|---|
+| `bmgr` | desabilitado | **desabilitado** |
+| Transporte ativo | `* …gms/.backup.BackupTransportService` | **o mesmo** |
+| `log.tag.*` de backup | padrão | devolvidos a `INFO` |
+| Semente (`rosters/`, `outbox.db`) | — | **removida** |
+| `/data/local/tmp/*` | — | **removido** |
+
+`com.platos.android` e `com.platos.android.test` continuam instalados, como na Parte I §6.
+
+**Uma parede de operação, e não de código:** o install por ADB foi recusado três vezes com
+`INSTALL_FAILED_USER_RESTRICTED: Install canceled by user` — o HyperOS pede confirmação no aparelho,
+e ele estava longe do mantenedor. Não é defeito desta base; fica registrado porque qualquer
+conferência futura em aparelho vai esbarrar nele.
+
+---
+
+## 13. O que **continua** sem verificação (P8)
+
+- **Os arquivos no aparelho de destino.** Inalterado desde a Parte I §5.1: `D2dTransport` é de mão
+  única, e com um aparelho o último elo não tem instrumento. O que esta parte mede é que **nada
+  entra** no fluxo — que é o que a mudança controla. Que o par não receba o que não foi enviado é
+  dedução, e está dita como dedução.
+- **Android 8 a 11.** `dataExtractionRules` só existe a partir da API 31 e o `minSdk` é 26. Nesses
+  sistemas este arquivo é ignorado, e o que acontece lá **não foi medido**. Vai para a tabela de
+  ponto de não-retorno do §16.
+- **Android 12 a 15.** Aberto desde a Parte I §7, e continua: a medição é de Android 16.
+- **A variante `release`.** Medido o `debug`, que é o que `run-as` permite inspecionar. A
+  equivalência vem dos manifestos mesclados — argumento sobre a entrada do build, não observação da
+  saída.
+- **`getDir()` e o domínio `root` em produção.** O que foi visto atravessando era um diretório de
+  teste vazio. A regra agora nega o domínio inteiro, então o caso está coberto **por construção** —
+  mas nenhum diretório de produção sob `root` foi exercitado, porque não existe nenhum hoje.

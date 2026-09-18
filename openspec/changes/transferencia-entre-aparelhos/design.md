@@ -53,11 +53,13 @@ em `docs/cobertura-transferencia-entre-aparelhos.md` §8, e não se mexe nele de
 ```xml
 <data-extraction-rules>
     <cloud-backup>
+        <exclude domain="root"       path="." />   <!-- acrescentado pela medicao; ver a correcao abaixo -->
         <exclude domain="file"       path="." />
         <exclude domain="database"   path="." />
         <exclude domain="sharedpref" path="." />
     </cloud-backup>
     <device-transfer>
+        <exclude domain="root"       path="." />
         <exclude domain="file"       path="." />
         <exclude domain="database"   path="." />
         <exclude domain="sharedpref" path="." />
@@ -86,6 +88,23 @@ fronteira de organização.
 **nomeiam as três árvores que a medição encontrou**, e quem reler o arquivo depois de uma medição
 futura consegue emparelhar linha com achado. `root` esconderia essa correspondência.
 
+> **Correção de 2026-09-18, e quem a produziu foi a medição — não um argumento melhor.** O parágrafo
+> acima fica (P7), e estava **errado**. A primeira passada da tarefa 4.3, com os três domínios
+> negados, mostrou o fluxo ainda carregando `apps/com.platos.android/**r**/app_dxmaker_cache` — e
+> `r/` é o domínio `root`. O erro do argumento é de categoria: `root` **não é um domínio a mais na
+> lista**, é o próprio `/data/data/<pacote>/`, onde cai tudo o que ainda não tem domínio próprio —
+> qualquer diretório criado por `getDir()`, que é API pública.
+>
+> **O conserto não é trocar, é somar.** `root` entra nas duas seções **junto** com os três, e a
+> legibilidade que o parágrafo acima defende fica intacta: as três linhas continuam dizendo o que foi
+> visto atravessando, e `root` diz o que sobra. Com os quatro, a segunda passada deixou o fluxo
+> **sem entrada nenhuma**, e o transporte cancelou o pacote por não haver dado
+> (`docs/cobertura-transferencia-entre-aparelhos.md` §10.2).
+>
+> A lição é a da própria ETAPA 2: *"Concluir por leitura de documentação"* estava proibido para o
+> achado, e a mesma proibição valia para o **conserto** dele. A escolha entre `root` e os três nomes
+> foi decidida por argumento de legibilidade e desfeita por medição de uma passada.
+
 ### 2. Escrever as regras **nas duas seções**, e não só em `<device-transfer>`
 
 `allowBackup="false"` já barra a nuvem — medido em três transportes. Ainda assim a seção
@@ -113,6 +132,13 @@ e não afirmação fechada.
 
 Teste instrumentado que lê `context.applicationInfo.dataExtractionRulesRes` e, se ele existir, percorre
 o XML de recurso afirmando as exclusões dos três domínios em `<device-transfer>`.
+
+> **Correção de 2026-09-18.** `ApplicationInfo.dataExtractionRulesRes` **não é SDK público** e não
+> compila. O teste abre o `AndroidManifest.xml` de dentro do APK instalado pelo `AssetManager`, tira
+> dali o identificador de recurso e percorre o recurso empacotado. O raciocínio abaixo não muda — e
+> o caminho novo é **mais forte**: afirma também que o atributo sobreviveu à mesclagem de manifestos
+> e ao `aapt2`, e não só que o sistema o carregou. São **quatro** domínios, e não três, pela correção
+> da decisão 1.
 
 **Por quê.** A classe de falha que a auditoria encontrou é exatamente "a intenção está no arquivo e
 não alcança o sistema". Um teste que leia `apps/android/src/main/res/xml/…` do disco afirma o que eu

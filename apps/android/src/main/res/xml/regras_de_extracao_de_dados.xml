@@ -21,9 +21,22 @@
   de uma regra escrita por nome, e nada falharia. Aqui, o que quiser atravessar precisa ser
   declarado, e declarar e visivel em revisao.
 
-  **Tres dominios, e nao um.** Os tres arquivos medidos vivem em tres arvores diferentes do
-  diretorio de dados: `files/`, `databases/` e `shared_prefs/`. Negar so `file` deixaria a fila de
-  pendentes passando, porque ela nao e arquivo comum — e banco, e mora noutra arvore.
+  **Quatro dominios, e o quarto entrou por medicao.** Os tres arquivos do achado 4.3 vivem em tres
+  arvores diferentes do diretorio de dados: `files/`, `databases/` e `shared_prefs/`. Negar so
+  `file` deixaria a fila de pendentes passando, porque ela nao e arquivo comum — e banco, e mora
+  noutra arvore.
+
+  `root` **nao estava previsto**. A primeira versao deste arquivo negava so aqueles tres, e a
+  medicao repetida mostrou o fluxo ainda carregando `r/app_dxmaker_cache` — o prefixo `r/` e o
+  dominio `root`, que e o proprio `/data/data/<pacote>/`. Aquele diretorio e vazio e so existe
+  porque a suite instrumentada roda, mas o que ele demonstra nao e sobre ele: **qualquer diretorio
+  criado por `getDir()`, que e API publica, nasce fora de uma regra que so cite `file`, `database` e
+  `sharedpref`**. A fatia 5 acrescenta caminho de captura ao aparelho, e e exatamente a forma pela
+  qual esta regra voltaria a falhar pela metade.
+
+  As tres linhas medidas ficam junto do `root`, e nao sao redundancia inutil: elas dizem **o que foi
+  encontrado atravessando**, e essa correspondencia entre linha e achado se perde se o arquivo tiver
+  so `root`.
 
   **As duas secoes trazem as mesmas exclusoes.** `allowBackup="false"` ja barra a nuvem, e a medicao
   confirmou isso em tres transportes. A secao `<cloud-backup>` entra mesmo assim porque um arquivo
@@ -36,12 +49,14 @@
 <data-extraction-rules>
 
     <cloud-backup>
+        <exclude domain="root" path="." />
         <exclude domain="file" path="." />
         <exclude domain="database" path="." />
         <exclude domain="sharedpref" path="." />
     </cloud-backup>
 
     <device-transfer>
+        <exclude domain="root" path="." />
         <exclude domain="file" path="." />
         <exclude domain="database" path="." />
         <exclude domain="sharedpref" path="." />

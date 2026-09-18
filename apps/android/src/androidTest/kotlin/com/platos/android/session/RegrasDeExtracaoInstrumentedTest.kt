@@ -34,18 +34,26 @@ import org.xmlpull.v1.XmlPullParser
  * e ela que fecha a mudanca. Este teste e a guarda barata que impede a regra de sumir sem que nada
  * fique vermelho entre uma medicao e a seguinte.
  *
- * **Os tres dominios sao afirmados um a um, e a ausencia de um nao passa.** Negar so `file`
+ * **Os quatro dominios sao afirmados um a um, e a ausencia de um nao passa.** Negar so `file`
  * deixaria a fila de pendentes atravessando, porque `outbox.db` nao e arquivo comum — e banco, e
- * mora noutra arvore do diretorio de dados. Foi o que a medicao encontrou, e e a forma pela qual
- * esta regra falharia pela metade sem sintoma.
+ * mora noutra arvore do diretorio de dados. E negar os tres do achado deixava `root` passando, o que
+ * a medicao repetida mostrou. Cada linha deste conjunto veio de uma coisa vista atravessar, e e a
+ * forma pela qual esta regra falharia pela metade sem sintoma.
  */
 @RunWith(AndroidJUnit4::class)
 class RegrasDeExtracaoInstrumentedTest {
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-    /** O que a mudanca nega. `sharedpref` entrou porque a medicao o encontrou no fluxo. */
-    private val dominiosNegados = setOf("file", "database", "sharedpref")
+    /**
+     * O que a mudanca nega. **Os quatro entraram por medicao, e nao por leitura da documentacao.**
+     *
+     * `sharedpref` porque a credencial cifrada aparecia no fluxo junto do roster e do banco. `root`
+     * porque, com os outros tres ja negados, a medicao repetida ainda mostrou `r/app_dxmaker_cache`
+     * atravessando — e `root` e o proprio `/data/data/<pacote>/`, onde cai tudo o que `getDir()`
+     * cria.
+     */
+    private val dominiosNegados = setOf("root", "file", "database", "sharedpref")
 
     @Test
     fun o_aplicativo_instalado_declara_regras_de_extracao() {
@@ -59,11 +67,11 @@ class RegrasDeExtracaoInstrumentedTest {
     }
 
     @Test
-    fun a_transferencia_entre_aparelhos_nega_os_tres_dominios() {
+    fun a_transferencia_entre_aparelhos_nega_os_quatro_dominios() {
         val negados = dominiosExcluidosEm("device-transfer")
 
         assertEquals(
-            "A transferencia entre aparelhos nao nega os tres dominios medidos. Faltando um, o " +
+            "A transferencia entre aparelhos nao nega os quatro dominios medidos. Faltando um, o " +
                 "dado que vive nele atravessa, e nada mais nesta suite percebe.",
             dominiosNegados,
             negados,
@@ -71,11 +79,12 @@ class RegrasDeExtracaoInstrumentedTest {
     }
 
     @Test
-    fun o_backup_em_nuvem_nega_os_mesmos_tres() {
+    fun o_backup_em_nuvem_nega_os_mesmos_quatro() {
         val negados = dominiosExcluidosEm("cloud-backup")
 
         assertEquals(
-            "As duas secoes devem dizer a mesma coisa. Uma `cloud-backup` sem exclusoes afirma " +
+            "As duas secoes devem dizer a mesma coisa, nos quatro dominios. Uma `cloud-backup` " +
+                "sem exclusoes afirma " +
                 "que a nuvem pode levar tudo, e contradiz o requisito — mesmo com " +
                 "`allowBackup=\"false\"` barrando o caminho hoje.",
             dominiosNegados,

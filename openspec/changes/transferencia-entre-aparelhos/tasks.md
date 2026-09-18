@@ -45,7 +45,7 @@ anterior.
 
 ## 3. A spec
 
-- [ ] 3.1 Conferir que `openspec/changes/transferencia-entre-aparelhos/specs/device-session/spec.md`
+- [x] 3.1 Conferir que `openspec/changes/transferencia-entre-aparelhos/specs/device-session/spec.md`
       descreve o comportamento que 1.1–2.3 entregaram, e corrigir a spec se a implementação tiver
       revelado algo que ela não previa — a spec descreve o sistema, não a intenção. Verificar com
       `openspec validate transferencia-entre-aparelhos --strict`.
@@ -56,33 +56,33 @@ Esta é a verificação da mudança, e não uma conferência a mais. **Ambiente:
 antes (P22).** O critério está fixado desde antes da correção existir (ADR-0007), em
 `docs/cobertura-transferencia-entre-aparelhos.md` §8, e **não se mexe nele**.
 
-- [ ] 4.1 Instalar o APK com a mudança e confirmar, por `adb shell dumpsys package com.platos.android`,
+- [x] 4.1 Instalar o APK com a mudança e confirmar, por `adb shell dumpsys package com.platos.android`,
       que o `PackageManager` derivou o atributo — e que `ALLOW_BACKUP` continua **ausente** de
       `pkgFlags`.
-- [ ] 4.2 Semear de novo `files/rosters/<org>/<prova>.json` e `databases/outbox.db` com os mesmos
+- [x] 4.2 Semear de novo `files/rosters/<org>/<prova>.json` e `databases/outbox.db` com os mesmos
       `sha256` de §1 da cobertura, e reabrir o aplicativo uma vez para que `shared_prefs/platos-sessao-cifrada.xml`
       volte a existir — os três ficheiros da medição original precisam estar lá, ou a medição não é a
       mesma.
-- [ ] 4.3 Repetir a medição com o mesmo instrumento: `bmgr` sob
+- [x] 4.3 Repetir a medição com o mesmo instrumento: `bmgr` sob
       `com.google.android.gms/.backup.migrate.service.D2dTransport`, com `logcat` capturando
       `file_backup_helper`. Registrar o veredito, o número de bytes e **as entradas do fluxo**.
       Aprovado se — e só se — o veredito passar a `Backup is not allowed` **ou** o fluxo deixar de
       conter `f/rosters/…`, `db/outbox.db` e `sp/platos-sessao-cifrada.xml`. Qual dos dois ocorreu
       fica escrito (`design.md` decisão 5).
-- [ ] 4.4 Repetir a passada sob os **outros três** transportes e confirmar que continuam em
+- [x] 4.4 Repetir a passada sob os **outros três** transportes e confirmar que continuam em
       `Backup is not allowed` — a mudança não pode ter alterado o que já estava certo, e é a única
       forma de saber que não alterou.
-- [ ] 4.5 Devolver o ambiente ao estado de origem — `bmgr` desabilitado, transporte de volta ao
+- [x] 4.5 Devolver o ambiente ao estado de origem — `bmgr` desabilitado, transporte de volta ao
       padrão, tags de log em `INFO`, semente e `/data/local/tmp` limpos — e registrar a tabela de
       antes/depois, como em §6 da cobertura.
 
 ## 5. O registro
 
-- [ ] 5.1 Acrescentar a §7 da medição repetida em `docs/cobertura-transferencia-entre-aparelhos.md`:
+- [x] 5.1 Acrescentar a §7 da medição repetida em `docs/cobertura-transferencia-entre-aparelhos.md`:
       instrumento, data, número, qual desfecho do critério ocorreu, e o conjunto de cenários que caiu
       em 2.2 ao lado do previsto. A redação de 2026-09-18 **não se apaga** (P7) — a medição nova é
       uma seção nova.
-- [ ] 5.2 Acrescentar à tabela de ponto de não-retorno do `ARQUITETURA-FINAL-v3.md` §16 a linha do
+- [x] 5.2 Acrescentar à tabela de ponto de não-retorno do `ARQUITETURA-FINAL-v3.md` §16 a linha do
       que **sobrou**: `dataExtractionRules` não existe abaixo da API 31 e o comportamento em
       Android 8–15 não foi medido, com fatia-limite "antes de qualquer piloto em modo `nominal` num
       aparelho abaixo de Android 16" e dono. Verificar que a linha traz as quatro colunas que a
