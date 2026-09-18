@@ -11,6 +11,18 @@
   de implementar e antes de fechar qualquer tarefa. Instrução que só pode ser cumprida quebrando
   este arquivo ou aquele é má instrução, e `rigorous.md` §7 diz o que fazer com ela.
 - Nunca recrie contexto já registrado nesses arquivos; leia a fonte relevante.
+- **Linha temporária, válida enquanto a banda de correção estiver aberta (desde 2026-09-18).**
+  `docs/plano-de-correcao-antes-da-fatia-5.md` é o percurso entre o archive da fatia 4 e o
+  `/opsx:propose` da fatia 5, e `docs/auditoria-2026-09-18-antes-da-fatia-5.md` é a entrada dele.
+  Leia o plano antes de começar qualquer trabalho neste período: ele diz qual etapa é a próxima, o
+  que é **proibido** em cada uma, e que nenhuma etapa começa antes de a anterior estar arquivada.
+  São oito sessões, e uma sessão que comece sem o plano na mão é a forma mais provável de ele ser
+  ignorado por esquecimento — este arquivo é o único carregado em **toda** sessão, e é por isso que
+  a linha está aqui e não em outro lugar.
+  **Esta linha sai no archive da última mudança da banda** — a lista está na seção "As mudanças,
+  com nome, spec e ordem" do plano, e a última da fila é a da ETAPA 8; se
+  `transferencia-entre-aparelhos` correr depois dela, é essa que apaga a linha. Deixá-la para
+  trás transforma um ponteiro útil em ruído permanente.
 
 ## Regras de execução
 
