@@ -22,18 +22,24 @@ anterior.
 
 ## 2. A guarda barata, vista falhar antes de passar
 
-- [ ] 2.1 Escrever `apps/android/src/androidTest/.../session/RegrasDeExtracaoInstrumentedTest.kt`,
+- [x] 2.1 Escrever `apps/android/src/androidTest/.../session/RegrasDeExtracaoInstrumentedTest.kt`,
       que lê `context.applicationInfo.dataExtractionRulesRes` do **aplicativo instalado** e percorre
       o XML de recurso afirmando as exclusões dos três domínios em `<device-transfer>`
       (`design.md` decisão 4). Verificar com
       `./gradlew :apps:android:connectedDebugAndroidTest --tests '*RegrasDeExtracao*'` — verde.
-- [ ] 2.2 **Ver falhar, com a mutação certa.** Remover `android:dataExtractionRules` do manifesto
+- [x] 2.2 **Ver falhar, com a mutação certa.** Remover `android:dataExtractionRules` do manifesto
       (e **não** o conteúdo do XML — apagar o arquivo faria falhar o build em vez do teste, o que
       mede o `aapt2` e não a guarda). Rodar a mesma suíte e registrar **quais cenários caem**. A
       previsão: cai o cenário que exige `dataExtractionRulesRes != 0`, e caem os três de domínio por
       não haver recurso a percorrer — **quatro**. Se o conjunto real for diferente, **parar** e
       escrever o real ao lado do previsto (regra 0.5 do plano, P7, P12, P14).
-- [ ] 2.3 Reverter a mutação e **rodar a reversão** (P10). Verificar com
+      **Real = previsto: 4.** Mas os quatro caem por **uma** causa — nao ha recurso a resolver —, o
+      que nao prova que os tres cenarios de dominio medem dominios. Acrescentada a **mutacao 2.2b**
+      por isso: remover so `<exclude domain="database">` da seccao `<device-transfer>`, deixando a
+      `<cloud-backup>` intacta. Previsto **1**, real **1**, com a mensagem certa
+      (`expected:<[file, database, sharedpref]> but was:<[file, sharedpref]>`). E o que mostra que
+      os cenarios sao disjuntos e que as duas seccoes sao medidas em separado.
+- [x] 2.3 Reverter a mutação e **rodar a reversão** (P10). Verificar com
       `grep -rn "MUTACAO" --exclude-dir=build .` em `0` fora de prosa e a suíte instrumentada verde
       depois da reversão, com `timestamp`.
 
