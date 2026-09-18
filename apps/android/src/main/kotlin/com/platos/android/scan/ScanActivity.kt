@@ -58,7 +58,14 @@ import org.opencv.android.OpenCVLoader
  * A conferencia do `exam_short_id` contra o payload do QR — a camada (c) — continua em
  * [ScanSession], e e a unica das tres que julga **de quem e a folha**, e nao os bytes.
  *
- * Nada e persistido: a nota e apresentada e some. Room e outbox sao da fatia 4b.
+ * **A nota e persistida antes de qualquer rede.** `onCreate` abre a fila do Room e [gravar] leva
+ * a apuracao para [gravarEAgendar], que grava o pendente fora do fio principal e so entao agenda
+ * o [EnvioDeResultadosWorker]. A tela mostra a nota; o que a sustenta e a linha gravada, nao ela.
+ *
+ * *Esta KDoc dizia "Nada e persistido: a nota e apresentada e some. Room e outbox sao da fatia
+ * 4b." Era verdade ate a fatia 4b, e foi esta fatia que a tornou falsa sem reescreve-la: a
+ * descricao da classe ficou para tras da propria mudanca que a alterou. Fica dito em vez de
+ * apagado (P7), porque quem lesse so a frase antiga concluiria que nao ha dado duravel aqui.*
  */
 class ScanActivity : ComponentActivity() {
 

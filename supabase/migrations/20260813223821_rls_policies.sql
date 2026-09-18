@@ -3,8 +3,22 @@
 -- apenas o permitido. Filtrar por organization_id em cada repositorio seria exatamente o erro que
 -- §3.2 chama de unico erro caro possivel aqui.
 --
--- Nenhuma politica abaixo referencia created_by_user_id ou user_id como chave de acesso: a
--- autorizacao vem sempre de membership sobre organization_id (§3.2, D39).
+-- Toda politica de tabela de dominio abaixo autoriza por membership sobre organization_id, e
+-- nenhuma delas referencia created_by_user_id (§3.2, D39).
+--
+-- Ha duas excecoes, e elas sao estruturais em vez de descuido: app_user_self_select
+-- (id = app_current_user_id()) e membership_self_select (user_id = app_current_user_id()).
+-- membership e a tabela de vinculo -- autoriza-la por membership seria autoriza-la por si
+-- mesma, e nao ha organization_id anterior ao vinculo para consultar; app_user precede
+-- qualquer vinculo, e um usuario sem organizacao nenhuma ainda precisa se enxergar para que a
+-- sessao exista. As duas sao SELECT do proprio registro, e nenhuma alcanca dado de dominio.
+--
+-- Este cabecalho dizia "Nenhuma politica abaixo referencia created_by_user_id ou user_id como
+-- chave de acesso: a autorizacao vem sempre de membership sobre organization_id". O desenho
+-- estava certo; o absoluto e que era falso, e as duas politicas que o contradizem estao neste
+-- mesmo arquivo. Fica dito em vez de apagado (P7): num arquivo de seguranca, "nenhuma" e
+-- "sempre" sao onde a precisao mais vale, e o invariante que continua valendo e o da linha
+-- acima -- tabela de dominio se autoriza por organization_id, nunca por user_id.
 
 create or replace function public.app_current_user_id()
 returns uuid
