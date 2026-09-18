@@ -92,7 +92,7 @@ que fechou paridade ao mexer no `PLATOS_PACKAGE` sem regravar golden nenhum.
 
 ## 4. Commit 4 — a asserção que substitui a renomeação
 
-- [ ] 4.1 Um teste no domínio que afirma, sobre a fixture publicada, que `meta.examId` é o mesmo
+- [x] 4.1 Um teste no domínio que afirma, sobre a fixture publicada, que `meta.examId` é o mesmo
       valor que o `short_id` da definição **e** o mesmo que o campo de prova dentro do payload do QR
       de cada atribuição. Hoje isso é verdade por construção dentro de `ExamPublication.publish`; o
       teste transforma "verdade por construção" em "verdade afirmada". É o que a KDoc de
