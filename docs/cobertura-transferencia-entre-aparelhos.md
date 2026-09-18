@@ -509,3 +509,30 @@ conferência futura em aparelho vai esbarrar nele.
 - **`getDir()` e o domínio `root` em produção.** O que foi visto atravessando era um diretório de
   teste vazio. A regra agora nega o domínio inteiro, então o caso está coberto **por construção** —
   mas nenhum diretório de produção sob `root` foi exercitado, porque não existe nenhum hoje.
+
+---
+
+## 14. A verificação final, e uma premissa do plano que a execução desmentiu
+
+**Comandos cheios, nesta sessão, com `timestamp`:**
+
+| Comando | Desfecho | Janela (UTC) |
+|---|---|---|
+| `./gradlew build` | `BUILD SUCCESSFUL in 36s`, 176 tarefas | `18:47:53Z`–`18:48:30Z` |
+| suíte instrumentada inteira | **`OK (78 tests)`** | `18:48:47Z`–`18:49:04Z` |
+| `openspec validate transferencia-entre-aparelhos --strict` | válido | — |
+| `MUTACAO` fora de prosa | **0** | — |
+
+**A premissa que caiu.** A ETAPA 2 do plano declara: *"é a única etapa que pode correr em paralelo
+com as outras, porque não toca nenhuma linha que elas tocam"*. É falso, e a execução mostrou onde:
+as tarefas de registro **5.2** e **5.3** tocam exatamente o território da ETAPA 1 — a tabela de
+ponto de não-retorno do §16, no mesmo ponto de inserção, e o arquivo da auditoria, que **só existe
+depois da ETAPA 1**.
+
+O ramo desta mudança nasceu de `f643abc` e não enxergava a auditoria. A resolução foi rebasear sobre
+`vewvniv/registro-da-auditoria-antes-da-5`, o que produziu **um** conflito, no §16, resolvido por
+união — as quatro linhas convivem, nenhuma substitui outra.
+
+**Fica escrito porque é aproveitável:** o paralelismo da ETAPA 2 vale para o *código*, e não para o
+*registro*. Uma etapa que fecha um achado da auditoria escreve na auditoria, e a auditoria é da
+ETAPA 1. Qualquer etapa futura marcada "fora da fila" herda a mesma dependência no fim.

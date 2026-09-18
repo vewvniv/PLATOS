@@ -87,10 +87,10 @@ antes (P22).** O critério está fixado desde antes da correção existir (ADR-0
       Android 8–15 não foi medido, com fatia-limite "antes de qualquer piloto em modo `nominal` num
       aparelho abaixo de Android 16" e dono. Verificar que a linha traz as quatro colunas que a
       tabela já tem.
-- [ ] 5.3 No `docs/auditoria-2026-09-18-antes-da-fatia-5.md`, o achado 4.3 deixa de estar **suposto**:
+- [x] 5.3 No `docs/auditoria-2026-09-18-antes-da-fatia-5.md`, o achado 4.3 deixa de estar **suposto**:
       acrescentar, sem apagar o texto antigo (P7), que a suposição foi medida, confirmou-se e foi
       corrigida, com o ponteiro para a cobertura e para esta mudança.
-- [ ] 5.4 Verificação final: `./gradlew build` com `timestamp`, a suíte instrumentada verde **depois**
+- [x] 5.4 Verificação final: `./gradlew build` com `timestamp`, a suíte instrumentada verde **depois**
       da reversão da mutação, `openspec validate transferencia-entre-aparelhos --strict`, e a
       seção "o que ainda não foi verificado" da cobertura honesta — o elo do aparelho de destino
       continua sem instrumento, e isso fica dito como conhecido, não como mitigado (P8).
