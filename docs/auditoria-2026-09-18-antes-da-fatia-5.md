@@ -288,7 +288,27 @@ conhecido" (P8) — é desconhecido: não está registrado em lugar nenhum.
 
 ## 4. Achados moderados
 
-### 4.1 I3 está implementada pela metade: `params_hash` não existe em lugar nenhum
+### 4.1 I3 está implementada pela metade: `params_hash` não existe em lugar nenhum — ~~**aberto**~~ **fechado**
+
+> **Fechado em 2026-09-18, pela mudança `params-hash-no-pacote-publicado` e por ADR-0014.** O texto
+> abaixo fica inteiro e não se apaga (P7).
+>
+> `PackageMeta` passou a carregar os **três** campos de I3. A KDoc que afirmava que a fatia 6
+> preencheria os campos "sem mexer no contrato — não há o que retrofitar" foi corrigida, e a frase
+> antiga ficou citada nela: era falsa no campo que faltava, e o achado estava certo.
+>
+> **A contradição da arquitetura, que o achado nomeou como atenuante, foi resolvida no nível certo.**
+> ADR-0014 decisão 1 registra que §2 (I3) vence a lista do §5 pela precedência do `rigorous.md` §0, e
+> a lista foi corrigida — com a incompletude dita, porque ela **produziu código**.
+>
+> **O custo previsto foi pago uma vez, e medido:** o `content_hash` de todo pacote mudou; três
+> fixtures e dois literais acompanharam; nenhuma geometria foi tocada (guarda de vacuidade P13, com
+> comparação estrutural além do `git diff`); e paridade e fidelidade fecharam na mesma sessão, com os
+> quatro PDFs gerados nela (P23). `docs/cobertura-params-hash-no-pacote-publicado.md`.
+>
+> **O que a mudança deixou em aberto, e está registrado:** as duas provas publicadas em produção
+> (`prova-referencia-slice-1` e `slice-2`) deixam de ser legíveis por um aplicativo atualizado. É o
+> comportamento correto da camada (b) e o caminho de saída é ADR-0009 — §6 da cobertura.
 
 `params_hash` aparece **duas vezes em toda a árvore** — em `CLAUDE.md:38` e em
 `ARQUITETURA-FINAL-v3.md:48`. Zero ocorrências em código, schema ou fixture.
@@ -488,7 +508,27 @@ emulador — é o mais longo e o mais caro de perder. Não é defeito de código
 de runner. Mas o risco é conhecido, nominal e recorrente, sobre justamente o teste que §16 chama de
 "o maior risco do projeto" se faltar.
 
-### 5.4 `PackageMeta.exam_id` carrega, no artefato hasheado, o `short_id`
+### 5.4 `PackageMeta.exam_id` carrega, no artefato hasheado, o `short_id` — ~~**aberto**~~ **fechado pela asserção, e não pela renomeação**
+
+> **Fechado em 2026-09-18, pela mudança `params-hash-no-pacote-publicado`.** O texto abaixo fica
+> inteiro e não se apaga (P7) — inclusive a frase que oferecia as duas saídas, porque a escolha entre
+> elas é o que ficou decidido.
+>
+> O achado dizia: *"Vale um teste que afirme a igualdade, **ou** a renomeação agora — antes de haver
+> pacote publicado em volume."* **A renomeação foi recusada**, e ADR-0014 decisão 4 escreve por quê:
+> `LayoutMap` também tem `exam_id`, e renomear nos dois estenderia a quebra de hash ao golden do
+> layout, à folha de teste e a toda a cadeia de paridade — um evento P23 muito maior que o desta
+> mudança; e renomeação misturada com mudança funcional é o que P25 proíbe.
+>
+> **O nome continua errado, e passa a estar preso.** `IdentidadeDaProvaTest` afirma que
+> `meta.exam_id`, o `id` da definição publicada e o `exam_short_id` que viaja no QR de cada
+> atribuição são um valor só — lido pelo `QrPayload.read`, o mesmo leitor do aparelho. Visto falhar:
+> sob uma divergência introduzida no artefato, os três cenários caem
+> (`docs/cobertura-params-hash-no-pacote-publicado.md` §4).
+>
+> **A janela que o achado invocava — "antes de haver pacote publicado em volume" — continua aberta
+> para a renomeação**, e quem quiser fazê-la depois paga o P23 do layout. O que esta mudança comprou
+> foi a impossibilidade de os três divergirem em silêncio.
 
 §5 lista `exam_id` **e** `short_id` como campos distintos de `meta`. O implementado tem só `exam_id`
 — e ele contém o `short_id` (`Publish.kt`, `examId = id`; `ScanSession.resultOf` compara

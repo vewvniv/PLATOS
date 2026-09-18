@@ -150,3 +150,164 @@ casos o defeito só apareceu porque o tamanho foi conferido contra a origem — 
 | `compare.mjs` | `teste-web.pdf` × `android-teste.pdf` | **OK** — 9 de 9, maior divergência **0,044 mm** |
 
 **Nenhum número encostou em limite**, e nenhuma tolerância foi tocada (regra 0.6 do plano).
+
+---
+
+## 4. A asserção que substitui a renomeação
+
+ADR-0014 decisão 4 recusou renomear `meta.exam_id`. `IdentidadeDaProvaTest` é o que entra no lugar:
+afirma que `meta.exam_id` do pacote, o `id` da definição publicada e o `exam_short_id` que viaja no
+QR de **cada** atribuição são um valor só.
+
+Usa a fixture da **turma**, e não a de referência, porque é ela que tem atribuições — sem atribuição
+não há QR de aluno, que é o terceiro dos três. O payload é lido por `QrPayload.read`, o **mesmo
+leitor do aparelho**, e não por um `split` local: um leitor próprio aqui concordaria com um escritor
+errado. E o laço exige `assignments` não vazio, senão passaria em silêncio.
+
+**Visto falhar, e a primeira mutação não servia.** Mutar `Publish.kt` (`examId = id + "-MUTACAO"`)
+**não alcança este teste**, porque ele lê a fixture e não o publish — foi revertida sem ser rodada, e
+fica dita. A mutação certa faz os três divergirem **no artefato**: `meta.exam_id` da fixture da turma
+trocado, com os QR intactos e válidos.
+
+| Cenário | Caiu? |
+|---|---|
+| `o identificador do pacote e o da definicao publicada` | **sim** |
+| `o identificador do pacote e o que viaja no QR de cada atribuicao` | **sim** |
+| `os tres coincidem, e e essa a afirmacao inteira` | **sim** |
+| `PacoteVersionadoTest` — o pacote da turma | **sim**, esperado: a fixture passa a divergir do publish |
+| `PacoteVersionadoTest` — os outros três | **não** |
+
+Os três de `PacoteVersionado` que ficaram de pé mostram que a mutação ficou **contida** na fixture da
+turma. Reversão rodada: `sha256 e9ea8f3a56af…` restaurado, `:packages:domain:allTests`
+**`BUILD SUCCESSFUL in 15s`**, `22:27:24Z–22:27:41Z`.
+
+---
+
+## 5. A camada (b), e como ela foi vista falhar
+
+### 5.1 O cenário, e a guarda que o isola
+
+`fixtures/pacote-do-contrato-anterior.json`, apresentado com o `content_hash` **dele**, é recusado — e
+a asserção confere o **motivo**: `INTERPRETACAO`, e não `INTEGRIDADE`. As duas pedem coisas opostas
+de quem segura o aparelho: a primeira pede tentar de novo, a segunda pede atualizar o aplicativo.
+
+**A primeira guarda de vacuidade que escrevi era tautológica** — comparava uma computação com ela
+mesma — e fica dita porque ela *parecia* uma asserção. Foi substituída por uma que afirma algo: os
+**mesmos bytes**, apresentados com o hash da fixture **atual**, caem por `INTEGRIDADE`. O par prova
+que o motivo é escolhido pelo **hash declarado**, e não pelo artefato.
+
+Sem esse par, o cenário poderia estar medindo a camada vizinha e parecendo verde — o sombreamento de
+fixture que `rigorous.md` §3 descreve.
+
+### 5.2 A mutação, e a regra de parada disparando pela segunda vez
+
+**Mutação:** neutralizar a comparação de reserialização em `verificarPacote` — e **não** a óbvia, que
+seria tirar o campo de novo e ver os literais caírem: essa mede a aritmética do SHA-256.
+
+`:apps:android:testDebugUnitTest`, **2026-09-18T22:29:45Z–22:29:58Z**, 303 cenários, **3 caídos**:
+
+| Cenário | Previsto | Real |
+|---|---|---|
+| pacote do contrato anterior recusado por fidelidade | **sim** | **caiu** |
+| os demais cenários de fidelidade já existentes | **sim** | **2 de 5** |
+| cenários de integridade | **não** | **nenhum caiu** |
+| cenários de identidade | **não** | **nenhum caiu** |
+
+**A condição de parada explícita do plano foi cumprida:** *"se os de integridade caírem junto, a
+mutação não isolou a camada — pare"*. Nenhum caiu. A mutação isolou.
+
+**O desvio, e o que ele revela.** Caíram `campo com valor padrao omitido` e `ordem de campo trocada`.
+Não caíram `campo desconhecido`, `bytes que nao sao json` e `json valido que nao e um pacote`.
+
+`INTERPRETACAO` tem **dois produtores independentes** dentro de `verificarPacote`:
+
+1. o `catch` à volta do `decodeFromString` — parse estrito;
+2. a comparação de reserialização.
+
+A mutação neutralizou **só o segundo**. Os três que sobreviveram estouram no parse e nem chegam à
+comparação. A linha 2 da tabela tratava os cinco como um bloco, e são dois mecanismos sob um motivo
+só.
+
+**Isso refina a previsão em vez de contradizê-la, e é a favor do cenário novo.** A consequência que
+ADR-0014 decisão 3 aceitou é exatamente a do **segundo** mecanismo: `encodeDefaults` injeta um campo,
+o parse **não** estoura, e só a comparação vê. O cenário novo caiu com os dois que compartilham esse
+mecanismo, e não com os três do parse — que é a evidência de que ele mede o que devia medir.
+
+**Reversão rodada (P10):** árvore idêntica ao commit, `MUTACAO` em **0** fora de prosa,
+**`BUILD SUCCESSFUL in 8s`**, `22:30:27Z–22:30:36Z`.
+
+---
+
+## 6. Os pacotes publicados antes desta mudança deixam de ser legíveis
+
+**Esta seção existe porque a consequência é de produção, e não de teste.**
+
+`exam_package` é imutável (ADR-0009): os pacotes publicados mantêm os bytes que têm. Um aplicativo
+atualizado passa a **recusá-los** na camada (b), pelo mesmo mecanismo que o §5 mediu — `encodeDefaults
+= true` injeta `"params_hash":null` que não estava nos bytes publicados, e reserializar deixa de
+reproduzi-los.
+
+**Quantas provas estão nessa condição: duas.** `prova-referencia-slice-1` e `prova-referencia-slice-2`,
+as duas de conferência publicadas em produção — as mesmas que a conferência de ponta a ponta da
+`slice-4b-outbox-de-resultado` usou, em 2026-09-18.
+
+**O que fazer, e não só o que acontece.** O caminho é o que ADR-0009 já manda e não é novo:
+**publicar prova nova, com `short_id` próprio.** Não se republica prova sobre si mesma — prova
+publicada tem um pacote e um só, e o armazenamento recusa a alteração. As folhas impressas daquelas
+duas provas deixam de ser escaneáveis por um aplicativo atualizado; se alguém precisar delas,
+reimprime a partir da prova nova.
+
+**Por que isto é aceitável agora e não seria depois.** Duas provas de conferência, nenhuma turma
+real, nenhum resultado de aluno gravado contra elas. Depois da primeira turma haveria folhas em
+circulação e `grading_result` apontando para pacotes que o aplicativo recusa — e o mesmo conserto
+deixaria de ser um campo para virar migração de artefato imutável, que é a coisa que `exam_package`
+foi desenhado para tornar impossível.
+
+**A recusa é alta e não silenciosa**, e é essa a razão de ela ser aceitável: o aparelho diz que esta
+versão não interpreta o pacote e pede atualização. A alternativa — aceitar o pacote antigo — seria
+pior: um pacote cujo hash confere e cujo parse perdeu um campo produz nota plausível e errada, sem
+sintoma na tela.
+
+---
+
+## 7. O que **não** foi verificado (P8)
+
+- **Que os três cenários do parse estrito caem sob uma mutação do parse.** O §5.2 mostrou que
+  `INTERPRETACAO` tem dois produtores e mediu um. O outro **não foi mutado**. Não é mitigado, é
+  conhecido.
+- **Que um aparelho real recusa um pacote do contrato anterior vindo da API.** O que foi medido é
+  `verificarPacote` sobre os bytes, em JVM. O caminho completo — API entrega, aparelho puxa, recusa
+  aparece na tela — não foi exercitado nesta mudança, e as duas provas em produção continuam
+  publicadas sob o contrato antigo, o que torna essa conferência possível **e** não feita.
+- **Que `params_hash` preenchido se comporta como declarado.** Não há geração por IA nesta base, e
+  todos os pacotes o trazem nulo. O que a spec afirma sobre ausente-não-é-vazio e sobre parâmetros
+  distinguíveis é contrato, e o consumidor dele é a fatia 6 — **política sem consumidor hoje, e isso
+  é deliberado**: é o custo que I3 existe para evitar, pago uma vez.
+- **A variante `release`.** Todas as medições são do `debug`.
+- **Que nenhuma outra árvore do repositório depende do hash antigo.** A busca foi por texto
+  (`26612ad5…`) em `.kt`, `.kts`, `.ts` e `.mjs`, e achou só o comentário que documenta o arquivo
+  congelado. Uma dependência que calculasse o hash em vez de o literalizar não apareceria nessa
+  busca.
+
+---
+
+## 8. A verificação final
+
+| Comando | Desfecho | Janela (UTC) |
+|---|---|---|
+| `./gradlew build` | **`BUILD SUCCESSFUL in 23s`** | `22:34:39Z`–`22:35:02Z` |
+| suíte instrumentada inteira, em `2511FPC34G` / Android 16 | **`OK (78 tests)`** | `22:35:32Z`–`22:35:50Z` |
+| `openspec validate params-hash-no-pacote-publicado --strict` | válido | — |
+| `MUTACAO` fora de prosa | **0** | — |
+
+**Estado das duas fixtures que importam**, conferido depois de tudo:
+
+```
+277d2f8cd0a7…  fixtures/prova-referencia.package.json      ← contrato novo
+26612ad52b0c…  fixtures/pacote-do-contrato-anterior.json   ← congelado, NÃO regerado
+```
+
+As duas mutações desta mudança foram revertidas e a reversão foi **rodada** (P10), não presumida.
+
+**A regra de parada disparou duas vezes, e as duas ficaram escritas** — §1 e §5.2. Nas duas a
+previsão foi refinada pelo real, e em nenhuma o instrumento foi consertado para caber na previsão.

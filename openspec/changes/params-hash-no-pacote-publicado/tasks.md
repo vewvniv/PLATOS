@@ -162,17 +162,17 @@ que fechou paridade ao mexer no `PLATOS_PACKAGE` sem regravar golden nenhum.
 
 ## 6. O registro
 
-- [ ] 6.1 `docs/cobertura-params-hash-no-pacote-publicado.md` com, no mínimo: o conjunto que caiu sob
+- [x] 6.1 `docs/cobertura-params-hash-no-pacote-publicado.md` com, no mínimo: o conjunto que caiu sob
       a mutação da camada (b) ao lado do previsto; o `git diff` das fixtures mostrando **três**
       arquivos e nenhum layout; os `timestamp` dos PDFs de paridade e fidelidade daquela sessão; e o
       conjunto que caiu no commit 1 ao lado do previsto.
-- [ ] 6.2 Uma seção própria da cobertura nomeando que **os pacotes publicados antes desta mudança
+- [x] 6.2 Uma seção própria da cobertura nomeando que **os pacotes publicados antes desta mudança
       deixam de ser legíveis pelo aplicativo atualizado**, com o caminho de ADR-0009 ao lado, e
       dizendo quantas provas estão nessa condição em produção. Verificar que a seção diz o que fazer,
       e não só o que acontece.
-- [ ] 6.3 No `docs/auditoria-2026-09-18-antes-da-fatia-5.md`, os achados **4.1** e **5.4** deixam de
+- [x] 6.3 No `docs/auditoria-2026-09-18-antes-da-fatia-5.md`, os achados **4.1** e **5.4** deixam de
       estar abertos, sem apagar o texto antigo (P7): o 4.1 fechado pelo campo, o 5.4 fechado pela
       asserção **e não pela renomeação**, com a razão da recusa apontando para ADR-0014.
-- [ ] 6.4 Verificação final: `./gradlew build` com `timestamp`, a suíte instrumentada verde depois da
+- [x] 6.4 Verificação final: `./gradlew build` com `timestamp`, a suíte instrumentada verde depois da
       reversão, `openspec validate params-hash-no-pacote-publicado --strict`, e a seção "o que ainda
       não foi verificado" honesta.
