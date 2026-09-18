@@ -66,7 +66,7 @@ A numeração é a ordem dos commits (regra 0.3 do plano; `CLAUDE.md` regra 1, P
 A tarefa 4.5 da fatia do outbox já estabeleceu o padrão: **uma mutação que derrube as duas travas não
 diz qual segurou.**
 
-- [ ] 3.1 **Mutação A** — neutralizar a comparação de `package_hash`. Rodar a suíte sob a mutação e
+- [x] 3.1 **Mutação A** — neutralizar a comparação de `package_hash`. Rodar a suíte sob a mutação e
       registrar **quais** cenários caem, contra esta tabela:
 
       | Cenário | Deve cair? |
@@ -77,30 +77,85 @@ diz qual segurou.**
       | recaptura grava revisão nova | **não** |
       | duas folhas avulsas não colidem | **não** |
 
-- [ ] 3.2 **Mutação B** — neutralizar a comparação de `variant_id`: **o espelho exato** da tabela da
+      **PREVISTO 1 · REAL 1.** `./gradlew :apps:api:test`, 2026-09-18T23:22:25Z–23:22:43Z, **165
+      cenários, 1 caído**:
+
+      | Cenário | Previsto | Real |
+      |---|---|---|
+      | `package_hash` de outro pacote é recusado | **sim** | **caiu** |
+      | `variant_id` que o pacote não declara é recusado | não | não caiu |
+      | reenvio da mesma captura não cria registro novo | não | não caiu |
+      | recaptura grava revisão nova | não | não caiu |
+      | duas folhas avulsas não colidem | não | não caiu |
+
+      Nenhum dos outros 160 cenários da suíte caiu.
+
+- [x] 3.2 **Mutação B** — neutralizar a comparação de `variant_id`: **o espelho exato** da tabela da
       3.1. Rodar a suíte sob a mutação e registrar quais cenários caem.
-- [ ] 3.3 **Se os conjuntos não forem disjuntos, pare.** É a regra de parada (regra 0.5 do plano,
+
+      **PREVISTO 1 · REAL 1, e é o espelho exato.** `./gradlew :apps:api:test`,
+      2026-09-18T23:23:03Z–23:23:22Z, **165 cenários, 1 caído**:
+
+      | Cenário | Previsto | Real |
+      |---|---|---|
+      | `variant_id` que o pacote não declara é recusado | **sim** | **caiu** |
+      | `package_hash` de outro pacote é recusado | não | não caiu |
+      | reenvio da mesma captura não cria registro novo | não | não caiu |
+      | recaptura grava revisão nova | não | não caiu |
+      | duas folhas avulsas não colidem | não | não caiu |
+
+- [x] 3.3 **Se os conjuntos não forem disjuntos, pare.** É a regra de parada (regra 0.5 do plano,
       `design.md` decisão 10): conjunto real diferente do previsto — mais, menos, ou outros — não se
       conserta, não se afrouxa a asserção e não se ajusta a previsão em silêncio. Escrever o conjunto
       real **ao lado** do previsto e dizer o que ele significa (P7, P12, P14).
-- [ ] 3.4 Verificar que cada mutação **entrou** antes de ler o resultado, e reverter rodando (P10,
+
+      **A condição de parada não foi atingida: os conjuntos são disjuntos.** `{package_hash de outro
+      pacote}` sob A e `{variant_id não declarado}` sob B, interseção vazia. Cada trava segura
+      exatamente o que diz segurar, e nenhuma das duas está sendo sustentada pela outra.
+
+      **O que faz a disjunção acontecer, e não é sorte:** é a guarda de vacuidade da decisão 9. No
+      cenário A a variante é **válida**, então a mutação A o deixa passar inteiro; no cenário B o
+      hash é **o certo**, então a mutação B o deixa passar inteiro. Fosse o dado do cenário negativo
+      errado nos dois campos, os dois cairiam sob qualquer uma das mutações e o conjunto não diria
+      qual segurou — que é o defeito que a tarefa 4.5 da fatia do outbox estabeleceu como padrão a
+      evitar.
+
+      **Não medido, e fica dito (P8):** que a ordem das travas é a que a KDoc afirma. Sob a mutação
+      A, o cenário A chega à trava de variante e passa por ela; isso confirma que a de hash vem
+      antes, mas **não** foi medido o caso de um corpo com os dois campos errados — ele acusaria só o
+      hash, e nenhum cenário o exercita. Seria um terceiro cenário, e ele não foi escrito.
+
+- [x] 3.4 Verificar que cada mutação **entrou** antes de ler o resultado, e reverter rodando (P10,
       regra 0.7 do plano): `grep -rn "MUTACAO"` fora de `build/` em `0`, e a suíte rodada **depois**
       da reversão, com `timestamp`.
+
+      As duas mutações foram conferidas **no arquivo** antes de a suíte rodar —
+      `grep -rn "MUTACAO" --include=*.kt apps packages | grep -v /build/` acusou a linha em cada
+      caso, e o `BUILD FAILED` confirma que a compilação as pegou. Depois da reversão: `grep` em
+      **0**, `git status --short` **vazio**, e `./gradlew :apps:api:test` em
+      2026-09-18T23:23:35Z–23:23:53Z com **165 testes, 0 caídos**.
 
 ## 4. O registro
 
 Regra 0.8 do plano: nenhuma etapa fecha com "passou".
 
-- [ ] 4.1 `docs/cobertura-servidor-confere-a-proveniencia-do-resultado.md` com, no mínimo: os dois
+- [x] 4.1 `docs/cobertura-servidor-confere-a-proveniencia-do-resultado.md` com, no mínimo: os dois
       conjuntos reais ao lado dos previstos; o comando cheio de cada execução (P5) e o `timestamp` de
       cada uma (P2, P3); como foi visto falhar (P9); e o que ficou sem verificação (P8). Verificar
       que a seção "o que ainda não foi verificado" é honesta e não vazia por omissão.
-- [ ] 4.2 Uma seção da cobertura dizendo **quantas linhas de `grading_result` existem hoje com
+- [x] 4.2 Uma seção da cobertura dizendo **quantas linhas de `grading_result` existem hoje com
       proveniência não conferida** e que elas permanecem como estão — `grading_result` é append-only
       por gatilho, e esta mudança não as toca nem as reclassifica (`design.md`, *Migration Plan*).
       Verificar que a seção diz o que acontece com elas, e não só que elas existem.
-- [ ] 4.3 No `docs/auditoria-2026-09-18-antes-da-fatia-5.md`, o achado **2.2** deixa de estar aberto,
+- [x] 4.3 No `docs/auditoria-2026-09-18-antes-da-fatia-5.md`, o achado **2.2** deixa de estar aberto,
       **sem apagar o texto antigo** (P7), com o ponteiro para esta mudança.
-- [ ] 4.4 Verificação final: `./gradlew build` com `timestamp` e com Docker no ar, a suíte da API
+- [x] 4.4 Verificação final: `./gradlew build` com `timestamp` e com Docker no ar, a suíte da API
       verde **depois** da reversão das duas mutações, `grep -rn "MUTACAO"` fora de `build/` em `0`, e
       `openspec validate servidor-confere-a-proveniencia-do-resultado --strict`.
+
+      `./gradlew build --rerun-tasks`, 2026-09-18T23:26:08Z–23:28:49Z: **176 de 176 tarefas
+      executadas, nenhuma `UP-TO-DATE`** — é isso que faz desta linha uma medição e não um verde
+      herdado (P2). **1431 testes, 0 caídos**, contados nos XML: android 303, api 165, buildSrc 1,
+      domain jvm 326 / js 318 / androidHost 318. `grep -rn "MUTACAO"` fora de `build/` em **0**.
+      `openspec validate --strict` válida. A suíte **instrumentada não foi rodada** e isso fica dito:
+      nenhuma linha de `apps/android` mudou, e a ETAPA 4 não pede emulador (P8, P22).
