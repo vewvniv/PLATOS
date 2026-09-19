@@ -46,6 +46,32 @@ evidência da correção.
 
 O resultado SHALL NOT levar nome, turma ou matrícula do aluno.
 
+**A proveniência declarada SHALL ser conferida pelo servidor antes de gravar, e não apenas
+declarada.** O servidor SHALL recusar resultado cujo pacote declarado não seja o pacote publicado
+daquela prova, e resultado cuja variante declarada o pacote publicado não declare. Em qualquer dos
+dois casos o servidor SHALL NOT gravar nada — nem o resultado, nem a evidência por questão.
+
+O oráculo da conferência SHALL ser o **pacote publicado da própria prova**, e SHALL NOT ser uma
+segunda lista de variantes nem um segundo registro de qual é o pacote daquela prova. Identificar sem
+conferir é declarar, e o fato gravado é append-only: proveniência errada não tem conserto, só revisão
+nova, que não apaga a anterior. A rastreabilidade existe para sustentar contestação de nota, e
+proveniência não verificada não a sustenta.
+
+**A recusa por proveniência incoerente SHALL distinguir-se da recusa por ausência.** Prova
+inexistente, prova sem pacote publicado e prova de organização a que o autenticado não pertence
+continuam sendo **ausência**, e continuam indistinguíveis entre si. Proveniência que não bate é
+**decisão do servidor sobre o pedido apresentado**, e SHALL ser sinalizada como tal — a classe que o
+aparelho lê como recusa **definitiva**, e não como falha transitória do servidor. Sinalizá-la como
+falha do servidor faria o aparelho repetir para sempre um envio que nunca será aceito; sinalizá-la
+como ausência faria o aparelho não distinguir "esta prova não existe para você" de "este corpo não
+fecha".
+
+A recusa SHALL dizer **qual** das duas coisas não fecha — o pacote ou a variante.
+
+A conferência de proveniência SHALL NOT recalcular a nota a partir do gabarito: correção objetiva
+local é definitiva quando não há discursivas, e o que se confere aqui é **proveniência**, não
+aritmética.
+
 #### Scenario: O resultado identifica o pacote e o aluno
 
 - **WHEN** um resultado é gravado
@@ -65,6 +91,20 @@ O resultado SHALL NOT levar nome, turma ou matrícula do aluno.
 
 - **WHEN** um resultado é gravado ou enviado
 - **THEN** ele não contém nome, turma nem matrícula do aluno
+
+#### Scenario: Pacote declarado que não é o da prova
+
+- **WHEN** um resultado é enviado declarando um pacote bem formado que não é o pacote publicado
+  daquela prova
+- **THEN** o servidor recusa por decisão sobre o pedido, a recusa nomeia o pacote como o que não
+  fecha, e nem o resultado nem a evidência por questão são gravados
+
+#### Scenario: Variante que o pacote não declara
+
+- **WHEN** um resultado é enviado declarando o pacote correto e uma variante que o pacote publicado
+  não declara
+- **THEN** o servidor recusa por decisão sobre o pedido, a recusa nomeia a variante como o que não
+  fecha, e nem o resultado nem a evidência por questão são gravados
 
 ### Requirement: O resultado nasce pendente e espera a rede numa fila local
 

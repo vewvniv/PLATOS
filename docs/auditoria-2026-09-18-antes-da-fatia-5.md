@@ -114,7 +114,30 @@ defensável; espelho guardado só por literal combinado não é.
 
 ---
 
-### 2.2 O `package_hash` do resultado é uma afirmação do aparelho que ninguém confere
+### 2.2 O `package_hash` do resultado é uma afirmação do aparelho que ninguém confere — ~~**aberto**~~ **fechado**
+
+> **Fechado em 2026-09-18, pela mudança `servidor-confere-a-proveniencia-do-resultado`** (ETAPA 4 de
+> `docs/plano-de-correcao-antes-da-fatia-5.md`). O texto abaixo fica inteiro e não se apaga (P7).
+>
+> O servidor passou a recusar resultado cujo `package_hash` não seja o `content_hash` do pacote
+> publicado daquela prova, e cujo `variant_id` o pacote não declare. A recusa é **400** — decisão
+> sobre o pedido, que o aparelho já classifica como definitiva —, e continua distinta dos **404** de
+> ausência, que seguem indistinguíveis entre si. Nada é gravado: nem o resultado, nem a evidência por
+> questão, e a contagem que prova isso é feita no banco.
+>
+> **O achado estava certo no ponto que mais importava: o custo era uma coluna numa consulta que já
+> rodava.** `findPublishedExamId` passou a devolver `content` e `content_hash` da mesma `join` em
+> `EXAM_PACKAGE` que já decidia "publicada" — nenhuma consulta nova, e nenhum segundo oráculo para
+> "qual é o pacote desta prova".
+>
+> **Cada trava foi vista falhar sozinha.** Duas mutações de conjuntos **disjuntos**, 1 cenário caído
+> em cada, previsão batida nas duas: `docs/cobertura-servidor-confere-a-proveniencia-do-resultado.md`
+> §2.
+>
+> **O que o fechamento não faz, e fica dito:** a linha de `grading_result` já gravada em produção sem
+> oráculo **permanece como está**. A tabela é append-only por gatilho, e a linha é fato verdadeiro
+> sobre o que aconteceu — ela foi apurada contra um pacote do contrato anterior à etapa 3. Reescrevê-la
+> seria falsificar o registro. §5 da cobertura diz o que se sabe sobre ela e de onde o número veio.
 
 **O que.** `grading_result.package_hash` é gravado exatamente como o aparelho o enviou
 (`ResultQueries.record`, `.set(GRADING_RESULT.PACKAGE_HASH, nota.packageHash)`). O servidor **nunca

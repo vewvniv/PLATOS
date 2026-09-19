@@ -235,6 +235,94 @@ class ResultRouteTest {
         assertEquals(2, contar("select count(*) from grading_result"))
     }
 
+    // ------------------------------------------------------- proveniencia (achado 2.2)
+
+    /**
+     * O `package_hash` deixa de ser afirmacao do aparelho.
+     *
+     * **A guarda de vacuidade tem duas metades, e as duas importam** (P13):
+     *
+     * 1. O hash falso e o de um pacote **real e diferente** — 64 hexadecimais necessariamente bem
+     *    formados. Um valor inventado poderia ser recusado pelo `check` da coluna, e o cenario
+     *    mediria a camada vizinha em vez desta.
+     * 2. A variante e **valida**. Se ela tambem fosse falsa, a recusa poderia vir da outra trava, e
+     *    o cenario nao diria qual segurou — que e o defeito que a tarefa 4.5 da fatia do outbox
+     *    estabeleceu como padrao a evitar.
+     *
+     * E a segunda metade e conferida **executando**: o mesmo corpo, com o hash certo, e aceito. Sem
+     * isso, "recusou" poderia significar qualquer outra coisa sobre o corpo.
+     *
+     * A contagem e no banco. Uma rota que responda 400 e grave assim mesmo passa em qualquer
+     * assercao sobre o corpo da resposta.
+     */
+    @Test
+    fun `resultado com package_hash de outro pacote e recusado, e nada e gravado`() = comApp { client ->
+        val (userId, org) = professorComOrganizacao(client)
+        val prova = PostgresSupport.createExam(org, SHORT_ID, "Prova R", userId)
+        PostgresSupport.publishPackage(org, prova, CONTEUDO)
+
+        assertEquals(64, HASH_DE_OUTRO_PACOTE.length, "o hash falso precisa ser bem formado")
+        assertTrue(
+            HASH_DE_OUTRO_PACOTE.all { it in "0123456789abcdef" },
+            "o hash falso precisa ser hexadecimal: $HASH_DE_OUTRO_PACOTE",
+        )
+        assertTrue(HASH_DE_OUTRO_PACOTE != HASH, "o hash falso precisa ser de outro pacote")
+
+        val resposta = client.enviar(
+            org,
+            corpo(captureId = "cap-pacote-errado", pontos = 1, hash = HASH_DE_OUTRO_PACOTE),
+        )
+
+        assertEquals(HttpStatusCode.BadRequest, resposta.status, resposta.bodyAsText())
+        assertTrue(
+            resposta.bodyAsText().contains(HASH_DE_OUTRO_PACOTE) &&
+                resposta.bodyAsText().contains(HASH),
+            "a recusa precisa nomear o pacote declarado e o publicado: ${resposta.bodyAsText()}",
+        )
+        assertEquals(0, contar("select count(*) from grading_result"))
+        assertEquals(0, contar("select count(*) from answer_observation"))
+
+        // A guarda de vacuidade, executada: so o hash separava este corpo da aceitacao.
+        val comOHashCerto = client.enviar(org, corpo(captureId = "cap-pacote-certo", pontos = 1))
+        assertEquals(HttpStatusCode.OK, comOHashCerto.status, comOHashCerto.bodyAsText())
+        assertEquals(1, contar("select count(*) from grading_result"))
+    }
+
+    /**
+     * O `variant_id` e conferido contra o que o pacote publicado declara, e contra nada mais.
+     *
+     * **A guarda de vacuidade e o espelho da anterior:** o `package_hash` e o **certo**, entao a
+     * recusa so pode ter vindo da variante. E a metade executada e a mesma — o mesmo corpo, com uma
+     * variante que o pacote declara, e aceito.
+     *
+     * A lista de variantes sai do pacote publicado. Nao existe uma segunda em lugar nenhum, e e por
+     * isso que este cenario nao precisa preparar nada alem de publicar o pacote.
+     */
+    @Test
+    fun `resultado com variant_id que o pacote nao declara e recusado, e nada e gravado`() = comApp { client ->
+        val (userId, org) = professorComOrganizacao(client)
+        val prova = PostgresSupport.createExam(org, SHORT_ID, "Prova R", userId)
+        PostgresSupport.publishPackage(org, prova, CONTEUDO)
+
+        val resposta = client.enviar(
+            org,
+            corpo(captureId = "cap-variante-errada", pontos = 1, variante = "v9"),
+        )
+
+        assertEquals(HttpStatusCode.BadRequest, resposta.status, resposta.bodyAsText())
+        assertTrue(
+            resposta.bodyAsText().contains("v9") && resposta.bodyAsText().contains("v1"),
+            "a recusa precisa nomear a variante declarada e as publicadas: ${resposta.bodyAsText()}",
+        )
+        assertEquals(0, contar("select count(*) from grading_result"))
+        assertEquals(0, contar("select count(*) from answer_observation"))
+
+        // A guarda de vacuidade, executada: so a variante separava este corpo da aceitacao.
+        val comAVarianteCerta = client.enviar(org, corpo(captureId = "cap-variante-certa", pontos = 1))
+        assertEquals(HttpStatusCode.OK, comAVarianteCerta.status, comAVarianteCerta.bodyAsText())
+        assertEquals(1, contar("select count(*) from grading_result"))
+    }
+
     // ------------------------------------------------------------------ montagem
 
     /**
@@ -249,6 +337,8 @@ class ResultRouteTest {
         pontos: Int,
         token: String? = "aluno-1",
         segundaCerta: Boolean = false,
+        hash: String = HASH,
+        variante: String = "v1",
     ): String {
         val segunda = if (segundaCerta) {
             """{"item_id":"q02","answer_kind":"marcada","answer_options":["B"],"worth":1,"earned":1}"""
@@ -257,8 +347,8 @@ class ResultRouteTest {
         }
         val tokenJson = if (token == null) "null" else "\"$token\""
         return """
-            {"capture_id":"$captureId","student_token":$tokenJson,"package_hash":"$HASH",
-             "variant_id":"v1","points":$pontos,"max_score":2,"closed":true,
+            {"capture_id":"$captureId","student_token":$tokenJson,"package_hash":"$hash",
+             "variant_id":"$variante","points":$pontos,"max_score":2,"closed":true,
              "captured_at":"2026-09-17T12:00:00Z",
              "observations":[
                {"item_id":"q01","answer_kind":"marcada","answer_options":["A"],"worth":1,"earned":1},
@@ -329,9 +419,45 @@ class ResultRouteTest {
         const val EMAIL = "resultados@escola.br"
         const val NOME = "Professor dos Resultados"
         const val SHORT_ID = "prova-r"
-        const val CONTEUDO = """{"meta":{"exam_id":"prova-r"},"items":[],"answer_key":[]}"""
+
+        /**
+         * O pacote publicado desta prova, e ele precisa ser um `ExamPackage` de verdade.
+         *
+         * **Era um esboco** — `{"meta":{"exam_id":"prova-r"},"items":[],"answer_key":[]}` — e
+         * bastava, porque nada no servidor o **lia**: o `content` so descia inteiro para o aparelho.
+         * A trava de `variant_id` mudou isso. Ela confere a variante declarada contra
+         * `ExamPackage.variants`, que e a unica lista de variantes desta prova, e para isso o
+         * `content` passa a ser decodificado. Um esboco que nao decodifica faria toda esta suite
+         * responder 500, e nao e isso que nenhum cenario dela mede.
+         *
+         * Continua sendo **literal escrito a mao**, e nao `ExamPackage(...).toCanonicalJson()`, pela
+         * mesma razao que o cabecalho deste arquivo da para o corpo do envio: serializar com o mesmo
+         * codigo que o servidor desserializa poria o mesmo codigo dos dois lados, e renomear um
+         * campo continuaria verde.
+         *
+         * `layout` vazio e `items` vazio sao deliberados: nada aqui mede geometria nem item, e o
+         * pacote minimo que **decodifica e declara `v1`** e o que a trava precisa ter contra o que
+         * conferir.
+         */
+        const val CONTEUDO =
+            """{"meta":{"exam_id":"prova-r","layout_engine_version":1,"min_renderer_version":1,"fully_offline_gradable":true},"items":[],"variants":[{"variant_id":"v1","positions":{}}],"assignments":[],"layout":{},"answer_key":[],"scoring":{"max_score":2}}"""
+
+        /**
+         * Outro pacote, de outra prova — a origem do `package_hash` falso do cenario de recusa.
+         *
+         * **A guarda de vacuidade desta suite e a forma do dado** (P13). Um `package_hash` inventado
+         * poderia ser recusado pelo `check` da coluna em vez da trava, e o cenario mediria a camada
+         * vizinha. O hash de um pacote **real e diferente** e necessariamente 64 hexadecimais bem
+         * formados, e e exatamente o que o achado 2.2 descreve: uma nota apurada contra o pacote
+         * errado.
+         */
+        const val CONTEUDO_DE_OUTRA_PROVA =
+            """{"meta":{"exam_id":"prova-outra","layout_engine_version":1,"min_renderer_version":1,"fully_offline_gradable":true},"items":[],"variants":[{"variant_id":"v1","positions":{}}],"assignments":[],"layout":{},"answer_key":[],"scoring":{"max_score":2}}"""
 
         /** O mesmo hash que o pacote publicado tem, conferido por `MessageDigest` da JVM. */
         val HASH: String = PostgresSupport.sha256Hex(CONTEUDO)
+
+        /** O hash de um pacote que existe e nao e o desta prova. */
+        val HASH_DE_OUTRO_PACOTE: String = PostgresSupport.sha256Hex(CONTEUDO_DE_OUTRA_PROVA)
     }
 }
