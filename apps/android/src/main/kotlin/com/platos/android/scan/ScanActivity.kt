@@ -75,8 +75,12 @@ class ScanActivity : ComponentActivity() {
     private lateinit var map: LayoutMap
     private lateinit var session: ScanSession
     private lateinit var pendentes: ResultadosPendentes
-    private var organizacao: String? = null
-    private var prova: String? = null
+    // **Nao nulaveis, e a ausencia do `?` e o requisito.** Eram `String?`, e `gravar` tinha um
+    // `?: return` para cada: folha medida, nota desenhada na tela, nada gravado, nada agendado, sem
+    // mensagem (achado 3.3). Quem decide que ha tudo o que precisa e [decidirAbertura], antes de a
+    // camera ligar; depois dela o estado silencioso nao e construivel.
+    private lateinit var organizacao: String
+    private lateinit var prova: String
     private lateinit var analysisExecutor: ExecutorService
 
     private var state by mutableStateOf<ScanState>(ScanState.NoPermission)
@@ -95,23 +99,26 @@ class ScanActivity : ComponentActivity() {
 
         check(OpenCVLoader.initLocal()) { "o OpenCV nativo nao carregou" }
 
-        val organizacao = intent.getStringExtra(EXTRA_ORGANIZACAO)
-        val contentHash = intent.getStringExtra(EXTRA_CONTENT_HASH)
-        val doCache = if (organizacao == null || contentHash == null) {
-            null
-        } else {
-            PacotesEmArquivo(File(filesDir, "packages")).ler(organizacao, contentHash)
-        }
+        // **Recusa com motivo, e nunca degradacao.** A decisao mora fora desta classe — ver
+        // [decidirAbertura] —, porque decisao dentro de `onCreate` nao tem como ser exercitada, e
+        // foi a vinte linhas de uma dessas que a auditoria achou um caminho silencioso.
+        val abertura = decidirAbertura(
+            organizacao = intent.getStringExtra(EXTRA_ORGANIZACAO),
+            contentHash = intent.getStringExtra(EXTRA_CONTENT_HASH),
+            shortId = intent.getStringExtra(EXTRA_SHORT_ID),
+            lerPacote = PacotesEmArquivo(File(filesDir, "packages"))::ler,
+        )
 
-        if (doCache == null || organizacao == null) {
-            // Recusa com motivo, e nunca degradacao. Chegar aqui significa que o pacote sumiu ou
-            // deixou de conferir entre o gate e esta tela — disco cheio, arquivo removido, corrupcao
-            // em repouso. O escaneamento nao abre, e quem escolheu a prova volta a escolher.
-            setContent { SemPacoteScreen(onVoltar = ::finish) }
+        if (abertura is AberturaDoEscaneamento.NaoAbre) {
+            setContent { EscaneamentoNaoAbreScreen(motivo = abertura.motivo, onVoltar = ::finish) }
             return
         }
 
-        examPackage = doCache
+        val aberta = abertura as AberturaDoEscaneamento.Abre
+        val organizacao = aberta.organizacao
+        val shortId = aberta.prova
+
+        examPackage = aberta.pacote
         // O roster e lido pela **mesma chave que os escritores usaram** — o `short_id` da prova,
         // que chega pelo `Intent`. A primeira versao lia por `examPackage.meta.examId`, com a
         // justificativa de evitar "dois caminhos para dizer de qual prova se fala"; a justificativa
@@ -120,8 +127,7 @@ class ScanActivity : ComponentActivity() {
         //
         // Lido uma vez, aqui, e nao a cada quadro: o escaneamento nao muda o roster, e reler a cada
         // folha poria disco no caminho da camera sem nada a ganhar.
-        val shortId = intent.getStringExtra(EXTRA_SHORT_ID)
-        roster = shortId?.let { RostersEmArquivo(File(filesDir, "rosters")).ler(organizacao, it) }
+        roster = RostersEmArquivo(File(filesDir, "rosters")).ler(organizacao, shortId)
         map = examPackage.layout.values.single()
         session = ScanSession(examPackage)
         // A fila do outbox. Aberta aqui e nao no `Application` porque e aqui que ela e usada, e a
@@ -250,11 +256,15 @@ class ScanActivity : ComponentActivity() {
      *
      * **Token vazio vira nulo.** O QR da folha avulsa traz o campo vazio (§8), e o servidor espera
      * ausencia — vazio faria todas as avulsas da mesma prova colidirem no unique de revisao.
+     *
+     * **Os dois `?: return` que estavam aqui sairam, e nao foram substituidos por tratamento.** Eles
+     * descartavam uma correcao apurada em silencio: folha medida, nota na tela, nada gravado, nada
+     * agendado (achado 3.3). Tratar o nulo aqui manteria construivel um estado que nao deveria
+     * existir, e a mensagem teria de explicar, com a folha na mao e a nota na tela, algo que so podia
+     * ter sido decidido antes de a camera abrir. Quem decide e [decidirAbertura]; aqui os dois
+     * valores existem por construcao.
      */
     private fun gravar(apuracao: ApuracaoNova) {
-        val organizacao = organizacao ?: return
-        val prova = prova ?: return
-
         val resultado = ResultadoPendente(
             captureId = UUID.randomUUID().toString(),
             organizacao = organizacao,

@@ -111,23 +111,44 @@ que não é a da produção**, e é por isso que o defeito atravessou.
 **Não se funde com os commits 1 e 2** (`design.md` decisão 10): são defeitos diferentes, com mutações
 diferentes.
 
-- [ ] 3.1 O `short_id` entra no gate de `onCreate`, ao lado de `organizacao` e `contentHash`:
+- [x] 3.1 O `short_id` entra no gate de `onCreate`, ao lado de `organizacao` e `contentHash`:
       ausente, a câmera **não abre**, com motivo **próprio** — distinto dos cinco que o gate já
       distingue (`design.md` decisões 4 e 5). `MotivoDaBarragem` **não** ganha entrada nova.
-- [ ] 3.2 `prova` e `organizacao` deixam de ser nuláveis no campo, e `gravar` perde os dois
+- [x] 3.2 `prova` e `organizacao` deixam de ser nuláveis no campo, e `gravar` perde os dois
       `?: return`. **O caminho silencioso deixa de existir em vez de ser tratado.** Verificar com
       `./gradlew :apps:android:compileDebugKotlin` e conferindo que nenhum `?: return` novo apareceu
       em `gravar`.
-- [ ] 3.3 **O `short_id` ausente não ganha valor padrão nem é derivado de `examPackage.meta.examId`**
+- [x] 3.3 **O `short_id` ausente não ganha valor padrão nem é derivado de `examPackage.meta.examId`**
       (`design.md` decisão 6). Verificar por leitura do diff que `meta.examId` não aparece em
       `ScanActivity`.
-- [ ] 3.4 Cenário novo: **sem o identificador da prova, o escaneamento não abre, e o motivo é
+- [x] 3.4 Cenário novo: **sem o identificador da prova, o escaneamento não abre, e o motivo é
       próprio**. Verificar que a asserção confere **o motivo**, e não só que a câmera não abriu — e
       que o motivo é distinguível dos cinco do gate.
-- [ ] 3.5 **Ver falhar.** A mutação é **restaurar o campo nulável e o `?: return`**. **Conjunto
+- [x] 3.5 **Ver falhar.** A mutação é **restaurar o campo nulável e o `?: return`**. **Conjunto
       previsto:** cai o cenário novo — "sem o identificador da prova, o escaneamento não abre, e o
       motivo é próprio" — e **só ele**. Nenhum cenário de apuração, de gravação ou de gate cai,
       porque nenhum deles passa por esse caminho. Registrar o conjunto real ao lado do previsto.
+
+      **PREVISTO 1 · REAL 1.** `./gradlew :apps:android:testDebugUnitTest`,
+      2026-09-19T00:17:56Z–00:18:06Z, **308 cenários, 1 caído**:
+
+      | Cenário | Previsto | Real |
+      |---|---|---|
+      | sem o identificador da prova, o escaneamento não abre e o motivo é próprio | **sim** | **caiu** |
+      | com o identificador da prova, a mesma entrada abre | não | não caiu |
+      | sem pacote conferido, o motivo é o outro | não | não caiu |
+      | o motivo é distinguível dos cinco do gate | não | não caiu |
+      | os outros 304 cenários de apuração, gravação e gate | não | nenhum caiu |
+
+      **A mutação aplicada foi a guarda do `short_id` neutralizada em `decidirAbertura`**, que é o
+      que resta do "campo nulável e `?: return`" depois de a decisão sair da `Activity`: com ela, a
+      câmera volta a abrir sem saber de qual prova é — exatamente o estado em que `gravar` tinha o
+      `return` silencioso. Reverter rodando: `grep` em **0**, e 308 cenários verdes em
+      2026-09-19T00:18:18Z.
+
+      **A guarda de vacuidade é executada:** o cenário "com o identificador da prova, a mesma entrada
+      abre" usa **a mesma entrada** com o `short_id` presente. Sem ele, "recusou" poderia vir do
+      pacote, da organização ou de qualquer outra coisa do mesmo caminho.
 
 ## 4. Commit 4 — o spec passa a dizer o que o código faz (5.C)
 
