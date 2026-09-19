@@ -152,12 +152,18 @@ diferentes.
 
 ## 4. Commit 4 — o spec passa a dizer o que o código faz (5.C)
 
-- [ ] 4.1 O delta de `result-sync` troca "token vazio" por **ausente**, nos dois pontos, **com a razão
+- [x] 4.1 O delta de `result-sync` troca "token vazio" por **ausente**, nos dois pontos, **com a razão
       junto, em uma linha**: ela hoje vive só em comentário de migration e KDoc, e não no `design.md`
       de nenhuma fatia. Verificar com `openspec validate o-pendente-nao-se-perde-no-aparelho --strict`
       e conferindo que o bloco `MODIFIED` carrega o requisito **inteiro e atual** — incluindo o texto
       de conferência de proveniência que a ETAPA 4 sincronizou (`design.md` decisão 11).
-- [ ] 4.2 **Nenhuma linha de código neste commit.** É texto de spec, e o código já se comporta assim
+
+      Conferido: `openspec validate --strict` válida; o bloco `MODIFIED` carrega os **6 cenários
+      atuais**, **nenhum perdido**, mais 1 novo; o texto de conferência de proveniência da ETAPA 4
+      está presente; "token vazio" não sobra em lugar nenhum do requisito, e "ausente" aparece nos
+      dois pontos. O código já grava nulo — `ScanActivity.kt:272` (`ifEmpty { null }`),
+      `ResultadoPendente.studentToken: String?` e o `check` da migration.
+- [x] 4.2 **Nenhuma linha de código neste commit.** É texto de spec, e o código já se comporta assim
       em três pontos. Verificar no `git diff --stat`.
 
 ## 5. O registro
