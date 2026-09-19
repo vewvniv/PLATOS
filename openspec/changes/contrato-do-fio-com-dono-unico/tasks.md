@@ -348,23 +348,54 @@ O plano declara o conjunto previsto **em prosa**, e não como tabela. A grade ab
 de registro, no molde da tarefa 1.2 de `params-hash-no-pacote-publicado` — o previsto vem do texto
 acima, sem acréscimo; a coluna "real" é preenchida ao rodar.
 
-| Suíte | Cenários | Previsto? | Real |
+| Suíte | Cenários | Previsto? | **Real** |
 |---|---|---|---|
-| `ResultadoDtoTest` (android) — o do aparelho | ≥1 | **sim** | _a preencher_ |
-| `ResultRouteTest` (api) — o do servidor | ≥1 | **sim** | _a preencher_ |
-| qualquer outra | 0 | **não** | _a preencher_ |
+| `ResultadoDtoTest` (android) — o do aparelho | ≥1 | **sim** | **caiu — 2 de 4** |
+| `ResultRouteTest` (api) — o do servidor | ≥1 | **sim** | **caiu — 10 de 11** |
+| qualquer outra | 0 | **não** | **0 — 152 suítes, nenhuma falha** |
 
-- [ ] 6.1 Injetar a mutação: trocar `capture_id` por `captureId` no `@SerialName` do contrato do KMP,
+**REAL = PREVISTO. A regra de parada não disparou.**
+
+- [x] 6.1 Injetar a mutação: trocar `capture_id` por `captureId` no `@SerialName` do contrato do KMP,
   marcando a linha com `MUTACAO`. Rodar `./gradlew build --continue` e registrar o conjunto **real**
   de cenários que caiu, com a suíte de cada um e o `timestamp` do relatório (P2, P3).
-- [ ] 6.2 **Comparar o real com o previsto, e aplicar a regra de parada** (decisão 8). Se o conjunto
+
+  **`BUILD FAILED`**, janela `2026-09-19T10:38:26Z`–`10:39:34Z`. **154 suítes executadas** (o
+  `--continue` levou o build inteiro até o fim), **1445 testes, 12 falhas**, e as 12 estão
+  **todas** nas duas suítes previstas:
+
+  **`ResultRouteTest` — 10 de 11 caíram.** Sobreviveu só
+  `envio sem credencial e recusado, e nada e gravado`, e a sobrevivência dele é coerente: ele é
+  recusado no 401, **antes** de o corpo ser desserializado, então o nome do campo nunca chega a
+  importar.
+
+  **`ResultadoDtoTest` — 2 de 4 caíram:** `o corpo tem os nomes de campo que a rota espera` e
+  `o corpo nao leva nome, turma, matricula nem habilidade`, que são os dois que afirmam sobre o
+  **conjunto de chaves**. Os outros dois passaram porque afirmam sobre `student_token` e
+  `answer_kind`, que a mutação não tocou.
+- [x] 6.2 **Comparar o real com o previsto, e aplicar a regra de parada** (decisão 8). Se o conjunto
   real for diferente — **mais, menos, ou outros** —, **parar**: não consertar o instrumento, não
   afrouxar a asserção, não ajustar a previsão em silêncio. Escrever o conjunto real ao lado do
   previsto e dizer o que ele significa (P7, P12, P14). Em particular, **se cair só um dos dois**, a
   mudança não entregou o que prometeu, e a correção certa não é acrescentar asserção ao lado que não
   caiu.
-- [ ] 6.3 Reverter a mutação e **conferir a reversão rodando** (P10): `grep -rn "MUTACAO"` fora de
+
+  **Os dois caíram, e é isso que esta mudança existe para tornar possível.** Antes dela, esta
+  mutação **não tinha onde ser injetada**: não havia um `@SerialName` que os dois lados lessem.
+  Editar o espelho do servidor derrubaria `ResultRouteTest` e deixaria `ResultadoDtoTest` verde;
+  editar o do aparelho faria o inverso. Um vermelho só seria "movi o arquivo"; os dois vermelhos a
+  partir de **uma** linha são "existe um dono único".
+
+  As 152 suítes restantes passarem é a outra metade da afirmação: a mutação atingiu o contrato, e
+  não o projeto inteiro.
+- [x] 6.3 Reverter a mutação e **conferir a reversão rodando** (P10): `grep -rn "MUTACAO"` fora de
   `build/` → `0`, `git status` sem resíduo, e `./gradlew build` verde **depois** da reversão.
+
+  **Revertida.** `MUTACAO` em código (`.kt`, `.mjs`, `.yml`, `.sql`, `.ts`) fora de `build/` → **0**.
+  As ocorrências que restam são prosa nos `docs/cobertura-*` e nos `tasks.md` arquivados, que é
+  onde a palavra deve mesmo aparecer. `git status` traz só `LinhaDeBaseDoFioTest`, o instrumento de
+  0.2, que sai na tarefa 8. **`./gradlew build` → `BUILD SUCCESSFUL in 57s`, 176 tasks**, rodado
+  **depois** da reversão e não antes (P10).
 
 ## 7. O aparelho, e o que só ele decide
 
