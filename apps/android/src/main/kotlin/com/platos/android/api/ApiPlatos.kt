@@ -10,6 +10,9 @@ import com.platos.android.session.Organizacao
 import com.platos.android.session.ProvaPublicada
 import com.platos.android.session.ResultadoDasOrganizacoes
 import com.platos.android.session.ResultadoDasProvas
+import com.platos.domain.transport.ExamSummaryDto
+import com.platos.domain.transport.OrganizationDto
+import com.platos.domain.transport.RosterEntryDto
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -50,7 +53,7 @@ class ApiPlatos(
      * mesma chamada.
      */
     suspend fun organizacoes(): Retorno<List<Organizacao>> =
-        when (val retorno = retornoDe<List<OrganizacaoDto>> { pedirOrganizacoes() }) {
+        when (val retorno = retornoDe<List<OrganizationDto>> { pedirOrganizacoes() }) {
             is Retorno.Respondeu -> Retorno.Respondeu(retorno.valor.map { it.paraOrganizacao() })
             is Retorno.Recusou -> retorno
             is Retorno.SemRede -> Retorno.SemRede
@@ -66,7 +69,7 @@ class ApiPlatos(
      * entrada pelo interceptador antes de esta funcao retornar.
      */
     suspend fun provas(organizacaoId: String): Retorno<List<ProvaPublicada>> =
-        when (val retorno = retornoDe<List<ProvaDto>> { pedirProvas(organizacaoId) }) {
+        when (val retorno = retornoDe<List<ExamSummaryDto>> { pedirProvas(organizacaoId) }) {
             is Retorno.Respondeu -> Retorno.Respondeu(retorno.valor.map { it.paraProva() })
             is Retorno.Recusou -> retorno
             is Retorno.SemRede -> Retorno.SemRede

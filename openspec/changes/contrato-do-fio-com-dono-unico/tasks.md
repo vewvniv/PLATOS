@@ -175,25 +175,70 @@ Código novo; nada o lê ainda. `CLAUDE.md` regra 1.
 
 ## 3. Commit 3 — o consumidor do aparelho
 
-- [ ] 3.1 `apps/android` passa a usar os tipos do domínio: `api/OrganizacaoDto.kt`,
+- [x] 3.1 `apps/android` passa a usar os tipos do domínio: `api/OrganizacaoDto.kt`,
   `api/ProvaDto.kt`, `api/RosterDto.kt` e `api/ResultadoDto.kt` deixam de **declarar** os DTOs. As
   traduções para os tipos de tela — `paraOrganizacao`, `paraProva`, `paraAluno` — ficam onde estão
   (decisão 2). Verificar com `./gradlew :apps:android:compileDebugKotlin`.
-- [ ] 3.2 `corpoDoEnvio()` passa a montar o tipo do domínio, e `tipoNoEnvio()`/`alternativasNoEnvio()`
+
+  **Feito.** `ApiPlatos` passa a importar `OrganizationDto`, `ExamSummaryDto` e `RosterEntryDto` do
+  domínio, e as três traduções passam a estender esses tipos — `paraOrganizacao`,
+  `paraProva`, `paraAluno` continuam **nos mesmos arquivos**, porque são do aparelho.
+
+  `RosterDto.kt` é o caso que a medição de 2.1 tornou possível: os dois lados já chamavam o tipo de
+  `RosterEntryDto`, então ali o import do domínio convive com uma declaração **homônima do próprio
+  pacote**. O import vence, e por isso o espelho pôde ficar de pé até o commit 4.
+  `./gradlew :apps:android:compileDebugKotlin` → `BUILD SUCCESSFUL`.
+- [x] 3.2 `corpoDoEnvio()` passa a montar o tipo do domínio, e `tipoNoEnvio()`/`alternativasNoEnvio()`
   passam a chamar a tradução de 1.2. O `Json` privado ganha `encodeDefaults = true` (decisão 6).
   Verificar rodando `ResultadoDtoTest`: os quatro cenários passam **sem** que o literal mude.
-- [ ] 3.3 **Se algum cenário de `ResultadoDtoTest` cair aqui, a decisão 6 previu errado.** Vale a
+
+  **Os quatro passam, e `ResultadoDtoTest.kt` não aparece em `git diff --name-only`.**
+  `tipoNoEnvio()` e `alternativasNoEnvio()` saíram — eram a segunda cópia Kotlin do mapa — e deram
+  lugar a `answerKind()`/`answerOptions()` do domínio.
+- [x] 3.3 **Se algum cenário de `ResultadoDtoTest` cair aqui, a decisão 6 previu errado.** Vale a
   regra de parada (decisão 8): escrever o que caiu, por quê, e o que isso diz sobre `encodeDefaults`
   — **não** ajustar o literal para caber no que o código passou a produzir. O literal é o contrato;
   o código é que tem de caber nele.
-- [ ] 3.4 **A comparação byte a byte com a linha de base de 0.2.** Gerar de novo os corpos dos quatro
+
+  **Nenhum cenário caiu: a regra de parada não disparou, e a previsão da decisão 6 estava certa.**
+
+  Mas "passou" sozinho não distingue "`encodeDefaults` consertou o problema" de "`encodeDefaults`
+  era irrelevante". A decisão 6 era **previsão** (P6), e prova por ausência de falha não é prova.
+  Então a previsão foi **vista falhar** (P9, P13): desligar `encodeDefaults` — marcado
+  `MUTACAO-decisao6` — derrubou **2 dos 4** cenários, com o mecanismo visível na mensagem:
+
+  | Cenário | Sob a mutação | O que sumiu do corpo |
+  |---|---|---|
+  | `o corpo tem os nomes de campo que a rota espera` | **FAILED** | `"answer_options":[]` do item `em_branco` |
+  | `folha avulsa manda student_token nulo…` | **FAILED** | `"student_token":null`, o campo inteiro |
+  | `pendencia viaja com o tipo dela…` | PASSED | nada — nenhum campo dele iguala o default |
+  | `o corpo nao leva nome, turma, matricula…` | PASSED | idem |
+
+  Os dois que caem são exatamente os dois que exercitam um campo cujo valor **iguala o default** do
+  tipo do servidor. É a regressão que a decisão 6 previu, medida em vez de argumentada.
+
+  Mutação revertida; `grep -rn "MUTACAO"` fora de `build/` → **0**, e os quatro cenários rodados de
+  novo **depois** da reversão, verdes (P10).
+- [x] 3.4 **A comparação byte a byte com a linha de base de 0.2.** Gerar de novo os corpos dos quatro
   cenários, com os dois artefatos da **mesma sessão** (P3), e comparar com `diff`. Verificar que a
   diferença é **vazia**. Se não for, parar e ler a diferença antes de seguir — "os testes passam" não
   é "é o mesmo byte".
-- [ ] 3.5 **Provar que a comparação de 3.4 é reativa** (guarda de vacuidade, P13): acrescentar um
+
+  **Diferença vazia, `exit 0`.** Os três corpos regerados em `2026-09-19T10:31:27Z` têm o
+  **mesmo `sha256`** da linha de base de `10:14:24Z`:
+  `24e1bb4549564e58b37120fb4e4118831fec5e7c4f147d4095c1e8efe3aa5fce`. Os dois artefatos são desta
+  sessão (P3). O fio é byte a byte o mesmo antes e depois da unificação.
+- [x] 3.5 **Provar que a comparação de 3.4 é reativa** (guarda de vacuidade, P13): acrescentar um
   espaço a uma cópia do corpo de base e confirmar que o mesmo `diff` sai com `exit 1`. Sem isso,
   diferença vazia é indistinguível de um comparador que não compara.
-- [ ] 3.6 Rodar `./gradlew build` e verificar verde. Registrar contagem e `timestamp`.
+
+  **Feito:** um espaço acrescentado depois de `"points":1` numa cópia, e o **mesmo** `diff` saiu com
+  `exit 1`. O comparador acusa.
+- [x] 3.6 Rodar `./gradlew build` e verificar verde. Registrar contagem e `timestamp`.
+
+  **`BUILD SUCCESSFUL in 33s`, 176 tasks (24 executadas, 152 up-to-date)**, janela
+  `2026-09-19T10:31:41Z`–`10:32:16Z`. **30 suítes re-executadas, 309 testes, 0 falhas** — todas de
+  `apps/android`, o único módulo que este commit toca.
 
 ## 4. Commit 4 — os espelhos antigos saem
 

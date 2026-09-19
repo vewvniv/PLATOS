@@ -1,8 +1,13 @@
 package com.platos.android.api
 
 import com.platos.android.session.ProvaPublicada
+import com.platos.domain.transport.ExamSummaryDto
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+
+// ------------------------------------------------------------------- o espelho, ainda de pe
+// Mesma situacao de [OrganizacaoDto]: sem leitor desde que `ApiPlatos` passou a importar
+// `com.platos.domain.transport.ExamSummaryDto`. Sai no commit 4.
 
 /**
  * O contrato de `GET /organizations/{id}/exams`, espelhado do servidor.
@@ -23,5 +28,5 @@ data class ProvaDto(
 )
 
 /** A traducao para o vocabulario do preparo, no mesmo ponto unico de [OrganizacaoDto]. */
-fun ProvaDto.paraProva(): ProvaPublicada =
+fun ExamSummaryDto.paraProva(): ProvaPublicada =
     ProvaPublicada(shortId = shortId, titulo = title, contentHash = contentHash)

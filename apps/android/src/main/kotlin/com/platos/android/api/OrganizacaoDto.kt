@@ -1,7 +1,15 @@
 package com.platos.android.api
 
 import com.platos.android.session.Organizacao
+import com.platos.domain.transport.OrganizationDto
 import kotlinx.serialization.Serializable
+
+// ------------------------------------------------------------------- o espelho, ainda de pe
+//
+// A `data class` abaixo e o espelho antigo, e ela ja nao tem leitor: `ApiPlatos` importa
+// `com.platos.domain.transport.OrganizationDto`, e a traducao deste arquivo passou a estender esse
+// tipo. Ela sai no commit 4, junto com os espelhos do outro lado -- ate la os commits 2 e 3
+// continuam revertiveis por si.
 
 /**
  * O contrato de `GET /me/organizations`, espelhado do servidor.
@@ -39,4 +47,4 @@ data class OrganizacaoDto(
  * `Organizacao` tem `nome` e o contrato tem `name`: a fronteira entre os dois idiomas fica aqui, num
  * lugar so, em vez de espalhada por quem le o DTO.
  */
-fun OrganizacaoDto.paraOrganizacao(): Organizacao = Organizacao(id = id, nome = name)
+fun OrganizationDto.paraOrganizacao(): Organizacao = Organizacao(id = id, nome = name)

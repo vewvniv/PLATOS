@@ -1,8 +1,16 @@
 package com.platos.android.api
 
 import com.platos.android.roster.AlunoDoRoster
+import com.platos.domain.transport.RosterEntryDto
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+
+// ------------------------------------------------------------------- o espelho, ainda de pe
+//
+// Este e o unico par em que os dois lados ja usavam o MESMO nome, entao aqui o import de
+// `com.platos.domain.transport.RosterEntryDto` convive com uma declaracao homonima do proprio
+// pacote. O import vence -- medido nesta sessao com sonda e canario (tarefa 2.1), e nao suposto.
+// Sai no commit 4.
 
 /**
  * O contrato de `GET /organizations/{id}/exams/{shortId}/roster`, espelhado do servidor.
