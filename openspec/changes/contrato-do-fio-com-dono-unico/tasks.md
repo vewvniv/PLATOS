@@ -47,18 +47,53 @@ deste plano, e código escrito antes dela seria decisão tomada por implementaç
 
 Código novo; nada o lê ainda. `CLAUDE.md` regra 1.
 
-- [ ] 1.1 Criar os DTOs de transporte em `packages/domain/src/commonMain/kotlin/com/platos/domain/`
+- [x] 1.1 Criar os DTOs de transporte em `packages/domain/src/commonMain/kotlin/com/platos/domain/`
   — os quatro contratos da tabela do `design.md` — com os nomes de tipo do servidor (decisão 5) e os
   `@SerialName` **idênticos** aos de hoje, campo por campo, na mesma ordem de declaração. Os defaults
   do servidor vêm junto (decisão 6). Verificar com `./gradlew :packages:domain:compileKotlinJvm` —
   compila.
-- [ ] 1.2 Criar, no mesmo lugar, a tradução `QuestionAnswer → String` (`answer_kind`) e a de
+
+  **Feito.** Pacote novo `com.platos.domain.transport`, quatro arquivos:
+  `OrganizationDto.kt` (`OrganizationDto`), `ExamDto.kt` (`ExamSummaryDto`, `RosterEntryDto`),
+  `ResultDto.kt` (`ResultSubmissionDto`, `AnswerObservationDto`) e `AnswerKind.kt`. Os
+  `@SerialName` e a ordem de declaração foram copiados campo a campo dos dois lados — nada foi
+  redigitado de memória. `RosterEntryDto` é o único par em que não foi preciso escolher nome: os
+  dois lados já o chamavam assim. `ResultAcceptedDto` **não** subiu: é resposta, não tem espelho no
+  aparelho, e criá-lo compartilhado seria abstração sem consumidor (non-goal do `design.md`).
+  `./gradlew :packages:domain:compileKotlinJvm` → `BUILD SUCCESSFUL`.
+- [x] 1.2 Criar, no mesmo lugar, a tradução `QuestionAnswer → String` (`answer_kind`) e a de
   alternativas, com os quatro valores que o `check` da migration admite. Verificar com um teste em
   `commonTest` que afirma os quatro pares literalmente — é o valor que o conferidor da tarefa 5.1 vai
   ler do arquivo de origem.
-- [ ] 1.3 Rodar `./gradlew build` e verificar que fica **verde**. Este commit não tem consumidor: se
+
+  **Feito**, e com duas decisões que o plano não pré-escreve e ficam ditas:
+
+  1. **`answerOptions()` subiu junto com `answerKind()`.** O plano nomeia só a tradução
+     `QuestionAnswer → string`. As duas são a mesma tradução — `QuestionAnswer` para os **dois**
+     campos do fio (`answer_kind` e `answer_options`) —, as duas estavam duplicadas pela mesma
+     razão, e as duas carregam a mesma regra de negócio ("todas as envolvidas, nunca a vencedora").
+     Deixar metade compartilhada e metade espelhada seria o pior dos dois. A conversão para o
+     `Array<String?>` do jOOQ **não** subiu: essa é a que fala com o banco (ADR-0015 decisão 2).
+  2. **Os quatro valores são `const val` em `AnswerKind`, e não só o `when`.** Sem isso, o parse do
+     servidor (`paraOutcome`, que ramifica sobre os literais ao traduzir o corpo recebido de volta)
+     continuaria sendo um **terceiro** registro Kotlin, e a unificação teria fechado metade do
+     defeito. `const val` é o que permite a esse `when` ramificar sobre a constante.
+
+  `AnswerKindTest` afirma os quatro pares **com literal escrito à mão**, e não contra as próprias
+  constantes: comparar `Marcada.answerKind()` com `AnswerKind.MARCADA` poria o mesmo código dos dois
+  lados da igualdade e aprovaria qualquer valor (P4). Três cenários, `PASSED` nos três alvos.
+- [x] 1.3 Rodar `./gradlew build` e verificar que fica **verde**. Este commit não tem consumidor: se
   alguma coisa cair aqui, o contrato novo não é idêntico ao antigo e a mudança não pode seguir.
   Registrar contagem de testes e `timestamp` do relatório (P2, P3).
+
+  **`BUILD SUCCESSFUL in 1m 42s`, 176 de 176 actionable tasks**, janela
+  `2026-09-19T10:19:14Z`–`10:20:57Z`. **1445 testes, 0 falhas, 0 erros, 0 ignorados**, contados
+  sobre os 154 relatórios XML **filtrados por `timestamp`** dessa janela (P2, P3) — e não sobre o
+  que estava no diretório.
+
+  A contagem inclui **1 cenário que não é da mudança**: `LinhaDeBaseDoFioTest`, o instrumento
+  temporário da tarefa 0.2, que está na árvore mas **fora dos commits**. Ele sai na tarefa 8, e a
+  saída se confere rodando (P10).
 
 ## 2. Commit 2 — o consumidor do servidor
 
