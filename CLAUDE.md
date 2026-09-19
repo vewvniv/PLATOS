@@ -11,6 +11,18 @@
   de implementar e antes de fechar qualquer tarefa. Instrução que só pode ser cumprida quebrando
   este arquivo ou aquele é má instrução, e `rigorous.md` §7 diz o que fazer com ela.
 - Nunca recrie contexto já registrado nesses arquivos; leia a fonte relevante.
+- **Linha temporária, válida enquanto a banda de correção estiver aberta (desde 2026-09-18).**
+  `docs/plano-de-correcao-antes-da-fatia-5.md` é o percurso entre o archive da fatia 4 e o
+  `/opsx:propose` da fatia 5, e `docs/auditoria-2026-09-18-antes-da-fatia-5.md` é a entrada dele.
+  Leia o plano antes de começar qualquer trabalho neste período: ele diz qual etapa é a próxima, o
+  que é **proibido** em cada uma, e que nenhuma etapa começa antes de a anterior estar arquivada.
+  São oito sessões, e uma sessão que comece sem o plano na mão é a forma mais provável de ele ser
+  ignorado por esquecimento — este arquivo é o único carregado em **toda** sessão, e é por isso que
+  a linha está aqui e não em outro lugar.
+  **Esta linha sai no archive da última mudança da banda** — a lista está na seção "As mudanças,
+  com nome, spec e ordem" do plano, e a última da fila é a da ETAPA 8; se
+  `transferencia-entre-aparelhos` correr depois dela, é essa que apaga a linha. Deixá-la para
+  trás transforma um ponteiro útil em ruído permanente.
 
 ## Regras de execução
 
@@ -99,7 +111,13 @@ tentador e menos visível.
 
 - Kotlin: Ktor 3, jOOQ, kotlinx.serialization.
 - Banco: PostgreSQL/Supabase, RLS, pgvector, migrations via Supabase CLI.
-- Android: CameraX, OpenCV, ZXing-C++, Room, WorkManager, Compose, supabase-kt.
+- Android: CameraX, OpenCV, ZXing-C++, Room, WorkManager, Compose, `ktor-client`.
+  Esta linha dizia `supabase-kt`, e a decisão de **não** usá-lo já estava tomada, com medição:
+  decisão 9 do `design.md` da `slice-4a-zero-device-auth` (o probe bateu no endpoint pelas duas
+  vias e recebeu a mesma resposta; a biblioteca descarta `HttpRequestException.cause`, que é o
+  material da distinção que a spec exige) e decisão 2 do ADR-0013 (o caminho direto à tabela
+  passaria o `content` por mais uma etapa de codificação, contra ADR-0008). Correção de registro
+  contra decisão já tomada — não é mudança de stack, e por isso não abre ADR.
 - Web: React, TypeScript, Vite, TanStack Query.
 - Compartilhado: KMP.
 - CI: GitHub Actions; observabilidade: Sentry + logs estruturados.
