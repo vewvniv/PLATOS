@@ -182,9 +182,30 @@ duas capabilities/specs, reavalie e divida"):
 
 ### Como isso se traduz em sessões
 
-**Uma mudança = um PR = um escopo de chat** (§14 regra 4). Então são **oito sessões de trabalho** —
-o bloco de commits diretos mais sete mudanças —, e nenhuma delas começa antes de a anterior estar
-arquivada (regra 0.1). Duas dessas sessões precisam de emulador e uma de aparelho real; elas estão
+**Uma mudança = um escopo de chat** (§14 regra 4). Então são **oito sessões de trabalho** — o bloco
+de commits diretos mais sete mudanças —, e nenhuma delas começa antes de a anterior estar arquivada
+(regra 0.1).
+
+> **Atualização de 2026-09-19, decidida na sessão da ETAPA 5.** Esta frase dizia "uma mudança = **um
+> PR** = um escopo de chat". **Deixa de dizer:** a banda inteira vai para `main` num **merge único no
+> fim das oito etapas**, e não numa fila de PRs. A razão é o que a banda é — uma série de correções
+> extraordinárias entre duas fatias, não trabalho de produto —, e cada etapa continua com branch
+> própria em `vewvniv/<nome>`, empilhada sobre a anterior. O texto antigo fica aqui e não se apaga
+> (P7): ele é o que §14 regra 4 diz em geral, e continua valendo fora desta banda.
+>
+> **A consequência que isso tem, e ela não é neutra.** `ci.yml` dispara em `push` para `main` e em
+> `pull_request`. Sem PR aberto, **o CI não roda em nenhuma etapa** — ele vê a banda pela primeira
+> vez *depois* do merge, e não antes. Em particular o job `paridade`, que §16 chama de maior risco do
+> projeto se não existir e que injeta defeito deliberado a cada execução, fica sem rodar sobre este
+> trabalho; a ETAPA 3 fechou paridade e fidelidade **localmente**, com os artefatos daquela sessão
+> (`docs/cobertura-params-hash-no-pacote-publicado.md` §3), e as demais não passaram por ele.
+> **E o `build` do CI roda em Linux**, enquanto estas sessões rodam em Windows.
+>
+> **Mitigação, e ela não contraria a decisão:** abrir **um** PR para a banda — em rascunho, a
+> qualquer momento — faz o CI rodar sobre a pilha sem mudar o modelo de merge, que continua sendo um
+> só. Aberto cedo, uma quebra só do Linux ou só do CI aparece na etapa em que nasceu; aberto no fim,
+> aparece com oito etapas em cima dela. Fica como **item escrito, não como implementação silenciosa**
+> (regra 0.4): decidir quando abrir é de quem mantém. Duas dessas sessões precisam de emulador e uma de aparelho real; elas estão
 marcadas no cabeçalho de cada etapa, e P22 vale: **pergunte antes de mexer no ambiente.**
 
 Se o tempo apertar, o que se corta é a mudança 6 e a 8 — nessa ordem, e **com a linha no §16
