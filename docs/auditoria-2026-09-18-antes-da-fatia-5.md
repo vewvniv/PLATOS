@@ -244,7 +244,27 @@ duas linhas — e é a metade que mais importa.
 
 ---
 
-### 3.2 `ScanActivity` abre um `RoomDatabase` novo a cada `onCreate`, e nunca fecha nenhum
+### 3.2 `ScanActivity` abre um `RoomDatabase` novo a cada `onCreate`, e nunca fecha nenhum — ~~**aberto**~~ **fechado**
+
+> **Fechado em 2026-09-19, pela mudança `o-pendente-nao-se-perde-no-aparelho`** (ETAPA 5). O texto
+> abaixo fica inteiro e não se apaga (P7).
+>
+> `abrir` passa a devolver **sempre a mesma instância**, guardada no companion e construída com
+> `applicationContext`. Os três chamadores não mudaram — eles já chamavam `abrir` —, e **ninguém
+> fecha**: com uma instância por processo o dono é o processo, e `close()` por qualquer dos três
+> derrubaria a base dos outros dois.
+>
+> **O achado estava certo sobre a causa de ele ter atravessado.** Os dois cenários que ele nomeia
+> construíam a base com nome próprio e guardavam a referência; um cenário novo afirma, pelo caminho
+> de produção, que duas chamadas a `abrir` devolvem a mesma instância — por `assertSame`, porque
+> asserção sobre o **dado** passaria com o defeito presente.
+>
+> **O que o fechamento não prova, e fica dito:** a mutação mostrou que **duas** conexões benignas
+> sobre o mesmo arquivo convivem sem estourar. A contenção que produz
+> `SQLiteDatabaseLockedException` vem do **acúmulo** sob rede intermitente com a câmera aberta, e
+> isso não foi reproduzido. §2 e §7 da
+> `docs/cobertura-o-pendente-nao-se-perde-no-aparelho.md`.
+
 
 **O que.** `ResultadosEmRoom.abrir()` (`ResultadosEmRoom.kt:117`) chama
 `Room.databaseBuilder(...).build()` — que **não** é singleton e **não** deduplica. Há três chamadores
@@ -278,7 +298,25 @@ teste posicionada para vê-lo.
 
 ---
 
-### 3.3 `ScanActivity.gravar` descarta uma correção apurada em silêncio
+### 3.3 `ScanActivity.gravar` descarta uma correção apurada em silêncio — ~~**aberto**~~ **fechado**
+
+> **Fechado em 2026-09-19, pela mudança `o-pendente-nao-se-perde-no-aparelho`** (ETAPA 5). O texto
+> abaixo fica inteiro e não se apaga (P7).
+>
+> **O caminho silencioso deixou de existir, em vez de passar a ser tratado.** O `short_id` entrou no
+> gate que decide antes de a câmera ligar; `organizacao` e `prova` deixaram de ser campos nuláveis, e
+> os dois `?: return` sumiram. Tratar o nulo dentro de `gravar` manteria construível um estado que
+> não deveria existir.
+>
+> **A assimetria que o achado apontou foi a chave.** A decisão de "tem tudo o que precisa" já morava
+> em `onCreate`; o que faltava era o `short_id` estar nela. O motivo da recusa é **próprio**, e não
+> entra em `MotivoDaBarragem` — aquele enum decide **antes** do `Intent` e não tem como saber que um
+> extra vai faltar. A distinção é verificada por asserção, e a frase da recusa nova **não** manda
+> baixar a prova de novo: o pacote está no lugar.
+>
+> A decisão saiu de `ScanActivity` para uma função própria, porque dentro de `onCreate` ela **não
+> tinha um único cenário** — nem o requisito de spec que já existia era exercitado por nada.
+
 
 **O que.** `ScanActivity.kt:248-249`:
 
@@ -355,7 +393,19 @@ pôr os outros dois cedo. Dois de três não é "não há o que retrofitar".
 **Severidade: moderada agora, cara na fatia 6.** Custa um campo hoje; custa rehashear todo pacote
 publicado depois.
 
-### 4.2 O spec de `result-sync` diz "token vazio" e o código grava `null`
+### 4.2 O spec de `result-sync` diz "token vazio" e o código grava `null` — ~~**aberto**~~ **fechado**
+
+> **Fechado em 2026-09-19, pela mudança `o-pendente-nao-se-perde-no-aparelho`** (ETAPA 5). O texto
+> abaixo fica inteiro e não se apaga (P7).
+>
+> O spec passa a dizer **ausente**, nos dois pontos, **com a razão junto** — que é o que o achado
+> nomeia como faltando: a distinção vivia só em comentário de migration e KDoc, e foi assim que a
+> spec pôde ficar do lado errado dela sem ninguém notar.
+>
+> Foi como delta de mudança, e não edição direta da spec principal: o atalho das cinco condições
+> exige "nenhum texto novo é inventado", e trocar "vazio" por "ausente" com a razão junto inventa
+> texto.
+
 
 `openspec/specs/result-sync/spec.md:41` e `:57` dizem que a folha avulsa "SHALL produzir resultado
 durável **com token vazio**". O código converte vazio em nulo em três pontos —

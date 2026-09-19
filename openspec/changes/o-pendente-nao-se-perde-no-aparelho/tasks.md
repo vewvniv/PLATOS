@@ -170,16 +170,30 @@ diferentes.
 
 Regra 0.8 do plano: nenhuma etapa fecha com "passou".
 
-- [ ] 5.1 `docs/cobertura-o-pendente-nao-se-perde-no-aparelho.md` com, no mínimo: os **dois**
+- [x] 5.1 `docs/cobertura-o-pendente-nao-se-perde-no-aparelho.md` com, no mínimo: os **dois**
       conjuntos reais ao lado dos previstos; o comando cheio de cada execução (P5) e o `timestamp` de
       cada uma (P2, P3); o aparelho ou emulador em que a suíte instrumentada rodou; como foi visto
       falhar (P9); e o que ficou sem verificação (P8).
-- [ ] 5.2 Uma seção da cobertura nomeando **o que o emulador não reproduz**: rede intermitente com a
+- [x] 5.2 Uma seção da cobertura nomeando **o que o emulador não reproduz**: rede intermitente com a
       câmera aberta, que é a condição em que `SQLiteDatabaseLockedException` nasce. O cenário afirma
       que os dois caminhos convivem; ele **não** reproduz a corrida real (`design.md`, *Risks*).
       Verificar que a seção diz o que ficou por medir, e não só que houve limite.
-- [ ] 5.3 No `docs/auditoria-2026-09-18-antes-da-fatia-5.md`, os achados **3.2**, **3.3** e **4.2**
+- [x] 5.3 No `docs/auditoria-2026-09-18-antes-da-fatia-5.md`, os achados **3.2**, **3.3** e **4.2**
       deixam de estar abertos, **sem apagar o texto antigo** (P7), com o ponteiro para esta mudança.
-- [ ] 5.4 Verificação final: `./gradlew build` com `timestamp`, `connectedDebugAndroidTest` verde
+- [x] 5.4 Verificação final: `./gradlew build` com `timestamp`, `connectedDebugAndroidTest` verde
       **depois** da reversão das duas mutações e com o aparelho nomeado, `grep -rn "MUTACAO"` fora de
       `build/` em `0`, e `openspec validate o-pendente-nao-se-perde-no-aparelho --strict`.
+
+      `./gradlew build --rerun-tasks`, 2026-09-19T00:25:26Z–00:27:39Z: **BUILD SUCCESSFUL**, todas as
+      tarefas executadas — é isso que faz desta linha medição e não verde herdado (P2). **1436 testes
+      de JVM/unitários, 0 caídos.**
+
+      `./gradlew :apps:android:connectedDebugAndroidTest`, 2026-09-19T00:27:48Z–00:28:40Z, aparelho
+      **2511FPC34G / Android 16**: **81 testes, 0 caídos**, depois da reversão das duas mutações.
+
+      `grep -rn "MUTACAO"` fora de `build/` em **0**. `openspec validate --strict` válida.
+
+      **Uma linha do §16 foi acrescentada**, e não é escopo a mais: a regra 0.4 do plano manda que
+      achado novo no meio de uma etapa vire item escrito com dono e fatia-limite (P19), e P20 manda
+      que item de segurança entre na tabela do §16 antes de a etapa fechar. O achado é o da §6 da
+      cobertura.
