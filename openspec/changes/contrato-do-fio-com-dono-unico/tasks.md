@@ -425,15 +425,55 @@ acima, sem acréscimo; a coluna "real" é preenchida ao rodar.
 
 ## 8. Fechar
 
-- [ ] 8.1 Rodar o **comando cheio** — `./gradlew build` — e registrar contagem de testes, falhas e
+- [x] 8.1 Rodar o **comando cheio** — `./gradlew build` — e registrar contagem de testes, falhas e
   `timestamp` do relatório, filtrando por `timestamp` (P2, P3, P5). Verde de comando estreito não é
   verde do CI.
-- [ ] 8.2 Escrever `docs/cobertura-contrato-do-fio-com-dono-unico.md` com o que o `rigorous.md` §8
+
+  **`./gradlew build --rerun-tasks` → `BUILD SUCCESSFUL in 2m 12s`, 176 de 176 tasks executadas**,
+  janela `2026-09-19T10:45:32Z`–`10:47:45Z`. **153 suítes, 1444 testes, 0 falhas, 0 erros, 0
+  ignorados**, contados pelo atributo `timestamp` de dentro de cada XML.
+
+  **`--rerun-tasks` não é zelo.** O primeiro `./gradlew build` depois de remover o instrumento
+  executou só **11** tasks — o resto estava `UP-TO-DATE`, e "o build passou" teria sido um sinal
+  sobre quase nada (P2). O precedente de forçar tudo no fechamento é a tarefa 3.2 de
+  `generatejooq-sem-registro-automatico`.
+
+  **`./gradlew -p buildSrc test --rerun-tasks` → `BUILD SUCCESSFUL`**, rodado à parte porque o
+  `build` **não** alcança os testes de `buildSrc` — o que não é suposição: foi medido na tarefa 1.1
+  daquela mesma mudança, e é por isso que o `ci.yml` tem um passo próprio.
+
+  **Por módulo:** `packages/domain` 971 · `apps/api` 165 · `apps/android` 308. A comparação com a
+  linha de base é exata: `apps/android` tinha **308** em
+  `docs/cobertura-o-pendente-nao-se-perde-no-aparelho.md` §8 e tem **308**; os instrumentados tinham
+  **83 casos com 2 pulados** e têm o mesmo. **A diferença total é +9, e os 9 são `AnswerKindTest`**
+  — 3 cenários × 3 alvos. Nada além do que esta mudança acrescentou.
+- [x] 8.2 Escrever `docs/cobertura-contrato-do-fio-com-dono-unico.md` com o que o `rigorous.md` §8
   exige: o comando cheio (P5), o `timestamp` (P2, P3), o oráculo independente e por que ele é
   independente (P4 — os dois literais, que não compartilham código com o tipo que julgam), como a
   verificação foi vista falhar e **qual conjunto caiu** (P9), a comparação byte a byte com a âncora
   de 0.2 (P3), e o que ficou **sem** verificação (P8). Nenhuma seção fecha com "passou".
-- [ ] 8.3 Verificar que o `design.md` e o `proposal.md` continuam verdadeiros depois da
+
+  **Escrito.** A §8 nomeia cinco coisas não verificadas, e duas delas são a substância: **o CI não
+  rodou nesta sessão** (tudo é local, em Windows; o job `build` roda em Linux), e **os outros três
+  contratos não foram submetidos à mutação decisiva** — ela foi feita sobre `capture_id`, no
+  contrato de resultado. O que se afirma dos outros três é mais fraco, e está dito que é mais
+  fraco.
+- [x] 8.3 Verificar que o `design.md` e o `proposal.md` continuam verdadeiros depois da
   implementação — em particular a decisão 6, que carrega uma **previsão**. Se ela foi desmentida, o
   que vale é o registro do que aconteceu ao lado do que foi previsto, e não a previsão reescrita
   (P7).
+
+  **Conferidos, item a item, e os dois continuam verdadeiros:**
+
+  | Afirmação | Estado |
+  |---|---|
+  | Decisão 5 — fica o nome do servidor | verdadeira: `ResultSubmissionDto`, `ExamSummaryDto`, `OrganizationDto` |
+  | Decisão 6 — previsão sobre `encodeDefaults` | **confirmada, e agora medida** (grupo 3.3) |
+  | Risco "`kotlinx` como `implementation` pode acusar no commit 2" | **não acusou**, como a previsão dizia |
+  | `packages/contracts` continua sem existir | verdadeira: `packages/` tem só `domain` |
+  | `apps/web/src/layoutMap.ts` intocado | verdadeira: `git diff bd2934a -- apps/web/` **vazio** |
+  | Nenhum schema, migration, rota, fixture ou hash muda | verdadeira: nenhum aparece no diff |
+
+  **Nada precisou de correção retroativa**, e por isso não há nada a marcar como afirmação
+  superada. A única correção desta mudança é a do número do commit 1, e ela está na 1.3 e na §7 do
+  `cobertura-*`.
