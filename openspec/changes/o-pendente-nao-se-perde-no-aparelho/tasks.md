@@ -51,13 +51,13 @@ A numeração é a ordem dos commits (regra 0.3 do plano; `CLAUDE.md` regra 1, P
 O cenário existente constrói a base com nome próprio e guarda a referência — **exercita uma topologia
 que não é a da produção**, e é por isso que o defeito atravessou.
 
-- [ ] 2.1 Cenário novo que afirma, **pelo caminho de produção**, que duas chamadas a `abrir` devolvem
+- [x] 2.1 Cenário novo que afirma, **pelo caminho de produção**, que duas chamadas a `abrir` devolvem
       **a mesma instância**. Verificar que a asserção é sobre identidade de referência, e não sobre o
       dado — duas instâncias distintas sobre o mesmo arquivo também leriam a mesma linha, e uma
       asserção sobre conteúdo passaria com o defeito presente.
-- [ ] 2.2 Cenário novo que afirma que **uma escrita pelo caminho do worker e uma leitura pelo caminho
+- [x] 2.2 Cenário novo que afirma que **uma escrita pelo caminho do worker e uma leitura pelo caminho
       da tela não se atropelam**. Verificar com `connectedDebugAndroidTest` verde.
-- [ ] 2.3 **Ver falhar.** A mutação é **restaurar o `build()` por chamada**. Rodar a suíte
+- [x] 2.3 **Ver falhar.** A mutação é **restaurar o `build()` por chamada**. Rodar a suíte
       instrumentada sob a mutação e registrar **quais** cenários caem, contra esta tabela:
 
       | Cenário | Deve cair? |
@@ -71,6 +71,40 @@ que não é a da produção**, e é por isso que o defeito atravessou.
       **Os três "não" são o ponto: eles constroem a própria base e continuam certos sobre o que
       medem. Se caírem, a mutação não isolou nada** — e a regra de parada dispara (`design.md`
       decisão 12).
+
+      **PREVISTO 2 · REAL 1. A regra de parada disparou**, e o conjunto real fica escrito ao lado do
+      previsto (P7, P12, P14). `connectedDebugAndroidTest` do pacote `outbox`,
+      2026-09-19T00:12:09Z–00:12:33Z, aparelho **2511FPC34G / Android 16**, 25 cenários, 1 caído:
+
+      | Cenário | Previsto | Real |
+      |---|---|---|
+      | duas aberturas devolvem a mesma instância | **sim** | **caiu** |
+      | escrita do worker e leitura da tela convivem | **sim** | **não caiu** |
+      | `ApagamentoLocalInstrumentedTest` (base própria) | não | não caiu |
+      | `OutboxEmRepousoInstrumentedTest` (base própria) | não | não caiu |
+      | `GravacaoNoFioPrincipalInstrumentedTest` | não | não caiu |
+
+      **A condição de parada explícita do plano foi cumprida:** nenhum dos três "não" caiu, então a
+      mutação **isolou** o que devia. O desvio está na linha 2.
+
+      **O que ele significa, e não é "o teste está fraco".** Vinte escritas e vinte leituras por
+      **duas instâncias distintas** sobre o mesmo arquivo convivem sem estourar: o SQLite do
+      aparelho aguenta duas conexões benignas. A contenção que produz
+      `SQLiteDatabaseLockedException` na vida real vem do **acúmulo** de instâncias — uma por
+      rotação de tela, mais uma por passada do worker — sob rede intermitente com a câmera aberta, e
+      isso este cenário não reproduz. A previsão do plano tratou "duas conexões" e "muitas conexões
+      em disputa" como a mesma coisa, e são duas.
+
+      **Consequência aceita, e escrita no próprio teste:** a guarda da unicidade é **só**
+      `duas_aberturas_devolvem_a_mesma_instancia`. O cenário de convivência continua valendo pelo
+      que de fato afirma — que os dois caminhos de produção não se bloqueiam —, e a KDoc dele agora
+      diz que ele **não** é prova da instância única. **O instrumento não foi consertado para caber
+      na previsão** (regra 0.5): nenhuma asserção foi endurecida, nenhum laço foi aumentado até
+      quebrar.
+
+      **Não medido, e fica dito (P8):** que o acúmulo de instâncias sob contenção real produz a
+      exceção. Seria preciso rede intermitente com a câmera aberta em aparelho, e isso não foi
+      feito.
 
 ## 3. Commit 3 — o estado inconstruível (5.B)
 
