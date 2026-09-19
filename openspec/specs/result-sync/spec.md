@@ -38,7 +38,13 @@ apurada, e o aluno pelo **token que o QR da folha carrega**.
 
 O token SHALL vir do payload do QR lido, e SHALL NOT ser derivado do roster, da turma, do nome
 apresentado ou de qualquer outro estado do aparelho. Folha cujo token vem vazio — a folha avulsa —
-SHALL produzir resultado durável com token vazio, porque a nota é válida e só a atribuição falta.
+SHALL produzir resultado durável com token **ausente**, porque a nota é válida e só a atribuição
+falta.
+
+**Ausente, e não vazio, e a diferença é a decisão.** Token vazio faria todas as folhas avulsas da
+mesma prova colidirem entre si na identidade que decide o que é revisão de quê — elas passariam a
+ser lidas como recapturas umas das outras. Ausência é o que distingue "esta folha não nomeia
+aluno" de "esta folha nomeia um aluno cujo token é a string vazia", e só o primeiro existe.
 
 O resultado SHALL levar o total apurado, a pontuação máxima, se a nota está fechada, a lista de
 pendências e quanto ainda está em disputa, e SHALL levar o **resultado de cada questão** como
@@ -80,7 +86,7 @@ aritmética.
 #### Scenario: Folha avulsa
 
 - **WHEN** a folha lida traz token de aluno vazio
-- **THEN** o resultado é gravado com token vazio, e a nota é preservada
+- **THEN** o resultado é gravado com token **ausente**, e a nota é preservada
 
 #### Scenario: Nota parcial chega como parcial
 
@@ -105,6 +111,11 @@ aritmética.
   não declara
 - **THEN** o servidor recusa por decisão sobre o pedido, a recusa nomeia a variante como o que não
   fecha, e nem o resultado nem a evidência por questão são gravados
+
+#### Scenario: Duas folhas avulsas da mesma prova não são a mesma folha
+
+- **WHEN** duas folhas avulsas diferentes da mesma prova são apuradas e gravadas
+- **THEN** as duas produzem resultados distintos, e nenhuma é lida como recaptura da outra
 
 ### Requirement: O resultado nasce pendente e espera a rede numa fila local
 
