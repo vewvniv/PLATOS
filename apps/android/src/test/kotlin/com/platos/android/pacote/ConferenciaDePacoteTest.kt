@@ -227,6 +227,76 @@ class ConferenciaDePacoteTest {
         assertEquals(MotivoDaRecusa.HASH_MALFORMADO, recusa.motivo)
     }
 
+    // ----------------------------------------- o pacote do contrato anterior a ADR-0014
+
+    /**
+     * **O cenario que prova que a consequencia aceita por ADR-0014 e real, e alta.**
+     *
+     * A decisao 3 daquele ADR aceitou que acrescentar `params_hash` a `PackageMeta` faria todo
+     * pacote publicado antes dela deixar de passar na camada (b): `encodeDefaults = true` injeta
+     * `"params_hash":null` que nao estava nos bytes, e reserializar deixa de reproduzir o original.
+     * Aceitar uma consequencia e barato; este cenario e o que a torna **verificavel**.
+     *
+     * O artefato e `fixtures/pacote-do-contrato-anterior.json`, congelado byte a byte antes da
+     * regravacao e deliberadamente **nao** regerado — `GoldenWriterTest` registra por que. Depois da
+     * regravacao nao sobra nenhum pacote do contrato antigo nesta arvore, entao aquele arquivo e a
+     * unica janela.
+     *
+     * **A recusa e conferida pelo MOTIVO, e nao so por haver recusa** (`rigorous.md` §3). Recusar
+     * por integridade e recusar por interpretacao pedem coisas opostas de quem segura o aparelho:
+     * a primeira pede tentar de novo, a segunda pede atualizar o aplicativo. Um cenario que so
+     * afirmasse "foi recusado" passaria com o motivo errado.
+     */
+    @Test
+    fun `o pacote do contrato anterior e recusado por interpretacao`() {
+        val anterior = File(fixtures, "pacote-do-contrato-anterior.json").readBytes()
+        val hashDele = MessageDigest.getInstance("SHA-256")
+            .digest(anterior)
+            .joinToString("") { "%02x".format(it) }
+
+        assertNotEquals(
+            hash,
+            hashDele,
+            "o pacote do contrato anterior tem o mesmo hash do atual: ou ele foi regerado, ou a " +
+                "fixture atual foi revertida — nos dois casos este cenario deixou de afirmar algo",
+        )
+
+        val recusa = recusado(verificarPacote(anterior, hashDele))
+
+        assertEquals(MotivoDaRecusa.INTERPRETACAO, recusa.motivo)
+    }
+
+    /**
+     * **A guarda de vacuidade que isola a camada: o mesmo artefato produz os DOIS motivos.**
+     *
+     * O cenario acima afirma que o pacote do contrato anterior e recusado por **interpretacao**.
+     * Sozinho, ele nao exclui que a recusa viesse de **integridade** por alguma razao que ninguem
+     * notou — e as duas sao indistinguiveis para uma assercao que so olhasse "foi recusado".
+     *
+     * Este cenario apresenta **os mesmos bytes** com o hash da fixture **atual**, e exige
+     * `INTEGRIDADE`. Com isso, o par afirma o que interessa: o motivo da recusa e escolhido pelo
+     * hash declarado, e nao pelo artefato. No cenario irmao a camada (a) passa — os bytes sao
+     * exatamente os que aquele hash cobre — e o que reprova e a (b).
+     *
+     * E o sombreamento de fixture que o `rigorous.md` §3 descreve, e que ja aconteceu duas vezes
+     * nesta base. A forma dele aqui seria facil: apresentar o pacote antigo com o hash novo e ler a
+     * recusa como se fosse a de interpretacao.
+     */
+    @Test
+    fun `o mesmo pacote antigo com o hash atual e recusado por integridade, e nao por interpretacao`() {
+        val anterior = File(fixtures, "pacote-do-contrato-anterior.json").readBytes()
+
+        // `hash` e o da fixture ATUAL — outro artefato, outro hash.
+        val recusa = recusado(verificarPacote(anterior, hash))
+
+        assertEquals(
+            MotivoDaRecusa.INTEGRIDADE,
+            recusa.motivo,
+            "os mesmos bytes com um hash que nao os cobre tem de cair na camada (a); se caem na " +
+                "(b), as duas camadas nao estao sendo distinguidas neste artefato",
+        )
+    }
+
     // ------------------------------------------------------------------ ajudantes
 
     private val texto: String get() = bytes.decodeToString()

@@ -181,7 +181,8 @@ Contrato central. Produzido na publicação, **imutável**, com hash, ~110 KB em
 ```
 ExamPackage
 ├── meta            exam_id, short_id, layout_engine_version, min_renderer_version,
-│                   content_hash, fully_offline_gradable, prompt_version, model_id
+│                   content_hash, fully_offline_gradable,
+│                   prompt_version, model_id, params_hash          ← a tripla de I3
 ├── items[]         enunciado, formato, alternativas, bloom, dificuldade, habilidades BNCC,
 │                   rubrica analítica (critérios · descritores · pontos · expected_lines),
 │                   assets (SVG de fórmula, imagens), answer_capture_mode
@@ -192,6 +193,20 @@ ExamPackage
 ├── answer_key      item_id → alternativa correta, pontuação
 └── scoring         pesos, composição, nota máxima
 ```
+
+> **Correção de registro, 2026-09-18 — ADR-0014, decisão 1.** Esta lista trazia `prompt_version` e
+> `model_id` e **não** trazia `params_hash`, enquanto **I3 (§2) sempre exigiu os três**. A
+> incompletude não se apaga (P7), porque ela **produziu código**: `PackageMeta` foi escrito com dois
+> dos três campos, seguindo esta lista, e a KDoc dele passou a afirmar que a fatia 6 preencheria os
+> campos "sem mexer no contrato" — falso, porque o terceiro faltava e acrescentá-lo muda o
+> `content_hash` de todo pacote. É o achado 4.1 da
+> `docs/auditoria-2026-09-18-antes-da-fatia-5.md`.
+>
+> **Isto não é substituição de decisão:** I3 nunca mudou. Pela precedência do `rigorous.md` §0, a
+> invariante vence a prosa descritiva do mesmo documento, e o que aconteceu aqui é o registro
+> descritivo alcançando o normativo. A lição que fica é sobre a forma: **uma lista ilustrativa ao
+> lado de uma invariante é lida como se fosse a invariante**, e quem implementa segue a que tem os
+> nomes dos campos.
 
 **Compressão:** nenhuma explícita. `Content-Encoding` do CDN no transporte e TOAST do Postgres no repouso já entregam ~70%. Comprimir à mão economiza ~77 KB por prova e custa código nos dois clients. **Imagens nunca entram no JSON** — vão para o Storage por referência.
 

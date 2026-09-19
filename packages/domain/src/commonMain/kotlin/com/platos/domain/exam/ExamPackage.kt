@@ -131,14 +131,32 @@ data class PackageMeta(
     @SerialName("min_renderer_version") val minRendererVersion: Int,
     @SerialName("fully_offline_gradable") val fullyOfflineGradable: Boolean,
     /**
-     * I3: presentes no contrato desde o inicio, vazios enquanto a prova for fixa.
+     * A tripla de proveniencia que I3 exige: **os tres**, e nao dois (ADR-0014).
      *
-     * Nao sao opcionais por descuido. Prova fixa nao tem artefato de IA, e a fatia 6 preenche estes
-     * campos sem mexer no contrato — que e exatamente o que I3 existe para garantir: quando a
-     * geracao chegar, nao ha o que retrofitar.
+     * **Nulos enquanto a prova for fixa**, e nao opcionais por descuido: prova fixa nao tem artefato
+     * de IA, e nao ha proveniencia a declarar. Quando a geracao chegar, a fatia 6 preenche os tres
+     * sem mexer no contrato — que e o que I3 existe para garantir.
+     *
+     * **Nulo nao e vazio.** Um dos tres com valor vazio significa "houve geracao e o valor e vazio",
+     * que e um estado impossivel e portanto um defeito detectavel; nulo significa "nao houve
+     * geracao". E a mesma distincao que a folha avulsa ja fixou para `student_token`, e pela mesma
+     * razao: dois estados colapsados num valor so produzem leitura plausivel e errada, sem sintoma.
+     *
+     * [paramsHash] cobre os **parametros da chamada** que produziu o artefato — o que foi enviado ao
+     * modelo alem do prompt. Ele existe para que dois artefatos produzidos com parametros diferentes
+     * sejam distinguiveis sem inferir a partir do conteudo, que e o que [promptVersion] e [modelId]
+     * sozinhos nao dao.
+     *
+     * *A redacao anterior desta KDoc afirmava que a fatia 6 preencheria os campos "sem mexer no
+     * contrato — nao ha o que retrofitar". Era **falsa no campo que faltava**: o pacote e hasheado
+     * sobre a serializacao canonica com `encodeDefaults = true`, entao acrescentar [paramsHash]
+     * mudou o `content_hash` de todo pacote. Fica dito em vez de apagado (P7) — dois de tres nao era
+     * "nao ha o que retrofitar", e o custo foi exatamente o que os outros dois existiam para
+     * evitar.*
      */
     @SerialName("prompt_version") val promptVersion: String? = null,
     @SerialName("model_id") val modelId: String? = null,
+    @SerialName("params_hash") val paramsHash: String? = null,
 )
 
 /**
