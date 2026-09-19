@@ -186,31 +186,30 @@ duas capabilities/specs, reavalie e divida"):
 de commits diretos mais sete mudanças —, e nenhuma delas começa antes de a anterior estar arquivada
 (regra 0.1).
 
-> **Atualização de 2026-09-19, decidida na sessão da ETAPA 5.** Esta frase dizia "uma mudança = **um
-> PR** = um escopo de chat". **Deixa de dizer:** a banda inteira vai para `main` num **merge único no
-> fim das oito etapas**, e não numa fila de PRs. A razão é o que a banda é — uma série de correções
-> extraordinárias entre duas fatias, não trabalho de produto —, e cada etapa continua com branch
-> própria em `vewvniv/<nome>`, empilhada sobre a anterior. O texto antigo fica aqui e não se apaga
-> (P7): ele é o que §14 regra 4 diz em geral, e continua valendo fora desta banda.
+> **Atualização de 2026-09-19, decidida na sessão da ETAPA 5, e ela mudou duas vezes na mesma
+> conversa — as duas ficam, porque a segunda só existe por causa do que a primeira revelou.**
 >
-> **A consequência que isso tem, e ela não é neutra.** `ci.yml` dispara em `push` para `main` e em
-> `pull_request`. Sem PR aberto, **o CI não roda em nenhuma etapa** — ele vê a banda pela primeira
-> vez *depois* do merge, e não antes. Em particular o job `paridade`, que §16 chama de maior risco do
-> projeto se não existir e que injeta defeito deliberado a cada execução, fica sem rodar sobre este
-> trabalho; a ETAPA 3 fechou paridade e fidelidade **localmente**, com os artefatos daquela sessão
-> (`docs/cobertura-params-hash-no-pacote-publicado.md` §3), e as demais não passaram por ele.
-> **E o `build` do CI roda em Linux**, enquanto estas sessões rodam em Windows.
+> **Primeiro decidiu-se merge único no fim das oito etapas**, pelo que a banda é: uma série de
+> correções extraordinárias entre duas fatias, e não trabalho de produto.
 >
-> **Mitigação, e ela não contraria a decisão:** abrir **um** PR para a banda — em rascunho, a
-> qualquer momento — faz o CI rodar sobre a pilha sem mudar o modelo de merge, que continua sendo um
-> só. Aberto cedo, uma quebra só do Linux ou só do CI aparece na etapa em que nasceu; aberto no fim,
-> aparece com oito etapas em cima dela. Fica como **item escrito, não como implementação silenciosa**
-> (regra 0.4): decidir quando abrir é de quem mantém. Duas dessas sessões precisam de emulador e uma de aparelho real; elas estão
-marcadas no cabeçalho de cada etapa, e P22 vale: **pergunte antes de mexer no ambiente.**
-
-Se o tempo apertar, o que se corta é a mudança 6 e a 8 — nessa ordem, e **com a linha no §16
-escrita antes do corte**, nunca por omissão. Nenhuma das sete restantes tem corte previsto: cada uma
-delas fica mais cara dentro da fatia 5 do que antes dela.
+> **Então a consequência foi posta na mesa, e ela reverteu a decisão.** `ci.yml` dispara em `push`
+> para `main` e em `pull_request`: **sem PR, o CI não roda em etapa nenhuma** — ele veria a banda
+> pela primeira vez *depois* do merge. Em particular o job `paridade`, que §16 chama de maior risco
+> do projeto se não existir e que injeta defeito deliberado a cada execução. A ETAPA 3 fechou
+> paridade e fidelidade **localmente**, com os artefatos daquela sessão
+> (`docs/cobertura-params-hash-no-pacote-publicado.md` §3); as demais não passaram por ele. **E o
+> `build` do CI roda em Linux**, enquanto estas sessões rodam em Windows.
+>
+> **O que vale, e é o que está feito:** **um PR por etapa, encadeados**, e merge **na ordem das
+> etapas**, cada um depois de verde. A frase original — "uma mudança = um PR = um escopo de chat" —
+> volta a valer, e o que muda em relação a ela é só que os PRs ficam **empilhados** em vez de
+> paralelos: a base de cada um é a branch da etapa anterior, e não `main`. É o que a pilha obriga —
+> ela é linear (`main` → 1 → 2 → 3 → 4 → 5), e PR contra `main` faria o quinto mostrar 38 commits em
+> vez dos 8 dele. O GitHub re-aponta o seguinte para `main` sozinho quando o anterior entra.
+>
+> **Por que isto fica escrito em vez de ser só feito:** a primeira decisão chegou a ser registrada, e
+> apagá-la deixaria o leitor sem o argumento que a derrubou — que é justamente o que faz a segunda
+> ser a certa (P7).
 
 ---
 
