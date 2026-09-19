@@ -180,18 +180,43 @@ private fun Nota(score: ObjectiveScore) {
  * A unica acao e voltar e escolher de novo, que refaz o gate.
  */
 @Composable
-fun SemPacoteScreen(onVoltar: () -> Unit, modifier: Modifier = Modifier) {
+fun SemPacoteScreen(onVoltar: () -> Unit, modifier: Modifier = Modifier) =
+    EscaneamentoNaoAbreScreen(MotivoDeNaoAbrir.PACOTE_NAO_CONFERIDO, onVoltar, modifier)
+
+/**
+ * A recusa de abrir o escaneamento, com **a frase do motivo**.
+ *
+ * **Duas frases, e nao uma parametrizada por severidade.** Cada motivo pede uma acao diferente:
+ * pacote nao conferido se resolve baixando a prova de novo; prova nao identificada **nao** se
+ * resolve assim — o pacote pode estar no lugar, e mandar baixar de novo seria sugerir a acao errada.
+ * A frase e o que chega a quem segura o aparelho, e ela precisa dizer o que fazer.
+ */
+@Composable
+fun EscaneamentoNaoAbreScreen(
+    motivo: MotivoDeNaoAbrir,
+    onVoltar: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = "A prova nao esta mais conferida neste aparelho, entao a camera nao foi aberta. " +
-                "Volte e escolha a prova de novo para baixa-la.",
-        )
+        Text(text = frasePara(motivo))
         Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth().padding(top = 24.dp)) {
             Text("Voltar")
         }
     }
+}
+
+/** A frase de cada motivo, num lugar so, para que a tela e o teste concordem sobre qual e qual. */
+fun frasePara(motivo: MotivoDeNaoAbrir): String = when (motivo) {
+    MotivoDeNaoAbrir.PACOTE_NAO_CONFERIDO ->
+        "A prova nao esta mais conferida neste aparelho, entao a camera nao foi aberta. " +
+            "Volte e escolha a prova de novo para baixa-la."
+
+    MotivoDeNaoAbrir.PROVA_NAO_IDENTIFICADA ->
+        "Este aparelho nao soube dizer de qual prova era este escaneamento, entao a camera nao foi " +
+            "aberta e nenhuma folha foi lida. A prova continua baixada; volte e abra o " +
+            "escaneamento de novo a partir dela."
 }

@@ -65,6 +65,10 @@ class GravacaoNoFioPrincipalInstrumentedTest {
 
     @Before
     fun preparar() {
+        // **Reiniciar antes de apagar, e nao depois.** `abrir` guarda a instancia no processo;
+        // apagar o arquivo sem esquecer a referencia deixaria a proxima chamada devolvendo uma
+        // instancia que aponta para um arquivo que nao existe mais.
+        ResultadosEmRoom.reiniciarParaTeste()
         context.deleteDatabase(nomeDaBase)
         escopo = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     }
@@ -72,6 +76,7 @@ class GravacaoNoFioPrincipalInstrumentedTest {
     @After
     fun limpar() {
         escopo.cancel()
+        ResultadosEmRoom.reiniciarParaTeste()
         context.deleteDatabase(nomeDaBase)
     }
 

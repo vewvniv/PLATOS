@@ -60,6 +60,11 @@ class SegundoMembroInstrumentedTest {
         // A costura usa a base de producao, entao o teste comeca com ela vazia — e nao com "o que
         // estiver la". Uma fila herdada de outra execucao faria as contagens abaixo medirem outra
         // coisa.
+        //
+        // **Reiniciar antes de apagar, e nao depois.** `abrir` guarda a instancia no processo;
+        // apagar o arquivo sem esquecer a referencia deixaria a proxima chamada devolvendo uma
+        // instancia que aponta para um arquivo que nao existe mais.
+        ResultadosEmRoom.reiniciarParaTeste()
         context.deleteDatabase(NOME_DA_BASE)
         guardada = SessaoGuardadaAndroid(context)
         guardada.apagarCredencial()
@@ -68,6 +73,7 @@ class SegundoMembroInstrumentedTest {
 
     @After
     fun limpar() {
+        ResultadosEmRoom.reiniciarParaTeste()
         context.deleteDatabase(NOME_DA_BASE)
         guardada.apagarCredencial()
     }
@@ -179,31 +185,38 @@ class SegundoMembroInstrumentedTest {
         )
     }
 
+    /**
+     * **Nao fecha a base, e a ausencia do `close()` e o requisito.**
+     *
+     * Estas duas funcoes fechavam a instancia num `finally`. Era inofensivo enquanto `abrir`
+     * devolvia uma instancia nova por chamada — cada chamador era dono da sua. Com o acessador
+     * unico, a instancia e **a** do processo, e fecha-la aqui a fecha para o worker e para as duas
+     * `Activity`: a chamada seguinte recebe a mesma referencia, ja fechada, e estoura com
+     * `IllegalStateException: Database is closed`.
+     *
+     * Foi o que aconteceu, e o conserto **nao** e `abrir` reconstruir quando acha a instancia
+     * fechada: isso esconderia um chamador fechando a base compartilhada, que e precisamente a
+     * classe de defeito que esta mudanca existe para tornar impossivel. O conserto e o chamador
+     * parar de fechar — nenhum chamador de producao fecha, e este teste passa a exercitar a mesma
+     * topologia que eles.
+     */
     private fun gravarPendente(captureId: String) {
         val base = ResultadosEmRoom.abrir(context)
-        try {
-            ResultadosEmRoom(base.pendentes()).guardar(
-                ResultadoPendente(
-                    captureId = captureId,
-                    organizacao = organizacao,
-                    prova = prova,
-                    studentToken = "tok-a",
-                    apuradoEm = 1_789_646_400_000L,
-                    nota = nota(),
-                ),
-            )
-        } finally {
-            base.close()
-        }
+        ResultadosEmRoom(base.pendentes()).guardar(
+            ResultadoPendente(
+                captureId = captureId,
+                organizacao = organizacao,
+                prova = prova,
+                studentToken = "tok-a",
+                apuradoEm = 1_789_646_400_000L,
+                nota = nota(),
+            ),
+        )
     }
 
     private fun quantosPendentes(): Int {
         val base = ResultadosEmRoom.abrir(context)
-        return try {
-            ResultadosEmRoom(base.pendentes()).quantosPendentes(organizacao)
-        } finally {
-            base.close()
-        }
+        return ResultadosEmRoom(base.pendentes()).quantosPendentes(organizacao)
     }
 
     private fun nota(): ObjectiveScore {
