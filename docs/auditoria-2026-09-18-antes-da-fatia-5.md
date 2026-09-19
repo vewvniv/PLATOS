@@ -328,7 +328,28 @@ Ou seja: a diferença entre vazio e nulo **é a decisão**, e o spec ficou do la
 `CLAUDE.md` diz que `openspec/specs/` descreve o comportamento atual. Aqui não descreve.
 **Severidade: moderada** — texto, mas exatamente no campo cuja semântica a fatia mudou.
 
-### 4.3 `allowBackup="false"` pode não cobrir transferência entre aparelhos — **suposto**
+### 4.3 `allowBackup="false"` pode não cobrir transferência entre aparelhos — ~~**suposto**~~ **medido, confirmado e corrigido**
+
+> **Fechado em 2026-09-18, pela mudança `transferencia-entre-aparelhos`.** O texto abaixo fica inteiro
+> e não se apaga (P7) — ele é o achado como foi escrito, e o valor dele está em ter sido marcado
+> **suposto** em vez de afirmado.
+>
+> **A suposição estava certa, e a severidade subiu para grave, como ele previu.** A medição está em
+> `docs/cobertura-transferencia-entre-aparelhos.md`. O mesmo pacote, com a mesma semente, sob os
+> quatro transportes do aparelho: três responderam `Backup is not allowed` e o `D2dTransport`
+> respondeu `Success`, com **19 968 bytes** entregues e o agente escrevendo no fluxo
+> `f/rosters/<org>/<prova>.json` — **nome de aluno** —, `db/outbox.db` e `sp/platos-sessao-cifrada.xml`.
+>
+> **Três coisas que o achado não sabia, e que a medição produziu.** (1) O `outbox.db` **não** está em
+> `filesDir`: está em `databases/`, e entra no fluxo sob outro domínio — uma regra escrita só para
+> arquivos o deixaria passando. (2) A credencial cifrada também atravessava, e o achado não a cita.
+> (3) Negar os três domínios **não bastou**: a primeira passada da correção ainda mostrou o domínio
+> `root` no fluxo, porque é lá que nasce tudo o que `getDir()` cria. Com os quatro negados, o
+> transporte passou a cancelar o pacote — `doesn't have any backup data` — com o roster ainda
+> legível no disco.
+>
+> **O que continua aberto** está na tabela de ponto de não-retorno do `ARQUITETURA-FINAL-v3.md` §16:
+> `dataExtractionRules` não existe abaixo da API 31, o `minSdk` é 26, e a medição é de Android 16.
 
 `AndroidManifest.xml` desliga o backup no aplicativo inteiro, e a razão escrita é a certa: "regra que
 lista arquivos silencia quando alguém acrescenta o terceiro". A intenção declarada é **"o dado não

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Mudanca `transferencia-entre-aparelhos`. O que nao sai do aparelho por copia automatica do
+  sistema operacional.
+
+  **Por que este arquivo existe, quando `allowBackup="false"` ja estava no manifesto.** Porque os
+  dois caminhos de copia automatica deixaram de ser o mesmo caminho. Isso foi **medido**, e nao lido
+  na documentacao — `docs/cobertura-transferencia-entre-aparelhos.md`, 2026-09-18, em aparelho real:
+  o mesmo pacote, com a mesma semente, respondeu `Backup is not allowed` sob tres transportes de
+  backup e `Success` sob `com.google.android.gms/.backup.migrate.service.D2dTransport`, com 19.968
+  bytes entregues e o agente escrevendo no fluxo `f/rosters/<org>/<prova>.json`, `db/outbox.db` e
+  `sp/platos-sessao-cifrada.xml`.
+
+  Ou seja: nome de aluno e correcao pendente atravessavam a transferencia entre aparelhos por um
+  caminho que o backup em nuvem recusava.
+
+  **`path="."` nega o dominio inteiro, e e de proposito.** A alternativa — listar `rosters`,
+  `outbox.db` e `platos-sessao-cifrada.xml` pelo nome — parece mais precisa e e mais fragil, e o
+  proprio manifesto ja argumenta contra ela na justificativa do `allowBackup`: "regra que lista
+  arquivos silencia quando alguem acrescenta o terceiro". Um arquivo novo sob `files/` nasceria fora
+  de uma regra escrita por nome, e nada falharia. Aqui, o que quiser atravessar precisa ser
+  declarado, e declarar e visivel em revisao.
+
+  **Quatro dominios, e o quarto entrou por medicao.** Os tres arquivos do achado 4.3 vivem em tres
+  arvores diferentes do diretorio de dados: `files/`, `databases/` e `shared_prefs/`. Negar so
+  `file` deixaria a fila de pendentes passando, porque ela nao e arquivo comum — e banco, e mora
+  noutra arvore.
+
+  `root` **nao estava previsto**. A primeira versao deste arquivo negava so aqueles tres, e a
+  medicao repetida mostrou o fluxo ainda carregando `r/app_dxmaker_cache` — o prefixo `r/` e o
+  dominio `root`, que e o proprio `/data/data/<pacote>/`. Aquele diretorio e vazio e so existe
+  porque a suite instrumentada roda, mas o que ele demonstra nao e sobre ele: **qualquer diretorio
+  criado por `getDir()`, que e API publica, nasce fora de uma regra que so cite `file`, `database` e
+  `sharedpref`**. A fatia 5 acrescenta caminho de captura ao aparelho, e e exatamente a forma pela
+  qual esta regra voltaria a falhar pela metade.
+
+  As tres linhas medidas ficam junto do `root`, e nao sao redundancia inutil: elas dizem **o que foi
+  encontrado atravessando**, e essa correspondencia entre linha e achado se perde se o arquivo tiver
+  so `root`.
+
+  **As duas secoes trazem as mesmas exclusoes.** `allowBackup="false"` ja barra a nuvem, e a medicao
+  confirmou isso em tres transportes. A secao `<cloud-backup>` entra mesmo assim porque um arquivo
+  com `<device-transfer>` preenchido e `<cloud-backup>` vazio **diz** que a nuvem pode levar tudo, e
+  isso contradiz o requisito, que fala dos dois caminhos.
+
+  **Limite conhecido, dito aqui:** `dataExtractionRules` so existe a partir da API 31, e o
+  `minSdk` e 26. O comportamento em Android 8 a 11 nao foi medido, e este arquivo nao o alcanca.
+-->
+<data-extraction-rules>
+
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+    </cloud-backup>
+
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+    </device-transfer>
+
+</data-extraction-rules>

@@ -32,9 +32,28 @@
       arquivos de `SessaoGuardadaAndroid`, e por isso e desligado no aplicativo inteiro em vez
       de por regra de exclusao: regra que lista arquivos silencia quando alguem acrescenta o
       terceiro.
+
+      **Sao dois caminhos de copia automatica, e nao um — mudanca `transferencia-entre-aparelhos`,
+      2026-09-18.** A intencao acima continua certa; o mecanismo escolhido para cumpri-la deixou de
+      alcancar o segundo caminho quando o `targetSdk` subiu. Na `targetSdk 35` o `allowBackup`
+      governa o **backup** e a **transferencia entre aparelhos** passou a ser governada por
+      `dataExtractionRules`.
+
+      Isso nao foi lido na documentacao, foi medido em aparelho real
+      (`docs/cobertura-transferencia-entre-aparelhos.md`): o mesmo pacote, com a mesma semente,
+      recebeu `Backup is not allowed` sob tres transportes de backup e `Success` sob
+      `com.google.android.gms/.backup.migrate.service.D2dTransport`, com 19.968 bytes entregues.
+      O que atravessava era `f/rosters/<org>/<prova>.json` — **nome de aluno** —, `db/outbox.db`
+      — correcao pendente que nao existe em nenhum outro lugar — e `sp/platos-sessao-cifrada.xml`.
+
+      As duas linhas ficam: `allowBackup` continua sendo o que barra a nuvem, e foi medido
+      funcionando nos tres transportes dela. `dataExtractionRules` cobre o que ele deixou de
+      alcancar, e nao o substitui. O arquivo de regras nega os tres dominios por inteiro, pela mesma
+      razao que o paragrafo acima da para o `allowBackup` ser do aplicativo inteiro.
     -->
     <application
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/regras_de_extracao_de_dados"
         android:label="PLATOS"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
