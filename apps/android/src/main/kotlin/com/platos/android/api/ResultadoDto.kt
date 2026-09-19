@@ -5,48 +5,8 @@ import com.platos.domain.transport.AnswerObservationDto
 import com.platos.domain.transport.ResultSubmissionDto
 import com.platos.domain.transport.answerKind
 import com.platos.domain.transport.answerOptions
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.time.Instant
-
-// ------------------------------------------------------------------- os espelhos, ainda de pe
-// Sem leitor desde que [corpoDoEnvio] passou a montar os tipos de `com.platos.domain.transport`.
-// Saem no commit 4, junto com os do servidor.
-
-/**
- * O contrato de `POST /organizations/{id}/exams/{shortId}/results`, espelhado do servidor.
- *
- * A fonte e `apps/api/src/main/kotlin/com/platos/api/http/dto/ResultDto.kt`, e vale aqui o mesmo que
- * vale em [ProvaDto], [OrganizacaoDto] e [RosterEntryDto]: **espelho, e nao arquivo compartilhado**.
- * A deriva entre os dois lados e fechada pelo JSON literal que os testes dos dois prendem — o do
- * servidor monta o corpo a mao em `ResultRouteTest`, e o daqui confere o que [corpoDoEnvio] produz.
- *
- * **Nao ha campo de nome, turma, matricula nem habilidade, e a ausencia e o requisito.** O que liga
- * a folha ao aluno e o token (I5, ADR-0002), e o vinculo item->habilidade vive no `ExamPackage`, que
- * e imutavel e hasheado — o fato analitico e derivado dele no servidor, e nao enviado daqui.
- */
-@Serializable
-data class ObservacaoDto(
-    @SerialName("item_id") val itemId: String,
-    @SerialName("answer_kind") val answerKind: String,
-    @SerialName("answer_options") val answerOptions: List<String>,
-    val worth: Int,
-    val earned: Int,
-)
-
-@Serializable
-data class EnvioDeResultadoDto(
-    @SerialName("capture_id") val captureId: String,
-    @SerialName("student_token") val studentToken: String?,
-    @SerialName("package_hash") val packageHash: String,
-    @SerialName("variant_id") val variantId: String,
-    val points: Int,
-    @SerialName("max_score") val maxScore: Int,
-    val closed: Boolean,
-    @SerialName("captured_at") val capturedAt: String,
-    val observations: List<ObservacaoDto>,
-)
 
 /**
  * O corpo que sobe, congelado no momento da apuracao.

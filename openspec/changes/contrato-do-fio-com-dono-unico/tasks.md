@@ -244,15 +244,41 @@ Código novo; nada o lê ainda. `CLAUDE.md` regra 1.
 
 E **só aqui**, quando não há mais quem os leia.
 
-- [ ] 4.1 Remover as declarações espelhadas que sobraram nos oito arquivos das duas pontas, deixando
+- [x] 4.1 Remover as declarações espelhadas que sobraram nos oito arquivos das duas pontas, deixando
   no lugar apenas o que é do lado — as traduções e os imports. Verificar com
   `grep -rn "EnvioDeResultadoDto\|ObservacaoDto\|OrganizacaoDto\|ProvaDto" apps/` fora de `build/`:
   nenhuma **declaração** resta, só usos do tipo compartilhado onde o nome foi mantido.
-- [ ] 4.2 **Os testes de literal continuam na árvore, inteiros** (decisão 4). Verificar com
+
+  **Feito: 261 deleções contra 12 inserções em 8 arquivos.** Três arquivos saíram inteiros
+  (`api/http/dto/OrganizationDto.kt`, `api/http/dto/ExamDto.kt`, e as duas `data class` de
+  `api/http/dto/ResultDto.kt`, que ficou só com `ResultAcceptedDto` e as traduções do servidor); os
+  quatro do aparelho encolheram para a tradução de tela que é deles.
+  `grep -rn "^data class (…)" apps/` → **nenhuma**; as cinco declarações vivem só em
+  `packages/domain/src/commonMain/kotlin/com/platos/domain/transport/`.
+
+  **Duas KDoc foram corrigidas porque esta mudança as tornou falsas**, e não por limpeza:
+  `ProvaPublicada.kt` dizia "Espelha `ProvaDto`" — a palavra "espelha" é exatamente o que o
+  ADR-0015 desfez —, e `ProvaDto.kt` apontava `[OrganizacaoDto]`, que deixou de existir. Deixar
+  afirmação falsa que o próprio commit criou é pior do que a linha que a corrige.
+
+  **Os quatro arquivos do aparelho continuam com nome de DTO e já não declaram DTO nenhum.** Não
+  são renomeados: `git mv` misturado com a remoção dos espelhos tornaria o diff deste commit
+  ilegível justo onde ele mais precisa ser conferido (P25). Fica dito na KDoc de `ProvaDto.kt`, no
+  molde do que `ResultQueries.findPublishedExamId` já faz com o próprio nome.
+- [x] 4.2 **Os testes de literal continuam na árvore, inteiros** (decisão 4). Verificar com
   `git diff --stat` que nenhum arquivo de teste foi removido neste commit, e que `ResultadoDtoTest` e
   `ResultRouteTest` continuam com os mesmos literais. É o ponto desta mudança que, se for quebrado,
   não tem como ser percebido depois — a conferência é explícita porque a tentação é maior aqui.
-- [ ] 4.3 Rodar `./gradlew build` e verificar verde. Registrar contagem e `timestamp`.
+
+  **Conferido por duas vias.** `git diff --cached --name-status | grep "^D.*[Tt]est"` → **vazio**:
+  nenhum arquivo de teste foi removido. E os dois literais foram comparados contra `bd2934a`, o
+  commit em que a sessão começou: `ResultadoDtoTest.kt` e `ResultRouteTest.kt` estão **idênticos**,
+  zero linhas de diff, depois dos quatro commits.
+- [x] 4.3 Rodar `./gradlew build` e verificar verde. Registrar contagem e `timestamp`.
+
+  **`BUILD SUCCESSFUL in 55s`, 176 tasks (34 executadas, 142 up-to-date)**, janela
+  `2026-09-19T10:34:52Z`–`10:35:47Z`. **55 suítes re-executadas, 474 testes, 0 falhas** — os dois
+  módulos, `apps/api` e `apps/android`, porque este commit toca os dois.
 
 ## 5. A conferência cruzada com o `check` da migration (ADR-0015 decisão 3)
 
