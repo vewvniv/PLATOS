@@ -106,7 +106,33 @@ class ResultadosEmRoom(private val dao: ResultadoPendenteDao) : ResultadosPenden
     companion object {
 
         /**
-         * A base do aparelho.
+         * A instancia unica do processo. `@Volatile` porque os leitores vem de fios diferentes: o
+         * principal, nas duas `Activity`, e o do `WorkManager`, no worker.
+         */
+        @Volatile
+        private var instancia: BaseDoOutbox? = null
+
+        /**
+         * A base do aparelho. **Sempre a mesma instancia, e a unicidade e o requisito.**
+         *
+         * `Room.databaseBuilder(...).build()` **nao** deduplica: cada chamada devolve uma instancia
+         * nova, com o proprio `SupportSQLiteOpenHelper` e a propria conexao. Ha tres chamadores de
+         * producao sobre o mesmo `outbox.db` — `SessaoActivity.onCreate`, `ScanActivity.onCreate` e
+         * `passadaDeEnvio` —, e **nenhum fecha**. Cada rotacao de tela acumulava mais uma instancia
+         * viva, e o worker roda **quando ha rede**, inclusive com a camera aberta: escrita
+         * concorrente por conexoes distintas no mesmo SQLite e onde nasce
+         * `SQLiteDatabaseLockedException`. O dado em jogo e o pendente, que e o **unico exemplar de
+         * uma correcao ja feita**.
+         *
+         * **`applicationContext`, e nunca o `Context` de uma `Activity`.** Guardar no companion uma
+         * instancia construida com o `Context` da tela a manteria viva pelo tempo do processo —
+         * trocaria um vazamento de conexao por um vazamento de `Activity`, que e pior porque e
+         * invisivel. Os chamadores ja passam o `applicationContext`; a conversao aqui e a garantia
+         * de que um chamador futuro que esqueca nao cause isso.
+         *
+         * **Ninguem fecha, e a ausencia e deliberada.** Com uma instancia por processo, o dono e o
+         * processo. `close()` chamado por qualquer das duas `Activity` ou pelo worker derrubaria a
+         * base debaixo dos outros dois — defeito pior que o consertado, e mais dificil de ver.
          *
          * `createFromAsset` e migracao nao existem: a base nasce nesta versao e nao ha dado anterior
          * para migrar — hoje nada e persistido. A primeira migration de verdade vem quando a
@@ -115,6 +141,37 @@ class ResultadosEmRoom(private val dao: ResultadoPendenteDao) : ResultadosPenden
          * nao subiu, que e exatamente o que esta fatia existe para nao fazer.
          */
         fun abrir(context: Context): BaseDoOutbox =
-            Room.databaseBuilder(context, BaseDoOutbox::class.java, "outbox.db").build()
+            instancia ?: synchronized(this) {
+                instancia ?: Room.databaseBuilder(
+                    context.applicationContext,
+                    BaseDoOutbox::class.java,
+                    "outbox.db",
+                ).build().also { instancia = it }
+            }
+
+        /**
+         * Fecha a instancia guardada e esquece a referencia. **So para teste, e so por isto:**
+         * cenario que apaga o arquivo da base com `deleteDatabase` precisa que a proxima chamada a
+         * [abrir] construa de novo — senao ele recebe a instancia que aponta para o arquivo apagado.
+         *
+         * **Isto e uma porta de teste, e portas de teste foram o que deixou o defeito 3.2
+         * atravessar.** A diferenca esta no que cada uma faz. A antiga **substituia** a topologia de
+         * producao — base com nome proprio, referencia guardada num campo — por outra, e entao media
+         * um sistema que nao existe. Esta **restaura o estado inicial** da topologia de producao,
+         * que continua sendo a exercitada, e o cenario que afirma que duas chamadas a [abrir]
+         * devolvem a mesma instancia mede o caminho de producao diretamente.
+         *
+         * **Nao existe alternativa por dentro da guarda.** Limpar linhas em vez de apagar o arquivo
+         * exigiria um apagamento em massa em [ResultadosPendentes] — a ferramenta que a spec proibe,
+         * porque ela ficaria pronta para alguem chamar de dentro de `sair`, e sair com pendente na
+         * fila e o que a fatia inteira existe para impedir. Apagar o **arquivo**, de fora, por API
+         * da plataforma, nao poe essa ferramenta ao alcance de ninguem.
+         */
+        fun reiniciarParaTeste() {
+            synchronized(this) {
+                instancia?.close()
+                instancia = null
+            }
+        }
     }
 }
