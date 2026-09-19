@@ -37,11 +37,18 @@ deste plano, e código escrito antes dela seria decisão tomada por implementaç
   **emulador** no cabeçalho. Confirmar com o desenvolvedor qual emulador/AVD usar antes de subir
   qualquer coisa, inclusive em modo automático. Verificar: a confirmação está registrada na sessão.
 
-  **Perguntado e respondido em 2026-09-19.** O AVD `platos-atd34` existe em `~/.android/avd`, mas o
-  binário `emulator` **não** está no `ANDROID_HOME` do scoop (`android-clt`, só command-line tools).
+  **Perguntado e respondido em 2026-09-19.** O AVD `platos-atd34` existe em `~/.android/avd`.
   Decisão do desenvolvedor: **procurar o binário fora do `ANDROID_HOME` e subir o `platos-atd34`**;
   se não for encontrado, **parar e dizer** — não instalar nada. A opção "instalar o pacote
   `emulator` do SDK" foi oferecida e **não** foi escolhida.
+
+  **A pergunta foi feita sobre um fato errado, e o erro fica dito (P7).** Ela afirmava que o binário
+  `emulator` **não** estava no `ANDROID_HOME`. Ele está: `$ANDROID_HOME/emulator/emulator.exe`, no
+  SDK do scoop. O que a sonda havia testado era `%LOCALAPPDATA%/Android/Sdk/emulator/emulator.exe`
+  — um caminho padrão que esta máquina não usa — e a ausência ali foi apresentada como ausência no
+  `ANDROID_HOME`, que é outra afirmação. A decisão tomada não muda com a correção (procurar e subir),
+  e nada foi instalado; mas a pergunta levou ao desenvolvedor uma premissa que não tinha sido
+  verificada.
 
 ## 1. Commit 1 — o contrato no KMP, sem consumidor
 
@@ -399,9 +406,22 @@ acima, sem acréscimo; a coluna "real" é preenchida ao rodar.
 
 ## 7. O aparelho, e o que só ele decide
 
-- [ ] 7.1 Com o emulador confirmado em 0.3, rodar a suíte instrumentada do Android e verificar que
+- [x] 7.1 Com o emulador confirmado em 0.3, rodar a suíte instrumentada do Android e verificar que
   nada regrediu. Registrar o comando cheio e o `timestamp` (P5, P2). Se o emulador não for
   autorizado ou não subir, **isso fica escrito como lacuna**, e não suposto como verde (P8, P23).
+
+  **Rodou, e não há lacuna.** `platos-atd34` (API 34) subiu com
+  `$ANDROID_HOME/emulator/emulator.exe`, e
+  `ANDROID_SERIAL=emulator-5554 ./gradlew :apps:android:connectedDebugAndroidTest` deu
+  `BUILD SUCCESSFUL in 50s`, janela `2026-09-19T10:43:24Z`–`10:44:15Z`. O relatório
+  (`timestamp="2026-09-19T10:44:12"`) traz **83 testes, 0 falhas, 0 erros, 2 ignorados** — os dois
+  ignorados são `AcumuloDeInstanciasProbe`, que são sondas e são ignoradas por desenho.
+
+  **Havia um aparelho físico conectado (`TOXSR4MR9989MBQW`), e ele não foi tocado.** Sem
+  `ANDROID_SERIAL`, o `connectedDebugAndroidTest` roda em **todos** os dispositivos conectados, e
+  isso teria instalado o APK no telefone do desenvolvedor — que não é o que foi autorizado em 0.3.
+  Conferido depois: `pm list packages | grep platos` no aparelho físico → **nada**. O emulador que
+  esta sessão subiu foi desligado ao fim (`emu kill`), e o ambiente ficou como estava.
 
 ## 8. Fechar
 
