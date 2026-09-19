@@ -73,6 +73,10 @@ diz que ele **não** é prova da instância única — a guarda da unicidade é 
 leem a mesma linha. Qualquer asserção sobre conteúdo passaria com o defeito presente, em verde, para
 sempre.
 
+**A previsão errada foi produtiva, e a §2-bis é o motivo.** O desvio obrigou a perguntar *quanta*
+contenção é preciso, e a resposta — medida — é que a duas conexões não há nenhuma, e a 64 há perda de
+dado. Se a previsão tivesse batido, a etapa teria fechado com o número certo pela razão errada.
+
 ### Mutação B — a guarda do `short_id` neutralizada (5.B)
 
 `./gradlew :apps:android:testDebugUnitTest` · `2026-09-19T00:17:56Z–00:18:06Z` · **308 cenários, 1
@@ -102,6 +106,55 @@ As duas mutações foram conferidas **no arquivo** antes de a suíte rodar — `
 de `build/` acusou a linha em cada caso, e o `BUILD FAILED` confirma que a compilação as pegou.
 Depois de cada reversão: `grep` em **0**, e a suíte verde (`00:13:45Z`, 25 de 25; `00:18:18Z`, 308 de
 308).
+
+---
+
+## 2-bis. O porquê da 5.A, agora medido — e ele é pior do que o achado dizia
+
+**Isto entrou depois de a etapa estar finalizada**, a pedido, e por uma razão: a mutação A provou que
+a guarda segura o que diz segurar, e **não** provou a razão pela qual a instância única importa. A
+afirmação do achado 3.2 — "é daí que nasce `SQLiteDatabaseLockedException`" — era **argumento**, e o
+desvio da previsão (duas conexões benignas convivem) a deixava sem apoio.
+
+**O experimento:** duas condições, **a mesma carga**, e a única diferença é a topologia.
+`AcumuloDeInstanciasProbe`, aparelho **2511FPC34G / Android 16**, `2026-09-19T07:40Z–07:46Z`.
+A condição nova é o **controle** — sem ela, uma falha na antiga poderia ser da carga.
+
+**A carga importa, e a fronteira foi medida:** a **24 × 60** nenhuma das duas condições falha — foi
+essa a primeira tentativa, e ela não concluía nada. A **64 × 150** (9600 escritas concorrentes) a
+antiga falha e a nova não.
+
+| Execução | Antiga: falhas | Antiga: gravadas | Nova: falhas | Nova: gravadas |
+|---|---|---|---|---|
+| 1–4 (sem contagem de linhas) | 1 a 3, **em todas** | — | **0** | 9600 / 9600 |
+| 5 | 3 | 9340 / 9600 (**−260**) | **0** | 9600 / 9600 |
+| 6 | 5 | 9297 / 9600 (**−303**) | **0** | 9600 / 9600 |
+| 7 | 5 | 9155 / 9600 (**−445**) | **0** | 9600 / 9600 |
+
+**Sete execuções, e a topologia antiga estourou `SQLiteDatabaseLockedException (code 5 SQLITE_BUSY)`
+em todas as sete.** A nova, nunca.
+
+**E a medição achou algo que o achado não dizia.** A exceção não é ruído: ela **leva o pendente
+junto**. O fio que estoura aborta as escritas que faltavam, e entre **260 e 445 de 9600** — 2,7% a
+4,6% — simplesmente não chegam ao disco. Cada uma delas é, pela decisão registrada em
+`ResultadoPendente`, **o único exemplar de uma correção já feita**. O achado 3.2 descrevia um modo de
+falha barulhento; o que está medido é **perda silenciosa de correção**, que é a coisa que esta fatia
+inteira existe para impedir.
+
+**A topologia antiga também parecia mais rápida** — ~10 s contra ~18,8 s — e era, porque desistia: o
+tempo menor é o das escritas que não aconteceram. Um benchmark ingênuo teria concluído que o defeito
+era a otimização.
+
+**É probe, e não teste da suíte, e a razão é a que este documento já registrou contra si mesmo.** O
+desfecho depende de **carga e de aparelho**. Um cenário assim na suíte de sempre fica vermelho por
+razão que ninguém lê, e vermelho ilegível vira vermelho ignorado — que é exatamente o item do §6
+abaixo. O precedente de forma é `SupabaseFailureProbe`: *"não é teste: não afirma nada, só exercita e
+relata"*, pulado por padrão e rodado com argumento explícito.
+
+**O que continua sem medição (P8):** a corrida **real** — rede intermitente com a câmera aberta, em
+uso normal. O probe produz a contenção por carga sintética, e não pela sobreposição worker × câmera
+que a produção tem. O que ele estabelece é que **a topologia antiga perde pendentes sob contenção de
+escrita, e a nova não**; quanta contenção o uso real gera continua sem número.
 
 ---
 
@@ -167,8 +220,20 @@ instrumentada, e pode parar de verificar o que afirma sem nada acusar.**
   armazenamento do aplicativo". Um cenário que cai por interferência é um cenário que ninguém lê como
   segurança — lê-se como flaky e ignora-se. E um que passa por acidente de ordem pode voltar a cair,
   ou pior: continuar verde sem estar medindo.
-- **Dono:** `apps/android/src/androidTest/.../SessaoEmRepousoInstrumentedTest.kt`.
-- **Fatia-limite:** **antes do lançamento**. Não bloqueia a fatia 5.
+- **Dono:** o **mantenedor** — que nesta base é **uma pessoa só**, como o próprio §16 registra na
+  linha "Um mantenedor, quatro módulos". Não é item de jurídico externo: é código de teste.
+  *(A primeira versão desta seção punha aqui o **arquivo**. Arquivo não é dono — é onde o item mora,
+  e a coluna "dono" do §16 nomeia pessoa ou papel em todas as suas linhas. Fica corrigido e dito, em
+  vez de reescrito em silêncio — P7.)*
+- **Onde mora:** `apps/android/src/androidTest/.../SessaoEmRepousoInstrumentedTest.kt`.
+- **Fatia-limite:** **antes do lançamento**. Não bloqueia a fatia 5 — ela não toca a credencial de
+  sessão, então a fragilidade não piora com ela.
+- **Veículo, e ele existe:** **item 4 da 7.2** do `docs/plano-de-correcao-antes-da-fatia-5.md`,
+  acrescentado no archive desta mudança. Prazo sem veículo flutua, e foi assim que o item da LGPD
+  quase virou retrofit; os outros três itens da 7.2 são o mesmo tipo de coisa — guarda que pode
+  parar de verificar o que afirma sem nada acusar — e têm a mesma fatia-limite.
+- **Como se vê falhar, quando for consertado:** rodar o cenário **isolado e dentro da suíte cheia** e
+  exigir o mesmo desfecho nos dois. É exatamente a propriedade que hoje não vale.
 - **Não foi consertado aqui, e a razão é a regra 0.4:** achado novo no meio de uma etapa vira item
   escrito, nunca implementação silenciosa (P19). Por ser de segurança, entra na tabela do §16 (P20).
 
@@ -176,10 +241,11 @@ instrumentada, e pode parar de verificar o que afirma sem nada acusar.**
 
 ## 7. O que **não** foi verificado (P8)
 
-- **Que o acúmulo de instâncias sob contenção real produz `SQLiteDatabaseLockedException`.** É o que
-  a mutação A mostrou não estar coberto: duas conexões benignas convivem. Reproduzir exigiria rede
-  intermitente com a câmera aberta, muitas rotações de tela e passadas do worker em disputa — e isso
-  **não foi feito**.
+- ~~Que o acúmulo de instâncias sob contenção real produz `SQLiteDatabaseLockedException`.~~
+  **Medido depois, e está na §2-bis** — sete execuções, a antiga estourou em todas e perdeu 260 a 445
+  pendentes de 9600; a nova, zero e zero. O que **continua** sem medição é a corrida do uso real
+  (rede intermitente com a câmera aberta): o probe produz contenção por carga sintética, e quanta
+  contenção o uso normal gera segue sem número.
 - **Que a `Activity` real recusa abrir.** O cenário da 5.B exercita `decidirAbertura`, que é a decisão
   inteira, e não `ScanActivity.onCreate` lançada por `Intent`. A ligação entre as duas é uma linha de
   `onCreate`, lida mas **não** exercitada por nenhum teste — nem antes desta mudança.
@@ -195,6 +261,8 @@ instrumentada, e pode parar de verificar o que afirma sem nada acusar.**
 |---|---|---|---|
 | Unitários do aparelho | `./gradlew :apps:android:testDebugUnitTest` | 2026-09-19T00:18:18Z | 308 testes, 0 caídos |
 | Instrumentados | `./gradlew :apps:android:connectedDebugAndroidTest` | 2026-09-19T00:20:38Z | 81 testes, 0 caídos |
+| Instrumentados, com o probe na árvore | `./gradlew :apps:android:connectedDebugAndroidTest` | 2026-09-19T07:48:04Z | 83 casos, **0 caídos**, **2 pulados** — os dois do `AcumuloDeInstanciasProbe`, como o `SupabaseFailureProbe` já fazia. A suíte de sempre continua nos mesmos 81 efetivos |
+| Probe do acúmulo | `adb shell am instrument -w -e acumulo sim -e class com.platos.android.probe.AcumuloDeInstanciasProbe com.platos.android.test/androidx.test.runner.AndroidJUnitRunner` | 2026-09-19T07:40Z–07:46Z | 7 execuções; antiga estourou em todas e perdeu 260–445 de 9600; nova, 0 e 9600/9600 |
 | Mutação A | idem, pacote `outbox` | 2026-09-19T00:12:09Z | 1 caído; previsto 2 |
 | Mutação B | `:apps:android:testDebugUnitTest` | 2026-09-19T00:17:56Z | 1 caído; previsto 1 |
 

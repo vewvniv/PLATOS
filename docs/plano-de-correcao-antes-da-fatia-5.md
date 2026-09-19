@@ -703,10 +703,23 @@ quieta" — roda **só sobre o debug** (`build.gradle.kts:365,368`).
    §16 chama a paridade de maior risco do projeto se ela não existir; cancelá-la em silêncio é uma
    forma de ela não existir.
 
-**Ver falhar**, nas três: plantar a divergência de versão e ver `renderizador.mjs` nomear **quais
+4. **A afirmação de que a credencial não fica em claro deixa de depender da ordem da suíte**
+   (achado **novo**, de 2026-09-19). **Acrescentado no archive do `o-pendente-nao-se-perde-no-aparelho`**,
+   pela regra 0.4: achado novo vira item escrito com dono e fatia-limite, nunca implementação
+   silenciosa. Ele já está no §16 por ser de segurança (P20), e entra aqui porque **prazo sem veículo
+   flutua** — foi assim que o item da LGPD quase virou retrofit.
+   `SessaoEmRepousoInstrumentedTest.aCredencialNaoEstaEmClaro` apaga os `shared_prefs` em `@Before` e
+   espera o keyset do Tink reaparecer: **caía de forma reprodutível na suíte cheia e passava
+   isolada**. Depois da etapa 5 parou de cair, **e isso não é conserto** — acrescentar uma classe
+   instrumentada mudou a ordem de execução. É o mesmo item que os outros três desta lista: uma
+   guarda que pode parar de verificar o que afirma sem nada acusar, e esta afirma segurança.
+   A medição está em `docs/cobertura-o-pendente-nao-se-perde-no-aparelho.md` §1 e §6.
+
+**Ver falhar**, nas quatro: plantar a divergência de versão e ver `renderizador.mjs` nomear **quais
 dois** registros discordam; plantar um JSON com forma de pacote nos assets de release e ver a task
-recusar; e, para a `concurrency`, o sinal é a configuração — que **não** é medição, e fica dita como
-**conferida por leitura**, não como medida (P6).
+recusar; para a `concurrency`, o sinal é a configuração — que **não** é medição, e fica dita como
+**conferida por leitura**, não como medida (P6); e, para a credencial, rodar o cenário **isolado e
+dentro da suíte cheia** e exigir o mesmo desfecho nos dois — que é a propriedade que hoje não vale.
 
 ### Proibido nesta etapa
 

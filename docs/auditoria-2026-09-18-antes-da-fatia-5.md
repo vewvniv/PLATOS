@@ -259,10 +259,20 @@ duas linhas — e é a metade que mais importa.
 > de produção, que duas chamadas a `abrir` devolvem a mesma instância — por `assertSame`, porque
 > asserção sobre o **dado** passaria com o defeito presente.
 >
-> **O que o fechamento não prova, e fica dito:** a mutação mostrou que **duas** conexões benignas
-> sobre o mesmo arquivo convivem sem estourar. A contenção que produz
-> `SQLiteDatabaseLockedException` vem do **acúmulo** sob rede intermitente com a câmera aberta, e
-> isso não foi reproduzido. §2 e §7 da
+> **O achado subestimou a consequência, e a medição mostra isso.** A mutação sozinha não sustentava
+> a frase "é daí que nasce `SQLiteDatabaseLockedException`" — com **duas** conexões benignas nada
+> estoura. Um experimento posterior (`AcumuloDeInstanciasProbe`, 2026-09-19, aparelho 2511FPC34G,
+> **sete execuções**) pôs as duas topologias sob a **mesma** carga, 64 instâncias × 150 escritas: a
+> antiga estourou `SQLITE_BUSY` em **todas as sete**; a nova, **nunca**.
+>
+> **E a exceção não é ruído: ela leva o pendente junto.** O fio que estoura aborta as escritas que
+> faltavam, e a topologia antiga gravou **9340, 9297 e 9155 de 9600** nas três execuções que
+> contaram — **260 a 445 correções perdidas**, 2,7% a 4,6%. A nova gravou 9600 de 9600 nas três. O
+> achado descrevia um modo de falha barulhento; o que se mediu é **perda silenciosa de correção**,
+> que é mais grave do que ele afirmava.
+>
+> **O que continua sem medição:** a corrida do uso real — rede intermitente com a câmera aberta. O
+> probe produz contenção por carga sintética. §2-bis e §7 da
 > `docs/cobertura-o-pendente-nao-se-perde-no-aparelho.md`.
 
 

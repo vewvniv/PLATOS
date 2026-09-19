@@ -102,9 +102,12 @@ que não é a da produção**, e é por isso que o defeito atravessou.
       na previsão** (regra 0.5): nenhuma asserção foi endurecida, nenhum laço foi aumentado até
       quebrar.
 
-      **Não medido, e fica dito (P8):** que o acúmulo de instâncias sob contenção real produz a
-      exceção. Seria preciso rede intermitente com a câmera aberta em aparelho, e isso não foi
-      feito.
+      **Não medido quando esta tarefa fechou, e medido depois (P8):** que o acúmulo de instâncias
+      produz a exceção. Ficou escrito aqui como lacuna, e foi fechado por `AcumuloDeInstanciasProbe`
+      em 2026-09-19T07:40Z–07:46Z, **sete execuções**: a topologia antiga estourou `SQLITE_BUSY` em
+      todas e perdeu **260 a 445 pendentes de 9600**; a nova, zero e zero, sob a mesma carga. A
+      medição está na §2-bis da cobertura. **A corrida do uso real — rede intermitente com a câmera
+      aberta — continua sem número.**
 
 ## 3. Commit 3 — o estado inconstruível (5.B)
 
