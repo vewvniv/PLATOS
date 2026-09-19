@@ -5,8 +5,21 @@ import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.PendingQuestion
 import com.platos.domain.scoring.PendingReason
 import com.platos.domain.scoring.QuestionOutcome
+import com.platos.domain.transport.AnswerKind
+import com.platos.domain.transport.AnswerObservationDto
+import com.platos.domain.transport.ResultSubmissionDto
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+
+// ----------------------------------------------------------------- os espelhos, ainda de pe
+//
+// As duas `data class` abaixo sao os espelhos antigos, e elas ja nao tem leitor: os imports acima
+// trazem os tipos de `com.platos.domain.transport`, e **um import explicito vence a declaracao do
+// mesmo pacote** — medido nesta sessao com sonda e canario, e nao suposto.
+//
+// Elas ficam ate o commit 4, que e onde os espelhos dos DOIS lados saem juntos (ETAPA 6, commit 4:
+// "e so aqui, quando nao ha mais quem os leia"). Apagar aqui tornaria os commits 2 e 3
+// irreversiveis por si.
 
 /**
  * A evidencia de uma questao, como ela viaja.
@@ -111,10 +124,17 @@ fun ResultSubmissionDto.paraNota(): ObjectiveScore {
     )
 }
 
+/**
+ * O caminho de volta: o valor recebido no fio vira o tipo de dominio que o produziu.
+ *
+ * **As quatro ramificacoes sao as constantes de [AnswerKind], e nao literais repetidos aqui.** Este
+ * `when` era o terceiro registro Kotlin dos mesmos quatro valores; ramificar sobre a constante e o
+ * que faz a unificacao alcancar tambem quem **le** o campo, e nao so quem o escreve (ADR-0015).
+ */
 private fun AnswerObservationDto.paraOutcome(): QuestionOutcome = QuestionOutcome(
     questionId = itemId,
     answer = when (answerKind) {
-        "marcada" -> QuestionAnswer.Marcada(
+        AnswerKind.MARCADA -> QuestionAnswer.Marcada(
             itemId,
             answerOptions.singleOrNull()
                 ?: throw IllegalArgumentException(
@@ -122,14 +142,14 @@ private fun AnswerObservationDto.paraOutcome(): QuestionOutcome = QuestionOutcom
                         "marcada e exatamente uma",
                 ),
         )
-        "em_branco" -> {
+        AnswerKind.EM_BRANCO -> {
             require(answerOptions.isEmpty()) {
                 "item '$itemId' e 'em_branco' e mesmo assim nomeia alternativa"
             }
             QuestionAnswer.EmBranco(itemId)
         }
-        "multipla_marcacao" -> QuestionAnswer.MultiplaMarcacao(itemId, answerOptions)
-        "indecisa" -> QuestionAnswer.Indecisa(itemId, answerOptions)
+        AnswerKind.MULTIPLA_MARCACAO -> QuestionAnswer.MultiplaMarcacao(itemId, answerOptions)
+        AnswerKind.INDECISA -> QuestionAnswer.Indecisa(itemId, answerOptions)
         else -> throw IllegalArgumentException(
             "item '$itemId' declara answer_kind '$answerKind', que nao existe",
         )

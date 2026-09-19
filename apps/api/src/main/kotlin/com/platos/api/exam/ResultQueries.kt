@@ -3,9 +3,11 @@ package com.platos.api.exam
 import com.platos.api.db.generated.tables.references.ANSWER_OBSERVATION
 import com.platos.api.db.generated.tables.references.EXAM
 import com.platos.api.db.generated.tables.references.GRADING_RESULT
-import com.platos.api.http.dto.ResultSubmissionDto
 import com.platos.domain.capture.QuestionAnswer
 import com.platos.domain.scoring.ObjectiveScore
+import com.platos.domain.transport.ResultSubmissionDto
+import com.platos.domain.transport.answerKind
+import com.platos.domain.transport.answerOptions
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import java.time.OffsetDateTime
@@ -153,7 +155,7 @@ class ResultQueries {
                 .set(ANSWER_OBSERVATION.ORGANIZATION_ID, organizationId)
                 .set(ANSWER_OBSERVATION.GRADING_RESULT_ID, resultadoId)
                 .set(ANSWER_OBSERVATION.ITEM_ID, outcome.questionId)
-                .set(ANSWER_OBSERVATION.ANSWER_KIND, outcome.answer.tipoGravado())
+                .set(ANSWER_OBSERVATION.ANSWER_KIND, outcome.answer.answerKind())
                 .set(ANSWER_OBSERVATION.ANSWER_OPTIONS, outcome.answer.alternativas())
                 .set(ANSWER_OBSERVATION.WORTH, outcome.worth)
                 .set(ANSWER_OBSERVATION.EARNED, outcome.earned)
@@ -164,23 +166,13 @@ class ResultQueries {
     }
 }
 
-/** Os quatro valores que o `check` da migration admite, escritos num lugar so. */
-private fun QuestionAnswer.tipoGravado(): String = when (this) {
-    is QuestionAnswer.Marcada -> "marcada"
-    is QuestionAnswer.EmBranco -> "em_branco"
-    is QuestionAnswer.MultiplaMarcacao -> "multipla_marcacao"
-    is QuestionAnswer.Indecisa -> "indecisa"
-}
-
 /**
- * As alternativas envolvidas, e nao a "vencedora".
+ * A forma que o jOOQ quer, e **so** ela.
  *
- * Em `multipla_marcacao` e `indecisa` sao todas: desempatar por qualquer criterio transformaria
- * rasura em resposta, e a rasura e justamente o caso em que a folha nao diz o que o aluno quis.
+ * Os quatro valores de `answer_kind` e a regra de quais alternativas contam vivem em
+ * `com.platos.domain.transport` desde o ADR-0015 — os dois lados do fio os leem de la. O que sobra
+ * aqui e a conversao de `List<String>` para o `Array<String?>` que a coluna espera: traducao para o
+ * **banco**, e por isso ela nao subiu para o dominio (ADR-0015 decisao 2).
  */
-private fun QuestionAnswer.alternativas(): Array<String?> = when (this) {
-    is QuestionAnswer.Marcada -> arrayOf(option)
-    is QuestionAnswer.EmBranco -> emptyArray()
-    is QuestionAnswer.MultiplaMarcacao -> options.toTypedArray()
-    is QuestionAnswer.Indecisa -> options.toTypedArray()
-}
+private fun QuestionAnswer.alternativas(): Array<String?> =
+    answerOptions().toTypedArray<String?>()

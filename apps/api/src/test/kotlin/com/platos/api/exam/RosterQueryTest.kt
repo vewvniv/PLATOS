@@ -1,7 +1,7 @@
 package com.platos.api.exam
 
-import com.platos.api.http.dto.RosterEntryDto
 import com.platos.api.support.PostgresSupport
+import com.platos.domain.transport.RosterEntryDto
 import kotlinx.serialization.json.Json
 import java.util.UUID
 import kotlin.test.BeforeTest

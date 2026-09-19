@@ -87,9 +87,19 @@ Código novo; nada o lê ainda. `CLAUDE.md` regra 1.
   Registrar contagem de testes e `timestamp` do relatório (P2, P3).
 
   **`BUILD SUCCESSFUL in 1m 42s`, 176 de 176 actionable tasks**, janela
-  `2026-09-19T10:19:14Z`–`10:20:57Z`. **1445 testes, 0 falhas, 0 erros, 0 ignorados**, contados
-  sobre os 154 relatórios XML **filtrados por `timestamp`** dessa janela (P2, P3) — e não sobre o
-  que estava no diretório.
+  `2026-09-19T10:19:14Z`–`10:20:57Z`. **129 suítes, 1280 testes, 0 falhas, 0 erros, 0 ignorados.**
+
+  **O primeiro número escrito aqui foi 1445 testes em 154 suítes, e ele estava errado (P7, P3).**
+  A âncora era `find -newermt`, que interpreta a data em **hora local**; a máquina é UTC+2 e a
+  janela do build estava em UTC, então o filtro varreu desde `08:26Z` e recolheu relatórios de
+  fora da execução — inclusive um de `2026-09-18T11:32` em `buildSrc`. A mensagem do commit 1
+  carrega o número errado; ela fica como está e a correção vive aqui e no `cobertura-*`, porque
+  reescrever a história esconderia o defeito em vez de registrá-lo.
+
+  **A âncora certa é o atributo `timestamp` de dentro de cada XML**, que é UTC e descreve a
+  execução que o escreveu — não a hora em que o arquivo foi tocado. Por ela: `10:19`→35 relatórios,
+  `10:20`→94, total **129 / 1280**. Os **1445 em 154 suítes** são a árvore inteira de hoje, que é
+  outra coisa e não é evidência desta execução (P2).
 
   A contagem inclui **1 cenário que não é da mudança**: `LinhaDeBaseDoFioTest`, o instrumento
   temporário da tarefa 0.2, que está na árvore mas **fora dos commits**. Ele sai na tarefa 8, e a
@@ -97,19 +107,71 @@ Código novo; nada o lê ainda. `CLAUDE.md` regra 1.
 
 ## 2. Commit 2 — o consumidor do servidor
 
-- [ ] 2.1 `apps/api` passa a usar os tipos do domínio: `http/dto/OrganizationDto.kt`,
+- [x] 2.1 `apps/api` passa a usar os tipos do domínio: `http/dto/OrganizationDto.kt`,
   `http/dto/ExamDto.kt` e `http/dto/ResultDto.kt` deixam de **declarar** os DTOs e passam a importá-los.
   `paraNota()` e `paraOutcome()` ficam onde estão — são do servidor. Verificar com
   `./gradlew :apps:api:compileKotlin`.
-- [ ] 2.2 `ResultQueries.tipoGravado()` passa a chamar a tradução do domínio (1.2). A tradução para
+
+  **Feito**, e com uma medição que o `design.md` não previa e que decidiu a forma do commit.
+
+  **A pergunta:** o plano manda remover os espelhos **só** no commit 4. Mas `paraNota` mora em
+  `http/dto/ResultDto.kt`, no pacote `com.platos.api.http.dto`, que é **o mesmo pacote** onde os
+  espelhos estão declarados. Um arquivo que importa `com.platos.domain.transport.ResultSubmissionDto`
+  e convive com um `com.platos.api.http.dto.ResultSubmissionDto` no seu próprio pacote — isso
+  resolve para qual dos dois?
+
+  **Medido com sonda e canário, e não suposto (P6, P13).** Sonda: dois tipos homônimos de forma
+  **diferente** (`val x: Int` no "domínio", `val campoDoEspelho: String` no "espelho"), e um uso que
+  só compila se resolver para o primeiro. Com o import explícito: `exit 0`. Canário — o mesmo
+  arquivo **sem** o import: `error: unresolved reference 'x'`, `exit 1`, provando que aí ele
+  resolveu para o espelho do mesmo pacote. **Import explícito vence declaração do mesmo pacote.**
+
+  Com isso o commit 4 fica como o plano o escreveu: os espelhos dos **dois** lados saem juntos, no
+  fim, e os commits 2 e 3 continuam revertíveis por si. Sem a medição, a saída teria sido mover
+  `paraNota` de pacote — refatoração que o plano não pede (P19). A sonda foi removida.
+
+  Sete arquivos trocam **uma linha de import cada** (`ExamQueries`, `ResultQueries`, `Routes`,
+  `OrganizationQueries`, e os testes `RosterQueryTest`, `ExamPackageRouteTest`,
+  `MeOrganizationsTest`). `ResultAcceptedDto` **fica** em `apps/api`: é resposta, não tem espelho.
+
+  **Uma tentativa de ordenar imports foi revertida** (P25): o script ordenou o bloco inteiro e pôs
+  `java.*` antes de `org.*`, contra a convenção que os arquivos já seguiam (`com.platos`, `org`,
+  `java`/`kotlin`). Reordenação de import não é parte desta mudança. Refeito com reinserção no
+  lugar ordenado **dentro do bloco `com.platos`**, e o diff final é de uma linha por arquivo.
+
+  `paraOutcome` passa a ramificar sobre as constantes de `AnswerKind` em vez dos literais —
+  sem isso o **parse** do servidor continuaria sendo um terceiro registro Kotlin dos mesmos quatro
+  valores. `./gradlew :apps:api:compileKotlin` → `BUILD SUCCESSFUL`.
+- [x] 2.2 `ResultQueries.tipoGravado()` passa a chamar a tradução do domínio (1.2). A tradução para
   colunas de jOOQ — `alternativas(): Array<String?>` e o `insertInto(...).set(...)` — **não** se move
   (decisão 2). Verificar que a única mudança em `ResultQueries.kt` é essa chamada.
-- [ ] 2.3 **Os literais de `ResultRouteTest.corpo()` não mudam, nem uma vírgula.** Verificar com
+
+  **Feito.** `tipoGravado()` foi **removida** — ela era uma das três cópias do mapa — e a chamada
+  passou a `outcome.answer.answerKind()`. `alternativas()` **fica**, e encolheu para o que ela de
+  fato é do lado do banco: `answerOptions().toTypedArray<String?>()`. O `when` de quatro ramos que
+  ela tinha era a regra de negócio duplicada ("todas as envolvidas, nunca a vencedora"); o que
+  sobra é a conversão `List<String>` → `Array<String?>`, que é tradução para a coluna e por isso
+  **não** subiu (ADR-0015 decisão 2). O `insertInto(...).set(...)` não foi tocado.
+- [x] 2.3 **Os literais de `ResultRouteTest.corpo()` não mudam, nem uma vírgula.** Verificar com
   `git diff` que `apps/api/src/test/.../ResultRouteTest.kt` não aparece no commit — se aparecer, a
   decisão 4 foi quebrada e é preciso parar e dizer por quê.
-- [ ] 2.4 Rodar `./gradlew build` e verificar verde, com `ResultRouteTest` entre os que rodaram
+
+  **Conferido: `ResultRouteTest.kt` não aparece em `git diff --name-only`.** Os oito arquivos
+  modificados são os sete consumidores mais `http/dto/ResultDto.kt`. Os seis literais de
+  `answer_kind` continuam no arquivo, intactos.
+- [x] 2.4 Rodar `./gradlew build` e verificar verde, com `ResultRouteTest` entre os que rodaram
   (ele precisa de Postgres/Testcontainers — registrar se o ambiente o alcançou ou não, e não supor
   que alcançou). Registrar contagem e `timestamp`.
+
+  **`BUILD SUCCESSFUL in 30s`, 176 tasks (12 executadas, 164 up-to-date)**, janela
+  `2026-09-19T10:26:33Z`–`10:27:04Z`. **25 suítes re-executadas, 165 testes, 0 falhas** — e as 25
+  são todas de `apps:api`, que é o único módulo que este commit toca. As demais ficaram
+  `UP-TO-DATE` com os relatórios de `10:19–10:20`; dizer "1445 testes passaram neste build" seria
+  atribuir a esta execução um sinal que ela não produziu (P2).
+
+  **O ambiente alcançou o Postgres, e isso foi conferido e não suposto:** `docker info` respondeu,
+  e `TEST-com.platos.api.http.ResultRouteTest.xml` tem `timestamp="2026-09-19T10:27:00.134Z"` com
+  **11 testes, 0 falhas**. O relatório existir na janela é o que distingue "passou" de "não rodou".
 
 ## 3. Commit 3 — o consumidor do aparelho
 
