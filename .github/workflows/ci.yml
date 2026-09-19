@@ -62,9 +62,18 @@ jobs:
       - name: Build e testes
         run: ./gradlew build
 
-      # `build` nao alcanca o teste de host do alvo Android do modulo KMP, entao ele e pedido pelo
-      # nome. Sem esta linha, "o mesmo valor afirmado em tres runtimes" valeria em dois — foi o que
-      # aconteceu, calado, entre a subida para AGP 9 e a fatia 1.5.
+      # A redacao original dizia que `build` **nao** alcanca o teste de host do alvo Android do
+      # modulo KMP, e que por isso ele e pedido pelo nome. Ela fica registrada porque o incidente
+      # que a motivou e real: entre a subida para AGP 9 e a fatia 1.5, "o mesmo valor afirmado em
+      # tres runtimes" valeu em dois, calado.
+      #
+      # **Medido em 2026-09-18, e hoje ela esta errada.** O log de `./gradlew build --rerun-tasks`
+      # traz `:packages:domain:testAndroidHostTest` executando, via `allTests`. Entao este passo e
+      # **redundante**, e nao a unica cobertura daquele alvo.
+      #
+      # Ele fica assim mesmo, e a escolha e deliberada: remove-lo se apoiaria numa **unica**
+      # medicao de uma propriedade que ja mudou sozinha uma vez, e o custo dele e segundos. Um
+      # passo redundante que roda e mais barato que um alvo que para de ser coberto em silencio.
       - name: Testes do alvo Android do dominio
         run: ./gradlew :packages:domain:testAndroidHostTest
 
