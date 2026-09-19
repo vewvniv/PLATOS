@@ -286,16 +286,50 @@ O `check` é guarda do banco e **não** passa a vir de Kotlin. O que entra é a 
 o domínio. A seção 6.0.3 do plano a exige; ela não está entre os quatro commits numerados, e por isso
 ganha o seu próprio.
 
-- [ ] 5.1 `tools/parity/answer-kind.mjs`, no molde de `tools/parity/limiar.mjs`: lê os quatro valores
+- [x] 5.1 `tools/parity/answer-kind.mjs`, no molde de `tools/parity/limiar.mjs`: lê os quatro valores
   **do arquivo de origem** do domínio (1.2) e do `check` de
   `supabase/migrations/20260917134500_result_tables.sql:85`, e reprova se divergirem, nomeando
   **quais** valores discordam. Verificar rodando `node tools/parity/answer-kind.mjs` — sai `0`.
-- [ ] 5.2 Dois passos no `ci.yml`, também no molde do limiar: um que confere, outro que **força um
+
+  **Feito**, e ele lê **dois** registros dos arquivos de origem: as `const val` de `AnswerKind.kt`
+  e o `check` da migration. `exit 0`, imprimindo os dois lados.
+
+  **Uma guarda a mais do que o plano pede, e ela ganhou o seu valor na hora:** o conferidor também
+  compara as `const val` com a lista `TODOS` do mesmo arquivo. A razão é que ler `TODOS` sozinho
+  seria ler uma lista que pode estar incompleta sem nada acusar. Na mutação de 5.2 ela foi a
+  primeira a disparar.
+- [x] 5.2 Dois passos no `ci.yml`, também no molde do limiar: um que confere, outro que **força um
   valor divergente** (`--esperado`) e falha se a conferência aceitar. Verificar rodando os dois
   comandos localmente: o primeiro passa, o segundo acusa.
-- [ ] 5.3 Verificar que o conferidor confere **um** `check` nomeado contra **um** tipo nomeado, e não
+
+  **Os dois passos estão no `ci.yml`, logo depois dos do limiar**, e foram rodados localmente
+  **exatamente como o CI os escreve**: o primeiro sai `0`, o segundo acusa `rasurada`. `ci.yml`
+  conferido como YAML válido.
+
+  **A capacidade de falhar foi provada em quatro condições, e não numa:**
+
+  | Condição | Desfecho | O que ele disse |
+  |---|---|---|
+  | árvore como está | `exit 0` | os 4 valores concordam |
+  | `--esperado …,rasurada` | `exit 1` | nomeia `rasurada` a mais **e** `indecisa` a menos |
+  | `--esperado` com 3 valores | `exit 1` | nomeia `indecisa` como admitida só pelo `check` |
+  | mesma lista, outra ordem | `exit 1` | nomeia a divergência de ordem |
+
+  **E a quinta foi a que importou: mutar a fonte de verdade, e não o argumento.** `--esperado` só
+  substitui o lado do domínio — um conferidor que lesse o arquivo errado passaria nas quatro linhas
+  acima. Com `INDECISA` mutada **no `AnswerKind.kt` real**, ele saiu `1` com **duas** queixas: a
+  contagem de `const val` contra `TODOS`, e o `indecisa` que só o `check` admite. Mutação revertida;
+  `grep -rn "MUTACAO"` fora de `build/` → **0**, e o conferidor rodado de novo **depois** da
+  reversão, `exit 0` (P10).
+- [x] 5.3 Verificar que o conferidor confere **um** `check` nomeado contra **um** tipo nomeado, e não
   virou um conferidor genérico de enums (regra 8 do `CLAUDE.md`; a mesma proibição que o plano dá para
   `renderizador.mjs` na ETAPA 7).
+
+  **Conferido por leitura** — e isto é leitura, não medição (P6). Dois arquivos de origem
+  **nomeados** em constantes no topo, três expressões que procuram padrões **nomeados**
+  (`const val … : String`, `val TODOS`, `check (answer_kind in …)`). Nenhuma varredura de
+  diretório, nenhum glob, nenhuma noção de "enum" em geral. 104 linhas — o mesmo tamanho de
+  `limiar.mjs`. Uma constante morta (`RAIZ`) que sobrou da primeira redação foi removida.
 
 ## 6. Ver falhar (P9) — a mutação, e ela é uma só
 
