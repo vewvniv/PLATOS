@@ -272,13 +272,24 @@ protocolo da tarefa 1: linha `MUTACAO` acima, reversão rodada.
 
 ## 5. Fechamento — o CI lido no destino
 
-- [ ] 5.1 **Os passos locais do job `web` que não dependem de artefato de build**, com o texto exato
+- [x] 5.1 **Os passos locais do job `web` que não dependem de artefato de build**, com o texto exato
   do `ci.yml`, no Git Bash: os quatro conferidores (`limiar`, `answer-kind`, `fio`, `renderizador`) e
   os quatro "continua capaz de falhar". Verificar: os oito verdes, com a hora UTC. Os três primeiros
   não mudaram, e rodá-los prova que o passo novo não quebrou o vizinho no mesmo job. **E, depois da
   reversão de todas as mutações, `./gradlew build --continue --rerun-tasks` e `npm test` em
   `apps/web`** (atualização de 2026-09-23, `design.md` decisão 10; regra 0.7 do plano): as mesmas
   contagens da linha de base 0.2, com `timestamp` posterior ao da última reversão.
+
+  **Feito.** Os oito passos, extraídos do `ci.yml` pelo mesmo script e rodados com `bash --noprofile
+  --norc -eo pipefail`, `17:57:51Z`–`17:57:54Z`: os oito `exit 0`, cada um com a sua última linha de
+  sucesso — o do fio diz "os 5 contratos estao presos por literal nos dois lados".
+  `npm test` em `apps/web`: `Start at 19:58:10` (`17:58:10Z`), **14 de 14**.
+  `./gradlew build --continue --rerun-tasks`, `17:58:02Z`–`17:59:54Z`, `exit 0`, **176 de 176 tasks
+  executadas**; pelo `timestamp` dos XML (`17:58:51Z`–`17:59:51Z`): **153 suítes, 1446 testes, 0
+  falhas, 0 erros, 0 pulados** — as mesmas contagens da linha de base, módulo a módulo, e todas
+  posteriores à última reversão (`17:55:49Z`). E, por ser o primeiro passo do job `build` do CI, que
+  o `build` não alcança: `./gradlew -p buildSrc test --rerun-tasks`, `18:00:08Z`–`18:00:35Z`, `exit
+  0`, 6 de 6 tasks, **1 suíte, 1 teste, 0 falhas**, XML `18:00:29Z`.
 - [ ] 5.2 **Publicar**: `git push` da branch e a PR **empilhada**, com base
   `vewvniv/o-fio-preso-nos-dois-lados` (PR #59), no molde das anteriores da banda. **Perguntar ao
   mantenedor antes do push** — é ação para fora da máquina.

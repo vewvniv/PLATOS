@@ -250,5 +250,16 @@ fechamento (§13).
 
 ## 13. O fechamento
 
-Ainda não rodado: é a tarefa 5. Esta seção recebe o build cheio depois das reversões, os passos
-locais do job `web`, e o CI da PR lido no destino.
+**Local, depois de todas as reversões** (a última às `17:55:49Z`):
+
+| O quê | Quando | Desfecho |
+|---|---|---|
+| os oito passos dos conferidores do job `web`, extraídos do `ci.yml`, `bash -eo pipefail` | `17:57:51Z`–`17:57:54Z` | os oito `exit 0` |
+| `npm test` em `apps/web` | `Start at 17:58:10Z` | 14 de 14 |
+| `./gradlew build --continue --rerun-tasks` | `17:58:02Z`–`17:59:54Z` | **176/176 tasks, 153 suítes, 1446 testes, 0 falhas** |
+| `./gradlew -p buildSrc test --rerun-tasks` | `18:00:08Z`–`18:00:35Z` | 1 suíte, 1 teste, 0 falhas |
+
+Contagens pelo `timestamp` de dentro de cada XML. **Delta para a linha de base: zero**, módulo a
+módulo — nenhuma entrada do Gradle nem do Vitest mudou, e a árvore voltou ao que era.
+
+**O CI da PR, lido no destino:** ainda não — é a tarefa 5.3.
