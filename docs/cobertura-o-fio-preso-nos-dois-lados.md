@@ -336,6 +336,11 @@ O segundo é o que prova que a guarda distingue os lados, e não só a presença
 - **O CI não foi observado.** Tudo acima é local, em Windows; o CI roda em Linux, e os dois passos
   novos usam `mktemp -d`, `cp -r` e `<<<`, que aqui rodaram no Git Bash. A tarefa 4.2 fica aberta
   até o CI da PR ser lido no destino, e o push é decisão do mantenedor.
+  **Superado no mesmo dia:** PR #59, execução `35877298960` sobre `8771220`, `build`, `web` e
+  `paridade` em `success`. No log do `web`, a guarda deu no Linux a mesma saída da execução local, e
+  o segundo passo disse "acusou o contrato sem literal nos dois lados, e o piso, como deve". No
+  relatório HTML do `build` (`14:58:54`), `apps/api` tem 167 testes, 0 falhas, com os dois cenários
+  novos pelo nome. O registro está na tarefa 4.2 do `tasks.md`.
 - **`connectedDebugAndroidTest` não rodou.** Nenhum arquivo de `apps/android` mudou, e as mutações
   em `packages/domain` foram revertidas e conferidas. Que o `androidTest` não tem literal de
   contrato é busca (Parte I §5), e não execução.

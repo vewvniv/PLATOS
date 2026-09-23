@@ -271,4 +271,5 @@ por escrito.
 > dois dos quatro contratos sem literal do lado do servidor — virou a **7.3** do plano, mudança
 > `o-fio-preso-nos-dois-lados`, que corre antes da 7.1 e bloqueia a fatia 5.
 > **Feita em 2026-09-23** — o archive e a leitura do CI da PR ainda pendentes:
-> `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte II.
+> `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte II. O CI da PR (#59) foi lido no mesmo dia,
+> verde nos três jobs; falta o archive.

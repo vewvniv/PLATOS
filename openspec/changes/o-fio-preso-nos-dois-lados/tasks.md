@@ -401,7 +401,7 @@ a asserção ou ajustar a previsão em silêncio.
     Git Bash — que é bash, mas não é o Ubuntu do runner. É a 4.2.
   - **A guarda não roda em `./gradlew build`** (decisão 1): nenhum dos builds desta sessão a
     alcançou; ela foi rodada à parte, cada vez, e isso está em cada tarefa.
-- [ ] 4.2 **O CI da PR, observado no destino** (P26). Os dois passos novos no job `web`, verdes, com
+- [x] 4.2 **O CI da PR, observado no destino** (P26). Os dois passos novos no job `web`, verdes, com
   o log dizendo o motivo — que a guarda acusou o `FantasmaDto` nos dois lados e o piso —, e o job
   `build` verde. Só existe depois do push, que é decisão do mantenedor: até lá esta tarefa fica
   **desmarcada**, com isso escrito nela (P1).
@@ -410,6 +410,31 @@ a asserção ou ajustar a previsão em silêncio.
   `vewvniv/o-fio-preso-nos-dois-lados` existe só localmente, sobre `d7e10f4`, que também ainda não
   está no remoto. Os dois passos rodaram localmente, extraídos do `ci.yml` (1.5 e 4.1) — isso é
   execução local, e não observação do CI no destino (P26).
+
+  **Observado no destino, no mesmo dia, depois do push autorizado pelo mantenedor.** PR **#59**
+  (base `vewvniv/contrato-do-fio-com-dono-unico`, a #58), execução `35877298960` sobre **`8771220`**
+  — a cabeça da branch —, `completed success`: `build` `14:51:50Z`–`14:59:52Z`, `web`
+  `14:51:50Z`–`14:52:34Z`, `paridade` `14:52:38Z`–`15:00:38Z`, os três `success`.
+
+  **O que os dois passos disseram, lido no log do job `web`, e não suposto do verde:**
+  - "O fio de cada contrato esta preso nos dois lados", `14:52:28Z`: **a mesma saída da execução
+    local, linha a linha** — 5 tipos em 4 arquivos, 1176 literais no servidor e 822 no aparelho, os
+    mesmos arquivos e linhas por par, e "os 5 contratos estao presos por literal nos dois lados".
+    Rodou em `/usr/bin/bash -e {0}`, no Ubuntu do runner.
+  - "A verificacao do fio continua capaz de falhar", `14:52:28Z`: "a verificacao do fio acusou o
+    contrato sem literal nos dois lados, e o piso, como deve". Nenhum `::error::` no log do job:
+    `mktemp -d`, `cp -r` e `<<<` funcionaram no Linux como no Git Bash.
+
+  **E o job `build` rodou os dois cenários novos, o que o verde sozinho não dizia (P2).** O
+  artefato `relatorio-de-testes` é o relatório **HTML** do Gradle, e não os XML — a primeira
+  tentativa de contá-lo com o contador desta sessão, que lê XML, achou **0** arquivos, e isso foi
+  lido como instrumento errado, e não como zero testes. Pelo HTML, gerado às `14:58:54` (dentro da
+  janela do `build`): `apps/api` **167 testes, 0 falhas**; `MeOrganizationsTest` 6/0 com `o corpo
+  tem os nomes de campo que o aparelho le()` verde; `ExamPackageRouteTest` 19/0 com `a listagem tem
+  os nomes de campo que o aparelho le, sem envelope e sem campo a mais()` verde.
+
+  A #58 (`35877245745`, sobre `d7e10f4`, com os quatro commits de registro de hoje) também saiu
+  `success` nos três jobs.
 - [x] 4.3 **A Parte II de `docs/cobertura-o-fio-preso-nos-dois-lados.md`**, com o que o plano manda
   e o `rigorous.md` §8 exige: o primeiro vermelho da guarda sobre a árvore real, com os nomes e a
   hora; os canários de 1.4; as três mutações **antes** (Parte I) **e depois**, ao lado dos previstos;

@@ -92,7 +92,8 @@ módulos**, **o que vence depois do archive** e **o artefato de release**.
 > ganharam literal do lado do servidor, e as três mutações passaram a derrubar os dois lados; uma
 > guarda (`tools/parity/fio.mjs`, no CI) reprova tipo de `transport` sem literal nos dois lados, e
 > fecha a porta para os contratos da fatia 5. Ela prova que o literal existe, e não que ele prende o
-> fio. A mesma cobertura, Parte II. O CI da PR ainda não foi observado.
+> fio. A mesma cobertura, Parte II. O CI da PR ainda não foi observado. **Observado no mesmo dia:**
+> PR #59, os três jobs em `success`, e os dois passos da guarda lidos no log.
 
 **O que.** `ResultSubmissionDto`/`AnswerObservationDto` (`apps/api/.../http/dto/ResultDto.kt`) e
 `EnvioDeResultadoDto`/`ObservacaoDto` (`apps/android/.../api/ResultadoDto.kt`) são o **mesmo
