@@ -1,0 +1,199 @@
+## 0. Antes de qualquer commit — o ambiente e a linha de base
+
+**O passo "ver o buraco" do plano não é tarefa desta mudança: foi feito antes de ela existir.** As
+três mutações rodaram em 2026-09-23, `12:01Z`–`12:12Z`, com real = previsto nas três, e o registro
+está em `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte I. Ele não é marcado aqui porque não
+roda nesta sessão (P1). A tabela do plano fica como previsão registrada, com o real ao lado na
+cobertura.
+
+- [x] 0.1 **Perguntar antes de tocar no ambiente** (P22, regra 0.9 do plano). Os testes de rota do
+  servidor precisam de Docker, e na Parte I ele foi ligado pelo mantenedor. Confirmar com ele, e
+  não ligar sozinho, inclusive em modo automático. **Emulador não é pedido**: nenhum arquivo de
+  `apps/android` muda. Verificar: `docker info` responde, e a confirmação fica registrada aqui.
+
+  **Confirmado pelo mantenedor em 2026-09-23** ("Docker ligado"), e ligado por ele, não por esta
+  sessão. `docker info` às `13:03:44Z` → `exit 0`, Docker Desktop, servidor `29.7.2`, um contêiner
+  rodando. Nenhum emulador foi subido, nenhum aparelho tocado.
+- [ ] 0.2 **A linha de base desta sessão** (P3): sem ela, uma queda sob mutação não teria a quem ser
+  atribuída. `./gradlew build --continue --rerun-tasks`, com a contagem feita pelo atributo
+  `timestamp` de **dentro** de cada `TEST-*.xml`, e não pela data do arquivo (o erro registrado na
+  1.3 da ETAPA 6). Verificar contra a Parte I, §1: **153 suítes, 1444 testes, 0 falhas**. Se
+  diferir, parar e explicar a diferença antes do commit 1.
+
+  **Bateu, número a número.** Na branch `vewvniv/o-fio-preso-nos-dois-lados`, criada sobre
+  `d7e10f4`: `./gradlew build --continue --rerun-tasks`, `13:04:18Z`–`13:06:31Z`, `exit 0`,
+  `BUILD SUCCESSFUL`, **176 de 176 tasks executadas**. Pelo `timestamp` de dentro dos XML
+  (`13:05:25Z`–`13:06:28Z`): **153 suítes, 1444 testes, 0 falhas, 0 erros, 0 pulados** —
+  `apps/android` 308, `apps/api` 165, `packages/domain` 329 + 321 + 321. Um relatório ficou fora da
+  janela, o de `buildSrc` (`AquisicaoDeConexaoTest`, de 2026-09-19), como na Parte I §4: o `build`
+  não alcança os testes de `buildSrc`. O contador é um script temporário no scratchpad, fora da
+  árvore; que ele filtra de fato ficou visto nesse relatório excluído.
+
+## 1. Commit 1 — a guarda, e ela nasce vermelha
+
+- [ ] 1.1 Escrever `tools/parity/fio.mjs` conforme as decisões 1 a 6 do `design.md`: raiz de
+  `transport/` recursiva e lida da fonte, com comentários removidos; a forma que ela sabe ler, e
+  `exit 2` com o tipo e o motivo para qualquer outra; o literal por string, com os dois lados
+  nomeados em constantes no topo; a saída `0`/`1`/`2` da decisão 4, e no `0` a lista de quem prende
+  cada par; o piso; e `--transport <dir>` como único parâmetro. A KDoc do cabeçalho no molde de
+  `answer-kind.mjs` — por que ela existe, o que ela **não** prova (decisão 11), uso. Verificar:
+  `node --check tools/parity/fio.mjs` sai `0`, e o arquivo só importa de `node:`.
+- [ ] 1.2 Dois passos no `ci.yml`, no job `web`, logo depois dos de `answer_kind` (decisão 7): um
+  que confere; outro que planta, **fora do checkout**, um `FantasmaDto` sem literal numa cópia
+  temporária de `transport/` e exige `exit 1` **com** o `FantasmaDto` nomeado nos dois lados, e
+  aponta a guarda para um diretório vazio e exige `exit 2` **com** o motivo do piso. O comentário no
+  tom dos vizinhos. Verificar: o `ci.yml` continua YAML válido, com o instrumento dito — e os passos
+  **não** rodam ainda (1.5): o primeiro contato da guarda com a árvore é o de 1.3.
+- [ ] 1.3 **O primeiro vermelho, sobre a árvore real, sem nada plantado.** Rodar
+  `node tools/parity/fio.mjs` e registrar a saída inteira, o código e a hora UTC. Conjunto previsto
+  (plano, 7.3, commit `460962c`; a linha "saída" é acréscimo do `design.md`, decisão 8):
+
+  | Tipo | Servidor | Aparelho | **Real** |
+  |---|---|---|---|
+  | `OrganizationDto` | **nomeado** | não | |
+  | `ExamSummaryDto` | **nomeado** | não | |
+  | `RosterEntryDto` | não | não | |
+  | `ResultSubmissionDto` | não | não | |
+  | `AnswerObservationDto` | não | não | |
+  | saída | `1` | | |
+
+  **Regra de parada** (decisão 10): se nomear outro tipo, o lado do aparelho, ou sair `2`, a guarda
+  ou a leitura está errada — **parar** e escrever o real ao lado do previsto. Não ajustar a leitura
+  para caber na previsão.
+- [ ] 1.4 **Os canários da leitura** (decisão 3), antes de o instrumento ser acreditado — o §6 da
+  Parte I registra uma contagem por texto enganada duas vezes. Um por vez, marcado com `MUTACAO`,
+  revertido e com a guarda rodada de novo antes do seguinte (P10). C1–C4 em `MeOrganizationsTest`,
+  onde `OrganizationDto` ainda falta; C5 por `--transport` sobre uma cópia temporária, sem tocar
+  `transport/`:
+
+  | Canário | Previsto | **Real** |
+  |---|---|---|
+  | C1 · as quatro chaves de `OrganizationDto` juntas, **num comentário** | continua nomeado no servidor | |
+  | C2 · as quatro chaves partidas em **dois literais** unidos por `+`, duas em cada | continua nomeado | |
+  | C3 · as quatro chaves juntas numa **string comum com aspas escapadas** (`\"id\":…`) | **deixa** de ser nomeado | |
+  | C4 · as quatro chaves juntas num literal cru com um **template que contém string** (`"id":"${"x".repeat(2)}"`, e chaves depois dele) | **deixa** de ser nomeado | |
+  | C5 · um tipo `@Serializable` de forma que ela não lê (`enum class`; e, à parte, um parâmetro com `@Transient`) | `exit 2`, nomeando o tipo e o motivo | |
+
+  C1 e C2 provam que ela não aceita o que não devia; C3 e C4, que ela vê o que devia; C5, que ela
+  falha fechado. **Canário que falha quer dizer leitura errada**: corrigir, e rodar tudo de novo **a
+  partir de 1.3**, com as duas execuções escritas (decisão 10).
+- [ ] 1.5 Rodar localmente, em bash, **exatamente como o `ci.yml` os escreve**, os dois passos de
+  1.2. Verificar: o primeiro sai diferente de zero nomeando os dois tipos de 1.3 (o vermelho
+  esperado deste commit); o segundo passa, dizendo que a guarda acusou o `FantasmaDto` nos dois
+  lados e o piso.
+- [ ] 1.6 Commit 1. `grep -rn "MUTACAO"` em código (`.kt`, `.kts`, `.mjs`, `.yml`, `.sql`, `.ts`)
+  fora de `build/` → `0`, e o diff de código do commit é só `tools/parity/fio.mjs` e `ci.yml`. A
+  mensagem diz que o commit **nasce vermelho**, por quê, e traz os dois nomes de 1.3 — como o
+  commit 1 da ETAPA 3.
+
+## 2. Commit 2 — os dois literais do servidor
+
+- [ ] 2.1 `MeOrganizationsTest` ganha um cenário que compara o corpo inteiro de `GET
+  /me/organizations` do primeiro acesso contra
+  `[{"id":"<id>","name":"Nova Professora","kind":"personal","role":"owner"}]`, escrito à mão, por
+  igualdade, com o `id` de `idDaOrganizacaoPessoal` (decisão 9). Os cinco cenários existentes e
+  `organizacoesDe` não mudam. Verificar:
+  `./gradlew :apps:api:test --tests '*MeOrganizationsTest*'` → **6 testes, 0 falhas**, com o
+  `timestamp` do relatório.
+- [ ] 2.2 `ExamPackageRouteTest` ganha um cenário que compara o corpo inteiro de `GET
+  /organizations/{id}/exams` contra
+  `[{"short_id":"mat-7a-2026-1","title":"Prova de Matematica","content_hash":"<hash>"}]`, escrito à
+  mão, por igualdade, com o hash de `PostgresSupport.sha256Hex` (decisão 9). Os cenários existentes
+  e `provasDe` não mudam. Verificar:
+  `./gradlew :apps:api:test --tests '*ExamPackageRouteTest*'` → **19 testes, 0 falhas**, com o
+  `timestamp`.
+- [ ] 2.3 **A guarda fica verde, e a lista de quem a satisfez é lida.** `node tools/parity/fio.mjs`
+  → `exit 0`. Conferir cada par contra o esperado:
+
+  | Tipo | Servidor — esperado | Aparelho — esperado | **Real** |
+  |---|---|---|---|
+  | `OrganizationDto` | `MeOrganizationsTest` | `ApiPlatosTest` | |
+  | `ExamSummaryDto` | `ExamPackageRouteTest` | `ApiPlatosPacoteTest` | |
+  | `RosterEntryDto` | `ExamPackageRouteTest` | `ObtencaoDeRosterTest` | |
+  | `ResultSubmissionDto` | `ResultRouteTest` | `ResultadoDtoTest` | |
+  | `AnswerObservationDto` | `ResultRouteTest` | `ResultadoDtoTest` | |
+
+  Arquivo **a mais** na lista é lido e explicado por escrito — coincidência ou literal legítimo. Par
+  preso **só** por arquivo inesperado é a lacuna de coincidência do `design.md` acontecendo: parar e
+  escrever.
+- [ ] 2.4 **O que não pode ter mudado.** `git diff` do commit: nenhum arquivo de `transport/`; nenhum
+  arquivo de `apps/android`; `AuthenticationTest.kt` intocado; em `MeOrganizationsTest.kt` e
+  `ExamPackageRouteTest.kt`, só linhas **acrescentadas** — nenhum cenário que desserializa foi
+  reescrito ou removido.
+- [ ] 2.5 `./gradlew build` verde, com contagem e `timestamp` (P2, P3): `apps/api` passa de **165**
+  para **167**, e nada mais muda. Commit 2.
+
+## 3. Ver falhar (P9), depois do commit 2
+
+A regra de parada da decisão 10 vale sobre cada tabela deste grupo: conjunto real diferente do
+previsto — **mais, menos, ou outros** — é parar e escrever, e nunca consertar o instrumento, afrouxar
+a asserção ou ajustar a previsão em silêncio.
+
+- [ ] 3.1 **As três mutações da Parte I, repetidas** — uma por vez, marcada com `MUTACAO`, com
+  `./gradlew build --continue`, revertida por cópia do original e rodada antes da seguinte (P10).
+  Contagem pelo `timestamp` de dentro de cada XML. O conjunto previsto, copiado do plano como está:
+
+  | Mutação | Aparelho | Servidor |
+  |---|---|---|
+  | `name` → `nome` | `ApiPlatosTest` cai | o cenário novo de `MeOrganizationsTest` **cai** |
+  | `title` → `titulo` | `ApiPlatosPacoteTest` cai | o cenário novo de `ExamPackageRouteTest` **cai** |
+  | `display_name` → `displayName` | `ObtencaoDeRosterTest` cai | o cenário do roster cai |
+  | qualquer outra suíte | 0 | 0 |
+
+  > Os cenários que desserializam **não** caem em nenhuma das três — mesmo código dos dois lados da
+  > igualdade. Se caírem, eles não eram o que este plano diz que são: pare.
+
+  **As contagens que a tabela implica, derivadas e não acrescentadas:** no aparelho, as da Parte I
+  (6 de 14, 1 de 7, 6 de 10), porque nenhum teste de lá mudou; no servidor, **exatamente um**
+  cenário por mutação — 1 de 6 em `MeOrganizationsTest` sob `nome`, 1 de 19 em
+  `ExamPackageRouteTest` sob `titulo` e sob `displayName`, e esses dois são cenários **diferentes**.
+  Registrar o real ao lado, com o mecanismo lido na mensagem, e não só na contagem (P12): no
+  servidor, a igualdade literal que falha. Sobrevivente numa classe que caiu é lido e explicado.
+- [ ] 3.2 **A guarda, com defeito plantado, um lado de cada vez.** (a) Um contrato de mentira em
+  `transport/`, marcado com `MUTACAO`, sem literal em lado nenhum: a guarda o nomeia **nos dois
+  lados**, `exit 1`, e nada mais é nomeado. (b) O literal do roster retirado de
+  `ExamPackageRouteTest` — basta que o servidor deixe de ter string com as duas chaves juntas: a
+  guarda nomeia `RosterEntryDto` **só do lado do servidor**, `exit 1`. A (b) é a que prova que ela
+  distingue os lados, e não só a presença do tipo. Cada uma revertida e com a guarda rodada de novo
+  antes da seguinte.
+- [ ] 3.3 **O piso.** `node tools/parity/fio.mjs --transport <diretório vazio>` → `exit 2`, com o
+  motivo do piso; e o mesmo com um diretório que não existe. Verificar que o motivo impresso é o do
+  piso, e não um erro de leitura qualquer.
+- [ ] 3.4 **A reversão, rodada, e não lembrada** (P10). `grep -rn "MUTACAO"` em código fora de
+  `build/` → `0`; `git status` sem resíduo de código; `node tools/parity/fio.mjs` → `exit 0` **depois**
+  da reversão; e `./gradlew build --rerun-tasks` **depois** da reversão, 176 de 176 tasks executadas,
+  com a contagem pelo `timestamp`: **153 suítes, 1446 testes, 0 falhas** — a linha de base de 0.2
+  mais os dois cenários de 2.1 e 2.2, e nada além.
+
+## 4. Fechar
+
+- [ ] 4.1 **O resto do comando cheio** (P5), e o que ficou de fora. `./gradlew -p buildSrc test
+  --rerun-tasks` — rodado à parte porque `build` não alcança os testes de `buildSrc` (medido na
+  `generatejooq-sem-registro-automatico`) — e os dois passos novos do `ci.yml` rodados de novo em
+  bash, como estão escritos. Registrar como **não rodado**, com o porquê (P8):
+  `connectedDebugAndroidTest` (nenhum arquivo de `apps/android` muda; o `androidTest` não tem
+  literal de contrato — Parte I, §5, por busca) e o CI (tudo local, em Windows; o CI roda em Linux).
+- [ ] 4.2 **O CI da PR, observado no destino** (P26). Os dois passos novos no job `web`, verdes, com
+  o log dizendo o motivo — que a guarda acusou o `FantasmaDto` nos dois lados e o piso —, e o job
+  `build` verde. Só existe depois do push, que é decisão do mantenedor: até lá esta tarefa fica
+  **desmarcada**, com isso escrito nela (P1).
+- [ ] 4.3 **A Parte II de `docs/cobertura-o-fio-preso-nos-dois-lados.md`**, com o que o plano manda
+  e o `rigorous.md` §8 exige: o primeiro vermelho da guarda sobre a árvore real, com os nomes e a
+  hora; os canários de 1.4; as três mutações **antes** (Parte I) **e depois**, ao lado dos previstos;
+  os dois vermelhos plantados e o do piso; a reversão rodada; o comando cheio com `timestamp`. Na
+  seção do que **não** fica verificado, a frase que não pode faltar — **"a guarda prova que o
+  literal existe, e não que ele prende o fio"**, inteira, com a consequência para a fatia 5
+  (decisão 11) —, a lacuna de coincidência, a guarda fora do `./gradlew build`, e o que 4.1 não
+  rodou. O parágrafo da Parte II que hoje diz "ainda não existe" fica, marcado como superado (P7).
+  Nenhuma seção fecha com "passou".
+- [ ] 4.4 **O fechamento, escrito onde o achado aponta para esta mudança** — e sem apagar o que
+  está lá (P7). São três lugares, que hoje dizem que "a medição e a correção são a ETAPA 7.3":
+  `docs/auditoria-2026-09-18-antes-da-fatia-5.md:87`, a atualização de 2026-09-23 do ADR-0015
+  (`:187`) e `docs/cobertura-contrato-do-fio-com-dono-unico.md:243` e `:269`. Uma linha em cada, com
+  a data e o ponteiro para a Parte II. A razão de a tarefa existir está na própria auditoria: o
+  archive da ETAPA 6 disse na mensagem do commit que o achado saía da lista, e não o escreveu no
+  arquivo.
+- [ ] 4.5 **O `design.md` e o `proposal.md` continuam verdadeiros?** Conferir item a item — em
+  particular as afirmações que eram leitura: os cinco tipos e a forma deles (Context), a previsão
+  da decisão 8, e as contagens derivadas de 3.1 e 3.4. O que tiver sido desmentido fica ao lado do
+  que foi previsto, e não reescrito (P7).
