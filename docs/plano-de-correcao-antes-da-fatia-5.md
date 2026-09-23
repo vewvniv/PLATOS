@@ -799,6 +799,12 @@ completo está em `docs/cobertura-contrato-do-fio-com-dono-unico.md` §8, na cor
 **Tipo da afirmação: conferido por leitura, e não medido (P6).** Medir é a primeira coisa que esta
 mudança faz.
 
+> **Medido em 2026-09-23, antes do `/opsx:propose`,** no molde da ETAPA 2: se a leitura estivesse
+> errada, a mudança não deveria nem ser proposta. **Real = previsto nas três mutações** —
+> `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte I. O passo "Antes de qualquer commit — ver o
+> buraco" abaixo **está feito**; a mudança começa pelo commit 1, e a tabela dele fica como previsão
+> registrada, com o real ao lado na cobertura.
+
 **Por que consertar os dois testes não basta.** A fatia 5 é o maior acréscimo de contrato do
 projeto, e todo contrato novo nasce em `com.platos.domain.transport`, com o tipo a um `import` do
 teste da rota. `json.decodeFromString<NovoDto>(corpo)` é o caminho mais curto para escrever esse

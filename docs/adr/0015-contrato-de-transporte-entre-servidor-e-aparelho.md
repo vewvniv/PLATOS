@@ -181,6 +181,8 @@ só deu à mutação da decisão 4 um lugar onde ser injetada.
 **A decisão não muda.** É o critério dela — os dois testes de literal têm de cair — que expõe o
 buraco, e o parágrafo acima já nomeava esse modo de falha. O que muda é o registro: a mutação foi
 aplicada a um contrato só, e o que se sabe dos outros três é **conferido por leitura**, não medido.
+**Medido no mesmo dia:** a mutação derrubou só o aparelho em organização e em prova, e os dois lados
+no roster — `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte I.
 O detalhe está em `docs/cobertura-contrato-do-fio-com-dono-unico.md` §8; a medição, os dois
 literais e a guarda para os contratos que a fatia 5 vai criar são a ETAPA 7.3 do plano de correção,
 mudança `o-fio-preso-nos-dois-lados`.

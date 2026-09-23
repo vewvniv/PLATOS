@@ -243,6 +243,11 @@ cada XML**, que é UTC e descreve a execução que o escreveu — não a hora em
   > três contratos. A medição e a correção são a ETAPA 7.3 de
   > `docs/plano-de-correcao-antes-da-fatia-5.md`, mudança `o-fio-preso-nos-dois-lados`, que bloqueia
   > a fatia 5.
+  >
+  > **Medido no mesmo dia, horas depois:** `@SerialName` trocado em `name` e em `title` derrubou só o
+  > aparelho (6 cenários em `ApiPlatosTest`, 1 em `ApiPlatosPacoteTest`), com `MeOrganizationsTest` e
+  > `ExamPackageRouteTest` rodando verdes na janela; em `display_name`, caíram os dois lados. Real =
+  > previsto nas três: `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte I.
 - **`packages/domain` compila os DTOs também para o alvo `js`, que não os consome.** Isso não foi
   medido como custo; é observação de desenho.
 - **Os quatro arquivos do aparelho continuam com nome de DTO sem declarar DTO nenhum**

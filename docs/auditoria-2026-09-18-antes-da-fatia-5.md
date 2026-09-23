@@ -85,7 +85,8 @@ módulos**, **o que vence depois do archive** e **o artefato de release**.
 > literal. É P4, e já era assim antes da unificação: foi ela que o tornou visível. O detalhe, com
 > arquivo e linha, está no §8 daquela cobertura, corrigido na mesma data; o tipo da afirmação é
 > **conferido por leitura**, e não medido. A medição e a correção são a ETAPA 7.3,
-> `o-fio-preso-nos-dois-lados`.
+> `o-fio-preso-nos-dois-lados`. **Medido no mesmo dia**, antes de a mudança ser proposta: real =
+> previsto, `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte I.
 
 **O que.** `ResultSubmissionDto`/`AnswerObservationDto` (`apps/api/.../http/dto/ResultDto.kt`) e
 `EnvioDeResultadoDto`/`ObservacaoDto` (`apps/android/.../api/ResultadoDto.kt`) são o **mesmo
