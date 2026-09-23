@@ -14,7 +14,7 @@ cobertura.
   **Confirmado pelo mantenedor em 2026-09-23** ("Docker ligado"), e ligado por ele, não por esta
   sessão. `docker info` às `13:03:44Z` → `exit 0`, Docker Desktop, servidor `29.7.2`, um contêiner
   rodando. Nenhum emulador foi subido, nenhum aparelho tocado.
-- [ ] 0.2 **A linha de base desta sessão** (P3): sem ela, uma queda sob mutação não teria a quem ser
+- [x] 0.2 **A linha de base desta sessão** (P3): sem ela, uma queda sob mutação não teria a quem ser
   atribuída. `./gradlew build --continue --rerun-tasks`, com a contagem feita pelo atributo
   `timestamp` de **dentro** de cada `TEST-*.xml`, e não pela data do arquivo (o erro registrado na
   1.3 da ETAPA 6). Verificar contra a Parte I, §1: **153 suítes, 1444 testes, 0 falhas**. Se
@@ -28,6 +28,10 @@ cobertura.
   janela, o de `buildSrc` (`AquisicaoDeConexaoTest`, de 2026-09-19), como na Parte I §4: o `build`
   não alcança os testes de `buildSrc`. O contador é um script temporário no scratchpad, fora da
   árvore; que ele filtra de fato ficou visto nesse relatório excluído.
+
+  **A caixa desta tarefa ficou desmarcada no commit `68c20a0`, e a mensagem dele diz que ela estava
+  marcada (P7).** O registro acima entrou, a troca de `[ ]` por `[x]` não, e ninguém releu. Marcada
+  no commit 2, pela execução de `13:04Z`, que é desta sessão. A mensagem de `68c20a0` fica como está.
 
 ## 1. Commit 1 — a guarda, e ela nasce vermelha
 
@@ -171,47 +175,88 @@ cobertura.
   Os três primeiros caem na primeira conferência do passo. Os dois últimos **isolam** as outras
   duas — o lado do aparelho e o piso —, cada um com o resto da guarda funcionando. Depois da
   reversão: passo 2 `exit 0`, e `MUTACAO` em código fora de `build/` → **0**.
-- [ ] 1.6 Commit 1. `grep -rn "MUTACAO"` em código (`.kt`, `.kts`, `.mjs`, `.yml`, `.sql`, `.ts`)
+- [x] 1.6 Commit 1. `grep -rn "MUTACAO"` em código (`.kt`, `.kts`, `.mjs`, `.yml`, `.sql`, `.ts`)
   fora de `build/` → `0`, e o diff de código do commit é só `tools/parity/fio.mjs` e `ci.yml`. A
   mensagem diz que o commit **nasce vermelho**, por quê, e traz os dois nomes de 1.3 — como o
   commit 1 da ETAPA 3.
 
+  **`455d24b`.** `MUTACAO` → **0**; `git diff --cached --stat`: `fio.mjs` (+466), `ci.yml` (+43) e
+  este `tasks.md`; `git diff --cached --check` sem erro. A mensagem abre com "ESTE COMMIT NASCE
+  VERMELHO", o porquê, e as duas linhas de 1.3. O `fio.mjs` tem **466 linhas**, contra ~100 de
+  `limiar.mjs` e `answer-kind.mjs`: a diferença é a leitura de Kotlin, e está dita na mensagem.
+
 ## 2. Commit 2 — os dois literais do servidor
 
-- [ ] 2.1 `MeOrganizationsTest` ganha um cenário que compara o corpo inteiro de `GET
+- [x] 2.1 `MeOrganizationsTest` ganha um cenário que compara o corpo inteiro de `GET
   /me/organizations` do primeiro acesso contra
   `[{"id":"<id>","name":"Nova Professora","kind":"personal","role":"owner"}]`, escrito à mão, por
   igualdade, com o `id` de `idDaOrganizacaoPessoal` (decisão 9). Os cinco cenários existentes e
   `organizacoesDe` não mudam. Verificar:
   `./gradlew :apps:api:test --tests '*MeOrganizationsTest*'` → **6 testes, 0 falhas**, com o
   `timestamp` do relatório.
-- [ ] 2.2 `ExamPackageRouteTest` ganha um cenário que compara o corpo inteiro de `GET
+
+  **Feito.** Cenário `o corpo tem os nomes de campo que o aparelho le`, com o literal numa string só
+  — a KDoc diz por quê: a guarda só conta chaves juntas, e o C2 mediu isso. Rodado junto com o de
+  2.2 (`--tests` das duas classes), `13:15:42Z`–`13:16:00Z`, `exit 0`: **6 testes, 0 falhas**,
+  `timestamp="2026-09-23T13:15:57.613Z"`, e o cenário novo está no relatório pelo nome. **Verde de
+  primeira não prova nada sobre ele** — quem prova é a mutação `nome` de 3.1.
+- [x] 2.2 `ExamPackageRouteTest` ganha um cenário que compara o corpo inteiro de `GET
   /organizations/{id}/exams` contra
   `[{"short_id":"mat-7a-2026-1","title":"Prova de Matematica","content_hash":"<hash>"}]`, escrito à
   mão, por igualdade, com o hash de `PostgresSupport.sha256Hex` (decisão 9). Os cenários existentes
   e `provasDe` não mudam. Verificar:
   `./gradlew :apps:api:test --tests '*ExamPackageRouteTest*'` → **19 testes, 0 falhas**, com o
   `timestamp`.
-- [ ] 2.3 **A guarda fica verde, e a lista de quem a satisfez é lida.** `node tools/parity/fio.mjs`
+
+  **Feito.** Cenário `a listagem tem os nomes de campo que o aparelho le, sem envelope e sem campo a
+  mais`, no fim da seção de listagem, com o hash por `sha256Hex` antes da publicação, como o
+  primeiro cenário da listagem. Mesma execução de 2.1: **19 testes, 0 falhas**,
+  `timestamp="2026-09-23T13:15:49.958Z"`, com o cenário novo pelo nome. A prova de que ele prende o
+  fio é a mutação `titulo` de 3.1.
+- [x] 2.3 **A guarda fica verde, e a lista de quem a satisfez é lida.** `node tools/parity/fio.mjs`
   → `exit 0`. Conferir cada par contra o esperado:
 
   | Tipo | Servidor — esperado | Aparelho — esperado | **Real** |
   |---|---|---|---|
-  | `OrganizationDto` | `MeOrganizationsTest` | `ApiPlatosTest` | |
-  | `ExamSummaryDto` | `ExamPackageRouteTest` | `ApiPlatosPacoteTest` | |
-  | `RosterEntryDto` | `ExamPackageRouteTest` | `ObtencaoDeRosterTest` | |
-  | `ResultSubmissionDto` | `ResultRouteTest` | `ResultadoDtoTest` | |
-  | `AnswerObservationDto` | `ResultRouteTest` | `ResultadoDtoTest` | |
+  | `OrganizationDto` | `MeOrganizationsTest` | `ApiPlatosTest` | **`MeOrganizationsTest.kt:127`** · `ApiPlatosTest.kt:38` |
+  | `ExamSummaryDto` | `ExamPackageRouteTest` | `ApiPlatosPacoteTest` | **`ExamPackageRouteTest.kt:129`** · `ApiPlatosPacoteTest.kt:32` |
+  | `RosterEntryDto` | `ExamPackageRouteTest` | `ObtencaoDeRosterTest` | `ExamPackageRouteTest.kt:310` · `ObtencaoDeRosterTest.kt:53` |
+  | `ResultSubmissionDto` | `ResultRouteTest` | `ResultadoDtoTest` | `ResultRouteTest.kt:105` · `ResultadoDtoTest.kt:65` |
+  | `AnswerObservationDto` | `ResultRouteTest` | `ResultadoDtoTest` | `ResultRouteTest.kt:105` · `ResultadoDtoTest.kt:65` |
 
   Arquivo **a mais** na lista é lido e explicado por escrito — coincidência ou literal legítimo. Par
   preso **só** por arquivo inesperado é a lacuna de coincidência do `design.md` acontecendo: parar e
   escrever.
-- [ ] 2.4 **O que não pode ter mudado.** `git diff` do commit: nenhum arquivo de `transport/`; nenhum
+
+  **REAL = ESPERADO, par a par, e nenhum arquivo a mais.** `node tools/parity/fio.mjs` às
+  `13:16:08Z` → **`exit 0`**, "os 5 contratos estao presos por literal nos dois lados". As linhas
+  novas são os dois cenários de 2.1 e 2.2; o roster passou de `:281` para `:310` só porque o cenário
+  de 2.2 entrou acima dele.
+
+  **Uma conferência a mais da leitura, que saiu de graça:** o servidor tinha **1164** literais em
+  1.3 e tem **1176** agora. Os **12** a mais são exatamente as strings que os dois cenários
+  acrescentam, contadas à mão: 7 em `MeOrganizationsTest` (a rota, o `Bearer ${…}` e as três strings
+  do template dele, o `"sub-fio"` da consulta, o literal) e 5 em `ExamPackageRouteTest` (as duas do
+  `createExam`, a rota, o `Bearer ${…}`, o literal). As KDoc novas, que citam `"nome"`, não entraram
+  na conta — comentário não é literal.
+- [x] 2.4 **O que não pode ter mudado.** `git diff` do commit: nenhum arquivo de `transport/`; nenhum
   arquivo de `apps/android`; `AuthenticationTest.kt` intocado; em `MeOrganizationsTest.kt` e
   `ExamPackageRouteTest.kt`, só linhas **acrescentadas** — nenhum cenário que desserializa foi
   reescrito ou removido.
-- [ ] 2.5 `./gradlew build` verde, com contagem e `timestamp` (P2, P3): `apps/api` passa de **165**
+
+  **Conferido no diff, antes do commit.** `git diff --name-only`: os dois testes e este `tasks.md`,
+  e nada mais — zero arquivos de `transport/`, de `apps/android` ou `AuthenticationTest`.
+  `git diff --numstat`: **+29 / −0** em cada um dos dois testes. Nenhuma linha removida quer dizer
+  que nenhum cenário existente foi tocado; e `organizacoesDe` e `provasDe` continuam com o
+  `json.decodeFromString(resposta.bodyAsText())` deles.
+- [x] 2.5 `./gradlew build` verde, com contagem e `timestamp` (P2, P3): `apps/api` passa de **165**
   para **167**, e nada mais muda. Commit 2.
+
+  **`./gradlew build`, `13:17:16Z`–`13:17:39Z`, `exit 0`, 176 tasks (7 executadas, 169
+  `UP-TO-DATE`).** Pelo `timestamp` de dentro dos XML (`13:17:21Z`–`13:17:35Z`): **25 suítes, 167
+  testes, 0 falhas**, todas de `apps/api` — o único módulo que este commit toca. Os demais ficaram
+  com os relatórios da linha de base de 0.2, **fora da janela**, e não são citados como execução
+  deste build (P2). O `--rerun-tasks` de tudo é o da 3.4.
 
 ## 3. Ver falhar (P9), depois do commit 2
 
