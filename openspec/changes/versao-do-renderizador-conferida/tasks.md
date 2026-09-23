@@ -1,13 +1,19 @@
 ## 0. Antes de qualquer commit — o ambiente e a linha de base
 
-- [ ] 0.1 **Nada a ligar, e isso fica conferido** (P22, regra 0.9 do plano). Esta mudança não pede
+- [x] 0.1 **Nada a ligar, e isso fica conferido** (P22, regra 0.9 do plano). Esta mudança não pede
   Docker nem emulador (`design.md`, decisões 8 e 10): se alguma tarefa abaixo passar a pedir, parar e
   perguntar ao mantenedor antes, inclusive em modo automático. **Atualização de 2026-09-23:** o
   mantenedor ligou o Docker para o build cheio local (decisão 10) e deu carta branca de ambiente
   para esta etapa; registrar `docker info`. Verificar e registrar aqui: a branch é
   `vewvniv/versao-do-renderizador-conferida`, criada sobre `5dfeaaa`; `git status` limpo;
   `node --version` (o local é 24, o CI é 22 — decisão 10).
-- [ ] 0.2 **A linha de base desta sessão** (P3): sem ela, uma queda sob mutação não teria a quem ser
+
+  **Conferido às `17:42:37Z`.** Branch `vewvniv/versao-do-renderizador-conferida`; `HEAD~2` é
+  `5dfeaaa` (os dois commits acima dele são os da proposta, `ba2a297` e `ab14460`); `git status`
+  limpo. `node --version` → `v24.19.0`. `docker info` → `exit 0`, Docker Desktop, servidor `29.7.2`,
+  nenhum contêiner rodando — ligado pelo mantenedor, não por esta sessão. Nenhum emulador subido,
+  nenhum aparelho tocado.
+- [x] 0.2 **A linha de base desta sessão** (P3): sem ela, uma queda sob mutação não teria a quem ser
   atribuída. Dois comandos, e os dois inteiros:
   - `npm test` em `apps/web` — registrar o `Start at` do Vitest, arquivos, testes e falhas;
   - ~~`./gradlew :apps:android:testDebugUnitTest :packages:domain:jvmTest --rerun-tasks`~~ →
@@ -20,6 +26,17 @@
   (`openspec/changes/archive/2026-09-23-o-fio-preso-nos-dois-lados/tasks.md`, 0.2): nenhum arquivo
   dele mudou desde então. Se diferir, parar e explicar antes da tarefa 1.
 
+  **Bateu.** `npm test` em `apps/web`: `Start at 19:43:05` (hora local, `+02:00` — `17:43:05Z`),
+  `exit 0`, **1 arquivo, 14 testes, 0 falhas**. `./gradlew build --continue --rerun-tasks`,
+  `17:43:00Z`–`17:46:27Z`, `exit 0`, **176 de 176 tasks executadas**. Pelo `timestamp` de dentro dos
+  XML (`17:45:08Z`–`17:46:22Z`): **153 suítes, 1446 testes, 0 falhas, 0 erros, 0 pulados** —
+  `apps/android` **308**, `apps/api` 167, `packages/domain` 329 (`jvmTest`) + 321 (`jsNodeTest`) + 321
+  (`testAndroidHostTest`). `apps/api` dá 167 e não os 165 da linha de base da 7.3 porque a 7.3
+  acrescentou dois cenários de literal (`5e41146`); é a única diferença, e é explicada. Um relatório
+  ficou fora da janela, o de `buildSrc` (`AquisicaoDeConexaoTest`, `13:28Z`): o `build` não alcança
+  os testes de `buildSrc`, como já registrado. O contador é um script temporário no scratchpad, fora
+  da árvore; que ele filtra de fato ficou visto nesse relatório excluído.
+
 ## 1. A medição de entrada — ver o buraco, antes de qualquer código
 
 O acréscimo ao texto do plano, com a razão no `design.md`, decisão 8. Cada mutação é marcada com uma
@@ -28,23 +45,62 @@ linha `// MUTACAO: <de> -> <para> (tarefa 1.x)` **acima** da declaração, rever
 
 | Mutação | Suíte rodada | Previsto | **Real** |
 |---|---|---|---|
-| `web`: `RENDERER_VERSION` `1` → `2` | `apps/web`: `npm test`, inteira | **0 falhas** — o buraco | |
-| `android`: `RENDERER_VERSION` `1` → `2` | `:apps:android:testDebugUnitTest --rerun-tasks`, inteira | **0 falhas** — o buraco | |
-| `dominio`: `MIN_RENDERER_VERSION` `1` → `2` | `LayoutEngineTest` e `RendererContractTest`, filtradas | **cai um teste em cada**: `mapa declara as duas versoes` e `renderizador compativel aceita o mapa` — a direção ruidosa, já coberta | |
+| `web`: `RENDERER_VERSION` `1` → `2` | `apps/web`: `npm test`, inteira | **0 falhas** — o buraco | **0 de 14** — o buraco |
+| `android`: `RENDERER_VERSION` `1` → `2` | `:apps:android:testDebugUnitTest --rerun-tasks`, inteira | **0 falhas** — o buraco | **0 de 308** — o buraco |
+| `dominio`: `MIN_RENDERER_VERSION` `1` → `2` | `LayoutEngineTest` e `RendererContractTest`, filtradas | **cai um teste em cada**: `mapa declara as duas versoes` e `renderizador compativel aceita o mapa` — a direção ruidosa, já coberta | **1 de 21** e **1 de 9**, exatamente os dois previstos |
 
 Se o real divergir — mais, menos ou outros —, **parar** (regra 0.5; `design.md`, decisão 9), escrever
 o real ao lado do previsto e decidir com o mantenedor se a mudança segue como está.
 
-- [ ] 1.1 **`web` sobe sozinho.** Em `apps/web/src/layoutMap.ts`, `RENDERER_VERSION = 2`, com a linha
+- [x] 1.1 **`web` sobe sozinho.** Em `apps/web/src/layoutMap.ts`, `RENDERER_VERSION = 2`, com a linha
   `MUTACAO` acima. `npm test` em `apps/web`. Verificar: 0 falhas, e a mesma contagem de testes da
   linha de base — contagem menor seria teste que deixou de rodar, e não verde. Reverter;
   `git diff --exit-code apps/web/src/layoutMap.ts` sai `0`; `npm test` de novo, verde, com o
   `Start at` posterior ao da mutação.
-- [ ] 1.2 **`android` sobe sozinho.** Em `RendererContract.kt`, `RENDERER_VERSION = 2`, com a linha
+
+  **Real = previsto.** Sob a mutação, `Start at 19:43:39` (`17:43:39Z`): `exit 0`, **14 de 14
+  passam, 0 falhas** — a mesma contagem da linha de base. Revertido: `git diff --exit-code` → `0`;
+  `npm test` às `19:43:49`, 14 de 14.
+
+  **Um canário, fora da tabela, porque zero pede canário (P13).** "0 falhas" é indistinguível de "o
+  Vitest não viu o valor novo". Então, entre a reversão e a 1.2, a direção **oposta**:
+  `RENDERER_VERSION = 0`, também marcada `MUTACAO`. Rodado entre `19:43:49` e `19:44:22` — o
+  `Start at` exato desta execução não foi guardado: o filtro da saída cortou a linha antes dela, e
+  fica dito em vez de reconstruído. `exit 1`, **9 de 14 caem**,
+  e o primeiro é o que a leitura aponta: `aceita quando a versao do renderizador basta` — "expected
+  1 to be less than or equal to 0". Os outros 8 caem porque todo desenho do golden passa a ser
+  recusado pela guarda (`1 > 0`). O Vitest lê o valor do arquivo-fonte, e o "0 falhas" da mutação
+  vale. De quebra, isso **mede** a direção ruidosa do lado web, que o `design.md` deixara por leitura
+  ("ao menos do lado Android"): ela também é pega. Revertido: `git diff --exit-code` → `0`;
+  `npm test` às `19:44:22`, 14 de 14.
+- [x] 1.2 **`android` sobe sozinho.** Em `RendererContract.kt`, `RENDERER_VERSION = 2`, com a linha
   `MUTACAO` acima. `./gradlew :apps:android:testDebugUnitTest --rerun-tasks`. Verificar pelo
   `timestamp` dos XML: 0 falhas, 308 testes. Reverter; `git diff --exit-code` do arquivo sai `0`; o
   mesmo comando de novo, verde, com `timestamp` posterior.
-- [ ] 1.3 **`dominio` sobe sozinho.** Em `LayoutMap.kt`, `MIN_RENDERER_VERSION = 2`, com a linha
+
+  **Real = previsto.** Sob a mutação, `17:47:17Z`–`17:47:53Z`, `exit 0`, **40 de 40 tasks
+  executadas**; pelo `timestamp` dos XML (`17:47:48Z`–`17:47:52Z`): **29 suítes, 308 testes, 0
+  falhas**. Revertido: `git diff --exit-code` → `0`; o mesmo comando `17:48:06Z`–`17:48:31Z`, 308 de
+  308, XML `17:48:25Z`–`17:48:29Z`.
+
+  **O mesmo canário do web, pela mesma razão (P13)**: `RENDERER_VERSION = 0`, marcada `MUTACAO`.
+  `17:48:38Z`–`17:49:01Z`, `exit 1`, "308 tests completed, 8 failed"; pelos XML: **8 falhas**, e são
+  `RendererContractTest` → `renderizador compativel aceita o mapa` ("expected: <true> but was:
+  <false>", o `<=` da leitura) e sete de `PreparoDaProvaTest`, todos porque o gate passa a barrar com
+  `VERSAO_INSUFICIENTE` onde esperavam `Pronta` ou outra barragem:
+  `roster_ausente_e_barragem_distinta_das_do_pacote`,
+  `roster_guardado_sob_outra_organizacao_nao_abre_o_escaneamento`, `roster_vazio_abre_o_escaneamento`,
+  `roster_nunca_puxado_barra_mesmo_com_pacote_conferido`,
+  `voltar_do_escaneamento_devolve_a_escolha_da_prova`, `pacote_conferido_abre_o_escaneamento`,
+  `depois_de_voltar_a_mesma_prova_e_escolhivel_de_novo`. O `const val` recompilado chega aos testes,
+  e o "0 falhas" da mutação vale. Revertido: `git diff --exit-code` → `0`; o mesmo comando
+  `17:49:27Z`–`17:49:50Z`, 308 de 308, XML `17:49:45Z`–`17:49:48Z`.
+
+  **O contador errou uma vez, e foi visto:** a primeira listagem das falhas do canário imprimiu a
+  classe no lugar do nome do teste — a expressão pegava o fim de `classname=`. Corrigida no
+  scratchpad e relida sobre os **mesmos** XML (nenhuma execução nova); as contagens não dependiam
+  dela.
+- [x] 1.3 **`dominio` sobe sozinho.** Em `LayoutMap.kt`, `MIN_RENDERER_VERSION = 2`, com a linha
   `MUTACAO` acima. `./gradlew --continue --rerun-tasks :packages:domain:jvmTest --tests
   "com.platos.domain.layout.LayoutEngineTest" :apps:android:testDebugUnitTest --tests
   "com.platos.android.render.RendererContractTest"` (`--continue`, para a queda do primeiro não
@@ -53,13 +109,25 @@ o real ao lado do previsto e decidir com o mantenedor se a mudança segue como e
   **exatamente** `renderizador compativel aceita o mapa` em `RendererContractTest`; todos os outros
   testes das duas classes passam. Reverter; `git diff --exit-code` sai `0`; o mesmo comando, verde.
   **O que ela não afirma** fica escrito com o resultado: quais outras classes cairiam (decisão 8).
-- [ ] 1.4 **Registro da medição, antes do código.** `docs/cobertura-versao-do-renderizador-conferida.md`,
+
+  **Real = previsto.** `17:50:15Z`–`17:50:35Z`, `exit 1`, **46 de 46 tasks executadas**, as duas
+  tasks de teste rodaram (`--continue`). `LayoutEngineTest[jvm]`: **1 de 21 cai**, `mapa declara as
+  duas versoes` — "expected: <1> but was: <2>". `RendererContractTest`: **1 de 9 cai**, `renderizador
+  compativel aceita o mapa` — "expected: <true> but was: <false>". Os outros 28 passam. XML
+  `17:50:27Z` e `17:50:33Z`. Revertido: `git diff --exit-code packages apps` → `0`; o mesmo comando
+  `17:50:44Z`–`17:51:03Z`, `exit 0`, 21 de 21 e 9 de 9.
+- [x] 1.4 **Registro da medição, antes do código.** `docs/cobertura-versao-do-renderizador-conferida.md`,
   Parte I: a linha de base (0.2), as três mutações com previsto e real lado a lado, as horas UTC, o
   que não foi rodado e por quê (instrumentada, por leitura; as suítes de um lado sob a mutação do
   outro, por `grep`), e uma Parte II que diz "ainda não existe". Preencher a coluna **Real** da tabela
   acima. Verificar: `grep -rn "MUTACAO" --exclude-dir=build --exclude-dir=node_modules --exclude-dir=.gradle .`
   fora de `docs/` e `openspec/` sai vazio, e `git status` só mostra o documento e este `tasks.md`.
   Commit `registro:` só com esses dois arquivos.
+
+  **Feito.** A Parte I está escrita, com os dois canários (§2) e a tabela das direções (§3), que não
+  estavam previstos aqui e ficam ditos como acréscimo. `grep -rn "MUTACAO"` com `--exclude-dir` para
+  `build`, `node_modules`, `.gradle`, `.git`, `docs` e `openspec` → `exit 1`, nada achado.
+  `git status --short` → só este `tasks.md` e o documento novo.
 
 ## 2. Commit 1 — o conferidor e os dois passos do CI
 
