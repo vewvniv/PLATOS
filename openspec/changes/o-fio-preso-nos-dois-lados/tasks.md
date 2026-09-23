@@ -378,17 +378,39 @@ a asserção ou ajustar a previsão em silêncio.
 
 ## 4. Fechar
 
-- [ ] 4.1 **O resto do comando cheio** (P5), e o que ficou de fora. `./gradlew -p buildSrc test
+- [x] 4.1 **O resto do comando cheio** (P5), e o que ficou de fora. `./gradlew -p buildSrc test
   --rerun-tasks` — rodado à parte porque `build` não alcança os testes de `buildSrc` (medido na
   `generatejooq-sem-registro-automatico`) — e os dois passos novos do `ci.yml` rodados de novo em
   bash, como estão escritos. Registrar como **não rodado**, com o porquê (P8):
   `connectedDebugAndroidTest` (nenhum arquivo de `apps/android` muda; o `androidTest` não tem
   literal de contrato — Parte I, §5, por busca) e o CI (tudo local, em Windows; o CI roda em Linux).
+
+  **Rodado.** `./gradlew -p buildSrc test --rerun-tasks`, `13:27:51Z`–`13:28:20Z`, `exit 0`, 6 de 6
+  tasks executadas: **1 suíte, 1 teste, 0 falhas** (`timestamp` `13:28:14Z`) — o
+  `AquisicaoDeConexaoTest` que ficava fora da janela em 0.2 e em 3.4. Os dois passos novos do
+  `ci.yml`, extraídos de novo pelo PyYAML e rodados com `bash -e` às `13:28:20Z`: o primeiro
+  **`exit 0`** ("os 5 contratos estao presos por literal nos dois lados") — era `1` no commit 1 —, e
+  o segundo **`exit 0`** ("acusou o contrato sem literal nos dois lados, e o piso, como deve").
+
+  **Não rodado, e por quê (P8):**
+  - **`connectedDebugAndroidTest`.** Nenhum arquivo de `apps/android` muda, e as mutações de 3.1
+    tocaram `packages/domain` e foram revertidas (`cmp` e `git diff`). Que o `androidTest` não tem
+    literal de contrato é **busca** (Parte I §5), e não execução.
+  - **O CI.** Tudo acima é local, em Windows; o job `build` e o `web` rodam em Linux. Em
+    particular, os dois passos novos usam `mktemp -d`, `cp -r` e `<<<` do bash, e aqui rodaram no
+    Git Bash — que é bash, mas não é o Ubuntu do runner. É a 4.2.
+  - **A guarda não roda em `./gradlew build`** (decisão 1): nenhum dos builds desta sessão a
+    alcançou; ela foi rodada à parte, cada vez, e isso está em cada tarefa.
 - [ ] 4.2 **O CI da PR, observado no destino** (P26). Os dois passos novos no job `web`, verdes, com
   o log dizendo o motivo — que a guarda acusou o `FantasmaDto` nos dois lados e o piso —, e o job
   `build` verde. Só existe depois do push, que é decisão do mantenedor: até lá esta tarefa fica
   **desmarcada**, com isso escrito nela (P1).
-- [ ] 4.3 **A Parte II de `docs/cobertura-o-fio-preso-nos-dois-lados.md`**, com o que o plano manda
+
+  **Aberta em 2026-09-23, ao fim da sessão de implementação.** Nada foi empurrado: a branch
+  `vewvniv/o-fio-preso-nos-dois-lados` existe só localmente, sobre `d7e10f4`, que também ainda não
+  está no remoto. Os dois passos rodaram localmente, extraídos do `ci.yml` (1.5 e 4.1) — isso é
+  execução local, e não observação do CI no destino (P26).
+- [x] 4.3 **A Parte II de `docs/cobertura-o-fio-preso-nos-dois-lados.md`**, com o que o plano manda
   e o `rigorous.md` §8 exige: o primeiro vermelho da guarda sobre a árvore real, com os nomes e a
   hora; os canários de 1.4; as três mutações **antes** (Parte I) **e depois**, ao lado dos previstos;
   os dois vermelhos plantados e o do piso; a reversão rodada; o comando cheio com `timestamp`. Na
@@ -397,14 +419,43 @@ a asserção ou ajustar a previsão em silêncio.
   (decisão 11) —, a lacuna de coincidência, a guarda fora do `./gradlew build`, e o que 4.1 não
   rodou. O parágrafo da Parte II que hoje diz "ainda não existe" fica, marcado como superado (P7).
   Nenhuma seção fecha com "passou".
-- [ ] 4.4 **O fechamento, escrito onde o achado aponta para esta mudança** — e sem apagar o que
+
+  **Escrita**, §7 a §15. A frase obrigatória abre o §14, inteira, com a consequência para a fatia 5.
+  O "ainda não existe" ficou nos dois lugares em que estava — o cabeçalho e o começo da Parte II —,
+  cada um com "Superado" ao lado. O §15 registra as três afirmações desta sessão que precisaram de
+  correção, e diz que não houve achado novo pela regra 0.4.
+- [x] 4.4 **O fechamento, escrito onde o achado aponta para esta mudança** — e sem apagar o que
   está lá (P7). São três lugares, que hoje dizem que "a medição e a correção são a ETAPA 7.3":
   `docs/auditoria-2026-09-18-antes-da-fatia-5.md:87`, a atualização de 2026-09-23 do ADR-0015
   (`:187`) e `docs/cobertura-contrato-do-fio-com-dono-unico.md:243` e `:269`. Uma linha em cada, com
   a data e o ponteiro para a Parte II. A razão de a tarefa existir está na própria auditoria: o
   archive da ETAPA 6 disse na mensagem do commit que o achado saía da lista, e não o escreveu no
   arquivo.
-- [ ] 4.5 **O `design.md` e o `proposal.md` continuam verdadeiros?** Conferir item a item — em
+
+  **Escrito nos quatro pontos, e nada apagado.** Auditoria: um parágrafo "Corrigido em 2026-09-23"
+  logo depois da nota, que diz também que a guarda não prova que o literal prende o fio e que o CI
+  ainda não foi observado. ADR-0015: uma frase "Feito no mesmo dia" no fim da atualização de
+  2026-09-23 — a decisão não muda, e o ADR continua `aceito`. `cobertura-contrato-…`: uma linha no
+  §8 e outra no §9. **A do §9 foi escrita "Fechada" e rebaixada para "Feita"** antes do commit: o
+  archive e o CI da PR ainda não aconteceram, e "fechada" afirmaria os dois.
+- [x] 4.5 **O `design.md` e o `proposal.md` continuam verdadeiros?** Conferir item a item — em
   particular as afirmações que eram leitura: os cinco tipos e a forma deles (Context), a previsão
   da decisão 8, e as contagens derivadas de 3.1 e 3.4. O que tiver sido desmentido fica ao lado do
   que foi previsto, e não reescrito (P7).
+
+  **Conferidos, item a item.** Uma afirmação desmentida, e ela ganhou a correção ao lado:
+
+  | Afirmação | Estado |
+  |---|---|
+  | Context: cinco tipos `@Serializable`, todos `data class` simples | **confirmada por medição**: a guarda leu 5 tipos em 4 arquivos, sem nenhum `exit 2` (1.3) |
+  | Decisão 1 e Impact: "só `node:fs` e `node:path`" | **desmentida**: também `node:url`. Nota ao lado nas duas, sem reescrever |
+  | Decisão 6: o piso | **confirmada**, e com os seis casos exercitados (3.3) |
+  | Decisão 7: os dois passos do CI | como escrita, e vista reprovar ramo por ramo (1.5) |
+  | Decisão 8: a previsão do primeiro vermelho | **confirmada** (1.3) |
+  | Decisão 9: os literais no molde do roster, deserializantes intactos | **confirmada**: +29/−0 em cada arquivo (2.4) |
+  | 3.1: contagens derivadas | **confirmadas**, uma a uma |
+  | 3.4: 153 suítes, 1446 testes | **confirmada** |
+  | Proposal, "O que NÃO será alterado" | **verdadeira**: `git diff d7e10f4 --name-only` traz 12 arquivos, e **0** deles em `transport/`, `apps/android`, `AuthenticationTest`, `answer-kind.mjs` ou `limiar.mjs` |
+
+  O `design.md` também tinha uma citação errada, e ela já estava corrigida antes do apply
+  (decisão 6: o teste "o piso reprova um catálogo vazio" está em `RetentionDeclarationTest`).

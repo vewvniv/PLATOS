@@ -186,3 +186,6 @@ no roster — `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte I.
 O detalhe está em `docs/cobertura-contrato-do-fio-com-dono-unico.md` §8; a medição, os dois
 literais e a guarda para os contratos que a fatia 5 vai criar são a ETAPA 7.3 do plano de correção,
 mudança `o-fio-preso-nos-dois-lados`.
+**Feito no mesmo dia:** com os dois literais do servidor, a mutação da decisão 4 derruba os dois
+lados nos quatro contratos; e `tools/parity/fio.mjs` reprova, no CI, tipo de `transport` sem literal
+nos dois lados — `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte II.

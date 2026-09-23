@@ -61,7 +61,8 @@ nome, spec e ordem" do plano diz o mesmo: **Specs tocadas: nenhuma**.
 ## Impact
 
 - **`tools/parity/fio.mjs`** — novo. Sem dependência nova: `node:fs` e `node:path`, como
-  `answer-kind.mjs`.
+  `answer-kind.mjs`. *(Na implementação, também `node:url` — ver `design.md`, decisão 1. Sem
+  dependência de npm, como dito.)*
 - **`.github/workflows/ci.yml`** — dois passos no job `web`, logo depois dos de `answer_kind`.
 - **`apps/api/src/test/.../http/MeOrganizationsTest.kt`** e
   **`apps/api/src/test/.../http/ExamPackageRouteTest.kt`** — um cenário novo em cada.

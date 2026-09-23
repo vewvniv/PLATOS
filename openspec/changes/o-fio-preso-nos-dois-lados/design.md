@@ -82,6 +82,11 @@ posicionou para isso é o conferidor Node no job `web`: `limiar.mjs`, `answer-ki
 **Custo operacional: nenhum novo.** Node 22 já está no job `web`; o conferidor usa só `node:fs` e
 `node:path`, como `answer-kind.mjs`. `tools/parity/package.json` não muda.
 
+> **Desmentido na implementação (tarefa 1.1), e a frase acima fica:** ele usa também `node:url`
+> (`fileURLToPath`), para achar a raiz do repositório a partir do próprio script e não depender do
+> diretório de onde é chamado. Continua sem dependência de npm, e `package.json` não mudou — o que
+> a frase queria garantir continua valendo; a lista de módulos é que estava errada.
+
 **A consequência, dita:** a guarda **não** roda em `./gradlew build`. Quem roda o build local e vê
 verde não viu a guarda. O CI a roda em toda PR; o fechamento desta mudança a roda explicitamente.
 
