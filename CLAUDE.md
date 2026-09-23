@@ -80,6 +80,10 @@ fechar qualquer tarefa que produza número, geometria, paridade ou artefato hash
 3. Leia e revise `proposal.md`, `specs/`, `design.md`, `tasks.md`.
 4. Só então: `/opsx:apply`.
 5. Verifique testes e implementação.
+   - No **propose**: a proposta nomeia as linhas do §16 cujo gatilho esta mudança vai alcançar.
+     `node tools/divida/divida.mjs` lista as que vencem na fatia corrente.
+   - No **archive**: o archive reconcilia cada uma — paga, ou reagendada com fatia-limite nova e
+     motivo (`rigorous.md` P27).
 6. `/opsx:archive`.
 
 Use `openspec/` como memória durável. Não reexplique a arquitetura no chat quando um arquivo existente puder ser citado.
