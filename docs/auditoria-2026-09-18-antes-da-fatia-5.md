@@ -64,7 +64,28 @@ módulos**, **o que vence depois do archive** e **o artefato de release**.
 
 ## 2. Achados graves
 
-### 2.1 O contrato da API é copiado à mão entre `apps/api` e `apps/android` — quatro vezes, sem ADR
+### 2.1 O contrato da API é copiado à mão entre `apps/api` e `apps/android` — quatro vezes, sem ADR — ~~**aberto**~~ **fechado**, e uma frase dele estava errada
+
+> **Fechado em 2026-09-19, pela mudança `contrato-do-fio-com-dono-unico` e por ADR-0015** (ETAPA 6
+> de `docs/plano-de-correcao-antes-da-fatia-5.md`). O texto abaixo fica inteiro e não se apaga (P7).
+> **A marca só entrou aqui em 2026-09-23:** o archive da ETAPA 6 disse, na mensagem do commit
+> (`1875c7d`), que o achado "sai da lista", e não o escreveu neste arquivo, como as outras etapas
+> fizeram.
+>
+> Os quatro contratos passaram a ter um declarante, em `com.platos.domain.transport`, e o mapa
+> `answer_kind` passou de três registros cegos a dois que se conferem
+> (`tools/parity/answer-kind.mjs`). A prova de que é dono único, e não arquivo movido: um
+> `@SerialName` trocado no domínio derrubou os dois testes de literal, e nada além deles em 152
+> suítes (`docs/cobertura-contrato-do-fio-com-dono-unico.md` §2).
+>
+> **A frase errada é a que descreve a rede:** "Hoje a divergência é possível por construção e
+> contida por literais JSON escritos à mão nos dois lados." Ela cita só os dois testes de resultado e
+> afirma a rede para os quatro contratos — e vale para **dois**. Em organização e prova, o teste do
+> servidor desserializa o corpo com o mesmo tipo que a rota usa para escrevê-lo, e só o aparelho tem
+> literal. É P4, e já era assim antes da unificação: foi ela que o tornou visível. O detalhe, com
+> arquivo e linha, está no §8 daquela cobertura, corrigido na mesma data; o tipo da afirmação é
+> **conferido por leitura**, e não medido. A medição e a correção são a ETAPA 7.3,
+> `o-fio-preso-nos-dois-lados`.
 
 **O que.** `ResultSubmissionDto`/`AnswerObservationDto` (`apps/api/.../http/dto/ResultDto.kt`) e
 `EnvioDeResultadoDto`/`ObservacaoDto` (`apps/android/.../api/ResultadoDto.kt`) são o **mesmo

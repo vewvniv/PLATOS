@@ -169,3 +169,18 @@ falha se a conferência aceitar — o mesmo que `limiar.mjs --esperado` já faz.
 **A mutação derrubar só um lado e isso ser lido como sucesso.** Um `@SerialName` trocado tem de
 derrubar os dois testes de literal. Se derrubar um, a leitura correta não é "o teste pegou": é que o
 outro lado não está preso, e a mudança não entregou o que prometeu.
+
+### Atualização de 2026-09-23: a rede do Contexto valia para dois dos quatro contratos
+
+O Contexto diz que a divergência era "contida por literais JSON escritos à mão nos dois lados", e
+cita os dois testes do contrato de resultado. Nos contratos de organização e de prova **não** era:
+o teste do servidor desserializa o corpo com o mesmo tipo que a rota usa para escrevê-lo, e só o
+aparelho tem literal. Já era assim antes deste ADR, com os tipos do próprio servidor; a unificação
+só deu à mutação da decisão 4 um lugar onde ser injetada.
+
+**A decisão não muda.** É o critério dela — os dois testes de literal têm de cair — que expõe o
+buraco, e o parágrafo acima já nomeava esse modo de falha. O que muda é o registro: a mutação foi
+aplicada a um contrato só, e o que se sabe dos outros três é **conferido por leitura**, não medido.
+O detalhe está em `docs/cobertura-contrato-do-fio-com-dono-unico.md` §8; a medição, os dois
+literais e a guarda para os contratos que a fatia 5 vai criar são a ETAPA 7.3 do plano de correção,
+mudança `o-fio-preso-nos-dois-lados`.

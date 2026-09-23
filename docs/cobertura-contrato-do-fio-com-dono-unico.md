@@ -213,6 +213,36 @@ cada XML**, que é UTC e descreve a execução que o escreveu — não a hora em
   foi feita sobre `capture_id`, no contrato de resultado. **Os outros três contratos não foram
   submetidos à mesma mutação.** O que se afirma deles é mais fraco: que compilam contra um
   declarante único e que a suíte inteira passa.
+
+  > **Corrigido em 2026-09-23: o item acima olhou para o lado errado da porta (P7).** O aparelho tem
+  > literal escrito à mão para os **quatro** contratos — `ApiPlatosTest:38` (organização),
+  > `ApiPlatosPacoteTest:32` (prova), `ObtencaoDeRosterTest:53` (roster) e `ResultadoDtoTest`
+  > (resultado). O lado que falta é o **servidor**, e em dois dos quatro:
+  >
+  > | Contrato | Teste do servidor | O fio está preso? |
+  > |---|---|---|
+  > | resultado | `ResultRouteTest.corpo()`, literal | sim — **medido**, §2 acima |
+  > | roster | `ExamPackageRouteTest:281`, literal | sim, por leitura |
+  > | organização | `MeOrganizationsTest:112` desserializa com o próprio `OrganizationDto` | **não**. Só `kind`, e por acaso: `AuthenticationTest:131` procura `"kind":"personal"` no corpo, num teste de isolamento, e não de contrato |
+  > | prova | `ExamPackageRouteTest:359` desserializa com o próprio `ExamSummaryDto` | **não**, nenhum campo |
+  >
+  > Desserializar com o tipo que a rota usa para escrever o corpo põe o mesmo código dos dois lados
+  > da igualdade — é P4, e é o que a decisão 4 do ADR-0015 proibiu para os testes de literal. Os dois
+  > testes ainda leem com `Json { ignoreUnknownKeys = true }`, e por isso também não veem campo a
+  > mais. O argumento já estava escrito no mesmo arquivo, 90 linhas acima do `provasDe`
+  > (`ExamPackageRouteTest.kt:261-267`), e foi aplicado só ao roster.
+  >
+  > **Não é defeito desta mudança: já era assim.** Em `bd2934a`, o commit em que esta sessão começou,
+  > os dois testes já desserializavam com o `OrganizationDto` e o `ExamSummaryDto` **do próprio
+  > servidor** — desde `ac10698` (2026-08-13) e `112c8e6` (2026-09-08). O que a unificação fez foi
+  > torná-lo visível: só com um declarante único a mutação da decisão 4 passa a ter onde ser injetada,
+  > e nesses dois contratos ela derrubaria **um** lado — que é, com as palavras do ADR-0015, "o outro
+  > lado não está preso".
+  >
+  > **Tipo desta afirmação: conferido por leitura, e não medido (P6).** Nenhuma mutação rodou sobre os
+  > três contratos. A medição e a correção são a ETAPA 7.3 de
+  > `docs/plano-de-correcao-antes-da-fatia-5.md`, mudança `o-fio-preso-nos-dois-lados`, que bloqueia
+  > a fatia 5.
 - **`packages/domain` compila os DTOs também para o alvo `js`, que não os consome.** Isso não foi
   medido como custo; é observação de desenho.
 - **Os quatro arquivos do aparelho continuam com nome de DTO sem declarar DTO nenhum**
@@ -228,3 +258,7 @@ Nada desta etapa. A ETAPA 7 constrói `tools/parity/renderizador.mjs` **no mesmo
 `answer-kind.mjs` e de `limiar.mjs` — três instâncias nomeadas do mesmo instrumento, e não um
 conferidor genérico, que é o que a regra 8 do `CLAUDE.md` proíbe e o que a própria ETAPA 7 já veda
 por escrito.
+
+> **Corrigido em 2026-09-23 (P7):** "nada desta etapa" deixou de ser verdade. A correção do §8 —
+> dois dos quatro contratos sem literal do lado do servidor — virou a **7.3** do plano, mudança
+> `o-fio-preso-nos-dois-lados`, que corre antes da 7.1 e bloqueia a fatia 5.
