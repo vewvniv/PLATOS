@@ -1,6 +1,7 @@
 // O import e obrigatorio: no Kotlin DSL do Gradle, `java` resolve para a extensao do plugin Java e
 // sombreia o pacote, entao `java.util.Properties` nao compila.
 import com.android.build.api.variant.BuildConfigField
+import com.android.build.api.variant.HostTestBuilder
 import java.util.Properties
 import java.util.zip.ZipFile
 
@@ -208,6 +209,20 @@ android {
  */
 
 androidComponents {
+    // A suite de unidade tambem sobre o release (ETAPA 7.2, decisao do mantenedor em 2026-09-23). O
+    // AGP 9 nao cria `testReleaseUnitTest` por padrao, e esta arvore nunca optou por cria-la: desde a
+    // subida do AGP, em 2026-08-15, um defeito que so existisse no release passava pelo `build` —
+    // medido com um teste que afirma `BuildConfig.DEBUG` (`docs/cobertura-o-apk-de-release-e-verificado.md`
+    // §3). O registro antigo dizia "a proxima que mexer em build ou variante", e esse gatilho disparou
+    // duas vezes sem ninguem atender; ligada, a variante deixa de depender de alguem lembrar.
+    beforeVariants(selector().withBuildType("release")) { variante ->
+        // `requireNotNull`, e nao `?.`: se o AGP deixar de expor a entrada, a chamada segura nao ligaria
+        // nada, e o release voltaria a ficar sem suite em silencio — o defeito que esta linha fecha.
+        requireNotNull(variante.hostTests[HostTestBuilder.UNIT_TEST_TYPE]) {
+            "o AGP nao expoe o teste de unidade da variante ${variante.name}"
+        }.enable = true
+    }
+
     onVariants { variant ->
         // `put` com `Provider`: a configuracao so e exigida quando o `BuildConfig` desta
         // variante for gerado, e nao quando o projeto e configurado.
