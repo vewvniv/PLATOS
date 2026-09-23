@@ -321,33 +321,47 @@ tasks.withType<Test>().configureEach {
  * A deteccao nao e por nome de arquivo. Um pacote renomeado continuaria sendo um pacote, entao o que
  * se procura e a **forma**: um asset JSON que declare `answer_key` e `min_renderer_version` e um
  * `ExamPackage`, chame-se como se chamar.
+ *
+ * **As duas variantes, e cada uma com a sua guarda de vacuidade** (ETAPA 7.2). Ate la a tarefa so abria
+ * o debug, e o APK de release — o que vai ao professor — passava sem conferencia: um pacote plantado em
+ * `src/release/assets/` chegou ao release com esta tarefa dizendo "0 asset(s) conferido(s)"
+ * (`docs/cobertura-o-apk-de-release-e-verificado.md` §2). A vacuidade e por variante porque, sobre a
+ * uniao, o debug sozinho a satisfaria — e o release sem conferencia e exatamente o defeito.
  */
 abstract class VerificarApkSemPacoteTask : DefaultTask() {
     @get:InputFiles
-    abstract val apks: ConfigurableFileCollection
+    abstract val apksDeDebug: ConfigurableFileCollection
+
+    @get:InputFiles
+    abstract val apksDeRelease: ConfigurableFileCollection
 
     @TaskAction
     fun run() {
         val encontrados = mutableListOf<String>()
-        var conferidos = 0
 
-        for (apk in apks.files.filter { it.isFile && it.extension == "apk" }) {
-            ZipFile(apk).use { zip ->
-                for (entrada in zip.entries()) {
-                    if (!entrada.name.startsWith("assets/")) continue
-                    if (!entrada.name.endsWith(".json")) continue
-                    conferidos++
-                    val texto = zip.getInputStream(entrada).use { it.readBytes().decodeToString() }
-                    if (texto.contains("\"answer_key\"") && texto.contains("\"min_renderer_version\"")) {
-                        encontrados += "${apk.name}!${entrada.name}"
+        for ((variante, colecao) in listOf("debug" to apksDeDebug, "release" to apksDeRelease)) {
+            val apks = colecao.files.filter { it.isFile && it.extension == "apk" }
+
+            // Sem APK desta variante, a verificacao passaria por vacuidade e diria que esta tudo certo.
+            require(apks.isNotEmpty()) {
+                "nenhum APK de $variante para conferir; a tarefa depende de `assemble${variante.replaceFirstChar { it.uppercase() }}`"
+            }
+
+            for (apk in apks) {
+                var conferidos = 0
+                ZipFile(apk).use { zip ->
+                    for (entrada in zip.entries()) {
+                        if (!entrada.name.startsWith("assets/")) continue
+                        if (!entrada.name.endsWith(".json")) continue
+                        conferidos++
+                        val texto = zip.getInputStream(entrada).use { it.readBytes().decodeToString() }
+                        if (texto.contains("\"answer_key\"") && texto.contains("\"min_renderer_version\"")) {
+                            encontrados += "${apk.name}!${entrada.name}"
+                        }
                     }
                 }
+                logger.lifecycle("$variante: ${apk.name}, $conferidos asset(s) JSON conferido(s).")
             }
-        }
-
-        // Sem APK nenhum, a verificacao passaria por vacuidade e diria que esta tudo certo.
-        require(apks.files.any { it.isFile && it.extension == "apk" }) {
-            "nenhum APK para conferir; a tarefa depende de `assembleDebug`"
         }
 
         require(encontrados.isEmpty()) {
@@ -355,17 +369,18 @@ abstract class VerificarApkSemPacoteTask : DefaultTask() {
                 "O pull de referencia imutavel e o unico caminho (ADR-0013, decisao 5)."
         }
 
-        logger.lifecycle("APK sem pacote de prova: $conferidos asset(s) JSON conferido(s).")
+        logger.lifecycle("APK sem pacote de prova, nas duas variantes.")
     }
 }
 
 val verificarApkSemPacote = tasks.register<VerificarApkSemPacoteTask>("verificarApkSemPacote") {
     group = "verification"
-    description = "Confere que nenhum pacote de prova foi empacotado no APK"
-    dependsOn("assembleDebug")
+    description = "Confere que nenhum pacote de prova foi empacotado no APK, de debug e de release"
+    dependsOn("assembleDebug", "assembleRelease")
     // `.asFileTree`: um `ConfigurableFileCollection` alimentado por um diretorio traz o diretorio,
-    // e nao o conteudo dele. A guarda de vacuidade abaixo foi quem pegou isso.
-    apks.from(layout.buildDirectory.dir("outputs/apk/debug").map { it.asFileTree })
+    // e nao o conteudo dele. A guarda de vacuidade foi quem pegou isso.
+    apksDeDebug.from(layout.buildDirectory.dir("outputs/apk/debug").map { it.asFileTree })
+    apksDeRelease.from(layout.buildDirectory.dir("outputs/apk/release").map { it.asFileTree })
 }
 
 tasks.named("check") { dependsOn(verificarApkSemPacote) }
