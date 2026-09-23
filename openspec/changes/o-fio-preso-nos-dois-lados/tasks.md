@@ -31,36 +31,77 @@ cobertura.
 
 ## 1. Commit 1 — a guarda, e ela nasce vermelha
 
-- [ ] 1.1 Escrever `tools/parity/fio.mjs` conforme as decisões 1 a 6 do `design.md`: raiz de
+- [x] 1.1 Escrever `tools/parity/fio.mjs` conforme as decisões 1 a 6 do `design.md`: raiz de
   `transport/` recursiva e lida da fonte, com comentários removidos; a forma que ela sabe ler, e
   `exit 2` com o tipo e o motivo para qualquer outra; o literal por string, com os dois lados
   nomeados em constantes no topo; a saída `0`/`1`/`2` da decisão 4, e no `0` a lista de quem prende
   cada par; o piso; e `--transport <dir>` como único parâmetro. A KDoc do cabeçalho no molde de
   `answer-kind.mjs` — por que ela existe, o que ela **não** prova (decisão 11), uso. Verificar:
   `node --check tools/parity/fio.mjs` sai `0`, e o arquivo só importa de `node:`.
-- [ ] 1.2 Dois passos no `ci.yml`, no job `web`, logo depois dos de `answer_kind` (decisão 7): um
+
+  **Feito.** `node --check` → `exit 0`. Três imports, todos de `node:` — `node:fs`, `node:path` e
+  **`node:url`**. O terceiro não estava no `design.md` (decisão 1 diz "só `node:fs` e `node:path`,
+  como `answer-kind.mjs`"), e fica dito em vez de escondido: `fileURLToPath` resolve a raiz do
+  repositório a partir do próprio script, para que a guarda não dependa do diretório de onde é
+  chamada — `limiar.mjs` depende, `answer-kind.mjs` não. Continua sem dependência de npm.
+  **A guarda não foi executada nesta tarefa**: o primeiro contato dela com a árvore é o de 1.3.
+
+  O que ela lê, além do que a decisão 2 lista: `@kotlinx.serialization.Serializable` qualificado
+  conta como `@Serializable` — o primeiro canário da Parte I §6 passou despercebido justamente por
+  estar qualificado —, e `import kotlinx.serialization.Serializable as X` reprova com `2`, porque a
+  guarda procura o nome. Anotação de classe que não seja `@SerialName`, genérico, construtor com
+  modificador e supertipo também reprovam com `2`, pela mesma regra de falhar fechado.
+- [x] 1.2 Dois passos no `ci.yml`, no job `web`, logo depois dos de `answer_kind` (decisão 7): um
   que confere; outro que planta, **fora do checkout**, um `FantasmaDto` sem literal numa cópia
   temporária de `transport/` e exige `exit 1` **com** o `FantasmaDto` nomeado nos dois lados, e
   aponta a guarda para um diretório vazio e exige `exit 2` **com** o motivo do piso. O comentário no
   tom dos vizinhos. Verificar: o `ci.yml` continua YAML válido, com o instrumento dito — e os passos
   **não** rodam ainda (1.5): o primeiro contato da guarda com a árvore é o de 1.3.
-- [ ] 1.3 **O primeiro vermelho, sobre a árvore real, sem nada plantado.** Rodar
+
+  **Feito, e não rodado.** Os dois passos estão no job `web`, nas posições 19 e 20, entre "A
+  verificacao de answer_kind continua capaz de falhar" e "As fixtures da digitalizacao estao em
+  dia". **YAML válido conferido por `yaml.safe_load` do PyYAML**, que leu o arquivo inteiro e achou os
+  dois nomes na ordem certa. O segundo passo exige, **para cada lado**, `exit 1` e a linha
+  `FantasmaDto (…) nao tem literal escrito a mao do lado do <lado>`; e, para a raiz vazia, `exit 2`
+  e `piso:` na saída. A saída capturada só é impressa quando o passo falha, então os `::error::` do
+  defeito plantado não viram anotação no CI verde.
+- [x] 1.3 **O primeiro vermelho, sobre a árvore real, sem nada plantado.** Rodar
   `node tools/parity/fio.mjs` e registrar a saída inteira, o código e a hora UTC. Conjunto previsto
   (plano, 7.3, commit `460962c`; a linha "saída" é acréscimo do `design.md`, decisão 8):
 
   | Tipo | Servidor | Aparelho | **Real** |
   |---|---|---|---|
-  | `OrganizationDto` | **nomeado** | não | |
-  | `ExamSummaryDto` | **nomeado** | não | |
-  | `RosterEntryDto` | não | não | |
-  | `ResultSubmissionDto` | não | não | |
-  | `AnswerObservationDto` | não | não | |
-  | saída | `1` | | |
+  | `OrganizationDto` | **nomeado** | não | **nomeado no servidor**; aparelho `ApiPlatosTest.kt:38` |
+  | `ExamSummaryDto` | **nomeado** | não | **nomeado no servidor**; aparelho `ApiPlatosPacoteTest.kt:32` |
+  | `RosterEntryDto` | não | não | servidor `ExamPackageRouteTest.kt:281` · aparelho `ObtencaoDeRosterTest.kt:53` |
+  | `ResultSubmissionDto` | não | não | servidor `ResultRouteTest.kt:105` · aparelho `ResultadoDtoTest.kt:65` |
+  | `AnswerObservationDto` | não | não | servidor `ResultRouteTest.kt:105` · aparelho `ResultadoDtoTest.kt:65` |
+  | saída | `1` | | **`1`** |
 
   **Regra de parada** (decisão 10): se nomear outro tipo, o lado do aparelho, ou sair `2`, a guarda
   ou a leitura está errada — **parar** e escrever o real ao lado do previsto. Não ajustar a leitura
   para caber na previsão.
-- [ ] 1.4 **Os canários da leitura** (decisão 3), antes de o instrumento ser acreditado — o §6 da
+
+  **REAL = PREVISTO. A regra de parada não disparou.** `node tools/parity/fio.mjs` às `13:11:05Z`,
+  com `git status` mostrando só `ci.yml`, `tasks.md` e `fio.mjs` — nada plantado. `exit 1`. A guarda
+  leu **5 tipos em 4 arquivos** de `transport/` (o que o `design.md` afirmava por leitura), **1164
+  literais em 28 arquivos** do servidor e **822 em 30** do aparelho. As duas linhas de erro, como
+  saíram:
+
+  ```
+  ::error::ExamSummaryDto (packages/domain/.../transport/ExamDto.kt) nao tem literal escrito a mao do lado do servidor: nenhuma string de apps/api/src/test traz juntas as chaves "short_id", "title", "content_hash"
+  ::error::OrganizationDto (packages/domain/.../transport/OrganizationDto.kt) nao tem literal escrito a mao do lado do servidor: nenhuma string de apps/api/src/test traz juntas as chaves "id", "name", "kind", "role"
+  ```
+
+  **O que a lista dos pares presos diz, e que a tabela do plano não dizia.** A linha é a do primeiro
+  literal que satisfaz, um por arquivo. No resultado, o servidor está preso em
+  `ResultRouteTest.kt:105` — o corpo à mão do cenário "nota declarada fechada com pendência" —, e
+  não em `corpo()`, que o plano cita. É o mesmo arquivo; que `corpo()` (`:349`) também traz as
+  nove chaves juntas é **leitura**, e não saída da guarda, porque ela imprime **um** literal por
+  arquivo — e isso fica dito. `AnswerObservationDto` está preso
+  pelos **mesmos** literais do `ResultSubmissionDto`, porque as observações moram dentro do corpo do
+  envio — que é o que o plano chama de "o contrato de resultado".
+- [x] 1.4 **Os canários da leitura** (decisão 3), antes de o instrumento ser acreditado — o §6 da
   Parte I registra uma contagem por texto enganada duas vezes. Um por vez, marcado com `MUTACAO`,
   revertido e com a guarda rodada de novo antes do seguinte (P10). C1–C4 em `MeOrganizationsTest`,
   onde `OrganizationDto` ainda falta; C5 por `--transport` sobre uma cópia temporária, sem tocar
@@ -68,19 +109,68 @@ cobertura.
 
   | Canário | Previsto | **Real** |
   |---|---|---|
-  | C1 · as quatro chaves de `OrganizationDto` juntas, **num comentário** | continua nomeado no servidor | |
-  | C2 · as quatro chaves partidas em **dois literais** unidos por `+`, duas em cada | continua nomeado | |
-  | C3 · as quatro chaves juntas numa **string comum com aspas escapadas** (`\"id\":…`) | **deixa** de ser nomeado | |
-  | C4 · as quatro chaves juntas num literal cru com um **template que contém string** (`"id":"${"x".repeat(2)}"`, e chaves depois dele) | **deixa** de ser nomeado | |
-  | C5 · um tipo `@Serializable` de forma que ela não lê (`enum class`; e, à parte, um parâmetro com `@Transient`) | `exit 2`, nomeando o tipo e o motivo | |
+  | C1 · as quatro chaves de `OrganizationDto` juntas, **num comentário** | continua nomeado no servidor | **continua nomeado**, `exit 1` |
+  | C2 · as quatro chaves partidas em **dois literais** unidos por `+`, duas em cada | continua nomeado | **continua nomeado**, `exit 1` |
+  | C3 · as quatro chaves juntas numa **string comum com aspas escapadas** (`\"id\":…`) | **deixa** de ser nomeado | **deixou** — preso em `MeOrganizationsTest.kt:26` |
+  | C4 · as quatro chaves juntas num literal cru com um **template que contém string** (`"id":"${"x".repeat(2)}"`, e chaves depois dele) | **deixa** de ser nomeado | **deixou** — preso em `MeOrganizationsTest.kt:26` |
+  | C5 · um tipo `@Serializable` de forma que ela não lê (`enum class`; e, à parte, um parâmetro com `@Transient`) | `exit 2`, nomeando o tipo e o motivo | **`exit 2` nos dois**, com `forma: CanarioEnum … e \`enum class\`` e `forma: CanarioTransient … no parametro \`b\` … @Transient` |
 
   C1 e C2 provam que ela não aceita o que não devia; C3 e C4, que ela vê o que devia; C5, que ela
   falha fechado. **Canário que falha quer dizer leitura errada**: corrigir, e rodar tudo de novo **a
   partir de 1.3**, com as duas execuções escritas (decisão 10).
-- [ ] 1.5 Rodar localmente, em bash, **exatamente como o `ci.yml` os escreve**, os dois passos de
+
+  **REAL = PREVISTO nos cinco**, `13:12:18Z`–`13:12:45Z`. **Nenhuma leitura foi corrigida**, e por
+  isso o vermelho de 1.3 continua sendo o primeiro, sem segunda execução a registrar.
+
+  **Como cada canário foi montado para poder falhar**, porque um canário que passaria com a leitura
+  quebrada não prova nada (P13):
+  - **C1 vai em duas linhas.** Uma de comentário de linha com um literal cru `"""…"""` inteiro
+    dentro, e outra de comentário de **bloco aninhado**:
+    `/* … /* aninhado */ """[{"id":…}]""" */`. Se a leitura não aninhasse, o `*/` de dentro fecharia
+    o comentário, e o literal cru que vem depois viraria código — **um literal só, com as quatro
+    chaves** —, e `OrganizationDto` deixaria de ser nomeado: um verde falso visível.
+  - **C1 tem controle, e ele é um acréscimo à tabela:** o **mesmo** literal cru, fora do comentário
+    (`MUTACAO-C1-controle`), **satisfez** (`MeOrganizationsTest.kt:26`). Sem ele, "continua
+    nomeado" em C1 seria indistinguível de "a guarda não lê literal cru nenhum". A única diferença
+    entre o controle e o C1 é o comentário.
+  - **C4** só deixa de ser nomeado se o `"x"` de dentro do template **não** encerrar a string de
+    fora. Se encerrasse, `"name"`, `"kind"` e `"role"` cairiam noutro literal, longe de `"id"`, e
+    o tipo continuaria nomeado.
+  - **C5 correu sobre cópias temporárias** (`--transport`), uma por forma: `transport/` não foi
+    tocado (`git diff --stat` vazio). As duas cópias leram os cinco tipos reais e **não**
+    contaram o canário como contrato.
+
+  **Procedimento, e a reversão conferida em cada um** (P10): um script temporário no scratchpad
+  planta o trecho depois da linha 25 de `MeOrganizationsTest.kt`, roda a guarda, **restaura por
+  cópia** do original salvo (`sha256 6b03160c…`), confere `git diff --quiet` no arquivo e roda a
+  guarda de novo. Nos cinco: `git diff` vazio e `exit 1` depois da reversão — o estado de 1.3.
+  `grep -rn "MUTACAO"` em código fora de `build/` → **0** ao fim.
+- [x] 1.5 Rodar localmente, em bash, **exatamente como o `ci.yml` os escreve**, os dois passos de
   1.2. Verificar: o primeiro sai diferente de zero nomeando os dois tipos de 1.3 (o vermelho
   esperado deste commit); o segundo passa, dizendo que a guarda acusou o `FantasmaDto` nos dois
   lados e o piso.
+
+  **Os dois, como previsto.** O `run` de cada passo foi **extraído do `ci.yml` pelo PyYAML** — e não
+  copiado à mão — e rodado com `bash -e`, que é o shell padrão do Actions no Ubuntu. Passo 1, às
+  `13:13:36Z`: `exit 1`, com as duas linhas de 1.3 (`ExamSummaryDto` e `OrganizationDto`, lado do
+  servidor). Passo 2, às `13:13:37Z`: `exit 0`, "a verificacao do fio acusou o contrato sem literal
+  nos dois lados, e o piso, como deve".
+
+  **E o passo 2 foi visto reprovar, ramo por ramo** (P9, P13) — porque um passo "capaz de falhar"
+  que não reprova nada é o mesmo defeito, um nível acima. Cada defeito plantado **na guarda**,
+  marcado com `MUTACAO`, e `fio.mjs` restaurado por cópia (`cmp` igual) antes do seguinte:
+
+  | Defeito plantado na guarda | Passo 2 | A mensagem |
+  |---|---|---|
+  | sai `0` sempre | **reprovou** | "…nao acusou o contrato sem literal do lado do servidor (saida 0)" |
+  | sai `1` sem nomear nada | **reprovou** | "…do lado do servidor (saida 1)" — o código certo com o motivo errado não passa |
+  | sai `2` sempre | **reprovou** | "…do lado do servidor (saida 2)" |
+  | o lado do aparelho sai de `LADOS` | **reprovou** | "…nao acusou o contrato sem literal **do lado do aparelho** (saida 1)" |
+  | o piso da raiz vazia sai `0` | **reprovou** | "…**aceitou uma raiz de contratos vazia** (saida 0)" |
+
+  Os três primeiros caem na primeira conferência do passo. Os dois últimos **isolam** as outras
+  duas — o lado do aparelho e o piso —, cada um com o resto da guarda funcionando. Depois da
+  reversão: passo 2 `exit 0`, e `MUTACAO` em código fora de `build/` → **0**.
 - [ ] 1.6 Commit 1. `grep -rn "MUTACAO"` em código (`.kt`, `.kts`, `.mjs`, `.yml`, `.sql`, `.ts`)
   fora de `build/` → `0`, e o diff de código do commit é só `tools/parity/fio.mjs` e `ci.yml`. A
   mensagem diz que o commit **nasce vermelho**, por quê, e traz os dois nomes de 1.3 — como o
