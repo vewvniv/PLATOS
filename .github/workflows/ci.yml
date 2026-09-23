@@ -297,6 +297,69 @@ jobs:
           done
           echo "a verificacao da versao do renderizador acusou cada registro forcado, e so os pares dele, como deve"
 
+      # O registro de divida do projeto e um so: a tabela de ponto de nao-retorno do par. 16 da
+      # arquitetura (rigorous.md P27). Os itens que entraram nela avancaram e fecharam; os que ficaram
+      # so em prosa de cobertura nao avancaram, e nenhum foi lido na abertura da fatia seguinte
+      # (docs/auditoria-2026-09-18-antes-da-fatia-5.md, par. 7). A guarda le a tabela real, deriva a
+      # fatia corrente dos nomes slice-* em openspec/changes, e reprova linha vencida sem
+      # reconciliacao. Ela prova que nada venceu em silencio, e nao que a divida foi paga: `paga` e
+      # afirmacao humana, e a divida que nunca entrou na tabela continua invisivel.
+      - name: O registro de divida do par. 16 esta em dia
+        run: node tools/divida/divida.mjs
+
+      # Os defeitos sao plantados FORA do checkout, numa copia do documento com uma linha-canario logo
+      # depois da separadora da tabela. O canario `0` vence em qualquer fatia corrente, entao o passo
+      # nao depende das linhas reais; e como o passo anterior passou, ele tem de ser a UNICA vencida.
+      # O motivo e conferido, e nao so o codigo de saida: `paga` segura, o evento dispara so quando
+      # ocorre, e os dois pisos (tabela vazia, nenhuma mudanca slice-*) falham fechados. Este passo
+      # prova a comparacao; a leitura da linha de eventos e a derivacao a partir de nomes reais foram
+      # vistas falhar por mutacao na mudanca que o criou (docs/cobertura-registro-de-divida-executavel.md).
+      - name: A verificacao da divida continua capaz de falhar
+        run: |
+          copia="$(mktemp -d)"
+          plantar() {
+            awk -v celula="$1" '
+              { print }
+              index(anterior, "| Risco | Fatia-limite |") == 1 && index($0, "|---") == 1 {
+                print "| Canario do CI | " celula " · plantado pelo CI | nada | CI |"
+              }
+              { anterior = $0 }' docs/architecture/ARQUITETURA-FINAL-v3.md > "$copia/doc.md"
+            grep -q '^| Canario do CI |' "$copia/doc.md" || { echo "::error::o canario nao foi plantado"; exit 1; }
+          }
+          erro=""
+          rodar() {  # rodar <caso> <saida esperada> <texto que tem de aparecer, ou vazio> <parametros...>
+            local caso="$1" esperada="$2" texto="$3"; shift 3
+            codigo=0; saida="$(node tools/divida/divida.mjs "$@" 2>&1)" || codigo=$?
+            if [ "$codigo" -ne "$esperada" ] || { [ -n "$texto" ] && ! grep -qF "$texto" <<<"$saida"; }; then
+              echo "$saida"
+              erro="$erro; $caso: saiu $codigo, e nao $esperada${texto:+ com '$texto'}"
+            fi
+          }
+          plantar '`0`'
+          rodar 'canario 0' 1 'linha vencida sem reconciliacao: Canario do CI (`0`)' --arquitetura "$copia/doc.md"
+          [ "$(grep -c 'linha vencida sem reconciliacao' <<<"$saida")" -eq 1 ] \
+            || erro="$erro; canario 0: nao foi a unica linha vencida"
+          plantar '`0` `paga`'
+          rodar 'canario 0 paga' 0 '' --arquitetura "$copia/doc.md"
+          plantar '`antes-de:canario-do-ci`'
+          rodar 'canario de evento, ocorrido' 1 \
+            'Canario do CI (`antes-de:canario-do-ci`): o evento canario-do-ci ja ocorreu' \
+            --arquitetura "$copia/doc.md" --ocorrido canario-do-ci
+          rodar 'canario de evento, nao ocorrido' 0 '' --arquitetura "$copia/doc.md"
+          awk '
+            index($0, "| Risco | Fatia-limite |") == 1 { tabela = 1; print; next }
+            tabela && index($0, "|---") == 1 { print; next }
+            tabela && index($0, "|") == 1 { next }
+            { tabela = 0; print }' docs/architecture/ARQUITETURA-FINAL-v3.md > "$copia/vazia.md"
+          rodar 'tabela sem linhas' 2 'piso:' --arquitetura "$copia/vazia.md"
+          mkdir "$copia/mudancas"
+          rodar 'nenhuma mudanca slice-*' 2 'piso:' --mudancas "$copia/mudancas"
+          if [ -n "$erro" ]; then
+            echo "::error::a verificacao da divida falhou: ${erro#; }"
+            exit 1
+          fi
+          echo "a verificacao da divida acusou o canario vencido, respeitou a marca e o evento, e os dois pisos, como deve"
+
       # As tres fixtures derivadas da digitalizacao — o vetor de referencia e o recorte retificado
       # — sao geradas por ferramenta e versionadas. Nada as verificava: se a imagem e o vetor
       # deixassem de corresponder, os testes do OMR continuariam verdes comparando com uma
