@@ -134,6 +134,44 @@ conserta às cegas uma causa suposta, e o item volta ao mantenedor com as execu�
 pilha apontar defeito do produto** (`SessaoGuardadaAndroid`), também para: deixaria de ser correção de
 teste.
 
+> **Atualização de 2026-09-23, `19:40Z`, depois da tarefa 1.3 — o texto acima fica (P7).** Nenhuma das
+> três reproduziu, e a mudança parou neste item como ele manda. O mantenedor decidiu o passo seguinte:
+> **(d) medir na árvore daquela hora.** A reprodução (c) recompôs a suíte de 78 testes que caía e passou
+> três vezes, o que derruba a hipótese da ordem; e o commit de produção `75f05ed` (a instância única do
+> Room, escrita às `00:10Z` de 2026-09-19) está **entre** a última execução vermelha (`00:06Z`) e a
+> primeira verde (`00:18Z`). A hipótese nova, **suposta**: bancos Room abertos e nunca fechados
+> acumulavam descritores no processo de teste, e o `FileNotFoundException` era a forma como a JVM relata
+> "Too many open files" ao abrir o arquivo de preferências — tarde na suíte, e nunca isolado. O passo
+> (d): um *worktree* separado em `42e94cd` (o pai de `75f05ed`, com `apps/android` e `packages/domain`
+> idênticos aos de `9c6b4e8`, a árvore das execuções vermelhas), a suíte cheia no emulador; se cair, a
+> mensagem e a pilha; e o mesmo em `75f05ed`. Nada na árvore desta branch muda por ele. **A tabela do
+> ver falhar acima continua valendo**, qualquer que seja a causa: ela prova a propriedade de hoje.
+>
+> **Segunda atualização, `19:56Z` (P7: a primeira fica).** O passo (d) também não reproduziu — nem em
+> `42e94cd` no emulador, nem, com o aparelho físico conectado pelo mantenedor, esta árvore e
+> `42e94cd` no **2511FPC34G / Android 16**, o aparelho em que a falha de 19/09 aconteceu. A hipótese
+> dos descritores cai com a da ordem. A causa daquela falha fica **desconhecida**, e isso é resultado,
+> não lacuna a preencher com suposição. **Decisão do mantenedor:** a tabela do ver falhar roda nos
+> **dois** aparelhos, com "a ordem que reproduziu" lida como a ordem da hipótese (`SegundoMembro` e em
+> seguida `SessaoEmRepouso`), já que nenhuma reproduziu; **não há conserto**, porque não há causa a
+> consertar; e a linha do §16 fica **aberta e reescrita** com a evidência, em vez de fechada.
+>
+> **Terceira atualização, `20:11Z` — e ela reverte a "não há causa" da segunda (P7: as duas ficam).**
+> Ao rodar a reversão da tabela do ver falhar no aparelho físico, a execução **na ordem da hipótese,
+> sem defeito plantado**, caiu: `20:05:39Z`, `FileNotFoundException: …/shared_prefs/platos-sessao-cifrada.xml:
+> open failed: ENOENT`, em `SessaoEmRepousoInstrumentedTest.kt:83`, dentro do `esperarAte` da linha 82 —
+> a guarda 1, `cifrado.exists() && !cifrado.readBytes()…`. É a **primeira** hipótese do Context, a da
+> sondagem não atômica: entre `exists()` e `readBytes()` o `SharedPreferences` renomeia o arquivo para
+> `.bak` e escreve outro, e a leitura acha o arquivo ausente. `ENOENT`, e não `EMFILE`: a dos
+> descritores estava errada. A causa está **no teste**, e não no produto. Rara: **1 queda em 19** execuções do cenário no
+> aparelho — 12 delas na ordem da hipótese, e dez repetições seguidas, `20:07Z`–`20:10Z`, deram 0 —, e
+> **0 em 17** no emulador. *(A primeira contagem, dita ao mantenedor na pergunta, foi "1 em 11"; recontada
+> execução por execução antes do registro.)* **Decisão do mantenedor:** consertar no teste — as leituras de sondagem passam a tratar
+> "arquivo ausente no meio da regravação" como "ainda não", sem `exists()` antes; nenhuma asserção e
+> nenhuma espera mudam. **A corrida não se força** de forma determinística, e isso fica declarado (P8):
+> o conserto se prova pela pilha, por construção, e pela tabela do defeito plantado de novo nos dois
+> aparelhos.
+
 **Ver falhar, depois do conserto** — a propriedade que o plano pede, e que hoje não vale:
 
 | Execução | Sem defeito | Com o token gravado em claro (`MUTACAO` no produto) |
