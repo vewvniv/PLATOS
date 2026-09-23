@@ -209,6 +209,14 @@ falso**, e registro falso custa toda verificação que se apoiar nele.
 
 ## 6. Achado novo, com dono e fatia-limite (regra 0.4 do plano)
 
+> **Correção de 2026-09-23, medida na ETAPA 7.2 — o texto desta seção e do §1 fica (P7).** "Interferência
+> de ordenação" e "parou de cair por mudança de ordem" estavam errados. A suíte de 78 testes que caía,
+> recomposta, passou três vezes, e a árvore desta etapa também passou, no emulador e neste mesmo
+> aparelho. A falha é uma **corrida no próprio teste**: a guarda 1 lia o arquivo entre um `exists()` e um
+> `readBytes()` enquanto o `SharedPreferences` o regravava, e o `FileNotFoundException` era `ENOENT` na
+> linha 83. Reproduzida no 2511FPC34G uma vez em dezenove, e rara o bastante para duas quedas seguidas e
+> três verdes caberem nela. Consertada no teste, e fechada no §16. `docs/cobertura-o-apk-de-release-e-verificado.md` §4.
+
 **`SessaoEmRepousoInstrumentedTest.aCredencialNaoEstaEmClaro` depende da ordem de execução da suíte
 instrumentada, e pode parar de verificar o que afirma sem nada acusar.**
 

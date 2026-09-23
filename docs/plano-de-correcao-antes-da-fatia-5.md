@@ -185,6 +185,11 @@ no plano. E não é zelo: em cada caso a fatia 5 passa por cima do mesmo terreno
 
 - **6 · `o-apk-de-release-e-verificado`** — não bloqueia a 5. Bloqueia o **lançamento**. Fica na
   tabela do §16 com essa fatia-limite.
+
+  > **Nota de 2026-09-23, no fechamento da 7.2 — a frase acima fica (P7).** Essa linha **nunca foi
+  > acrescentada** ao §16: a da credencial foi (item 7.2.4, em 2026-09-19), e a do APK de release e da
+  > variante de teste, não. A mudança fechou os dois itens sem que a linha tenha existido, e ela não
+  > se acrescenta agora só para ser fechada.
 - **8 · `transferencia-entre-aparelhos`** — a fatia-limite dela não é a 5: é **antes de qualquer
   piloto em modo `nominal`** (é dado pessoal de menor). Corre fora da fila, como a etapa 2 já diz.
 

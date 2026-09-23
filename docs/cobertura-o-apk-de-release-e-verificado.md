@@ -4,6 +4,9 @@
 > **antes** de qualquer código: os buracos dos itens 1 e 2, e a reprodução do item 4 — que levou
 > quatro rodadas e mudou duas vezes o que se sabia. A **Parte II** é a da mudança, e ainda não existe.
 > A Parte I não se apaga (P7).
+>
+> **Superado no mesmo dia:** a Parte II existe, `20:12Z`–`21:04Z`. A frase "ainda não existe" fica,
+> como o estado de quando foi escrita.
 
 **Plano:** `docs/plano-de-correcao-antes-da-fatia-5.md`, ETAPA 7.2 · **Achados:** 3.1 e 5.3 da
 `docs/auditoria-2026-09-18-antes-da-fatia-5.md`, e os itens novos 7.2.4 e 7.2.5
@@ -192,4 +195,129 @@ nenhuma espera mudam. O conserto é a tarefa 7.1.
 
 # Parte II — a mudança
 
-Ainda não existe.
+**Commits:** `d2457b6` (1, a `concurrency`), `ed72f86` (2, a guarda do APK), `f761306` (3, a variante
+de teste do release), `592aa88` (4, a guarda de testes executados — **vermelho**), `001c098` (5, os
+dois testes), `ca86642` (6, a credencial). **Janela:** `20:12Z`–`21:04Z`.
+
+## 6. O que cada commit fez, e como foi visto falhar
+
+### 1 — a `concurrency` por job (item 3)
+
+O bloco saiu do topo do `ci.yml`, e cada job declara o seu, com o nome do job no grupo:
+`cancel-in-progress` em `build` e `web`, e não em `paridade`. **Conferido por leitura, e não medido**
+(P6): `yaml.safe_load` sem `concurrency` no topo, três grupos distintos, três valores certos; o diff
+mexe só nessas linhas.
+
+### 2 — a guarda do APK sobre o release (item 1)
+
+Duas entradas, `apksDeDebug` e `apksDeRelease`, e a vacuidade por variante. O log passa a nomear os
+dois APKs e o que conferiu em cada.
+
+| Defeito plantado | Previsto | Real |
+|---|---|---|
+| o JSON com forma de pacote em `src/release/assets/` | recusa, nomeando o release, e não o debug | `20:14:58Z`: "…`android-release-unsigned.apk!assets/MUTACAO-pacote.json`"; o debug com 0 |
+| o mesmo em `src/debug/assets/` | recusa, nomeando o debug, e não o release | `20:15:12Z`: "…`android-debug.apk!assets/MUTACAO-pacote.json`"; o release com 0 |
+| o diretório do release trocado por um que não existe | recusa por vacuidade | `20:15:35Z`: "nenhum APK de release para conferir; a tarefa depende de `assembleRelease`" |
+
+O primeiro é o buraco do §2 fechado: o mesmo defeito, e o desfecho oposto.
+
+### 3 — a variante de teste do release (item 2)
+
+`beforeVariants` liga `hostTests[HostTestBuilder.UNIT_TEST_TYPE]` no release, com `requireNotNull`.
+**A forma diferiu da medição:** o `enableUnitTest` que o *init script* em Groovy usou não existe no tipo
+do Kotlin DSL ("Unresolved reference"); o jar da API do AGP 9.3.1 não estava no cache para conferir por
+`javap`, e quem confirmou a forma foi o compilador. `./gradlew :apps:android:test`: **308 + 308**.
+
+| Defeito plantado | Previsto | Real |
+|---|---|---|
+| o teste do §3 (`BuildConfig.DEBUG`) | debug verde; release cai só nele; `build` vermelho por essa tarefa | `20:20:26Z`: debug 309, 0 falhas; release 309, **1** — "BuildConfig.DEBUG e falso: esta e a variante release"; a única tarefa `FAILED` é `:apps:android:testReleaseUnitTest` |
+
+### 4 — a guarda de testes executados, e o primeiro vermelho (item 5)
+
+`buildSrc/.../TodoTesteDeclaradoRoda.kt`: a declaração vem do bytecode (a anotação
+`org.junit.jupiter.api.Test`, que é o que todo `@Test` desta árvore vira — conferido por `javap` nas
+quatro famílias de classe, inclusive onde o fonte usa `kotlin.test.Test`), e o resultado, do XML que a
+tarefa acabou de escrever, casado pelo nome. Entra **uma vez, na raiz**, como última ação de toda tarefa
+`Test` dos três módulos. As tarefas cobertas, lidas do grafo: `:apps:api:test`,
+`:apps:android:testDebugUnitTest`, `:apps:android:testReleaseUnitTest`, `:packages:domain:jvmTest`,
+`:packages:domain:testAndroidHostTest`.
+
+**Diferença em relação à decisão 6 do `design.md`, dita:** a decisão fala em "uma classe de tarefa …
+registrada nos três módulos"; ficou uma função que acrescenta a conferência como `doLast` de cada tarefa
+`Test`, chamada uma vez na raiz. O que a decisão afirma — uma implementação, uma conferência por tarefa
+de teste, depois dela, dentro do `check` — continua valendo; a razão está no `tasks.md`, 5.2.
+
+**O primeiro vermelho levou duas execuções, e as duas ficam (P7).**
+
+| Execução | Real |
+|---|---|
+| 1ª, `20:27:32Z` | as **cinco** tarefas caíram, todas pelo **piso**: "nenhuma classe de teste compilada em []". A guarda capturava `testClassesDirs` e `classpath` na configuração, e os plugins os substituem depois. **O piso acusou o próprio instrumento**, antes de qualquer comparação |
+| 2ª, `20:33:01Z`, depois de passar a leitura para dentro do `doLast` | **real = previsto**: `testDebugUnitTest` e `testReleaseUnitTest` nomeiam `ApiPlatosPacoteTest > listagem sem rede vira SemRede` e `> pacote sem rede vira SemRede`, e mais nada; `jvmTest` 329, `testAndroidHostTest` 321, API 167 — declarados = resultados |
+
+Corrigir a leitura depois da primeira execução não foi ajustar o instrumento ao resultado: não houve
+comparação, e quem mandou corrigir foi o piso da própria guarda — o precedente do canário da 7.3.
+
+### 5 — os dois testes passam a rodar (item 5)
+
+`= runBlocking<Unit> { … }` nos dois. Build cheio `20:37:52Z`–`20:40:24Z`: **182 suítes, 1758 testes, 0
+falhas**; as cinco guardas verdes; `ApiPlatosPacoteTest` com `tests="9"` nas duas variantes.
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| `listagem sem rede`: `Retorno.Recusou` no lugar de `SemRede` | cai só esse, nas duas variantes | `20:40:47Z`: 1 + 1, só ele, "Unexpected type, expected: <…Recusou> but was: <…SemRede>" |
+| `pacote sem rede`: idem | cai só esse, nas duas variantes | `20:41:34Z`: 1 + 1, só ele, a mesma mensagem |
+| uma classe na API com `@Test fun devolve(): Int = 1` e `@org.junit.jupiter.api.Test fun qualificado() = 2` | a guarda da API nomeia os dois, e nada mais | `20:43:09Z`: "`MutacaoTestesInvisiveisTest > devolve`", "`> qualificado`"; as outras quatro verdes. **A classe não tem XML nenhum**: a "direção inversa" da 7.3 pega pelo mesmo caminho |
+| a leitura dos relatórios apontada para um diretório vazio | reprova pelo piso | `20:45:54Z`: "piso — nenhum relatorio TEST-*.xml em …\MUTACAO-vazio" |
+
+O `@Test` qualificado nomeado é o limite da 7.3 §6 resolvido, como o plano pedia: "resolver ou
+declarar".
+
+### 6 — a credencial (item 4)
+
+As duas leituras de sondagem passam por `bytesOuNulo`, sem `exists()` antes; só
+`FileNotFoundException` vira "ainda não". A fotografia repete a leitura quando a espera do keyset viu o
+arquivo. Nenhuma asserção nem espera mudou. **Um ajuste antes de rodar, dito:** a primeira versão
+condicionava a fotografia a `cifrado.exists()`, que a mesma janela pode ver falso.
+
+| Com o token plantado em claro no produto | Emulador | 2511FPC34G |
+|---|---|---|
+| isolada | `20:48:29Z`, 1 de 2 | `20:54:11Z`, 1 de 2 |
+| na ordem que caiu | `20:49:13Z`, 1 de 5 | `20:54:30Z`, 1 de 5 |
+| suíte cheia | `20:49:35Z`, **1 de 83** | `20:54:50Z`, **1 de 83** |
+
+Nas seis, a queda é `aCredencialNaoEstaEmClaro`, e a mensagem é "o token aparece como texto legivel
+no armazenamento do aplicativo". Sem o defeito, as seis verdes (`20:57:05Z`–`21:00:29Z`), e dez vezes a
+ordem que caiu no aparelho, verde (`21:00:29Z`–`21:04:01Z`).
+
+**Um tropeço de infraestrutura, dito:** a primeira rodada no aparelho com o conserto instalou zero
+testes — `INSTALL_FAILED_USER_RESTRICTED`, o aparelho pedindo confirmação na tela para instalar via USB.
+O produto foi revertido durante a espera, o mantenedor liberou, e a mutação foi replantada.
+
+## 7. O que **não** fica verificado (P8)
+
+- **A guarda do APK confere o que `assembleRelease` produz hoje** — um APK sem assinatura. O artefato
+  de loja (assinado, talvez AAB, talvez com R8) não existe ainda, e esta guarda não o verá. A fatia
+  comercial que o criar deve a guarda dele.
+- **A guarda de testes executados prova que todo `@Test` declarado tem resultado, e não que o resultado
+  verifica alguma coisa.** Um teste sem asserção roda e passa. É a camada vizinha de "ver falhar", e não
+  o substitui (P16).
+- **Ela não cobre `jsNodeTest`** (não há bytecode JVM para ler), **`androidTest`** (roda só no
+  emulador, no job `paridade`) **nem os testes de `buildSrc`** (outra build, que o `build` não alcança).
+- **A forma que ela casa é a desta árvore:** `@Test` simples, sem parametrizado nem `@DisplayName`. Se
+  um desses entrar, o nome do XML deixa de ser o do método, e a guarda acusa o teste como sem resultado —
+  barulhento, e não silencioso, mas é preciso ensinar a forma nova com canário.
+- **A `concurrency` é conferida por leitura.** Medir exigiria dois pushes em sequência e observar a fila.
+- **A corrida da credencial não se força.** Ela caiu uma vez em dezenove no aparelho e nenhuma no
+  emulador; o conserto se prova pela pilha e por construção. Dezesseis execuções no aparelho depois
+  dele, sem queda, não o provariam sozinhas.
+- **Por que o aparelho e não o emulador**, na corrida: suposto — o tempo de E/S abre e fecha a janela
+  entre o `rename` e a escrita. Não medido.
+- **`algumArquivoContem`**, a busca da afirmação de segurança, tem a mesma forma de corrida na
+  direção perigosa: um arquivo sumindo no meio de uma regravação seria lido como "não contém". **Por
+  leitura**, nenhuma escrita acontece depois da guarda 2, que espera a última — então a janela não se
+  abre ali. Não medido, e não mexido: não foi o que caiu (P19).
+
+## 8. O fechamento
+
+Ainda não rodado: é a tarefa 9. Esta seção recebe o comando cheio depois de todas as reversões, e o CI
+da PR lido no destino.

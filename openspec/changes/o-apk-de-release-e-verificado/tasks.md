@@ -147,91 +147,174 @@ Cada defeito plantado carrega `MUTACAO` (no nome ou no conteúdo), é revertido,
 
 ## 2. Commit 1 — a `concurrency` por job (item 3)
 
-- [ ] 2.1 **`ci.yml`**: tirar o bloco `concurrency` do nível do workflow e declarar um em cada job,
+- [x] 2.1 **`ci.yml`**: tirar o bloco `concurrency` do nível do workflow e declarar um em cada job,
   conforme a decisão 3 — grupo com o nome do job; `true` em `build` e `web`, `false` em `paridade`. Um
   comentário no tom dos vizinhos, citando P15 e a PR #30. Verificar por `yaml.safe_load`: **não** há
   `concurrency` no topo; os três jobs têm `concurrency` com os três grupos **distintos** e os três
   valores; nenhum outro passo mudou (`git diff` do arquivo só mexe nessas linhas). **Tipo: conferido
   por leitura, e não medido** — dizer assim no commit e na cobertura (P6). Commit `ci:`.
 
+  **Feito, `d2457b6`.** `yaml.safe_load`: `'concurrency' in ci` → `False`; `build` e `web` com
+  `…-build` / `…-web` e `cancel-in-progress: True`, `paridade` com `…-paridade` e `False`; três grupos
+  distintos; os três jobs são os mesmos de antes. `git diff --numstat` do arquivo: `17 4` — as 4 são o
+  bloco do topo (três linhas e a linha em branco), e as 17, os três blocos novos e os dois
+  comentários. **Conferido por leitura, e não medido**, dito assim no commit.
+
 ## 3. Commit 2 — a guarda do APK sobre o release (item 1)
 
-- [ ] 3.1 **`verificarApkSemPacote` recebe as duas variantes**, com vacuidade por variante (decisão 1).
+- [x] 3.1 **`verificarApkSemPacote` recebe as duas variantes**, com vacuidade por variante (decisão 1).
   Verificar: `./gradlew :apps:android:verificarApkSemPacote --rerun-tasks` verde, e a linha de log
   passa a dizer quantos assets conferiu **em cada** APK — os dois nomeados.
-- [ ] 3.2 **Ver falhar**, três defeitos, um de cada vez:
+
+  **Feito.** Duas entradas, `apksDeDebug` e `apksDeRelease`, e o laço as percorre com a vacuidade de
+  cada uma antes de abrir qualquer APK. `--rerun`, `20:14:11Z`–`20:14:39Z`, `exit 0`: "debug:
+  android-debug.apk, 0 asset(s) JSON conferido(s)", "release: android-release-unsigned.apk, 0 asset(s)
+  JSON conferido(s)", "APK sem pacote de prova, nas duas variantes".
+- [x] 3.2 **Ver falhar**, três defeitos, um de cada vez:
 
   | Defeito plantado | Previsto | **Real** |
   |---|---|---|
-  | o mesmo JSON de 1.1 em `src/release/assets/` | **recusa**, nomeando o APK **de release** e a entrada, e **não** o de debug | |
-  | o mesmo JSON em `src/debug/assets/` | **recusa**, nomeando o APK **de debug**, e **não** o de release | |
-  | o diretório do release trocado por um que não existe, no registro da tarefa | **recusa** por vacuidade: "nenhum APK de release" | |
+  | o mesmo JSON de 1.1 em `src/release/assets/` | **recusa**, nomeando o APK **de release** e a entrada, e **não** o de debug | `20:14:58Z`, `exit 1`: "ha pacote de prova … `android-release-unsigned.apk!assets/MUTACAO-pacote.json`"; o debug com 0 |
+  | o mesmo JSON em `src/debug/assets/` | **recusa**, nomeando o APK **de debug**, e **não** o de release | `20:15:12Z`, `exit 1`: "… `android-debug.apk!assets/MUTACAO-pacote.json`"; o release com 0 |
+  | o diretório do release trocado por um que não existe, no registro da tarefa | **recusa** por vacuidade: "nenhum APK de release" | `20:15:35Z`, `exit 1`: "nenhum APK de release para conferir; a tarefa depende de `assembleRelease`" |
 
   O primeiro é o buraco da 1.1 fechado: mesmo defeito, desfecho oposto. Reverter cada um e rodar.
   Commit `build(android):`.
 
+  **Real = previsto nos três.** Cada um revertido e a guarda rodada de novo, verde, com os dois APKs
+  nomeados (`20:15:07Z`, `20:15:16Z`, `20:15:42Z`); `grep -c MUTACAO` no `build.gradle.kts` → `0`.
+  Commit 2, `build(android):`, só com o `build.gradle.kts`.
+
 ## 4. Commit 3 — a variante de teste do release (item 2)
 
-- [ ] 4.1 **`beforeVariants` liga a variante** (decisão 2). Verificar: `:apps:android:tasks --all`
+- [x] 4.1 **`beforeVariants` liga a variante** (decisão 2). Verificar: `:apps:android:tasks --all`
   lista `testReleaseUnitTest`; `./gradlew :apps:android:test --rerun-tasks` roda **as duas** tarefas
   (no log), e os XML dão **308 + 308**; se a forma tipada diferir da usada na medição, dizer qual ficou
   e por quê.
-- [ ] 4.2 **Ver falhar** — o buraco da 1.2 fechado:
+
+  **Feito, e a forma diferiu.** `variante.enableUnitTest = true` não compila no Kotlin DSL: "Unresolved
+  reference 'enableUnitTest'" — o *init script* da medição era Groovy e resolvia por despacho dinâmico.
+  Ficou `variante.hostTests[HostTestBuilder.UNIT_TEST_TYPE]`, com `requireNotNull` no lugar de `?.`, pela
+  razão escrita no próprio arquivo. O jar da API do AGP 9.3.1 não foi achado no cache do Gradle para
+  conferir a assinatura por `javap`; quem confirmou foi o compilador. `:apps:android:tasks --all` lista
+  `testReleaseUnitTest`, e o log não traz aviso de depreciação para o `build.gradle.kts`.
+  `./gradlew :apps:android:test --rerun-tasks`, `20:19:27Z`–`20:20:14Z`, `exit 0`, 68 de 68 tasks: o log
+  traz `testDebugUnitTest` **e** `testReleaseUnitTest`; XML **308 + 308**, 0 falhas.
+- [x] 4.2 **Ver falhar** — o buraco da 1.2 fechado:
 
   | Defeito plantado | Previsto | **Real** |
   |---|---|---|
-  | o mesmo teste de 1.2 (`BuildConfig.DEBUG`) | `testDebugUnitTest` verde com ele; `testReleaseUnitTest` **cai só nele**; `./gradlew build` vermelho por essa tarefa | |
+  | o mesmo teste de 1.2 (`BuildConfig.DEBUG`) | `testDebugUnitTest` verde com ele; `testReleaseUnitTest` **cai só nele**; `./gradlew build` vermelho por essa tarefa | `./gradlew build --continue`, `20:20:26Z`–`20:21:09Z`, `exit 1`: debug **309, 0 falhas**; release **309, 1 falha** — `MutacaoSoNoReleaseTest` › `so passa no debug()`, "BuildConfig.DEBUG e falso: esta e a variante release"; a única tarefa `FAILED` é `:apps:android:testReleaseUnitTest` |
 
   Reverter e rodar. Commit `build(android):`.
 
+  **Real = previsto.** O buraco da 1.2 fechado: o mesmo defeito, e agora o `build` fica vermelho.
+  Revertido; `./gradlew :apps:android:test --rerun-tasks`, `20:21:27Z`–`20:22:16Z`, 308 + 308. Commit 3.
+
 ## 5. Commit 4 — a guarda de testes executados, e ela nasce vermelha (item 5)
 
-- [ ] 5.1 **Conferir antes de escrever** (decisão 6): por `javap -v` sobre uma classe compilada de
+- [x] 5.1 **Conferir antes de escrever** (decisão 6): por `javap -v` sobre uma classe compilada de
   cada suíte (`apps/api`, `apps/android`, `packages/domain` `jvmTest`), qual anotação de tempo de
   execução o `@Test` vira. Previsto: `org.junit.jupiter.api.Test` nas três, inclusive onde o fonte usa
   `kotlin.test.Test`. Se não for, parar: a decisão 6 foi escrita sobre isso.
-- [ ] 5.2 **Escrever a tarefa em `buildSrc`** conforme a decisão 6 — declaração por reflexão sobre o
+
+  **Real = previsto.** `javap -v -p`, contando a anotação na linha seguinte a cada
+  `RuntimeVisibleAnnotations`: `LayoutEngineTest` do `jvmTest` → 21 × `org.junit.jupiter.api.Test` (o
+  fonte usa `kotlin.test.Test`); a mesma classe do `testAndroidHostTest` → 21 × a mesma; `ResultRouteTest`
+  da API → 11 × a mesma (fonte com `kotlin.test.Test`); `ApiPlatosPacoteTest` do aplicativo → **9** × a
+  mesma — e `listagem sem rede vira SemRede()` com `descriptor: ()Lcom/platos/android/net/Retorno$SemRede;`,
+  o método que devolve valor, anotado como os outros.
+- [x] 5.2 **Escrever a tarefa em `buildSrc`** conforme a decisão 6 — declaração por reflexão sobre o
   bytecode, sem inicializar; resultado pelo XML, nome normalizado; piso; falha fechada — e
   registrá-la nos três módulos, uma instância por tarefa `Test`, ligada ao `check` e rodando depois da
   tarefa que julga. Verificar: `./gradlew -p buildSrc test --rerun-tasks` verde (nada quebrou lá) e a
   compilação dos três `build.gradle.kts`.
-- [ ] 5.3 **As tarefas cobertas, lidas do grafo** (decisão 7): listar as tarefas `Test` dos três
+
+  **Feito, e o mecanismo de registro mudou em relação à decisão 6 — dito aqui, e não escondido.** A
+  decisão fala em "uma classe de tarefa … registrada nos três módulos, uma instância por tarefa de
+  teste". Ficou **uma função de extensão**, `Test.exigirQueTodoTesteDeclaradoRode()`, em
+  `buildSrc/.../TodoTesteDeclaradoRoda.kt`, que acrescenta a conferência como **última ação** (`doLast`)
+  de cada tarefa `Test`; e ela é chamada **uma vez, na raiz**, no bloco `subprojects { tasks.withType<Test>()
+  .configureEach { … } }` que já força `useJUnitPlatform()` em todo `Test` dos três módulos. As razões: o
+  relatório e as classes conferidos são exatamente os da execução que acabou de acontecer, sem tarefa
+  separada para ordenar; as tarefas de teste que o AGP registra tarde não precisam ser achadas pelo
+  nome; e o lugar que já configura todo `Test` evita a lista de tarefas que o design proíbe. O que a
+  decisão 6 afirma — uma implementação, uma conferência por tarefa de teste, depois dela, dentro do
+  `check` — continua valendo. `./gradlew -p buildSrc test --rerun-tasks` → `exit 0`, 6 de 6 tasks; os
+  scripts compilam (a 5.3 roda `help` sobre eles).
+- [x] 5.3 **As tarefas cobertas, lidas do grafo** (decisão 7): listar as tarefas `Test` dos três
   módulos e as instâncias da guarda. Previsto: `test` (API), `testDebugUnitTest` e
   `testReleaseUnitTest` (aplicativo), `jvmTest` e `testAndroidHostTest` (domínio) — cinco, cada uma com
   a sua guarda. Outra lista: parar e dizer.
-- [ ] 5.4 **O primeiro vermelho, sobre a árvore real, sem nada plantado.** `./gradlew build --continue
+
+  **Real = previsto, depois de uma linha a mais explicada.** Um *init script* no scratchpad imprime
+  `tasks.withType(Test)` de cada projeto em `projectsEvaluated`: `:apps:android` → `testDebugUnitTest`,
+  `testReleaseUnitTest` (`AndroidUnitTest`); `:apps:api` → `test` (`Test`); `:packages:domain` →
+  `jvmTest` (`KotlinJvmTest`), `testAndroidHostTest` (`AndroidUnitTest`). **E uma sexta linha, `:` →
+  `test`**, que parou a tarefa até ser explicada: o Gradle roda *init scripts* também na build do
+  `buildSrc`, cuja raiz também se chama `:`; um segundo *init script* mostrou que essa tarefa tem as
+  fontes em `buildSrc/build/classes/…/test` e plugins de `kotlin-dsl`, e que a raiz da build principal
+  **não** tem `test` (`null`). É a build separada que a decisão 7 deixa de fora. A guarda entra pelo
+  `subprojects {}`, que alcança as cinco, e só elas.
+- [x] 5.4 **O primeiro vermelho, sobre a árvore real, sem nada plantado.** `./gradlew build --continue
   --rerun-tasks`. Previsto:
 
   | Tarefa | Nomeado | **Real** |
   |---|---|---|
-  | `testDebugUnitTest` | `ApiPlatosPacoteTest` · `listagem sem rede vira SemRede` e `pacote sem rede vira SemRede` | |
-  | `testReleaseUnitTest` | os mesmos dois | |
-  | as outras três | nada | |
+  | `testDebugUnitTest` | `ApiPlatosPacoteTest` · `listagem sem rede vira SemRede` e `pacote sem rede vira SemRede` | **os dois**, e só eles |
+  | `testReleaseUnitTest` | os mesmos dois | **os dois**, e só eles |
+  | as outras três | nada | verdes: `jvmTest` 329, `testAndroidHostTest` 321, `:apps:api:test` 167 — declarados = resultados |
 
   Quatro linhas, e mais nenhuma. Registrar a saída inteira e a hora. **Outro nome, outra tarefa, ou um
   a menos: parar** (decisão 9). Commit `build:` **vermelho**, e dito na mensagem, como o commit 1 da
   7.3.
 
+  **Duas execuções, e as duas ficam (P7).** A **primeira**, `20:27:32Z`–`20:32:28Z`, `exit 1`, derrubou
+  as **cinco** tarefas — e todas pelo **piso** da própria guarda: "piso — nenhuma classe de teste
+  compilada em []". A regra de parada valeu: nada foi mexido antes de ler as cinco mensagens. O
+  diagnóstico: a primeira versão capturava `testClassesDirs` e `classpath` quando a tarefa é
+  configurada, e os plugins (Kotlin, AGP, `jvm-test-suite`) **substituem** essas coleções depois; a
+  referência capturada ficava vazia. Não houve comparação nenhuma — a guarda disse "não sei ler", que
+  é o piso fazendo o que P13 pede, **sobre um defeito real do instrumento**, e não um veredito sobre a
+  árvore. Pelo precedente do canário da 7.3, a leitura se corrigiu (as duas coleções lidas dentro do
+  `doLast`) e o primeiro vermelho foi rodado **de novo desde o início**.
+
+  A **segunda**, `20:33:01Z`–`20:37:09Z`, `exit 1`, 183 de 183 tasks: real = previsto, a tabela acima.
+  As mensagens: ":apps:android:testDebugUnitTest: 2 metodo(s) declarado(s) com @Test sem resultado no
+  relatorio: - com.platos.android.api.ApiPlatosPacoteTest > pacote sem rede vira SemRede - … > listagem
+  sem rede vira SemRede", idem para `testReleaseUnitTest`. Commit 4, `592aa88`, **vermelho**, e dito na
+  mensagem, com as duas execuções.
+
 ## 6. Commit 5 — os dois testes passam a rodar (item 5)
 
-- [ ] 6.1 **`= runBlocking<Unit> { … }`** nos dois (decisão 5). Verificar: `./gradlew build --continue
+- [x] 6.1 **`= runBlocking<Unit> { … }`** nos dois (decisão 5). Verificar: `./gradlew build --continue
   --rerun-tasks` verde, as cinco guardas verdes, e o XML de `ApiPlatosPacoteTest` com `tests="9"` nas
   duas variantes.
-- [ ] 6.2 **Cada um visto falhar pela primeira vez:**
+
+  **Real = previsto.** `./gradlew build --continue --rerun-tasks`, `20:37:52Z`–`20:40:24Z`, `exit 0`, 183
+  de 183 tasks. As cinco guardas: `testDebugUnitTest` **310**, `testReleaseUnitTest` **310**,
+  `testAndroidHostTest` 321, `jvmTest` 329, `:apps:api:test` 167 — "todos com resultado no relatorio".
+  `ApiPlatosPacoteTest` com `tests="9"` nos dois XML. Pelo `timestamp`: **182 suítes, 1758 testes, 0
+  falhas** — a linha de base de 0.2 (1446) mais os 310 do release e os 2 que voltaram no debug.
+- [x] 6.2 **Cada um visto falhar pela primeira vez:**
 
   | Mutação | Previsto | **Real** |
   |---|---|---|
-  | `listagem sem rede`: o tipo esperado trocado por outro `Retorno` | cai **só** esse, nas duas variantes, com a mensagem de tipo | |
-  | `pacote sem rede`: idem | cai **só** esse, nas duas variantes | |
+  | `listagem sem rede`: o tipo esperado trocado por outro `Retorno` | cai **só** esse, nas duas variantes, com a mensagem de tipo | `Retorno.Recusou` no lugar de `SemRede`; `20:40:47Z`: 310 + 310, **1 + 1 falha**, só `listagem sem rede vira SemRede()`, "Unexpected type, expected: <…Retorno.Recusou> but was: <…SemRede>" |
+  | `pacote sem rede`: idem | cai **só** esse, nas duas variantes | `20:41:34Z`: 1 + 1, só `pacote sem rede vira SemRede()`, a mesma mensagem |
 
-- [ ] 6.3 **A guarda, com defeito plantado e o piso:**
+- [x] 6.3 **A guarda, com defeito plantado e o piso:**
 
   | Defeito plantado | Previsto | **Real** |
   |---|---|---|
-  | uma classe `MUTACAO` em `apps/api/src/test` com `@Test fun devolve(): Int = 1` e `@org.junit.jupiter.api.Test fun qualificado() = 2` | a guarda da API nomeia **os dois**, e nada mais; as outras quatro, verdes | |
-  | a guarda de uma tarefa apontada para um diretório de relatórios vazio | reprova pelo **piso** | |
+  | uma classe `MUTACAO` em `apps/api/src/test` com `@Test fun devolve(): Int = 1` e `@org.junit.jupiter.api.Test fun qualificado() = 2` | a guarda da API nomeia **os dois**, e nada mais; as outras quatro, verdes | `20:43:09Z`, as cinco tarefas: a da API cai com "2 metodo(s) … `MutacaoTestesInvisiveisTest > devolve`, `> qualificado`"; as outras quatro "todos com resultado". **E a classe não tem XML nenhum** — a "direção inversa" da 7.3, uma classe inteira invisível, pega pelo mesmo caminho |
+  | a guarda de uma tarefa apontada para um diretório de relatórios vazio | reprova pelo **piso** | a leitura trocada para `…/MUTACAO-vazio` no `buildSrc`; `20:45:54Z`: "piso — nenhum relatorio TEST-*.xml em …\MUTACAO-vazio". **O outro piso** — nenhuma classe compilada — foi visto de verdade na primeira execução da 5.4 |
 
   Reverter cada um e rodar. Commit `test(android):`.
+
+  **Reversões rodadas:** o `ApiPlatosPacoteTest` igual à cópia da 6.1 (`cmp`), `20:42:17Z`, 310 + 310; a
+  classe plantada removida, `20:44:57Z`, API 167; o `buildSrc` igual ao commit 4 (`git diff --exit-code`),
+  `20:46:43Z`, API 167. Commit 5.
 
 ## 7. Commit 6 — a credencial tem o mesmo desfecho em qualquer ordem (item 4)
 
@@ -250,33 +333,69 @@ Só se 1.3 reproduziu. Se não, as três tarefas ficam desmarcadas, com o motivo
 > aparelhos, na ordem que caiu; e ao ver falhar se soma uma repetição da ordem que caiu no aparelho —
 > dez vezes, como a medição da frequência.
 
-- [ ] 7.1 **O conserto, onde a pilha de 1.3 apontou** — no teste que sonda ou no que deixa escrita
+- [x] 7.1 **O conserto, onde a pilha de 1.3 apontou** — no teste que sonda ou no que deixa escrita
   pendente —, sem afrouxar asserção nem esticar espera (decisão 4). Se apontou para
   `SessaoGuardadaAndroid`: **parar** e decidir com o mantenedor.
-- [ ] 7.2 **Ver falhar** — a tabela da decisão 4, copiada:
+
+  **Feito, no teste.** A pilha apontou `SessaoEmRepousoInstrumentedTest.kt:83`, a guarda 1, e não o
+  produto. As duas leituras de sondagem — a fotografia `antesDaCredencial` e a guarda 1 — passam por
+  `bytesOuNulo`, sem `exists()` antes, e só `FileNotFoundException` vira `null` ("ainda não"). A
+  fotografia repete a leitura quando a espera do keyset viu o arquivo; quando não viu, fica vazia,
+  como antes (é o caso da sessão em claro). Nenhuma asserção nem espera mudou. **Um ajuste feito antes
+  de rodar, dito:** a primeira versão condicionava a fotografia a `cifrado.exists()` — que a mesma
+  janela pode ver falso —, e passou a usar o resultado da espera. `git diff --numstat` do arquivo:
+  `27 3`. Commit 6, `ca86642`.
+- [x] 7.2 **Ver falhar** — a tabela da decisão 4, copiada:
 
   | Execução | Sem defeito | Com o token gravado em claro (`MUTACAO` no produto) | **Real** |
   |---|---|---|---|
-  | a classe isolada | verde | cai **em** "o token aparece como texto legivel" | |
-  | a ordem que reproduziu em 1.3 | verde | cai **em** "o token aparece como texto legivel" | |
-  | a suíte cheia | verde, todas | cai **só** esse cenário, **pela mesma mensagem** | |
+  | a classe isolada | verde | cai **em** "o token aparece como texto legivel" | emulador `20:48:29Z` e aparelho `20:54:11Z`: 1 de 2, a mensagem; sem defeito, `20:57:05Z` e `20:59:06Z`, 2 de 2 |
+  | a ordem que reproduziu em 1.3 | verde | cai **em** "o token aparece como texto legivel" | emulador `20:49:13Z` e aparelho `20:54:30Z`: 1 de 5, a mensagem; sem defeito, `20:57:24Z` e `20:59:25Z`, 5 de 5 |
+  | a suíte cheia | verde, todas | cai **só** esse cenário, **pela mesma mensagem** | emulador `20:49:35Z` e aparelho `20:54:50Z`: **1 de 83**, a mensagem; sem defeito, `20:57:45Z` e `20:59:45Z`, 83 de 83 |
 
   Com a mensagem lida do XML em cada uma (P9: o motivo, e não só a queda).
-- [ ] 7.3 **A reversão**, rodada: o produto sem a mutação, e as três execuções de novo, verdes. Commit
+
+  **Real = previsto nas doze.** A mensagem foi lida do log de cada execução (o XML desta versão do AGP
+  a guarda no corpo do `<failure>`). **Um tropeço de infraestrutura no meio, e dito:** a primeira
+  rodada no aparelho (`20:50:58Z`–`20:52:38Z`) instalou **zero testes** — `INSTALL_FAILED_USER_RESTRICTED:
+  Install canceled by user`, o aparelho pedindo confirmação na tela para instalar via USB. O produto foi
+  revertido enquanto se esperava, o mantenedor liberou a instalação, e a mutação foi replantada para as
+  três do aparelho.
+- [x] 7.3 **A reversão**, rodada: o produto sem a mutação, e as três execuções de novo, verdes. Commit
   `test(android):`.
+
+  **Feito.** O produto revertido (`git diff --exit-code apps/android/src/main` → `0`) antes de cada uma
+  das duas rodadas sem defeito, e as seis verdes (acima). **E dez vezes a ordem que caiu, no aparelho**,
+  `21:00:29Z`–`21:04:01Z`: 10 de 10, 5 de 5 cada, nenhum problema de instalação. **Isto não prova a
+  corrida fechada**: antes do conserto, dez repetições seguidas também deram 0 (`20:07Z`–`20:10Z`). O que
+  a fecha é a pilha, que aponta a linha, e a construção — a leitura que tropeçava não existe mais.
 
 ## 8. Registro
 
-- [ ] 8.1 **`docs/cobertura-o-apk-de-release-e-verificado.md`, Parte II**: o que cada commit fez, os
+- [x] 8.1 **`docs/cobertura-o-apk-de-release-e-verificado.md`, Parte II**: o que cada commit fez, os
   primeiros vermelhos, todas as mutações com previsto e real, as reversões, e o que **não** fica
   verificado — no mínimo as três frases da decisão 11, e os três executores fora da guarda (decisão 7).
-- [ ] 8.2 **A nota onde cada achado aponta** (P7: a frase original fica, marcada): a auditoria §3.1 e
+
+  **Feito**, §6 a §8. O que **não** fica verificado (§7) traz as três frases da decisão 11, os três
+  executores fora da guarda, a forma de teste que ela casa, a corrida que não se força, e uma observação
+  **por leitura** que a medição não pediu: a busca da afirmação de segurança tem a mesma forma de
+  corrida, na direção perigosa, e a janela não se abre ali porque nenhuma escrita vem depois da guarda 2
+  — dita, e não mexida (P19).
+- [x] 8.2 **A nota onde cada achado aponta** (P7: a frase original fica, marcada): a auditoria §3.1 e
   §5.3 marcadas como fechadas, no molde de §3.2; a linha da credencial no §16 da arquitetura, com o que
   foi medido e consertado ao lado; `cobertura-o-fio-preso-nos-dois-lados.md` §6 e
   `cobertura-fatia-4a-cache-referencia.md` (a linha da variante release), com o fechamento; e no plano,
   ao lado de "Fica na tabela do §16 com essa fatia-limite" (§2), que essa linha **nunca foi
   acrescentada** — a da credencial foi, a do APK de release não. Verificar: os `git diff` só
   acrescentam. Commit `docs(o-apk-de-release-e-verificado):`.
+
+  **Feito, e a linha do §16 fechou** — decisão do mantenedor, `21:05Z`, depois de a causa ter sido
+  medida e consertada: riscada, com "fechado em 2026-09-23", e um parágrafo que diz o que estava errado
+  nela (a ordem, e "a mesma classe de defeito que 3.2") ao lado do original. Notas: auditoria §3.1 e §5.3
+  (títulos com `~~aberto~~ fechado`, no molde de §3.2, e o bloco "Fechado em"); a cobertura da ETAPA 5,
+  §6, com a correção da hipótese da ordem; a da 7.3, §6; a da 4a, a linha da variante release; e o plano,
+  §2. `git diff --numstat`: as linhas alteradas são só as dos títulos da auditoria, a linha da tabela do
+  §16 e a da tabela da 4a — em todas, o texto antigo continua inteiro dentro da linha nova.
 
 ## 9. Fechamento
 
