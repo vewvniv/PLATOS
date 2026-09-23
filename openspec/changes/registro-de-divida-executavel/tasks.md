@@ -454,15 +454,21 @@ na linha editada: na prosa da célula, ou em `// MUTACAO` acima da linha no scri
   - "cada uma foi marcada `MUTACAO`", que valia só para as que editam arquivo.
 
   Os horários citados vêm de execução lida, ou do commit.
-- [ ] 9.2 **Commit** do documento de cobertura, e o `tasks.md` com o real preenchido.
+- [x] 9.2 **Commit** do documento de cobertura, e o `tasks.md` com o real preenchido.
 
 ## 10. Fechamento: o CI lido no destino
 
-- [ ] 10.1 **Os passos locais do job `web`, depois de todas as reversões**, com o texto exato do
+- [x] 10.1 **Os passos locais do job `web`, depois de todas as reversões**, com o texto exato do
   `ci.yml`: os oito da linha de base (0.3) e os dois novos. Verificar:
   - dez passos com `exit 0`;
   - `grep -rn "MUTACAO"` fora de `build/` e `node_modules/` com 0 linhas;
   - o horário posterior ao último commit de código.
+
+  **Feito.** Os dez passos rodaram às `22:55:13Z`–`22:55:14Z`, depois do último commit (`783f0c4`,
+  `22:55:03Z`), e os dez saíram `exit 0`. Os dois novos terminaram com "nenhuma linha vencida: 18
+  linhas lidas" e "…e os dois pisos, como deve". `MUTACAO` aparece em 0 arquivos não-prosa tocados pela
+  branch, em 0 linhas de código (`tools`, `apps`, `packages`, `.github` e `buildSrc`), e em 0 linhas do
+  §16, do `rigorous.md` e do `CLAUDE.md`. `git status` mostra só este `tasks.md`.
 - [ ] 10.2 **Publicar**: `git push` da branch, e a PR **empilhada**, com base
   `vewvniv/o-apk-de-release-e-verificado` (PR #61), como as etapas anteriores (plano §2, "Como isso se
   traduz em sessões"). Verificar: a PR mostra só os commits desta mudança.
