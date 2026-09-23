@@ -264,7 +264,7 @@ A regra de parada da decisão 10 vale sobre cada tabela deste grupo: conjunto re
 previsto — **mais, menos, ou outros** — é parar e escrever, e nunca consertar o instrumento, afrouxar
 a asserção ou ajustar a previsão em silêncio.
 
-- [ ] 3.1 **As três mutações da Parte I, repetidas** — uma por vez, marcada com `MUTACAO`, com
+- [x] 3.1 **As três mutações da Parte I, repetidas** — uma por vez, marcada com `MUTACAO`, com
   `./gradlew build --continue`, revertida por cópia do original e rodada antes da seguinte (P10).
   Contagem pelo `timestamp` de dentro de cada XML. O conjunto previsto, copiado do plano como está:
 
@@ -284,21 +284,97 @@ a asserção ou ajustar a previsão em silêncio.
   `ExamPackageRouteTest` sob `titulo` e sob `displayName`, e esses dois são cenários **diferentes**.
   Registrar o real ao lado, com o mecanismo lido na mensagem, e não só na contagem (P12): no
   servidor, a igualdade literal que falha. Sobrevivente numa classe que caiu é lido e explicado.
-- [ ] 3.2 **A guarda, com defeito plantado, um lado de cada vez.** (a) Um contrato de mentira em
+
+  **REAL = PREVISTO nas três, e agora cada uma derruba os dois lados.** Cada mutação numa linha só
+  (o script aborta se o diff não for de uma linha), com `./gradlew build --continue`, e **as 153
+  suítes dentro da janela** nas três — as tasks de teste dependem de `packages/domain`:
+
+  | Mutação | Janela | Aparelho — real | Servidor — real | Outras |
+  |---|---|---|---|---|
+  | **A** · `name` → `nome` | `13:18:38Z`–`13:20:06Z` | `ApiPlatosTest` **6 de 14** | `MeOrganizationsTest` **1 de 6** — o cenário novo | **0** |
+  | **B** · `title` → `titulo` | `13:20:25Z`–`13:21:30Z` | `ApiPlatosPacoteTest` **1 de 7** | `ExamPackageRouteTest` **1 de 19** — o cenário novo da listagem | **0** |
+  | **C** · `display_name` → `displayName` | `13:21:39Z`–`13:22:38Z` | `ObtencaoDeRosterTest` **6 de 10** | `ExamPackageRouteTest` **1 de 19** — o cenário do roster | **0** |
+
+  **As contagens derivadas bateram todas:** as do aparelho são as da Parte I, uma a uma; no
+  servidor, um cenário por mutação, e os de B e C são **diferentes** (a listagem e o roster).
+
+  **O mecanismo, lido na mensagem** (P12). No aparelho, nas três, `JsonConvertException: Illegal
+  input: Field '<nome mutado>' is required for type with serial name
+  'com.platos.domain.transport.<Tipo>'` — o decodificador procurando o nome novo num corpo escrito
+  com o antigo. No servidor, nas três, `AssertionFailedError: expected: <[{…"name":"Nova
+  Professora"…}]> but was: <[{…"nome":"Nova Profes…` (e o mesmo com `"title"`/`"titulo"` e
+  `"display_name"`/`"displayName"`) — a igualdade literal, com o nome de campo digitado.
+
+  **Os sobreviventes.** No aparelho são os mesmos da Parte I §2, e pelas mesmas razões — nenhum
+  teste de lá mudou. No servidor, **os cenários que desserializam não caíram em nenhuma das três**,
+  como o plano previu: sob A, os cinco outros de `MeOrganizationsTest` (quatro leem com o próprio
+  `OrganizationDto` e o quinto é o 401, que nem decodifica); sob B, os de listagem que usam
+  `provasDe`. É P4 visto de novo, agora ao lado do cenário que cai: a mesma rota, o mesmo corpo
+  mutado, um verde e um vermelho — e a diferença é só se o nome do campo está digitado.
+
+  **Reversão por cópia do original, conferida em cada uma** — `cmp` igual e `git diff` vazio no
+  arquivo — antes da seguinte, e cada build seguinte rodou sobre a reversão da anterior: B e C
+  não mostraram nenhuma queda de A ou de B. `MUTACAO` em código fora de `build/` → **0** ao fim. O
+  `build --rerun-tasks` depois das reversões é o da 3.4.
+- [x] 3.2 **A guarda, com defeito plantado, um lado de cada vez.** (a) Um contrato de mentira em
   `transport/`, marcado com `MUTACAO`, sem literal em lado nenhum: a guarda o nomeia **nos dois
   lados**, `exit 1`, e nada mais é nomeado. (b) O literal do roster retirado de
   `ExamPackageRouteTest` — basta que o servidor deixe de ter string com as duas chaves juntas: a
   guarda nomeia `RosterEntryDto` **só do lado do servidor**, `exit 1`. A (b) é a que prova que ela
   distingue os lados, e não só a presença do tipo. Cada uma revertida e com a guarda rodada de novo
   antes da seguinte.
-- [ ] 3.3 **O piso.** `node tools/parity/fio.mjs --transport <diretório vazio>` → `exit 2`, com o
+
+  **REAL = PREVISTO nas duas.**
+
+  | Defeito | Hora | Previsto | **Real** |
+  |---|---|---|---|
+  | (a) `MentiraDto(@SerialName("campo_de_mentira") …)` em `transport/MentiraMutacao.kt` | `13:23:37Z` | nomeado nos dois lados, `exit 1`, nada mais | **`MentiraDto` nomeado no servidor e no aparelho, `exit 1`, e só ele** — 6 tipos lidos em 5 arquivos |
+  | (b) `"display_name":` → `"display_nome":` nas **duas** metades do literal do roster (`ExamPackageRouteTest.kt:310-311`) | `13:23:57Z` | `RosterEntryDto` só no servidor, `exit 1` | **`RosterEntryDto` nomeado só no servidor**; aparelho continua preso em `ObtencaoDeRosterTest.kt:53`; `exit 1`, uma linha de erro |
+
+  Em (b) as duas metades precisaram mudar porque o literal do roster é partido **entre** os dois
+  objetos da lista, e cada metade traz as duas chaves juntas — qualquer uma delas bastaria para
+  prender o tipo. Reversão: (a) o arquivo plantado removido; (b) restaurado por cópia, `cmp` igual
+  e `git diff` vazio. Nos dois casos, a guarda rodada depois → `exit 0`.
+- [x] 3.3 **O piso.** `node tools/parity/fio.mjs --transport <diretório vazio>` → `exit 2`, com o
   motivo do piso; e o mesmo com um diretório que não existe. Verificar que o motivo impresso é o do
   piso, e não um erro de leitura qualquer.
-- [ ] 3.4 **A reversão, rodada, e não lembrada** (P10). `grep -rn "MUTACAO"` em código fora de
+
+  **Os dois, e mais os pisos que o `design.md` (decisão 6) lista e o plano não nomeava**, às
+  `13:24Z`. Todos com `exit 2` e a linha começando por `piso:`:
+
+  | Condição | Mensagem |
+  |---|---|
+  | `--transport` num diretório vazio | "…nao tem nenhum .kt — uma raiz vazia passaria em qualquer conferencia" |
+  | `--transport` num diretório que não existe | "…nao e um diretorio — …" |
+  | `--transport` num diretório com `.kt`, mas **sem** `@Serializable` (`object SemContrato`) | "nenhum tipo @Serializable em … — nada a conferir nao e o mesmo que tudo conferido" |
+  | o lado do aparelho apontado para um caminho que não existe (`MUTACAO` em `LADOS`) | "o lado do aparelho (apps/android/src/tset) nao e um diretorio" |
+  | o lado do aparelho apontado para um diretório com `.kt` e **zero** strings (`MUTACAO` em `LADOS`) | "o lado do aparelho (…) nao tem nenhum literal lido — a leitura pode estar quebrada" |
+
+  E `--transport` sem valor sai `2` com "--transport pede um diretorio" — **não** é piso, é
+  argumento, e fica dito como tal. As duas mutações de `LADOS` foram revertidas por cópia (`cmp`
+  igual, `git diff` vazio), a guarda rodada depois → `exit 0`, e `MUTACAO` em código fora de
+  `build/` → **0**.
+
+  **O piso "tipo com zero chaves" também, e a primeira redação desta nota dizia o contrário.** Ela
+  afirmava que ele era inalcançável, porque `data class` sem parâmetro não compila. Não compila —
+  mas a guarda lê **texto**, e não o que compila. Medido às `13:24:56Z`, numa cópia temporária de
+  `transport/` com `@Serializable data class Vazio()`: `exit 2`, "piso: Vazio (…) nao tem chave
+  nenhuma — qualquer literal o satisfaria". A afirmação errada durou três minutos, e só não entrou
+  num commit porque a nota foi relida antes.
+- [x] 3.4 **A reversão, rodada, e não lembrada** (P10). `grep -rn "MUTACAO"` em código fora de
   `build/` → `0`; `git status` sem resíduo de código; `node tools/parity/fio.mjs` → `exit 0` **depois**
   da reversão; e `./gradlew build --rerun-tasks` **depois** da reversão, 176 de 176 tasks executadas,
   com a contagem pelo `timestamp`: **153 suítes, 1446 testes, 0 falhas** — a linha de base de 0.2
   mais os dois cenários de 2.1 e 2.2, e nada além.
+
+  **Conferida rodando, depois de todas as mutações de 3.1 a 3.3.** `MUTACAO` em código fora de
+  `build/` → **0**; `git status` → só este `tasks.md`, nenhum resíduo de código;
+  `node tools/parity/fio.mjs` às `13:25:12Z` → **`exit 0`**. `./gradlew build --rerun-tasks`,
+  `13:25:12Z`–`13:27:21Z`, `exit 0`, **176 de 176 tasks executadas**. Pelo `timestamp` de dentro dos
+  XML (`13:26:16Z`–`13:27:18Z`): **153 suítes, 1446 testes, 0 falhas, 0 erros, 0 pulados** —
+  `apps/android` 308, `apps/api` **167**, `packages/domain` 329 + 321 + 321. A diferença para 0.2 é
+  **+2**, em `apps/api`, e os dois são os cenários de 2.1 e 2.2. Fora da janela, só o relatório de
+  `buildSrc`, como em 0.2.
 
 ## 4. Fechar
 
