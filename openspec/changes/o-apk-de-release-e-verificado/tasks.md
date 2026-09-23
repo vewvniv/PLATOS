@@ -418,8 +418,21 @@ Só se 1.3 reproduziu. Se não, as três tarefas ficam desmarcadas, com o motivo
   `buildSrc` `21:12:09Z`, 1 de 1; instrumentada no emulador `21:12:32Z`–`21:14:26Z` e no aparelho
   `21:14:27Z`–`21:15:13Z`, **83, 0 falhas, 2 pulados** nos dois. Registrado na cobertura, §8, com o
   quadro do §10 no §9.
-- [ ] 9.2 **Publicar**: `git push` e a PR **empilhada**, com base `vewvniv/versao-do-renderizador-conferida`
+- [x] 9.2 **Publicar**: `git push` e a PR **empilhada**, com base `vewvniv/versao-do-renderizador-conferida`
   (PR #60). **Perguntar ao mantenedor antes do push.**
-- [ ] 9.3 **O CI da PR, lido no destino** (P26): os três jobs verdes no commit da ponta; no log do
+
+  **Perguntado e autorizado** ("Push e PR"). `git push -u origin vewvniv/o-apk-de-release-e-verificado`
+  → `exit 0`; `gh pr create` → **PR #61**. Conferido no destino: base
+  `vewvniv/versao-do-renderizador-conferida`, ponta `4f65fee`, igual ao `HEAD` local, 10 commits. O
+  emulador que esta sessão subiu foi desligado antes (`emu kill`); o aparelho físico ficou como o
+  mantenedor o deixou.
+- [x] 9.3 **O CI da PR, lido no destino** (P26): os três jobs verdes no commit da ponta; no log do
   `build`, `testReleaseUnitTest`, `verificarApkSemPacote` conferindo os dois APKs e as guardas de
   testes executados; na `paridade`, os 86 instrumentados. Registrar, e commit `registro:`.
+
+  **Lido no destino.** Execução `35921526354`, `headSha` `4f65fee`, `21:17:42Z`–`21:28:25Z`, `success`,
+  a única da branch; os três jobs em `success`. No `build`: `testReleaseUnitTest` no log, as cinco guardas
+  verdes, a do APK conferindo os dois APKs, 179 de 183 tasks executadas. Na `paridade`: **83**
+  instrumentados, 3 pulados — "os 86" desta tarefa era a linha "Finished", que soma os pulados, e a
+  previsão foi corrigida na 0.2; a contagem é 83. E `build` e `web` da mesma execução rodaram juntos sem
+  um cancelar o outro — observação parcial da `concurrency`, dita como tal na cobertura §8.

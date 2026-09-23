@@ -338,6 +338,21 @@ release e os 2 que voltaram no debug.
 
 **O CI da PR, lido no destino:** ainda não — é a tarefa 9.3.
 
+**Lido, às `21:29Z`.** PR #61, execução `35921526354`, `headSha` `4f65fee` — a ponta da branch —,
+`21:17:42Z`–`21:28:25Z`, `success`, a única da branch:
+
+| Job | Janela | O que o log mostra |
+|---|---|---|
+| `web` | `21:17:45Z`–`21:18:31Z` | verde |
+| `build` | `21:17:45Z`–`21:28:24Z` | `./gradlew build`: **179 de 183 executadas** (as 4 `up-to-date`, do `generateJooq`); `testDebugUnitTest` **e** `testReleaseUnitTest` no log; as cinco guardas "todos com resultado" — 310, 310, 167, 329, 321; "debug: android-debug.apk …", "release: android-release-unsigned.apk …", "APK sem pacote de prova, nas duas variantes" |
+| `paridade` | `21:18:36Z`–`21:27:25Z` | `connectedDebugAndroidTest`, 83 testes, 3 pulados (o probe do Supabase e os dois de `AcumuloDeInstanciasProbe`); "a paridade acusou a faixa ausente, como deve"; "as duas ferramentas acusaram o deslocamento, como devem" |
+
+**A `concurrency`, observada em parte.** `build` e `web` **da mesma execução** começaram no mesmo
+segundo (`21:17:45Z`) e terminaram os dois em `success`: os grupos distintos não colidem, que é o que um
+grupo único teria feito. O que continua só **conferido por leitura** é o cancelamento entre execuções
+— que a `paridade` de uma execução superada termina em vez de cair —, porque medi-lo pediria dois pushes
+em sequência.
+
 ## 9. O quadro de fechamento (plano, §10)
 
 - **O comando cheio, e o exato (P5).** A tabela acima, local; e o CI da PR, no destino (9.3).
