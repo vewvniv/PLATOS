@@ -744,11 +744,36 @@ quieta" — roda **só sobre o debug** (`build.gradle.kts:365,368`).
    guarda que pode parar de verificar o que afirma sem nada acusar, e esta afirma segurança.
    A medição está em `docs/cobertura-o-pendente-nao-se-perde-no-aparelho.md` §1 e §6.
 
+5. **O teste que devolve valor deixa de sumir da suíte sem ninguém ver** (achado **novo**, de
+   2026-09-23). **Acrescentado pela medição de entrada da 7.3**, pela regra 0.4, e posto **aqui**, e
+   não na 7.3, por decisão do mantenedor na mesma data: é a família da 4, e a 7.3 é outra
+   verificação. **Dono:** mantenedor. **Fatia-limite:** a da 7.2, o lançamento — e na fila ela corre
+   antes da fatia 5, porque a ETAPA 8 exige a 7 arquivada. Não é de segurança, LGPD nem
+   imutabilidade, e por isso não entra no §16 (P20).
+   `ApiPlatosPacoteTest` declara 9 `@Test`, e o relatório diz `tests="7"`, com 0 pulados.
+   `listagem sem rede vira SemRede` e `pacote sem rede vira SemRede` são
+   `= runBlocking { … assertInstanceOf(…) }`, e no JUnit Jupiter `assertInstanceOf` **devolve** o
+   objeto: as duas funções devolvem `Retorno$SemRede` — conferido por `javap` —, e o Jupiter não
+   descobre teste que devolve valor. Nenhuma falha, nenhum pulado, nenhuma linha no log. Nasceram
+   assim em `593bf9a` (2026-09-08) e **nunca rodaram**. Nas três suítes JVM são os únicos: 804 `@Test`
+   no fonte, 802 executados, e nenhum arquivo com `@Test` sem relatório.
+   Duas coisas, nesta ordem. **Os dois passam a rodar**, e cada um é visto falhar depois disso: um
+   teste que nunca rodou também nunca foi visto falhar. E **uma guarda que reprova quando a suíte
+   executa menos testes do que o fonte declara**, nas três suítes JVM. É o P13 num eixo que nenhuma
+   guarda desta base olha: o verde com contagem **menor** que a declarada, e não com contagem velha.
+   O mecanismo é do `design.md`; o instrumento de referência, e os dois modos em que ele falhou antes
+   de ser acreditado, estão em `docs/cobertura-o-fio-preso-nos-dois-lados.md` §6. O segundo modo —
+   `@Test` escrito com o nome qualificado passa despercebido por uma contagem de texto — é o limite
+   que a guarda tem de resolver ou declarar.
+
 **Ver falhar**, nas quatro: plantar a divergência de versão e ver `renderizador.mjs` nomear **quais
 dois** registros discordam; plantar um JSON com forma de pacote nos assets de release e ver a task
 recusar; para a `concurrency`, o sinal é a configuração — que **não** é medição, e fica dita como
 **conferida por leitura**, não como medida (P6); e, para a credencial, rodar o cenário **isolado e
 dentro da suíte cheia** e exigir o mesmo desfecho nos dois — que é a propriedade que hoje não vale.
+E, na quinta, acrescentada em 2026-09-23: trocar o tipo esperado em cada um dos dois testes
+reativados e ver **cada um** cair — o primeiro vermelho que eles terão tido —; e plantar um teste
+que devolve valor, e outro com `@Test` qualificado, e ver a guarda nomear os dois.
 
 ### Proibido nesta etapa
 

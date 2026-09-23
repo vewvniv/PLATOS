@@ -129,7 +129,8 @@ de 2026-09-1x. É esperado: `./gradlew build` não alcança os testes de `buildS
 ## 6. Achado novo, encontrado pela medição: dois testes que nunca rodaram
 
 **Fora do escopo desta mudança.** Pela regra 0.4 do plano, vira item escrito com dono e
-fatia-limite, e **não** conserto aqui (P19).
+fatia-limite, e **não** conserto aqui (P19). **É o item 7.2.5 do plano**, na mudança
+`o-apk-de-release-e-verificado`, por decisão do mantenedor em 2026-09-23.
 
 **Como apareceu.** Para explicar os sobreviventes de B (§2), os cenários de `ApiPlatosPacoteTest`
 foram contados no fonte e no relatório: **9 `@Test` no fonte, `tests="7"` no XML**, com 0 pulados.
