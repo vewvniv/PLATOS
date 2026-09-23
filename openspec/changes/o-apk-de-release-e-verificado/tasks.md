@@ -399,12 +399,25 @@ Só se 1.3 reproduziu. Se não, as três tarefas ficam desmarcadas, com o motivo
 
 ## 9. Fechamento
 
-- [ ] 9.1 **O comando cheio, depois de todas as reversões** (decisão 10): `grep -rn "MUTACAO"` vazio
+- [x] 9.1 **O comando cheio, depois de todas as reversões** (decisão 10): `grep -rn "MUTACAO"` vazio
   (mesmas exclusões de 1.4); `./gradlew build --continue --rerun-tasks`; `./gradlew -p buildSrc test
   --rerun-tasks`; `./gradlew :apps:android:connectedDebugAndroidTest` sem filtro. Previsto: a linha de
   base de 0.2 **mais** os 308 de `testReleaseUnitTest` e os 2 que passaram a rodar em cada variante —
   as contagens exatas escritas antes de rodar, e o real ao lado. Registrar na cobertura, com o quadro do
   §10 do plano.
+
+  **Previsto, escrito às `21:08Z`, antes de rodar:** `build` com **182 suítes, 1758 testes, 0 falhas** —
+  `testDebugUnitTest` 310, `testReleaseUnitTest` 310, `:apps:api:test` 167, `jvmTest` 329,
+  `testAndroidHostTest` 321, `jsNodeTest` 321 —; as cinco guardas "todos com resultado"; a guarda do APK
+  nomeando os dois APKs. `buildSrc`: 1 suíte, 1 teste. Instrumentada, sem filtro: **83 testes, 0 falhas,
+  2 pulados** no emulador e **83, 0 falhas, 2 pulados** no aparelho (o probe do Supabase roda nos dois,
+  pelo `local.properties`).
+
+  **Real = previsto em todos.** `grep` vazio (`21:07Z`); `build` `21:09:22Z`–`21:11:58Z`, `exit 0`, 183 de
+  183 tasks, **182 suítes, 1758 testes, 0 falhas**, as cinco guardas e a do APK como previsto;
+  `buildSrc` `21:12:09Z`, 1 de 1; instrumentada no emulador `21:12:32Z`–`21:14:26Z` e no aparelho
+  `21:14:27Z`–`21:15:13Z`, **83, 0 falhas, 2 pulados** nos dois. Registrado na cobertura, §8, com o
+  quadro do §10 no §9.
 - [ ] 9.2 **Publicar**: `git push` e a PR **empilhada**, com base `vewvniv/versao-do-renderizador-conferida`
   (PR #60). **Perguntar ao mantenedor antes do push.**
 - [ ] 9.3 **O CI da PR, lido no destino** (P26): os três jobs verdes no commit da ponta; no log do

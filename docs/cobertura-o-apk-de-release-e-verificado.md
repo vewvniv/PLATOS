@@ -321,3 +321,40 @@ O produto foi revertido durante a espera, o mantenedor liberou, e a mutação fo
 
 Ainda não rodado: é a tarefa 9. Esta seção recebe o comando cheio depois de todas as reversões, e o CI
 da PR lido no destino.
+
+**Local, depois de todas as reversões** (a última às `21:04Z`), com a previsão escrita no `tasks.md` às
+`21:08Z`, antes de rodar:
+
+| O quê | Quando | Real = previsto |
+|---|---|---|
+| `grep -rn "MUTACAO"` fora de `docs/`, `openspec/`, `build/`, `node_modules/`, `.gradle/`, `.git/` | `21:07Z` | vazio |
+| `./gradlew build --continue --rerun-tasks` | `21:09:22Z`–`21:11:58Z` | **183 de 183 tasks; 182 suítes, 1758 testes, 0 falhas** — 310 + 310, 167, 329, 321, 321; as cinco guardas "todos com resultado"; a guarda do APK nomeando os dois APKs |
+| `./gradlew -p buildSrc test --rerun-tasks` | `21:12:09Z`–`21:12:32Z` | 1 suíte, 1 teste, 0 falhas |
+| `connectedDebugAndroidTest`, sem filtro, emulador | `21:12:32Z`–`21:14:26Z` | 83, 0 falhas, 2 pulados |
+| o mesmo, 2511FPC34G | `21:14:27Z`–`21:15:13Z` | 83, 0 falhas, 2 pulados |
+
+Contagens pelo `timestamp` de dentro de cada XML. **Delta para a linha de base: +312** — os 310 do
+release e os 2 que voltaram no debug.
+
+**O CI da PR, lido no destino:** ainda não — é a tarefa 9.3.
+
+## 9. O quadro de fechamento (plano, §10)
+
+- **O comando cheio, e o exato (P5).** A tabela acima, local; e o CI da PR, no destino (9.3).
+- **O `timestamp` e as tasks executadas (P2, P3).** Toda contagem desta cobertura é pelo `timestamp` de
+  dentro dos XML; 183 de 183 tasks no build do fechamento.
+- **O sinal, e o passo que ele atravessa (P2).** A guarda do APK abre os arquivos que `assembleRelease`
+  escreveu; a variante de teste aparece no log como tarefa executada; a guarda de testes lê o bytecode e
+  o XML da execução que acabou de acontecer; a credencial cai pela afirmação de segurança, e não pela
+  guarda de preparo.
+- **O oráculo, e por que é independente (P4).** A guarda de testes não usa a descoberta do Jupiter, que
+  é o que ela julga; a do APK lê o `zip`, e não o código; a credencial é julgada por uma busca em bytes
+  sobre o disco, contra um canário que ela tem de achar.
+- **A mutação e o conjunto, contra o previsto (P9).** §2, §3, §4 e §6: real = previsto em todas, com as
+  duas divergências da previsão escritas — a linha "Finished" (§1) e a primeira execução da guarda de
+  testes, barrada pelo piso (§6, 4).
+- **`MUTACAO` fora de `build/` em 0, e a reversão rodada (P10).** Tabela acima.
+- **O que ficou sem verificação automática (P8).** §5 e §7.
+- **Número ou hash que mudou (P3, P23).** Nenhum artefato hasheado, fixture ou golden foi tocado.
+- **A reconciliação do §16 (P27).** Não é exigida antes da ETAPA 8; ainda assim, a única linha do §16 que
+  esta mudança alcança — a da credencial — foi fechada, e o plano registra que a 7.2 não tinha a sua.
