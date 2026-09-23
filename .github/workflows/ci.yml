@@ -5,13 +5,18 @@ on:
     branches: [main]
   pull_request:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
+# A `concurrency` e declarada por job, e nao no workflow. No workflow, um push novo cancelava a
+# execucao em curso inteira — `paridade` incluida — e foi assim que ela caiu na PR #30, com passo
+# marcado como falha sem erro no log, custando horas (P15). `build` e `web` continuam sendo
+# cancelados, porque sao rapidos e o commit novo os refaz; `paridade` nao, porque e o job mais caro de
+# perder e o que o §16 chama de maior risco do projeto se nao existir. O grupo carrega o nome do job:
+# com um grupo so, `build` e `web` da MESMA execucao disputariam o grupo, e um cancelaria o outro.
 jobs:
   build:
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-build
+      cancel-in-progress: true
     # Configuracao do aplicativo Android (tarefa 2.2 da fatia 4a-zero). Ausente, o build falha de
     # proposito: aplicativo sem destino nao serve para nada, e string vazia so quebraria na primeira
     # chamada de rede, com erro que fala de rede e nao de configuracao.
@@ -89,6 +94,9 @@ jobs:
 
   web:
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-web
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
 
@@ -318,6 +326,11 @@ jobs:
   paridade:
     runs-on: ubuntu-latest
     needs: web
+    # Sem cancelar: a execucao nova espera esta terminar. Se o `web` desta execucao for cancelado
+    # antes de acabar, a `paridade` dela nao chega a comecar — e a da execucao nova cobre o commit novo.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-paridade
+      cancel-in-progress: false
     # Configuracao do aplicativo Android (tarefa 2.2 da fatia 4a-zero). Ausente, o build falha de
     # proposito: aplicativo sem destino nao serve para nada, e string vazia so quebraria na primeira
     # chamada de rede, com erro que fala de rede e nao de configuracao.

@@ -103,7 +103,7 @@ class ApiPlatosPacoteTest {
     }
 
     @Test
-    fun `listagem sem rede vira SemRede`() = runBlocking {
+    fun `listagem sem rede vira SemRede`() = runBlocking<Unit> {
         val retorno = api { Resposta.Estoura(UnknownHostException("api.platos.example")) }
             .provas("org-1")
 
@@ -171,7 +171,7 @@ class ApiPlatosPacoteTest {
     }
 
     @Test
-    fun `pacote sem rede vira SemRede`() = runBlocking {
+    fun `pacote sem rede vira SemRede`() = runBlocking<Unit> {
         val retorno = api { Resposta.Estoura(UnknownHostException("api.platos.example")) }
             .pacote("org-1", "mat-7a-2026-1")
 

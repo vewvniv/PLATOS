@@ -240,7 +240,17 @@ promessa de §10 deixou de ter dono no momento em que a fatia que a carregava fe
 
 ## 3. Achados sérios
 
-### 3.1 A variante `release` não tem teste nenhum no grafo, e a guarda do APK só olha o `debug`
+### 3.1 A variante `release` não tem teste nenhum no grafo, e a guarda do APK só olha o `debug` — ~~**aberto**~~ **fechado**
+
+> **Fechado em 2026-09-23, pela mudança `o-apk-de-release-e-verificado`** (ETAPA 7.2). O texto
+> abaixo fica inteiro e não se apaga (P7). Os dois buracos foram medidos antes do código: um pacote em
+> `src/release/assets/` chegou ao APK de release com a guarda dizendo "0 asset(s) conferido(s)"; e um
+> teste que só cai onde `BuildConfig.DEBUG` é falso passava pelo `build`. Agora
+> `verificarApkSemPacote` abre os dois APKs, com vacuidade por variante, e `testReleaseUnitTest` existe
+> e roda no `build` — o mantenedor decidiu ligá-la. Os mesmos dois defeitos, plantados de novo, passaram
+> a derrubar o `build`. **O que continua fora:** o artefato de loja (assinado, talvez AAB, talvez com R8)
+> ainda não existe, e esta guarda não o verá; a fatia que o criar deve a guarda dele.
+> `docs/cobertura-o-apk-de-release-e-verificado.md`.
 
 **O que.** Três fatos que se somam:
 
@@ -621,7 +631,12 @@ O **desenho está certo** — a tabela de vínculo não tem como ser autorizada 
 exceções são estruturalmente necessárias. O que está errado é o absoluto num comentário de arquivo de
 segurança, que é onde a precisão mais vale. É §1 do `rigorous.md` em escala pequena.
 
-### 5.3 `concurrency: cancel-in-progress: true` continua sobre o job de paridade
+### 5.3 `concurrency: cancel-in-progress: true` continua sobre o job de paridade — ~~**aberto**~~ **fechado**
+
+> **Fechado em 2026-09-23, pela mudança `o-apk-de-release-e-verificado`** (ETAPA 7.2). O texto abaixo
+> fica (P7). A `concurrency` saiu do nível do workflow e passou a ser declarada por job, cada um com o
+> seu grupo: `cancel-in-progress` em `build` e `web`, e não em `paridade`. **Conferido por leitura do
+> YAML, e não medido.**
 
 `ci.yml:7-10`. P15 registra o incidente: "`concurrency: cancel-in-progress` derrubou a paridade na PR
 #30 e **custou horas**". A configuração permanece, e o job `paridade` — que `needs: web` e sobe

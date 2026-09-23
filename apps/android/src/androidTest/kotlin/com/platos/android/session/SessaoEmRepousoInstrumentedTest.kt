@@ -4,6 +4,7 @@ import android.content.pm.ApplicationInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
+import java.io.FileNotFoundException
 import java.util.Base64
 import java.util.UUID
 import org.junit.Assert.assertEquals
@@ -68,8 +69,13 @@ class SessaoEmRepousoInstrumentedTest {
         // nada para esperar aqui. Afirmar a existencia neste ponto faria o defeito ser acusado pela
         // guarda de preparo em vez da afirmacao de seguranca, apontando para o lugar errado.
         val cifrado = File(context.dataDir, "shared_prefs/${SessaoGuardadaAndroid.ARQUIVO_CIFRADO}.xml")
-        esperarAte { cifrado.exists() && cifrado.length() > 0 }
-        val antesDaCredencial = if (cifrado.exists()) cifrado.readBytes() else ByteArray(0)
+        val keysetNoDisco = esperarAte { cifrado.exists() && cifrado.length() > 0 }
+        // Fotografado por `bytesOuNulo`, e nao por `exists()` seguido de `readBytes()`: a construcao
+        // pode ainda estar regravando o arquivo, e no meio da regravacao ele some por um instante. Se
+        // ele apareceu na espera acima, a fotografia tem de ser dele, e a leitura se repete ate
+        // pega-lo; se nunca apareceu, e o caso da sessao em claro, e a fotografia fica vazia, como antes.
+        var antesDaCredencial = ByteArray(0)
+        if (keysetNoDisco) esperarAte { bytesOuNulo(cifrado)?.also { antesDaCredencial = it } != null }
 
         guardada.guardarCredencial(token)
         guardada.guardarOrganizacaoEscolhida(organizacao)
@@ -80,7 +86,7 @@ class SessaoEmRepousoInstrumentedTest {
             "o arquivo cifrado nao mudou depois de guardar a credencial: a escrita nao chegou ao " +
                 "disco, e procurar o token agora nao provaria nada",
             esperarAte {
-                cifrado.exists() && !cifrado.readBytes().contentEquals(antesDaCredencial)
+                bytesOuNulo(cifrado)?.contentEquals(antesDaCredencial) == false
             },
         )
 
@@ -135,6 +141,24 @@ class SessaoEmRepousoInstrumentedTest {
         arquivosGravados().any { arquivo ->
             runCatching { arquivo.readBytes().toString(Charsets.ISO_8859_1).contains(procurado) }
                 .getOrDefault(false)
+        }
+
+    /**
+     * Os bytes do arquivo, ou `null` se ele nao esta la **neste instante**.
+     *
+     * Sem `exists()` antes, e a razao e medida. O `SharedPreferences` regrava o arquivo renomeando o
+     * atual para `.bak` e escrevendo outro, e entre um `exists()` verdadeiro e o `readBytes()` seguinte o
+     * arquivo pode sumir. Foi assim que este cenario caiu — `FileNotFoundException … ENOENT` na leitura
+     * da guarda 1, no aparelho, uma vez em dezenove, e a mesma excecao de 2026-09-19
+     * (`docs/cobertura-o-apk-de-release-e-verificado.md` §4). Nao afirmava nada sobre a credencial: era
+     * o instrumento tropecando na escrita que ele mesmo esperava. So `FileNotFoundException` vira
+     * `null`; qualquer outro erro de leitura continua derrubando o teste.
+     */
+    private fun bytesOuNulo(arquivo: File): ByteArray? =
+        try {
+            arquivo.readBytes()
+        } catch (ausente: FileNotFoundException) {
+            null
         }
 
     /** Ate cinco segundos. Nao e folga: e o tempo de uma escrita de `apply()` que se atrasou. */

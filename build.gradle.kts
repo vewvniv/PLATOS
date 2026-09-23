@@ -1,3 +1,5 @@
+import com.platos.build.exigirQueTodoTesteDeclaradoRode
+
 plugins {
     // Versao declarada uma vez aqui: `buildSrc` usa `kotlin-dsl`, que poe o plugin do Kotlin no
     // classpath sem versao, e um `alias(...)` direto no subprojeto falha por nao poder verificar
@@ -17,5 +19,9 @@ subprojects {
         testLogging {
             events("passed", "skipped", "failed")
         }
+        // Todo `@Test` declarado tem resultado no relatorio desta tarefa, ou ela reprova nomeando-o
+        // (ETAPA 7.2). Aqui, e nao em cada modulo, porque e aqui que todo `Test` dos tres ja e
+        // configurado: uma lista de tarefas mantida a mao seria um segundo registro.
+        exigirQueTodoTesteDeclaradoRode()
     }
 }

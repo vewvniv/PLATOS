@@ -132,6 +132,13 @@ de 2026-09-1x. É esperado: `./gradlew build` não alcança os testes de `buildS
 
 ## 6. Achado novo, encontrado pela medição: dois testes que nunca rodaram
 
+> **Fechado em 2026-09-23, na `o-apk-de-release-e-verificado` (item 7.2.5); o texto abaixo fica (P7).**
+> Os dois passaram a rodar (`runBlocking<Unit>`) e foram vistos falhar pela primeira vez. E a guarda
+> existe: `buildSrc/.../TodoTesteDeclaradoRoda.kt` reprova todo método declarado com `@Test` sem resultado
+> no relatório, nas cinco tarefas de teste dos três módulos. Ela lê a declaração do **bytecode**, e isso
+> resolve o limite desta seção: um `@org.junit.jupiter.api.Test` qualificado, plantado, foi nomeado.
+> O primeiro vermelho dela nomeou exatamente os dois testes daqui, nas duas variantes do aplicativo.
+
 **Fora do escopo desta mudança.** Pela regra 0.4 do plano, vira item escrito com dono e
 fatia-limite, e **não** conserto aqui (P19). **É o item 7.2.5 do plano**, na mudança
 `o-apk-de-release-e-verificado`, por decisão do mantenedor em 2026-09-23.
