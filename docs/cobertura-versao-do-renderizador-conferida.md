@@ -5,6 +5,9 @@
 > da 7.3, **depois** do `/opsx:propose`: ela é a tarefa 1 do `tasks.md`, e a razão de ela existir está
 > no `design.md`, decisão 8. A **Parte II** é a da mudança, e ainda não existe. A Parte I não se apaga
 > (P7): ela é o estado que a Parte II vai corrigir.
+>
+> **Superado no mesmo dia:** a Parte II existe, `17:53Z`–`17:56Z`, na mesma branch. A frase "ainda não
+> existe" fica, como o estado de quando foi escrita.
 
 **Plano:** `docs/plano-de-correcao-antes-da-fatia-5.md`, ETAPA 7.1 · **Achado:** 4.4 de
 `docs/auditoria-2026-09-18-antes-da-fatia-5.md`
@@ -147,4 +150,105 @@ os **mesmos** XML, sem execução nova. As contagens não dependiam da listagem.
 
 # Parte II — a mudança
 
-Ainda não existe.
+**Commits:** `54160b9` (o conferidor e os dois passos do CI) · `0a179ee` (o registro das tarefas 2 e
+3). **Janela:** `17:53Z`–`17:56Z`. A linha de base é a da Parte I, §1: nenhuma entrada do Gradle nem do
+Vitest mudou entre ela e esta parte.
+
+## 7. O que a mudança fez
+
+- **`tools/parity/renderizador.mjs`**, novo. Lê os três registros dos arquivos de origem, pela
+  declaração ancorada na linha, e compara **par a par**, na ordem `dominio`, `android`, `web`. Saída
+  `0` quando concordam; `1` com uma linha por par que discorda, com os dois registros e os dois
+  valores; `2` quando não consegue ler um registro — arquivo ausente, zero ou mais de uma declaração,
+  valor que não é literal inteiro — ou recebe parâmetro inválido. `--divergir <chave>` soma 1 ao valor
+  lido daquele registro. Só `node:fs`, `node:path` e `node:url`.
+- **Dois passos no job `web` do `ci.yml`**, os 22 e 23, entre os do fio e o das fixtures da
+  digitalização: um confere; o outro força cada registro sozinho e exige saída `1`, os dois pares
+  dele e a ausência do terceiro. 37 linhas acrescentadas, nenhuma removida; a `concurrency` intacta.
+- **Nenhum registro mudou.** `LayoutMap.kt`, `RendererContract.kt` e `layoutMap.ts` estão como em
+  `5dfeaaa`: todas as edições neles nesta sessão foram mutações, revertidas.
+
+## 8. A primeira execução, sobre a árvore real
+
+`17:54:00Z`, da raiz **e** de `tools/parity`, a mesma saída e `exit 0` — os caminhos não dependem de
+onde o script é chamado:
+
+```
+dominio  LayoutMap.MIN_RENDERER_VERSION = 1  (o que a publicacao escreve no mapa)
+android  RendererContract.RENDERER_VERSION = 1  (o que o renderizador e o gate de captura do aparelho leem)
+web      RENDERER_VERSION de layoutMap.ts = 1  (o que o renderizador web le)
+
+os tres registros concordam: versao 1
+```
+
+Real = previsto (`tasks.md`, 2.3).
+
+## 9. O passo "continua capaz de falhar", rodado e visto falhar
+
+**Rodado com o texto exato do `ci.yml`:** o `run` do passo extraído por `yaml.safe_load` e executado
+com `bash --noprofile --norc -eo pipefail`, o shell do Actions. `17:54:06Z`, `exit 0`, "a verificacao
+da versao do renderizador acusou cada registro forcado, e so os pares dele, como deve".
+
+**Visto falhar**, o que a tarefa não pedia e que a decisão 6 do `design.md` afirmava sem prova: que o
+passo pega um conferidor que deixou de comparar um dos registros. Defeito plantado no próprio script
+— o laço interno parando em `lidos.length - 1`, o que tira o `web` de toda comparação. Às `17:54:20Z`:
+
+- o conferidor, sozinho, **aceitou** `--divergir web`: `exit 0`, "os tres registros concordam" — que
+  é o defeito, e é exatamente o que um CI sem este passo mostraria;
+- o passo **recusou**: `exit 1`, "com dominio forcado: faltou 'os registros dominio e web discordam'".
+
+Revertido e conferido rodando às `17:54:31Z`: o conferidor e o passo, `exit 0`.
+
+**Os parâmetros inválidos saem com `2`:** `--divergir` sem chave, `--divergir foo`, e `--divergi web`
+("parametro desconhecido"). O último é de propósito: ignorado, ele rodaria a conferência simples e
+passaria.
+
+## 10. O conferidor contra a árvore mutada — conjunto previsto e real
+
+É a tarefa de verificação do plano (ETAPA 7, "Ver falhar": "plantar a divergência de versão e ver
+`renderizador.mjs` nomear **quais dois** registros discordam"), feita por registro e no arquivo real —
+é o que prova a **leitura**, que o passo do CI não prova. Cada mutação com a linha `MUTACAO` acima,
+o `git diff -U0` mostrado antes da execução, e a reversão rodada.
+
+| Mutação no arquivo real | Previsto | Real |
+|---|---|---|
+| `dominio` `1` → `2` | `1` · `dominio e android`, `dominio e web`; **não** `android e web` | `1` · exatamente as duas: "dominio diz 2, android diz 1", "dominio diz 2, web diz 1" |
+| `android` `1` → `2` | `1` · `dominio e android`, `android e web`; **não** `dominio e web` | `1` · exatamente as duas |
+| `web` `1` → `2` | `1` · `dominio e web`, `android e web`; **não** `dominio e android` | `1` · exatamente as duas |
+| `android` = `LayoutMap.MIN_RENDERER_VERSION` (o dono único) | `2` · o registro, o arquivo, "não é literal inteiro"; nenhuma de "discordam" | `2` · "o valor `LayoutMap.MIN_RENDERER_VERSION` nao e literal inteiro — um registro que referencia outro seria comparado com ele mesmo"; nenhuma de "discordam" |
+| `web` renomeado para `RENDERER_VERSAO` | `2` · o registro, o arquivo, "zero declarações" | `2` · "zero declaracoes de `RENDERER_VERSION` — a constante mudou de forma ou saiu daqui" |
+
+**Real = previsto nas cinco**, `17:55:41Z`–`17:55:49Z`. Os conjuntos das três primeiras são
+disjuntos no par que **não** aparece — cada registro deixa de fora exatamente o par dos outros dois —,
+e é isso que prova que os três estão na comparação e são lidos cada um do seu arquivo.
+
+## 11. A reversão, rodada
+
+Às `17:55:57Z`: `grep -rn "MUTACAO"` fora de `build/`, `node_modules/`, `.gradle/`, `.git/`, `docs/` e
+`openspec/` → nada; `git diff --exit-code` nos três arquivos de registro → `0`; o conferidor → `exit
+0`; o passo extraído do `ci.yml` → verde. O build cheio depois de todas as reversões é o do
+fechamento (§13).
+
+## 12. O que **não** fica verificado (P8)
+
+- **A frase que não pode faltar** (`design.md`, decisão 11): **o conferidor prova que os três números
+  concordam, e não que eles estão certos.** Ele não sabe se o motor passou a emitir algo que exige
+  renderizador novo — quem sobe `MIN` é quem muda o motor, e a fatia 5 é a primeira a ter de fazê-lo.
+  E ele não sabe se um renderizador desenha o que a versão dele declara — isso é da paridade e dos
+  testes de renderização (P16: o conferidor é a camada vizinha deles). Três registros subindo juntos
+  para um número errado passam.
+- **O passo do CI prova a comparação, e não a leitura** (decisão 6). A leitura foi provada **uma vez**,
+  aqui, pelas cinco mutações do §10. Depois disso, o que a protege é a falha fechada: uma edição do
+  script que passasse a ler o número errado de um arquivo, sem mudar a forma, não seria pega por
+  nada.
+- **As formas que o conferidor recusa, e que não foram plantadas:** declaração duplicada, arquivo
+  ausente, `internal const val`, a declaração do web recuada. Todas saem com `2` **por leitura** do
+  código; só "zero declarações" e "não é literal inteiro" foram vistas.
+- **Node 22.** Local é 24.19.0; o CI usa 22. O script só usa `node:` estável nas duas, e isso é
+  **suposto** até o log do CI da PR (tarefa 5.3).
+- **A suíte instrumentada**, pela razão da Parte I, §6: nenhum arquivo de `apps/android` fica mudado.
+
+## 13. O fechamento
+
+Ainda não rodado: é a tarefa 5. Esta seção recebe o build cheio depois das reversões, os passos
+locais do job `web`, e o CI da PR lido no destino.

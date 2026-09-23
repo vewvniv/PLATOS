@@ -244,19 +244,31 @@ protocolo da tarefa 1: linha `MUTACAO` acima, reversão rodada.
 
 ## 4. Registro
 
-- [ ] 4.1 **`docs/cobertura-versao-do-renderizador-conferida.md`, Parte II**: a primeira execução
+- [x] 4.1 **`docs/cobertura-versao-do-renderizador-conferida.md`, Parte II**: a primeira execução
   (2.3), o passo do CI rodado localmente (2.4), as cinco mutações de 3 com previsto e real, a
   reversão (3.3). E a seção do que **não** fica verificado, com, no mínimo: a frase inteira da
   decisão 11; que o passo do CI prova a comparação e não a leitura (decisão 6); a suíte instrumentada
   não rodada; e que `./gradlew build` não foi rodado localmente, com a razão (decisão 10). Verificar
   lendo: cada afirmação carrega o tipo — medido, conferido, herdado ou suposto (P6).
-- [ ] 4.2 **A nota onde o achado aponta** (P7: a frase original fica, marcada, com a medição ao lado):
+
+  **Feito**, §7 a §13 da cobertura. Um item da lista acima **mudou**, e fica dito: "`./gradlew build`
+  não foi rodado localmente" deixou de ser verdade com a atualização da decisão 10 — ele rodou na
+  linha de base e roda de novo na 5.1 —, então a seção do que não fica verificado não o traz; traz, no
+  lugar, o Node 22 como **suposto** até a 5.3 e as formas recusadas que não foram plantadas. Lido
+  item a item: cada afirmação diz se é medida (com hora), conferida por leitura ou `grep`, herdada ou
+  suposta. O §13, fechamento, fica dito como "ainda não rodado" até a tarefa 5.
+- [x] 4.2 **A nota onde o achado aponta** (P7: a frase original fica, marcada, com a medição ao lado):
   em `docs/auditoria-2026-09-18-antes-da-fatia-5.md` §4.4, ao lado de "nada os compara", e na 7.1 do
   plano, ao lado de "Os três valem `1` e nada os compara" — uma nota de 2026-09-23 que separa as duas
   direções e aponta para a Parte I da cobertura. **Só com o que 1.1–1.3 mediram**: se a medição
   divergiu da leitura, a nota diz o que foi medido, e não o que o `design.md` previa. Verificar:
   `git diff` dos dois arquivos só acrescenta linhas. Commit `docs(versao-do-renderizador-conferida):`
   com a cobertura e as duas notas.
+
+  **Feito, com o que 1.1–1.3 mediram** — que bateu com a leitura, e por isso a nota diz o mesmo que o
+  `design.md` previa. A da auditoria qualifica também "divergir entre eles não quebra teste nenhum",
+  a frase do `limiar` que o achado transpôs "palavra por palavra". `git diff --numstat`: auditoria
+  `9 0`, plano `6 0`.
 
 ## 5. Fechamento — o CI lido no destino
 
