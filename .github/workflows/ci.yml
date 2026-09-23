@@ -252,6 +252,43 @@ jobs:
           fi
           echo "a verificacao do fio acusou o contrato sem literal nos dois lados, e o piso, como deve"
 
+      # A versao do renderizador (D24) aparece em tres registros que nao se conhecem: o MIN que a
+      # publicacao escreve no mapa, e a versao de cada renderizador, Android e web. A direcao
+      # silenciosa e a pior: um renderizador que sobe a propria constante sem o mapa subir MIN faz
+      # cliente antigo desenhar mapa novo, e nenhum teste cai — medido, 14 de 14 no web e 308 de 308
+      # no Android (docs/cobertura-versao-do-renderizador-conferida.md). Mesma familia do limiar. A
+      # verificacao prova que os tres numeros concordam, e nao que estao certos.
+      - name: A versao do renderizador concorda nos tres registros
+        run: node tools/parity/renderizador.mjs
+
+      # Cada registro e forcado sozinho, um de cada vez: forcar so um provaria so esse, e uma
+      # comparacao que deixasse de incluir um dos tres passaria. O motivo e conferido — os dois pares
+      # que contem o registro forcado, e so eles —, e nao so o codigo de saida. Este passo prova a
+      # comparacao, e nao a leitura dos arquivos: essa foi vista falhar por mutacao na mudanca que o
+      # criou, e daqui em diante e protegida pela falha fechada (saida 2) do proprio script.
+      - name: A verificacao da versao do renderizador continua capaz de falhar
+        run: |
+          for forcado in dominio android web; do
+            codigo=0; saida="$(node tools/parity/renderizador.mjs --divergir "$forcado" 2>&1)" || codigo=$?
+            erro=""
+            if [ "$codigo" -ne 1 ]; then erro="saida $codigo, e nao 1"; fi
+            for par in "dominio android" "dominio web" "android web"; do
+              set -- $par
+              linha="os registros $1 e $2 discordam"
+              if [ "$1" = "$forcado" ] || [ "$2" = "$forcado" ]; then
+                grep -q "$linha" <<<"$saida" || erro="$erro; faltou '$linha'"
+              elif grep -q "$linha" <<<"$saida"; then
+                erro="$erro; sobrou '$linha'"
+              fi
+            done
+            if [ -n "$erro" ]; then
+              echo "$saida"
+              echo "::error::a verificacao da versao do renderizador, com $forcado forcado: ${erro#; }"
+              exit 1
+            fi
+          done
+          echo "a verificacao da versao do renderizador acusou cada registro forcado, e so os pares dele, como deve"
+
       # As tres fixtures derivadas da digitalizacao — o vetor de referencia e o recorte retificado
       # — sao geradas por ferramenta e versionadas. Nada as verificava: se a imagem e o vetor
       # deixassem de corresponder, os testes do OMR continuariam verdes comparando com uma
