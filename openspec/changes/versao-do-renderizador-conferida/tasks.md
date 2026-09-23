@@ -131,7 +131,7 @@ o real ao lado do previsto e decidir com o mantenedor se a mudança segue como e
 
 ## 2. Commit 1 — o conferidor e os dois passos do CI
 
-- [ ] 2.1 **Escrever `tools/parity/renderizador.mjs`** conforme as decisões 1 a 6 do `design.md`: a
+- [x] 2.1 **Escrever `tools/parity/renderizador.mjs`** conforme as decisões 1 a 6 do `design.md`: a
   tabela dos três registros no topo; a leitura pela declaração ancorada na linha, com o tipo opcional
   e sem o comentário de fim de linha; a falha fechada com `2` para arquivo ausente, zero ou mais de
   uma declaração, e valor que não seja literal inteiro; a comparação par a par na ordem
@@ -141,7 +141,16 @@ o real ao lado do previsto e decidir com o mantenedor se a mudança segue como e
   que ele **não** prova (decisão 11), uso. Verificar: `node --check tools/parity/renderizador.mjs`
   sai `0`, e o arquivo só importa de `node:`. **Não executá-lo ainda**: o primeiro contato com a
   árvore é o de 2.3.
-- [ ] 2.2 **Dois passos no `ci.yml`**, no job `web`, logo depois de "A verificacao do fio continua
+
+  **Feito.** `node --check` → `exit 0`. Três imports, todos de `node:` — `node:fs`, `node:path` e
+  `node:url`, os que a proposta listou. **Não executado nesta tarefa.** Dois detalhes que o `design.md`
+  não fixava e ficam ditos: a âncora de linha é `[ \t]*`, e não `\s*` — `\s` atravessa quebra de
+  linha e deixaria o `^` casar numa linha anterior; e **parâmetro desconhecido sai com `2`**, e não é
+  ignorado como em `limiar.mjs`: um `--divergi` digitado errado rodaria a conferência simples e
+  passaria, e o passo do CI leria o verde como "aceitou" — a decisão 6 diz "único parâmetro", e esta é
+  a forma de ele ser o único. Todas as linhas de valor vão para a saída padrão, e as de `::error::`
+  para a de erro, como `answer-kind.mjs`.
+- [x] 2.2 **Dois passos no `ci.yml`**, no job `web`, logo depois de "A verificacao do fio continua
   capaz de falhar" (decisão 7): um que confere; outro que, para cada chave em `dominio android web`,
   roda com `--divergir <chave>` e exige saída `1`, as duas linhas dos pares que contêm a chave e a
   ausência da linha do par que não a contém, imprimindo a saída só quando falha. Comentário no tom
@@ -149,14 +158,49 @@ o real ao lado do previsto e decidir com o mantenedor se a mudança segue como e
   certa entre os passos do fio e "As fixtures da digitalizacao estao em dia". Nenhuma outra linha do
   `ci.yml` muda — em particular, a `concurrency` (item 7.2.3, outra mudança): `git diff` do arquivo
   mostra só as linhas acrescentadas.
-- [ ] 2.3 **A primeira execução, sobre a árvore real, sem nada plantado.** `node tools/parity/renderizador.mjs`
+
+  **Feito.** `yaml.safe_load` do PyYAML leu o arquivo inteiro: no job `web`, "A versao do renderizador
+  concorda nos tres registros" é o passo 22 e "A verificacao da versao do renderizador continua capaz
+  de falhar" o 23, entre "A verificacao do fio continua capaz de falhar" (21) e "As fixtures da
+  digitalizacao estao em dia" (24). `git diff --stat` → **37 inserções, 0 remoções**; a `concurrency`
+  lida pelo mesmo `safe_load` continua `cancel-in-progress: True`, no nível do workflow.
+- [x] 2.3 **A primeira execução, sobre a árvore real, sem nada plantado.** `node tools/parity/renderizador.mjs`
   a partir da raiz **e** a partir de outro diretório (`tools/parity`), para provar que os caminhos
   não dependem de onde ele é chamado (decisão 1). Previsto: saída `0`, os três registros em `1`, com
   rótulo, e `os tres registros concordam`. Registrar a saída inteira, o código e a hora UTC. Qualquer
   outra coisa: parar (decisão 9).
-- [ ] 2.4 **O segundo passo do CI, rodado localmente com o texto exato do `ci.yml`**, no Git Bash —
+
+  **Real = previsto**, às `17:54:00Z`, dos dois diretórios, com a mesma saída e `exit 0`:
+
+  ```
+  dominio  LayoutMap.MIN_RENDERER_VERSION = 1  (o que a publicacao escreve no mapa)
+  android  RendererContract.RENDERER_VERSION = 1  (o que o renderizador e o gate de captura do aparelho leem)
+  web      RENDERER_VERSION de layoutMap.ts = 1  (o que o renderizador web le)
+
+  os tres registros concordam: versao 1
+  ```
+- [x] 2.4 **O segundo passo do CI, rodado localmente com o texto exato do `ci.yml`**, no Git Bash —
   extraído do arquivo, e não transcrito à mão. Previsto: termina com a linha "acusou … como deve" e
   saída `0`. Commit 1 (`parity:`), com `renderizador.mjs` e o `ci.yml`, e só eles.
+
+  **Real = previsto.** O `run` do passo foi extraído do `ci.yml` por `yaml.safe_load` (script no
+  scratchpad, que recusa nome ausente ou repetido) e rodado com `bash --noprofile --norc -eo
+  pipefail`, o shell do Actions: `17:54:06Z`, `exit 0`, "a verificacao da versao do renderizador
+  acusou cada registro forcado, e so os pares dele, como deve". As três saídas forçadas, uma a uma,
+  dão exatamente os dois pares do registro forçado, com `exit 1`.
+
+  **O passo também foi visto falhar, o que esta tarefa não pedia** (P9: a decisão 6 afirma que ele
+  pega um conferidor que deixou de comparar um registro, e isso é afirmação até ser visto). Defeito
+  plantado no próprio `renderizador.mjs`, marcado `MUTACAO`: o laço interno para em
+  `lidos.length - 1`, e a comparação deixa de incluir o `web`. Às `17:54:20Z`: o conferidor, sozinho,
+  **aceitou** `--divergir web` — `exit 0`, "os tres registros concordam" —, que é o defeito; e o passo
+  do CI **recusou**, `exit 1`: "com dominio forcado: faltou 'os registros dominio e web discordam'".
+  Revertido: `grep -c MUTACAO` no arquivo → `0`; às `17:54:31Z` o conferidor `exit 0` e o passo
+  `exit 0` de novo.
+
+  **Os parâmetros inválidos saem com `2`**: `--divergir` sem chave, `--divergir foo`, e `--divergi
+  web` ("parametro desconhecido"). Commit 1 com os dois arquivos, e só eles; este registro vai no
+  commit seguinte.
 
 ## 3. Ver falhar — o conferidor contra a árvore mutada
 
@@ -167,21 +211,36 @@ protocolo da tarefa 1: linha `MUTACAO` acima, reversão rodada.
 
 | Mutação no arquivo real | Previsto: saída | Previsto: linhas | **Real** |
 |---|---|---|---|
-| `dominio` `1` → `2` | `1` | `dominio e android` · `dominio e web` — e **não** `android e web` | |
-| `android` `1` → `2` | `1` | `dominio e android` · `android e web` — e **não** `dominio e web` | |
-| `web` `1` → `2` | `1` | `dominio e web` · `android e web` — e **não** `dominio e android` | |
-| `android` passa a `RENDERER_VERSION = LayoutMap.MIN_RENDERER_VERSION` (o dono único) | `2` | o registro `android`, o arquivo, e "não é literal inteiro" — e nenhuma linha de "discordam" | |
-| a declaração de `web` renomeada para `RENDERER_VERSAO` | `2` | o registro `web`, o arquivo, e "zero declarações" | |
+| `dominio` `1` → `2` | `1` | `dominio e android` · `dominio e web` — e **não** `android e web` | `1` · exatamente as duas, "dominio diz 2, android diz 1" e "dominio diz 2, web diz 1" |
+| `android` `1` → `2` | `1` | `dominio e android` · `android e web` — e **não** `dominio e web` | `1` · exatamente as duas |
+| `web` `1` → `2` | `1` | `dominio e web` · `android e web` — e **não** `dominio e android` | `1` · exatamente as duas |
+| `android` passa a `RENDERER_VERSION = LayoutMap.MIN_RENDERER_VERSION` (o dono único) | `2` | o registro `android`, o arquivo, e "não é literal inteiro" — e nenhuma linha de "discordam" | `2` · "nao consegui ler o registro android (RendererContract.RENDERER_VERSION) em apps/android/…/RendererContract.kt: o valor `LayoutMap.MIN_RENDERER_VERSION` nao e literal inteiro — um registro que referencia outro seria comparado com ele mesmo (…decisao 3)"; nenhuma de "discordam" |
+| a declaração de `web` renomeada para `RENDERER_VERSAO` | `2` | o registro `web`, o arquivo, e "zero declarações" | `2` · "nao consegui ler o registro web (RENDERER_VERSION de layoutMap.ts) em apps/web/src/layoutMap.ts: zero declaracoes de `RENDERER_VERSION` — a constante mudou de forma ou saiu daqui" |
 
-- [ ] 3.1 **As três divergências**, uma por registro: cada uma, `node tools/parity/renderizador.mjs`,
+- [x] 3.1 **As três divergências**, uma por registro: cada uma, `node tools/parity/renderizador.mjs`,
   e conferir a saída e as linhas contra a tabela, **linha a linha**. Reverter; `git diff --exit-code`
   do arquivo; o conferidor de novo, saída `0`. Preencher a coluna **Real**.
-- [ ] 3.2 **As duas falhas fechadas**: a referência ao domínio (decisão 3) e a declaração ausente
+
+  **Real = previsto nas três**, às `17:55:41Z`, cada uma com o `git diff -U0` mostrado antes da
+  execução (a linha `MUTACAO` acima, o valor trocado embaixo). Revertidas por `git checkout --` do
+  arquivo, depois de o diff mostrar que a mutação era a única mudança nele; `git diff --exit-code` →
+  `0` e o conferidor `exit 0` depois de cada uma. As mensagens saem sem acento, como as dos outros
+  conferidores; a tabela as cita como saíram.
+- [x] 3.2 **As duas falhas fechadas**: a referência ao domínio (decisão 3) e a declaração ausente
   (decisão 2). Mesmo protocolo. Preencher a coluna **Real**.
-- [ ] 3.3 **A reversão, conferida rodando** (P10, regra 0.7 do plano):
+
+  **Real = previsto nas duas**, às `17:55:49Z`: `exit 2`, a mensagem inteira na tabela, e nenhuma
+  linha de "discordam" — a leitura recusou antes de haver o que comparar. Mesma reversão e mesma
+  conferência.
+- [x] 3.3 **A reversão, conferida rodando** (P10, regra 0.7 do plano):
   `grep -rn "MUTACAO" --exclude-dir=build --exclude-dir=node_modules --exclude-dir=.gradle .` fora de
   `docs/` e `openspec/` sai vazio; `git diff --exit-code` nos três arquivos de registro sai `0`; e,
   **depois disso**, o conferidor sai `0` e o segundo passo do CI (2.4) termina verde.
+
+  **Feito, às `17:55:57Z`.** `grep` → `exit 1`, nada achado; `git diff --exit-code` nos três arquivos
+  → `0`; o conferidor → `exit 0`; o passo extraído do `ci.yml` → "acusou cada registro forcado, e so
+  os pares dele, como deve", `exit 0`. `git status` só mostra este `tasks.md`. O build cheio depois
+  da reversão é o da 5.1.
 
 ## 4. Registro
 
