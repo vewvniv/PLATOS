@@ -469,10 +469,14 @@ na linha editada: na prosa da célula, ou em `// MUTACAO` acima da linha no scri
   linhas lidas" e "…e os dois pisos, como deve". `MUTACAO` aparece em 0 arquivos não-prosa tocados pela
   branch, em 0 linhas de código (`tools`, `apps`, `packages`, `.github` e `buildSrc`), e em 0 linhas do
   §16, do `rigorous.md` e do `CLAUDE.md`. `git status` mostra só este `tasks.md`.
-- [ ] 10.2 **Publicar**: `git push` da branch, e a PR **empilhada**, com base
+- [x] 10.2 **Publicar**: `git push` da branch, e a PR **empilhada**, com base
   `vewvniv/o-apk-de-release-e-verificado` (PR #61), como as etapas anteriores (plano §2, "Como isso se
   traduz em sessões"). Verificar: a PR mostra só os commits desta mudança.
-- [ ] 10.3 **O CI da PR, lido no destino** (P26; é o comando cheio desta mudança). Verificar:
+
+  **Feito: PR #62**, com base `vewvniv/o-apk-de-release-e-verificado` e ponta `774a797`. Ela mostra
+  **10 commits**, exatamente os desta mudança, de `e0e58e2` a `774a797`. O CI disparou em
+  `pull_request` às `22:56:03Z`, na execução `35930997915`.
+- [x] 10.3 **O CI da PR, lido no destino** (P26; é o comando cheio desta mudança). Verificar:
   - os três jobs estão verdes no commit da ponta;
   - no log do `web`, aparecem a saída da guarda (a corrente `4b` e nenhuma vencida) e a linha final do
     passo "continua capaz de falhar";
@@ -480,6 +484,24 @@ na linha editada: na prosa da célula, ou em `// MUTACAO` acima da linha no scri
 
   Vermelho de CI se lê pelo log e pelo histórico do mesmo job antes de ser chamado de regressão
   (P15).
+
+  **Lido às `23:08Z`.** Execução `35930997915`, na ponta `774a797`, de `22:56:03Z` a `23:07:53Z`,
+  terminou em `success`. É a única execução da branch.
+  - **`web`** (`22:56:06Z`–`22:56:52Z`): Node `v22.23.2`, `shell: /usr/bin/bash -e {0}`. "O registro
+    de divida do par. 16 esta em dia", às `22:56:47Z`, com a mesma saída do local: "fatia corrente:
+    4b, de slice-4b-…", as 18 linhas nos mesmos estados, "vence nesta fatia (4b): nenhuma" e "nenhuma
+    linha vencida: 18 linhas lidas". "A verificacao da divida continua capaz de falhar", também às
+    `22:56:47Z`, imprimiu só a linha final, "…e os dois pisos, como deve", sem nenhum `::error::`,
+    porque a saída só é impressa quando o passo falha.
+  - **`build`** (`22:56:06Z`–`23:07:52Z`): `buildSrc` com 6 de 6 tasks. "Build e testes" com **183
+    tasks, 179 executadas e 4 `up-to-date`** (as do `generateJooq` do passo anterior, como na 7.1), e
+    `BUILD SUCCESSFUL`.
+  - **`paridade`** (`22:56:55Z`–`23:05:55Z`): "Finished 86 tests on test(AVD)". Os dois defeitos
+    deliberados foram acusados: "a paridade acusou a faixa ausente, como deve" e "as duas ferramentas
+    acusaram o deslocamento, como devem".
+
+  O commit de registro que traz esta leitura dispara um CI novo, e **esse** não está lido aqui: o que
+  se afirma é o CI de `774a797`.
 
 ## O archive (não são tarefas desta lista, e sim o que o `/opsx:archive` tem de fazer)
 

@@ -220,7 +220,8 @@ pela falha fechada da própria guarda. É a mesma divisão da 7.1.
   e só vence na guarda se alguém a declarar. A instrução do archive no `CLAUDE.md` é o que faz alguém
   olhar.
 - **Node 22.** O local é 24.19.0. O script usa só `node:` estável, e isso é **suposto** até o log do CI
-  da PR.
+  da PR. **Deixou de ser suposto às `23:08Z`:** a guarda rodou no `v22.23.2` do CI, com a saída
+  esperada (§13).
 - **`./gradlew build` não rodou localmente**, porque nenhuma entrada dele muda (§2). O `build` do CI da
   PR roda o Gradle inteiro, e é lido no destino.
 - **As falhas fechadas que não foram plantadas:** seção ausente, coluna ausente, número de colunas
@@ -245,6 +246,26 @@ pela falha fechada da própria guarda. É a mesma divisão da 7.1.
 **Local, depois de todas as reversões:** é a tarefa 10.1.
 
 **O CI da PR, lido no destino:** ainda não, é a tarefa 10.3.
+
+**Superado no mesmo dia (P7: as duas frases acima ficam, como o estado de quando foram escritas).**
+
+**Local**, às `22:55:13Z`–`22:55:14Z`, depois do último commit de código (`783f0c4`, `22:55:03Z`):
+
+| O quê | Desfecho |
+|---|---|
+| os dez passos dos conferidores do job `web`, extraídos do `ci.yml`, com `bash -e` | os dez `exit 0`. Os dois novos terminaram com "nenhuma linha vencida: 18 linhas lidas" e "…e os dois pisos, como deve" |
+| `MUTACAO` | 0 em arquivos não-prosa tocados pela branch, e 0 em código |
+
+**O CI da PR #62, lido às `23:08Z`.** Execução `35930997915`, na ponta `774a797`, de `22:56:03Z` a
+`23:07:53Z`, terminou em `success`, e é a única da branch:
+
+| Job | Janela | O que o log mostra |
+|---|---|---|
+| `web` | `22:56:06Z`–`22:56:52Z` | Node `v22.23.2`. Os dois passos novos às `22:56:47Z`, com a mesma saída do local, e `shell: /usr/bin/bash -e {0}` |
+| `build` | `22:56:06Z`–`23:07:52Z` | `buildSrc` com 6 de 6 tasks. `./gradlew build` com **179 de 183 executadas** (as 4 `up-to-date` são do `generateJooq` do passo anterior) |
+| `paridade` | `22:56:55Z`–`23:05:55Z` | "Finished 86 tests" no emulador. "a paridade acusou a faixa ausente, como deve", e "as duas ferramentas acusaram o deslocamento, como devem" |
+
+O commit que traz esta leitura dispara um CI novo, e **esse** não é afirmado aqui.
 
 ## 14. O quadro de fechamento (plano, §10)
 
