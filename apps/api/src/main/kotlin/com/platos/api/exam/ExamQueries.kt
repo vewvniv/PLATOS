@@ -3,8 +3,8 @@ package com.platos.api.exam
 import com.platos.api.db.generated.tables.references.EXAM
 import com.platos.api.db.generated.tables.references.EXAM_PACKAGE
 import com.platos.api.db.generated.tables.references.EXAM_ROSTER
-import com.platos.api.http.dto.ExamSummaryDto
-import com.platos.api.http.dto.RosterEntryDto
+import com.platos.domain.transport.ExamSummaryDto
+import com.platos.domain.transport.RosterEntryDto
 import org.jooq.DSLContext
 import java.util.UUID
 

@@ -191,6 +191,24 @@ jobs:
           fi
           echo "a verificacao do limiar acusou o numero fora do corredor, como deve"
 
+      # Mesma familia, outro valor: os quatro `answer_kind` vivem no dominio KMP e no `check` da
+      # migration. O ADR-0015 uniu as duas copias Kotlin e deixou o `check` de proposito — guarda de
+      # banco gerada por quem escreve as linhas nao e guarda. Divergir entre os dois nao quebra
+      # teste nenhum: o Kotlin compila, os testes de literal passam (eles afirmam o que o aparelho
+      # ENVIA, nao o que o banco ACEITA), e o desencontro so aparece como `violates check
+      # constraint` num INSERT em producao — depois de a folha ja ter sido corrigida.
+      - name: Os valores de answer_kind concordam com o check da migration
+        run: node tools/parity/answer-kind.mjs
+
+      - name: A verificacao de answer_kind continua capaz de falhar
+        run: |
+          if node tools/parity/answer-kind.mjs \
+               --esperado marcada,em_branco,multipla_marcacao,rasurada > /dev/null 2>&1; then
+            echo "::error::a verificacao de answer_kind aceitou 'rasurada', que o check nao admite"
+            exit 1
+          fi
+          echo "a verificacao de answer_kind acusou o valor que o check nao admite, como deve"
+
       # As tres fixtures derivadas da digitalizacao — o vetor de referencia e o recorte retificado
       # — sao geradas por ferramenta e versionadas. Nada as verificava: se a imagem e o vetor
       # deixassem de corresponder, os testes do OMR continuariam verdes comparando com uma

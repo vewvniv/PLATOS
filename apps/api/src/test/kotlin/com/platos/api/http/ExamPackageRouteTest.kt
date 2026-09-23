@@ -1,10 +1,10 @@
 package com.platos.api.http
 
-import com.platos.api.http.dto.ExamSummaryDto
 import com.platos.api.module
 import com.platos.api.support.JwtTestFixture
 import com.platos.api.support.PostgresSupport
 import com.platos.api.support.TestDependencies
+import com.platos.domain.transport.ExamSummaryDto
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
