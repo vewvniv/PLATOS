@@ -202,6 +202,13 @@ o real ao lado do previsto e decidir com o mantenedor se a mudança segue como e
   web` ("parametro desconhecido"). Commit 1 com os dois arquivos, e só eles; este registro vai no
   commit seguinte.
 
+  **Correção de 2026-09-23, `18:32Z`, lida no log do CI da PR #60 (P7: a frase acima fica).** "`bash
+  --noprofile --norc -eo pipefail`, o shell do Actions" está **errado**: o log do job `web` diz
+  `shell: /usr/bin/bash -e {0}` — sem `shell:` explícito, o Actions não liga `pipefail`. O local
+  rodou mais estrito que o CI. Nenhum dos oito passos tem pipeline, então o desfecho não dependia
+  disso; e, para o registro dizer o exato em vez do equivalente, os oito foram rodados de novo com
+  `bash -e`, `18:32:00Z`–`18:32:03Z`: os oito `exit 0`, as mesmas últimas linhas.
+
 ## 3. Ver falhar — o conferidor contra a árvore mutada
 
 A tarefa de verificação do plano, copiada como está (ETAPA 7, "Ver falhar"): *"plantar a divergência
@@ -290,11 +297,41 @@ protocolo da tarefa 1: linha `MUTACAO` acima, reversão rodada.
   posteriores à última reversão (`17:55:49Z`). E, por ser o primeiro passo do job `build` do CI, que
   o `build` não alcança: `./gradlew -p buildSrc test --rerun-tasks`, `18:00:08Z`–`18:00:35Z`, `exit
   0`, 6 de 6 tasks, **1 suíte, 1 teste, 0 falhas**, XML `18:00:29Z`.
-- [ ] 5.2 **Publicar**: `git push` da branch e a PR **empilhada**, com base
+
+  **Correção de 2026-09-23, `18:32Z`, lida no log do CI da PR #60 (P7: a frase acima fica).** "`bash
+  --noprofile --norc -eo pipefail`, o shell do Actions" está **errado**: o log do job `web` diz
+  `shell: /usr/bin/bash -e {0}` — sem `shell:` explícito, o Actions não liga `pipefail`. O local
+  rodou mais estrito que o CI. Nenhum dos oito passos tem pipeline, então o desfecho não dependia
+  disso; e, para o registro dizer o exato em vez do equivalente, os oito foram rodados de novo com
+  `bash -e`, `18:32:00Z`–`18:32:03Z`: os oito `exit 0`, as mesmas últimas linhas.
+- [x] 5.2 **Publicar**: `git push` da branch e a PR **empilhada**, com base
   `vewvniv/o-fio-preso-nos-dois-lados` (PR #59), no molde das anteriores da banda. **Perguntar ao
   mantenedor antes do push** — é ação para fora da máquina.
-- [ ] 5.3 **O CI da PR, lido no destino** (P26; o comando cheio desta mudança, decisão 10): os três
+
+  **Perguntado e autorizado** ("Push e PR"), depois da 5.1 — a carta branca de ambiente não cobria
+  publicar. `git push -u origin vewvniv/versao-do-renderizador-conferida` → `exit 0`, branch nova no
+  remoto; `gh pr create` → **PR #60**. Conferido no destino: base `vewvniv/o-fio-preso-nos-dois-lados`,
+  ponta `0e8f613`, igual ao `HEAD` local, 7 commits. **Nenhum push depois disso até o CI terminar**: a
+  `concurrency` ainda é `cancel-in-progress: true` no nível do workflow (o item 7.2.3, de outra
+  mudança), e um push novo cancelaria a execução em curso, paridade incluída — o incidente de P15.
+- [x] 5.3 **O CI da PR, lido no destino** (P26; o comando cheio desta mudança, decisão 10): os três
   jobs (`build`, `web`, `paridade`) verdes **no commit da ponta da branch**, e no log do job `web` a
   saída dos dois passos novos — os três `1`, `os tres registros concordam`, e a linha "acusou … como
   deve". Registrar o número da execução e as horas na cobertura, e o quadro do §10 do plano
   preenchido, item a item, com o que não se aplica dito como tal. Commit `registro:`.
+
+  **Lido no destino.** Execução `35902874603`, evento `pull_request`, `headSha` `0e8f613` — a ponta
+  da branch, igual ao `HEAD` local —, `18:29:55Z`–`18:37:48Z`, `conclusion: success`, e é a única
+  execução da branch. Os três jobs `success`: `web` `18:29:59Z`–`18:30:45Z`; `build`
+  `18:29:59Z`–`18:37:47Z`; `paridade` `18:30:49Z`–`18:37:46Z`. No log do `web`, Node `v22.23.2`, e às
+  `18:30:40Z` os dois passos novos: os três registros em `1`, "os tres registros concordam: versao
+  1", e "a verificacao da versao do renderizador acusou cada registro forcado, e so os pares dele,
+  como deve" — com `shell: /usr/bin/bash -e {0}`, o que corrigiu o registro local (nota acima, 2.4 e
+  5.1). No `build`: o teste do `buildSrc` (6 de 6 tasks), o `generateJooq`, e o `./gradlew build` com
+  **172 de 176 tasks executadas** (as 4 restantes, `up-to-date`, vêm do `generateJooq` do passo
+  anterior). Na `paridade`: `connectedDebugAndroidTest` com "Finished 86 tests" no emulador, e os dois
+  passos que acusam defeito deliberado ("a paridade acusou a faixa ausente", "as duas ferramentas
+  acusaram o deslocamento"). O quadro do §10 está na cobertura, §14.
+
+  **Os commits de registro que vêm depois deste** (este, e o do archive) só tocam `docs/` e
+  `openspec/`; o CI deles é lido também, mas a leitura que fecha o código é esta, sobre `0e8f613`.

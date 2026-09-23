@@ -199,6 +199,8 @@ passo pega um conferidor que deixou de comparar um dos registros. Defeito planta
 
 Revertido e conferido rodando às `17:54:31Z`: o conferidor e o passo, `exit 0`.
 
+> **Correção de 2026-09-23, `18:32Z`, lida no log do CI da PR #60 (P7: a frase acima fica).** "`bash --noprofile --norc -eo pipefail`, o shell do Actions" está **errado**: o log do job `web` diz `shell: /usr/bin/bash -e {0}` — sem `shell:` explícito, o Actions não liga `pipefail`. O local rodou mais estrito que o CI. Nenhum dos oito passos tem pipeline, então o desfecho não dependia disso; e, para o registro dizer o exato em vez do equivalente, os oito foram rodados de novo com `bash -e`, `18:32:00Z`–`18:32:03Z`: os oito `exit 0`, as mesmas últimas linhas.
+
 **Os parâmetros inválidos saem com `2`:** `--divergir` sem chave, `--divergir foo`, e `--divergi web`
 ("parametro desconhecido"). O último é de propósito: ignorado, ele rodaria a conferência simples e
 passaria.
@@ -262,4 +264,42 @@ fechamento (§13).
 Contagens pelo `timestamp` de dentro de cada XML. **Delta para a linha de base: zero**, módulo a
 módulo — nenhuma entrada do Gradle nem do Vitest mudou, e a árvore voltou ao que era.
 
+> **Correção de 2026-09-23, `18:32Z`, lida no log do CI da PR #60 (P7: a frase acima fica).** "`bash --noprofile --norc -eo pipefail`, o shell do Actions" está **errado**: o log do job `web` diz `shell: /usr/bin/bash -e {0}` — sem `shell:` explícito, o Actions não liga `pipefail`. O local rodou mais estrito que o CI. Nenhum dos oito passos tem pipeline, então o desfecho não dependia disso; e, para o registro dizer o exato em vez do equivalente, os oito foram rodados de novo com `bash -e`, `18:32:00Z`–`18:32:03Z`: os oito `exit 0`, as mesmas últimas linhas.
+
 **O CI da PR, lido no destino:** ainda não — é a tarefa 5.3.
+
+**Lido, às `18:38Z`.** PR #60, execução `35902874603`, `headSha` `0e8f613` — a ponta da branch —,
+`18:29:55Z`–`18:37:48Z`, `success`, a única da branch:
+
+| Job | Janela | O que o log mostra |
+|---|---|---|
+| `web` | `18:29:59Z`–`18:30:45Z` | Node `v22.23.2`; os dois passos novos às `18:30:40Z`, com a mesma saída do local; `shell: /usr/bin/bash -e {0}` |
+| `build` | `18:29:59Z`–`18:37:47Z` | `buildSrc` 6/6 tasks; `./gradlew build` **172 de 176 executadas** (as 4 `up-to-date` são do `generateJooq` do passo anterior) |
+| `paridade` | `18:30:49Z`–`18:37:46Z` | `connectedDebugAndroidTest`, "Finished 86 tests" no emulador; "a paridade acusou a faixa ausente, como deve"; "as duas ferramentas acusaram o deslocamento, como devem" |
+
+**O Node 22 do §12 deixa de ser suposto:** o conferidor rodou nele, com a saída esperada.
+
+## 14. O quadro de fechamento (plano, §10)
+
+- **O comando cheio, e o exato (P5).** Local: `./gradlew build --continue --rerun-tasks` na linha de
+  base e depois de todas as reversões, `./gradlew -p buildSrc test --rerun-tasks`, `npm test` em
+  `apps/web`, e os oito passos dos conferidores do job `web` extraídos do `ci.yml`. No destino: os
+  três jobs do CI da PR, inclusive `connectedDebugAndroidTest` na `paridade`, que esta etapa não pede
+  localmente porque nenhum arquivo de `apps/android` fica mudado.
+- **O `timestamp` e as tasks executadas (P2, P3).** §1, §13, e a Parte I §2 e §4: toda contagem pelo
+  `timestamp` de dentro dos XML; 176 de 176 tasks nas duas execuções cheias locais, 172 de 176 no CI.
+- **O sinal, e o passo que ele atravessa (P2).** O conferidor lê as três declarações **do arquivo de
+  origem**, e é o arquivo que as cinco mutações do §10 mudaram — o sinal atravessa leitura e
+  comparação. O passo "continua capaz de falhar" atravessa só a comparação (§12).
+- **O oráculo, e por que é independente (P4).** Um script Node que lê texto de fonte e não importa
+  nem executa nada do Kotlin nem do TypeScript que julga; o precedente é `limiar.mjs`.
+- **A mutação e o conjunto que caiu, contra o previsto (P9).** Parte I §2 (três mutações e dois
+  canários contra as suítes) e Parte II §10 (cinco mutações contra o conferidor) e §9 (o passo do CI,
+  visto falhar): real = previsto em todas.
+- **`MUTACAO` fora de `build/` em 0, e a reversão rodada (P10).** §11 e §13: `grep` vazio, `git diff
+  --exit-code` nos três registros em `0`, e o build cheio **depois** da última reversão com delta zero.
+- **O que ficou sem verificação automática (P8).** Parte I §6 e Parte II §12.
+- **Número ou hash que mudou (P3, P23).** Nenhum. Nenhum registro, fixture, golden ou hash foi
+  tocado; paridade e fidelidade não precisaram fechar nesta sessão, e fecharam assim mesmo no CI.
+- **A reconciliação do §16 (P27).** Não se aplica: é exigência a partir da ETAPA 8, e esta mudança
+  não toca linha do §16.
