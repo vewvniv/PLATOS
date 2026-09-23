@@ -209,6 +209,49 @@ jobs:
           fi
           echo "a verificacao de answer_kind acusou o valor que o check nao admite, como deve"
 
+      # O contrato de transporte tem um declarante (ADR-0015), e o que prende o nome de um campo e
+      # um JSON com esse nome digitado nos DOIS lados. Teste que desserializa o corpo com o proprio
+      # tipo nao prende nada: a rota escreve "nome", o teste le "nome", e o verde continua. Foi
+      # assim que organizacao e prova ficaram presas so do lado do aparelho, e so a mutacao mostrou
+      # (docs/cobertura-o-fio-preso-nos-dois-lados.md). A guarda le todo tipo @Serializable de
+      # com.platos.domain.transport da fonte e reprova o que nao tem literal nos dois lados — antes
+      # de a fatia 5 escrever o primeiro. Ela prova que o literal existe, e nao que ele prende o
+      # fio: isso so a mutacao de @SerialName prova.
+      - name: O fio de cada contrato esta preso nos dois lados
+        run: node tools/parity/fio.mjs
+
+      # Os dois defeitos sao plantados FORA do checkout: um contrato a mais, sem literal em lado
+      # nenhum, numa copia temporaria de transport/; e um diretorio vazio. O motivo e conferido, e
+      # nao so o codigo de saida — recusar pelo motivo errado seria a camada vizinha segurando.
+      - name: A verificacao do fio continua capaz de falhar
+        run: |
+          fantasma="$(mktemp -d)"
+          cp -r packages/domain/src/commonMain/kotlin/com/platos/domain/transport/. "$fantasma/"
+          printf '%s\n' \
+            'package com.platos.domain.transport' '' \
+            'import kotlinx.serialization.SerialName' \
+            'import kotlinx.serialization.Serializable' '' \
+            '@Serializable' \
+            'data class FantasmaDto(@SerialName("campo_fantasma") val campoFantasma: String)' \
+            > "$fantasma/FantasmaDto.kt"
+          codigo=0; saida="$(node tools/parity/fio.mjs --transport "$fantasma" 2>&1)" || codigo=$?
+          for lado in servidor aparelho; do
+            if [ "$codigo" -ne 1 ] \
+               || ! grep -q "FantasmaDto (.*) nao tem literal escrito a mao do lado do $lado" <<<"$saida"; then
+              echo "$saida"
+              echo "::error::a verificacao do fio nao acusou o contrato sem literal do lado do $lado (saida $codigo)"
+              exit 1
+            fi
+          done
+          vazio="$(mktemp -d)"
+          codigo=0; saida="$(node tools/parity/fio.mjs --transport "$vazio" 2>&1)" || codigo=$?
+          if [ "$codigo" -ne 2 ] || ! grep -q "piso:" <<<"$saida"; then
+            echo "$saida"
+            echo "::error::a verificacao do fio aceitou uma raiz de contratos vazia (saida $codigo)"
+            exit 1
+          fi
+          echo "a verificacao do fio acusou o contrato sem literal nos dois lados, e o piso, como deve"
+
       # As tres fixtures derivadas da digitalizacao — o vetor de referencia e o recorte retificado
       # — sao geradas por ferramenta e versionadas. Nada as verificava: se a imagem e o vetor
       # deixassem de corresponder, os testes do OMR continuariam verdes comparando com uma

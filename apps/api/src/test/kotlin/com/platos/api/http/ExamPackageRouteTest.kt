@@ -102,6 +102,35 @@ class ExamPackageRouteTest {
         assertFalse(resposta.bodyAsText().contains("Prova Secreta"))
     }
 
+    /**
+     * A listagem, por **igualdade exata** contra JSON escrito a mao — pelo argumento do cenario do
+     * roster, abaixo, que vale aqui igual.
+     *
+     * Os cenarios de listagem acima leem o corpo com o proprio `ExamSummaryDto`, o tipo que a rota
+     * usa para escreve-lo: renomear `title` no dominio continuaria verde neles, e foi medido
+     * (`docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte I). Este literal e a metade do servidor
+     * do par que `ApiPlatosPacoteTest` prende no aparelho, com os mesmos valores. O hash vem de
+     * `MessageDigest`, como no primeiro cenario da listagem. O objeto fica numa string so:
+     * `tools/parity/fio.mjs` so conta as chaves que estao juntas.
+     */
+    @Test
+    fun `a listagem tem os nomes de campo que o aparelho le, sem envelope e sem campo a mais`() = comApp { client ->
+        val (userId, organizationId) = professorComOrganizacao(client)
+        val exame = PostgresSupport.createExam(organizationId, "mat-7a-2026-1", "Prova de Matematica", userId)
+        val hash = PostgresSupport.sha256Hex(CONTEUDO)
+        PostgresSupport.publishPackage(organizationId, exame, CONTEUDO)
+
+        val resposta = client.get("/organizations/$organizationId/exams") {
+            header(HttpHeaders.Authorization, "Bearer ${JwtTestFixture.token(SUB, EMAIL, NOME)}")
+        }
+
+        assertEquals(HttpStatusCode.OK, resposta.status)
+        assertEquals(
+            """[{"short_id":"mat-7a-2026-1","title":"Prova de Matematica","content_hash":"$hash"}]""",
+            resposta.bodyAsText(),
+        )
+    }
+
     // ------------------------------------------------------------------ entrega
 
     /**

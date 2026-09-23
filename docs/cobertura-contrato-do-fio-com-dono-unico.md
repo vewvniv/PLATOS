@@ -248,6 +248,9 @@ cada XML**, que é UTC e descreve a execução que o escreveu — não a hora em
   > aparelho (6 cenários em `ApiPlatosTest`, 1 em `ApiPlatosPacoteTest`), com `MeOrganizationsTest` e
   > `ExamPackageRouteTest` rodando verdes na janela; em `display_name`, caíram os dois lados. Real =
   > previsto nas três: `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte I.
+  >
+  > **Corrigido no mesmo dia:** com os literais novos do servidor, as três mutações derrubam os dois
+  > lados — `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte II.
 - **`packages/domain` compila os DTOs também para o alvo `js`, que não os consome.** Isso não foi
   medido como custo; é observação de desenho.
 - **Os quatro arquivos do aparelho continuam com nome de DTO sem declarar DTO nenhum**
@@ -267,3 +270,6 @@ por escrito.
 > **Corrigido em 2026-09-23 (P7):** "nada desta etapa" deixou de ser verdade. A correção do §8 —
 > dois dos quatro contratos sem literal do lado do servidor — virou a **7.3** do plano, mudança
 > `o-fio-preso-nos-dois-lados`, que corre antes da 7.1 e bloqueia a fatia 5.
+> **Feita em 2026-09-23** — o archive e a leitura do CI da PR ainda pendentes:
+> `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte II. O CI da PR (#59) foi lido no mesmo dia,
+> verde nos três jobs; falta o archive.

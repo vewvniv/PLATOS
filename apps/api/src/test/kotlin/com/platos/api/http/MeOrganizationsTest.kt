@@ -100,6 +100,35 @@ class MeOrganizationsTest {
         )
     }
 
+    /**
+     * O corpo, por **igualdade exata** contra JSON escrito a mao, e nao por desserializar.
+     *
+     * Os cenarios acima leem o corpo com o proprio `OrganizationDto` — o mesmo tipo que a rota usa
+     * para escreve-lo. Renomear um campo no dominio continuaria verde neles: a rota escreveria
+     * `"nome"`, o teste leria `"nome"`, e `"Nova Professora"` seguiria afirmado. Foi medido
+     * (`docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte I). A igualdade literal prende nome de
+     * campo, ordem das chaves e ausencia de campo a mais, como o cenario do roster em
+     * `ExamPackageRouteTest`.
+     *
+     * E a metade do servidor do par que `ApiPlatosTest` prende no aparelho, com os mesmos valores: os
+     * dois literais precisam concordar, e e por isso que os dois sao **literais**. O `id` vem do banco
+     * por SQL cru — e valor, nao nome de campo. O objeto fica numa string so: `tools/parity/fio.mjs`
+     * so conta as chaves que estao juntas.
+     */
+    @Test
+    fun `o corpo tem os nomes de campo que o aparelho le`() = comApp { client ->
+        val resposta = client.get("/me/organizations") {
+            header(HttpHeaders.Authorization, "Bearer ${JwtTestFixture.token("sub-fio", "fio@escola.br", "Nova Professora")}")
+        }
+        val id = idDaOrganizacaoPessoal("sub-fio")
+
+        assertEquals(HttpStatusCode.OK, resposta.status)
+        assertEquals(
+            """[{"id":"$id","name":"Nova Professora","kind":"personal","role":"owner"}]""",
+            resposta.bodyAsText(),
+        )
+    }
+
     private suspend fun HttpClient.organizacoesDe(
         subject: String,
         email: String,
