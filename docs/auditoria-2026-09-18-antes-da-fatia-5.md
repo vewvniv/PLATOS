@@ -513,6 +513,15 @@ alcance dele, e que **ninguém mediu**. Custa um `dataExtractionRules` e uma con
 Os três valem `1`, e **nada os compara**. A KDoc do Android diz "Espelha `RENDERER_VERSION` do lado
 web" — afirmação sem quem a imponha.
 
+> **Nota de 2026-09-23, medida na ETAPA 7.1 — a frase acima fica, e esta a qualifica (P7).** "Nada os
+> compara" e, logo abaixo, "divergir entre eles não quebra teste nenhum" valem **numa direção só** —
+> a que este achado chama de pior. Com um renderizador subindo sozinho para `2`, as suítes que o leem
+> passam inteiras: 14 de 14 no web, 308 de 308 no Android. Com `MIN` subindo sozinho, caem dois
+> testes, exatamente os que a leitura apontou: `LayoutEngineTest` › `mapa declara as duas versoes` (o
+> pino em `1`) e `RendererContractTest` › `renderizador compativel aceita o mapa` (o `<=`). A
+> severidade não muda, porque a direção já pega é a ruidosa. Medição, canários e reversões em
+> `docs/cobertura-versao-do-renderizador-conferida.md`, Parte I.
+
 O que torna isto um achado, e não uma observação, é que **esta base já reconheceu e resolveu esta
 exata forma de defeito** para o limiar do OMR. O `ci.yml` diz, sobre `tools/parity/limiar.mjs`:
 

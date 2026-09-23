@@ -701,6 +701,12 @@ foi neutra no fio — e a âncora é o artefato daquela sessão (P3).
 `RENDERER_VERSION` em `apps/web/src/layoutMap.ts:124`. Os três valem `1` e nada os compara. A KDoc do
 Android diz "Espelha `RENDERER_VERSION` do lado web" — afirmação sem quem a imponha.
 
+> **Nota de 2026-09-23, da medição de entrada da 7.1 — a frase acima fica (P7).** "Nada os compara"
+> vale só na direção silenciosa: um renderizador subindo sozinho não derruba teste nenhum (14 de 14
+> no web, 308 de 308 no Android), e `MIN` subindo sozinho derruba dois (`LayoutEngineTest` e
+> `RendererContractTest`). A solução abaixo não muda, porque é a direção silenciosa que ela fecha
+> sozinha. `docs/cobertura-versao-do-renderizador-conferida.md`, Parte I.
+
 **A solução já existe nesta árvore e não se inventa nada.** `tools/parity/limiar.mjs` foi escrito
 para exatamente esta forma de defeito, e o comentário dele no `ci.yml` descreve o caso palavra por
 palavra: *"aparece em três registros que não se conhecem … Divergir entre eles não quebra teste
