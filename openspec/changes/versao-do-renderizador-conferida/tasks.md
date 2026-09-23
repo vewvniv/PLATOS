@@ -2,15 +2,19 @@
 
 - [ ] 0.1 **Nada a ligar, e isso fica conferido** (P22, regra 0.9 do plano). Esta mudança não pede
   Docker nem emulador (`design.md`, decisões 8 e 10): se alguma tarefa abaixo passar a pedir, parar e
-  perguntar ao mantenedor antes, inclusive em modo automático. Verificar e registrar aqui: a branch é
+  perguntar ao mantenedor antes, inclusive em modo automático. **Atualização de 2026-09-23:** o
+  mantenedor ligou o Docker para o build cheio local (decisão 10) e deu carta branca de ambiente
+  para esta etapa; registrar `docker info`. Verificar e registrar aqui: a branch é
   `vewvniv/versao-do-renderizador-conferida`, criada sobre `5dfeaaa`; `git status` limpo;
   `node --version` (o local é 24, o CI é 22 — decisão 10).
 - [ ] 0.2 **A linha de base desta sessão** (P3): sem ela, uma queda sob mutação não teria a quem ser
   atribuída. Dois comandos, e os dois inteiros:
   - `npm test` em `apps/web` — registrar o `Start at` do Vitest, arquivos, testes e falhas;
-  - `./gradlew :apps:android:testDebugUnitTest :packages:domain:jvmTest --rerun-tasks` — registrar
-    tasks executadas e, pelo atributo `timestamp` de **dentro** de cada `TEST-*.xml` (e não pela data
-    do arquivo), suítes, testes, falhas, erros e pulados de cada módulo.
+  - ~~`./gradlew :apps:android:testDebugUnitTest :packages:domain:jvmTest --rerun-tasks`~~ →
+    **`./gradlew build --continue --rerun-tasks`**, que contém os dois (atualização de 2026-09-23,
+    `design.md` decisão 10: o mantenedor ligou o Docker) — registrar tasks executadas e, pelo
+    atributo `timestamp` de **dentro** de cada `TEST-*.xml` (e não pela data do arquivo), suítes,
+    testes, falhas, erros e pulados de cada módulo.
 
   Verificar: 0 falhas nos dois. `apps/android` tem de dar **308**, como na linha de base da 7.3
   (`openspec/changes/archive/2026-09-23-o-fio-preso-nos-dois-lados/tasks.md`, 0.2): nenhum arquivo
@@ -132,7 +136,10 @@ protocolo da tarefa 1: linha `MUTACAO` acima, reversão rodada.
 - [ ] 5.1 **Os passos locais do job `web` que não dependem de artefato de build**, com o texto exato
   do `ci.yml`, no Git Bash: os quatro conferidores (`limiar`, `answer-kind`, `fio`, `renderizador`) e
   os quatro "continua capaz de falhar". Verificar: os oito verdes, com a hora UTC. Os três primeiros
-  não mudaram, e rodá-los prova que o passo novo não quebrou o vizinho no mesmo job.
+  não mudaram, e rodá-los prova que o passo novo não quebrou o vizinho no mesmo job. **E, depois da
+  reversão de todas as mutações, `./gradlew build --continue --rerun-tasks` e `npm test` em
+  `apps/web`** (atualização de 2026-09-23, `design.md` decisão 10; regra 0.7 do plano): as mesmas
+  contagens da linha de base 0.2, com `timestamp` posterior ao da última reversão.
 - [ ] 5.2 **Publicar**: `git push` da branch e a PR **empilhada**, com base
   `vewvniv/o-fio-preso-nos-dois-lados` (PR #59), no molde das anteriores da banda. **Perguntar ao
   mantenedor antes do push** — é ação para fora da máquina.

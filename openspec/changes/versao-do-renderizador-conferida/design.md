@@ -234,6 +234,16 @@ documentos. Então:
 - **`./gradlew build` não é rodado localmente**, porque nenhuma entrada dele muda e porque ele pede
   Docker para os testes de rota. Se o mantenedor quiser, é pergunta antes de ligar (P22).
 
+> **Atualização de 2026-09-23, antes da tarefa 0, e o item acima fica como foi escrito (P7).** A
+> pergunta foi feita na apresentação da proposta, e o mantenedor respondeu: ligou o Docker e deu
+> carta branca de ambiente para esta etapa. Então **`./gradlew build --continue --rerun-tasks` roda
+> localmente duas vezes**: na linha de base (tarefa 0.2), onde substitui os dois comandos estreitos,
+> porque é o conjunto deles e mais; e no fechamento (tarefa 5.1), **depois** da reversão de todas as
+> mutações, que é o que a regra 0.7 do plano exige — "a suíte rodada **depois** da reversão". A razão
+> original continua certa: nenhuma entrada do Gradle muda nesta mudança. O que o build cheio acrescenta
+> é a prova de que a árvore voltou, e não uma verificação do conferidor. O CI da PR continua sendo o
+> comando cheio **em Linux** e é lido no destino (tarefa 5.3).
+
 ### 11. O limite que não pode faltar no registro
 
 Vai inteiro para a seção do que não fica verificado:
