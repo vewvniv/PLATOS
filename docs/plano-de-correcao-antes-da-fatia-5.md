@@ -224,6 +224,19 @@ de commits diretos mais sete mudanças —, e nenhuma delas começa antes de a a
 > apagá-la deixaria o leitor sem o argumento que a derrubou — que é justamente o que faz a segunda
 > ser a certa (P7).
 
+> **Nota de 2026-09-24, ao abrir a fatia 5 — a frase "o GitHub re-aponta o seguinte para `main`
+> sozinho" fica (P7), e estava errada.** Nada foi re-apontado. As ETAPAs 1 a 5 entraram em `main`
+> porque os PRs delas (#52 a #56) tinham `main` como base. A #58, da ETAPA 6, tinha como base
+> `vewvniv/o-pendente-nao-se-perde-no-aparelho`, e foi mergeada **nessa branch** em 2026-09-23 às
+> 17:31Z, quando ela já tinha ido para `main` pela #56 em 2026-09-19. Daí em diante, #59 a #62
+> entraram cada uma na branch da etapa anterior, e `main` ficou em `26789c3` (o merge da #56), 57
+> commits atrás da ponta da pilha (`81358fb`, o merge da #62). Conferido em 2026-09-24 por
+> `git rev-list` e pela base de cada PR no `gh`. Pela documentação do GitHub — e isto é **lido, não
+> medido** —, o re-apontamento só acontece quando a branch-base é apagada no merge, e o repositório
+> tem `delete_branch_on_merge: false` (conferido pela API na mesma data). A frase foi escrita como
+> fato sem ter sido conferida, e por isso ninguém percebeu que as ETAPAs 6 a 8 não estavam em `main`
+> (P6). A pilha foi levada a `main` por um PR próprio, aberto na mesma data.
+
 ---
 
 ## ETAPA 1 — Selar o registro
