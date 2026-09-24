@@ -682,3 +682,18 @@ inteira, e ela não terminou. A guarda as reprova quando a 6 abrir. A linha `5b`
 guarda a reprova quando a 5c abrir. As specs principais de `layout-engine` e `exam-package` receberam
 os 6 requisitos substituídos e os 3 novos, conferidos bloco a bloco contra os deltas. Os não tocados
 ficaram iguais a `HEAD`, e `openspec validate --specs --strict` passou nas 11.
+
+## Achado depois do archive: o servidor e os pacotes antigos
+
+**Achado em 2026-09-24, depois do merge da PR #66, e não visto durante a mudança.** A 5a conferiu que o
+**aparelho** recusa o pacote de antes da discursiva (4.4). **Não** conferiu o que o **servidor** faz
+com ele. A rota de resultados lê o `content` gravado com o tipo do domínio (`conferirProveniencia`,
+`ProvenienciaDoResultado.kt:64`), e os dois pacotes em produção não têm `qr_id`, agora obrigatório.
+
+- **A falha de leitura é medida:** é o mesmo `ExamPackage.JSON` da 4.4.
+- **O HTTP 500 é por leitura:** a rota não trata a exceção.
+
+Implantar a imagem com a 5a faria um resultado pendente dessas provas, vindo de um aparelho com build
+antigo, receber 500 e reenviar sem fim. **Não é mitigado, é conhecido** (P8). Foi registrado no §16,
+com o evento `antes-de:implantar-api-da-5a`, por decisão do mantenedor. A guarda o lê como "aguarda
+evento", e com `--ocorrido implantar-api-da-5a` sai com `1`, nomeando só essa linha.
