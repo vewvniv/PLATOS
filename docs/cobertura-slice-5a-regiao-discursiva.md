@@ -349,3 +349,30 @@ regravação.
 
 **P23 fica aberta até a 6.2:** paridade e fidelidade destas goldens, com os PDFs dos dois lados
 gerados **nesta** sessão.
+
+**4.4 — a quebra aceita é real e alta.** Dois cenários novos em `ConferenciaDePacoteTest`, no mesmo par
+da ETAPA 3:
+- `pacote-antes-da-discursiva.json` com o hash **dele** é recusado por `INTERPRETACAO`. O cenário
+  afirma também que esse hash é o `277d2f8c…` do dia do congelamento;
+- os mesmos bytes com o hash **atual** caem por `INTEGRIDADE`.
+
+`./gradlew :apps:android:testDebugUnitTest --tests "…ConferenciaDePacoteTest"`: 22 de 22, relatório
+de 2026-09-24T11:43:56Z.
+
+**Um efeito da 5a sobre um cenário antigo, anotado.** O pacote da ETAPA 3
+(`pacote-do-contrato-anterior.json`) era recusado pela **reserialização**: `params_hash:null` injetado
+mudava os bytes. Agora ele é recusado antes, no **parse**, porque falta `qr_id`, que é obrigatório. O
+motivo continua `INTERPRETACAO` e o cenário continua verde, mas ele deixou de exercitar o ramo da
+reserialização. Esse ramo segue coberto por "campo com valor padrão omitido" e "ordem de campo
+trocada", como a mutação abaixo mostra.
+
+**Vista falhar:** o ramo do parse passa a devolver `INTEGRIDADE` em vez de `INTERPRETACAO`.
+- **Previsto na tarefa:** "o cenário novo e o da ETAPA 3".
+- **Previsto antes de rodar**, depois de levantar quais cenários passam pelo parse: **5** —
+  "campo desconhecido", "bytes que não são json", "json válido que não é pacote", o da ETAPA 3 e o de
+  antes da discursiva. Os dois cenários da reserialização não caem.
+- **Real:** exatamente esses 5, com 22 testes e 5 falhas, relatório de 11:44:41Z. A previsão da
+  tarefa estava incompleta: ela não contava os três cenários que já passavam pelo parse. A previsão
+  refinada acertou, e as duas ficam registradas.
+
+Revertida pela cópia, `grep MUTACAO` deu 0, e rodado de novo: 22 de 22, às 11:44:50Z.

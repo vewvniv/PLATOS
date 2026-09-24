@@ -97,7 +97,7 @@
   "Duas atribuições, uma geometria" sobre a fixture discursiva, com três regiões. **Ver falhar:** com
   a troca feita pela ordem das primitivas e as regiões emitidas fora de ordem num mapa de teste, o
   cenário cai.
-- [ ] 4.4 A quebra aceita é real e alta. Em `ConferenciaDePacoteTest`, o pacote
+- [x] 4.4 A quebra aceita é real e alta. Em `ConferenciaDePacoteTest`, o pacote
   `pacote-antes-da-discursiva.json` é recusado **pela camada (b)**. A guarda de vacuidade afirma, no
   mesmo cenário, que ele **passa** na camada (a), e a asserção confere o motivo (decisão 11).
   Verificação: o teste passa. **Ver falhar:** com a camada (b) desligada, o cenário cai, e o do pacote

@@ -297,6 +297,54 @@ class ConferenciaDePacoteTest {
         )
     }
 
+    /**
+     * **A quebra que a `slice-5a-regiao-discursiva` aceitou, e ela e real e alta** (decisao 11 do
+     * design).
+     *
+     * A mudanca reabriu o contrato do pacote — `kind` e rubrica no item, `qr_id` na regiao, `qrs`
+     * por regiao na atribuicao —, e com isso todo pacote publicado antes dela deixa de ser
+     * interpretado pelo aplicativo atualizado. O artefato e `fixtures/pacote-antes-da-discursiva.json`,
+     * congelado byte a byte antes da regravacao (o `GoldenWriterTest` diz por que ele nao e regerado).
+     *
+     * O par com o cenario abaixo e a guarda de vacuidade, na mesma forma do par da ETAPA 3: com o
+     * hash **dele** a camada (a) passa e quem recusa e a (b); com o hash da fixture atual, os mesmos
+     * bytes caem na (a). O motivo e escolhido pelo hash declarado, e nao pelo artefato.
+     */
+    @Test
+    fun `o pacote de antes da discursiva e recusado por interpretacao`() {
+        val anterior = File(fixtures, "pacote-antes-da-discursiva.json").readBytes()
+        val hashDele = MessageDigest.getInstance("SHA-256")
+            .digest(anterior)
+            .joinToString("") { "%02x".format(it) }
+
+        assertNotEquals(
+            hash,
+            hashDele,
+            "o pacote de antes da discursiva tem o mesmo hash do atual: ou ele foi regerado, ou a " +
+                "fixture atual foi revertida — nos dois casos este cenario deixou de afirmar algo",
+        )
+        // E ele e mesmo o pacote daquele contrato: o hash que os testes fixavam para a referencia
+        // no dia do congelamento.
+        assertEquals("277d2f8cd0a7a87e6e26e5ecf47d2f5610dd6e173e724ab38a65373000ac391a", hashDele)
+
+        val recusa = recusado(verificarPacote(anterior, hashDele))
+
+        assertEquals(MotivoDaRecusa.INTERPRETACAO, recusa.motivo)
+    }
+
+    @Test
+    fun `o pacote de antes da discursiva com o hash atual e recusado por integridade`() {
+        val anterior = File(fixtures, "pacote-antes-da-discursiva.json").readBytes()
+
+        val recusa = recusado(verificarPacote(anterior, hash))
+
+        assertEquals(
+            MotivoDaRecusa.INTEGRIDADE,
+            recusa.motivo,
+            "os mesmos bytes com um hash que nao os cobre tem de cair na camada (a)",
+        )
+    }
+
     // ------------------------------------------------------------------ ajudantes
 
     private val texto: String get() = bytes.decodeToString()
