@@ -1,6 +1,6 @@
 ## 0. Antes do primeiro commit
 
-- [ ] 0.1 Linha de base na árvore de `main`:
+- [x] 0.1 Linha de base na árvore de `main`:
   - `./gradlew build --rerun-tasks` e `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro,
     no `platos-atd34`;
   - `npx vitest run` em `apps/web`.
@@ -8,7 +8,7 @@
   Anotar em `docs/cobertura-slice-5b-1-o-aparelho-reconhece-a-discursiva.md` a contagem de testes por
   suíte, o `timestamp` de cada relatório e as tasks **executadas** (P2, P3). Verificação: os relatórios
   são desta sessão.
-- [ ] 0.2 Registrar a saída de `node tools/divida/divida.mjs`: "fatia corrente: 5b", e as quatro linhas
+- [x] 0.2 Registrar a saída de `node tools/divida/divida.mjs`: "fatia corrente: 5b", e as quatro linhas
   sob "vence nesta fatia". Verificação: a saída na cobertura, com `exit 0`.
 
 ## 1. A captura por região (`capture-omr`)
