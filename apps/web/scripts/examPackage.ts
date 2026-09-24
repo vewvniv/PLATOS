@@ -6,7 +6,9 @@ import { repoRoot } from './formulaAssets.js';
 /** A unica variante da fatia 2a. Randomizacao e a fatia 7. */
 const DEFAULT_VARIANT = 'v1';
 
-interface AssignmentQr {
+/** O QR de uma regiao da folha de uma atribuicao (D23). Era `AssignmentQr`, um so por folha. */
+interface RegionQr {
+  region_index: number;
   payload: string;
   modules: string[];
 }
@@ -14,7 +16,7 @@ interface AssignmentQr {
 interface PackageAssignment {
   student_token: string;
   variant_id: string;
-  qr?: AssignmentQr | null;
+  qrs?: RegionQr[];
 }
 
 interface ExamPackage {
@@ -24,34 +26,54 @@ interface ExamPackage {
 }
 
 /**
- * A folha de uma atribuicao: a geometria da variante dela, com o QR dela.
+ * A folha de uma atribuicao: a geometria da variante dela, com o QR de cada regiao trocado pelo que a
+ * atribuicao traz para aquela regiao (D23).
  *
  * **Esta e a segunda implementacao da mesma regra**, e a primeira e `ExamPackage.folhaDaAtribuicao`
- * no dominio Kotlin (D-2a.1). Ela e mecanica de proposito — trocar dois campos de uma primitiva —
- * porque duas implementacoes precisam coincidir, e a paridade entre plataformas e quem pega a
- * divergencia se nao coincidirem.
+ * no dominio Kotlin (D-2a.1). Ela e mecanica de proposito — casar `(pagina, qr_id)` e trocar dois
+ * campos de uma primitiva — porque duas implementacoes precisam coincidir.
+ *
+ * *A redacao anterior desta KDoc dizia que "a paridade entre plataformas e quem pega a divergencia se
+ * nao coincidirem". Nao era verdade (P7): a paridade compara centroides de marcador e bolha, um
+ * payload errado nao move centroide nenhum, e o CI nao renderizava folha de aluno. Quem pega a
+ * divergencia, desde a `slice-5a-regiao-discursiva`, e `test/folhaDoAluno.test.ts`, que compara esta
+ * implementacao a folha que a de Kotlin gravou do mesmo pacote.*
  */
-function folhaDaAtribuicao(geometria: LayoutMap, qr: AssignmentQr): LayoutMap {
-  const qrs = geometria.pages.flatMap((pagina) =>
-    pagina.primitives.filter((primitiva) => primitiva.type === 'qr'),
-  );
-  if (qrs.length !== 1) {
-    // A spec exige uma regiao escaneavel por folha, com um QR dentro dela. Zero ou dois e mapa que
-    // a validacao do layout nao deveria ter deixado passar, e "o primeiro que aparecer" esconderia.
-    throw new Error(`esperava exatamente um QR no layout, e o mapa tem ${qrs.length}`);
+function folhaDaAtribuicao(geometria: LayoutMap, atribuicao: PackageAssignment): LayoutMap {
+  const qrPorRegiao = new Map((atribuicao.qrs ?? []).map((qr) => [qr.region_index, qr]));
+  // (pagina|qr_id) -> QR da atribuicao. A ligacao e a que o mapa declara, e nao a ordem das primitivas.
+  const trocas = new Map<string, RegionQr>();
+  for (const regiao of geometria.regions) {
+    const qr = qrPorRegiao.get(regiao.index);
+    if (!qr) {
+      throw new Error(
+        `a atribuicao de ${atribuicao.student_token} nao tem QR para a regiao ${regiao.index}`,
+      );
+    }
+    trocas.set(`${regiao.page}|${regiao.qr_id}`, qr);
   }
 
-  return {
+  let trocados = 0;
+  const folha: LayoutMap = {
     ...geometria,
     pages: geometria.pages.map((pagina) => ({
       ...pagina,
-      primitives: pagina.primitives.map((primitiva) =>
-        primitiva.type === 'qr'
-          ? { ...primitiva, payload: qr.payload, modules: qr.modules }
-          : primitiva,
-      ),
+      primitives: pagina.primitives.map((primitiva) => {
+        const qr = primitiva.type === 'qr' ? trocas.get(`${pagina.index}|${primitiva.id}`) : undefined;
+        if (primitiva.type === 'qr' && qr) {
+          trocados += 1;
+          return { ...primitiva, payload: qr.payload, modules: qr.modules };
+        }
+        return primitiva;
+      }),
     })),
   };
+  if (trocados !== geometria.regions.length) {
+    throw new Error(
+      `esperava trocar um QR por regiao (${geometria.regions.length}), e troquei ${trocados}`,
+    );
+  }
+  return folha;
 }
 
 /**
@@ -102,14 +124,14 @@ export async function loadPublishedLayout(
         `tem: ${declarados || '(nenhuma)'}`,
     );
   }
-  if (!atribuicao.qr) {
+  if (!atribuicao.qrs || atribuicao.qrs.length === 0) {
     throw new Error(
       `a atribuicao de ${studentToken} nao tem QR proprio; imprimir a folha da variante no lugar ` +
         `dela produziria prova sem dono`,
     );
   }
 
-  return folhaDaAtribuicao(map, atribuicao.qr);
+  return folhaDaAtribuicao(map, atribuicao);
 }
 
 /** Os tokens que o pacote enderecou, na ordem em que ele os declara. */

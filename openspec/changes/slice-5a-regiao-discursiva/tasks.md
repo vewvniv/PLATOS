@@ -119,7 +119,7 @@
   Verificação da **guarda de geometria**: um script no scratchpad lê cada `.layout.json` regravado e o
   de `HEAD`, remove `qr_id`, `question_id` e `answer_area`, e afirma igualdade. Se sobrar diferença,
   **pare** (P13). E `git status` mostra só os arquivos previstos, listados na cobertura antes de rodar.
-- [ ] 5.3 Espelho web (decisão 9):
+- [x] 5.3 Espelho web (decisão 9):
   - `apps/web/scripts/examPackage.ts` passa a `qrs` e `qr_id`;
   - um teste do Vitest deriva a folha do aluno do pacote gravado e a compara a
     `prova-discursiva.aluno.layout.json`.
@@ -127,7 +127,7 @@
   Verificação: o teste passa. **Ver falhar:** com o espelho escrevendo o payload da região 0 em todos
   os QRs, o teste novo cai. `compare.mjs` entre o PDF do aluno com a mutação e o PDF sem ela **passa**,
   e isso prova que centroide não vê payload. Reverter e rodar.
-- [ ] 5.4 `render-fixture.ts` renderiza a fixture discursiva, pela mesma disciplina de
+- [x] 5.4 `render-fixture.ts` renderiza a fixture discursiva, pela mesma disciplina de
   `PLATOS_PACKAGE`. Verificação: o PDF tem o número de páginas do mapa, e `fidelidade.mjs` roda sobre
   ele.
 

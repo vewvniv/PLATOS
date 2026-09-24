@@ -102,6 +102,12 @@ export interface ScannableRegion {
   marker_ids: number[];
   qr: NormalizedRect;
   bubbles: Bubble[];
+  /** O `id` da primitiva `qr` desta regiao, na pagina dela: a ligacao regiao -> QR e declarada. */
+  qr_id: string;
+  /** A questao da regiao discursiva; nulo no gabarito e na folha de teste. */
+  question_id: string | null;
+  /** A area de resposta da regiao discursiva; nula no gabarito e na folha de teste. */
+  answer_area: NormalizedRect | null;
 }
 
 export interface Page {

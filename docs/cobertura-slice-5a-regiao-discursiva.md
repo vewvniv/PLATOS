@@ -376,3 +376,35 @@ trocada", como a mutação abaixo mostra.
   refinada acertou, e as duas ficam registradas.
 
 Revertida pela cópia, `grep MUTACAO` deu 0, e rodado de novo: 22 de 22, às 11:44:50Z.
+
+**5.3 — o espelho web, e a conferência que ele não tinha.** `apps/web/scripts/examPackage.ts` passou
+a `qrs` e troca cada QR casando `(página, qr_id)`, com a mesma regra da implementação Kotlin (4.3). O
+tipo `ScannableRegion` do web ganhou `qr_id`, `question_id` e `answer_area`.
+
+A KDoc antiga dizia que "a paridade entre plataformas é quem pega a divergência". A frase ficou,
+marcada como errada, com a razão ao lado (P7).
+
+`test/folhaDoAluno.test.ts` é novo, com dois cenários:
+- deriva a folha de `tok-a` do pacote gravado, pelo caminho que o `render-fixture.ts` usa, e a
+  compara **byte a byte** com `prova-discursiva.aluno.layout.json`, gravada pelo Kotlin. A guarda de
+  vacuidade exige três regiões e três QRs com `tok-a`;
+- cada região leva o QR que diz a região dela.
+
+`npx vitest run`: 16 de 16, início às 13:46:34 no relógio local (11:46:34Z). `tsc --noEmit` limpo.
+
+**Vista falhar, com conjuntos disjuntos:** o espelho escreve o payload da região 0 em todos os QRs.
+- `vitest`: caem **os dois** cenários de `folhaDoAluno`, e os 14 do renderizador ficam.
+- `compare.mjs` entre o PDF do aluno **com** a mutação e o **sem**, sobre
+  `prova-discursiva.aluno.layout.json`: "paridade OK", maior divergência de **0,000 mm**. É a
+  demonstração, e não só o argumento, de que a paridade de centroide não vê payload.
+
+Revertido pela cópia, `grep MUTACAO` deu 0, e rodado de novo: 16 de 16.
+
+**5.4 — `render-fixture.ts` na fixture discursiva.** Não precisou de código: o script já recebia
+`PLATOS_PACKAGE`, `PLATOS_STUDENT` e o caminho de saída. Às 11:46:56Z:
+- `build/parity/discursiva-web.pdf`: 212.542 bytes, **2 páginas**, igual ao mapa;
+- `build/parity/discursiva-aluno-web.pdf`: 212.401 bytes, a folha de `tok-a`.
+
+`fidelidade.mjs` roda sobre o primeiro: 47 verificações, maior desvio de 0,047 mm em "marcador 2:
+borda superior", com tolerância de 0,05 mm, e "fidelidade OK". **Isso só cobre a página 0.** A região
+`d2`, na página 1, não é medida pela versão atual, e é a lacuna que a 6.1 fecha.
