@@ -71,6 +71,152 @@ class RegiaoDiscursivaTest {
         assertEquals(mapOf("q1" to "1", "q2" to "2", "q4" to "4", "q5" to "5"), numeros)
     }
 
+    // --- 3.3: o bloco e a regiao discursivos ---
+
+    private fun LayoutMap.regiaoDa(questao: String): ScannableRegion =
+        regions.single { it.questionId == questao }
+
+    private fun LayoutMap.primitivasDa(pagina: Int) = pages.single { it.index == pagina }.primitives
+
+    /** Cenario "Identificadores dos marcadores da regiao discursiva". */
+    @Test
+    fun `cada discursiva tem a sua regiao, com os marcadores 4k a 4k+3`() {
+        val map = engine.layout(prova(objetiva("q1"), discursiva("q2"), objetiva("q3"), discursiva("q4")))
+
+        assertEquals(listOf(0, 1, 2), map.regions.map { it.index })
+        val primeira = map.regiaoDa("q2")
+        val segunda = map.regiaoDa("q4")
+        assertEquals(1, primeira.index)
+        assertEquals(listOf(4, 5, 6, 7), primeira.markerIds)
+        assertEquals(2, segunda.index)
+        assertEquals(listOf(8, 9, 10, 11), segunda.markerIds)
+
+        // E os marcadores desenhados sao esses, na pagina da regiao.
+        for (regiao in listOf(primeira, segunda)) {
+            val desenhados = map.primitivasDa(regiao.page).filterIsInstance<DrawAruco>()
+                .filter { it.id.startsWith("r${regiao.index}-") }
+                .map { it.markerId }
+            assertEquals(regiao.markerIds, desenhados)
+        }
+    }
+
+    /** Cenario "Cada QR declara a sua regiao", do payload. */
+    @Test
+    fun `o QR de cada regiao carrega o indice dela`() {
+        val map = engine.layout(prova(objetiva("q1"), discursiva("q2"), discursiva("q3")))
+        for (regiao in map.regions) {
+            val qr = map.primitivasDa(regiao.page).filterIsInstance<DrawQr>().single { it.id == regiao.qrId }
+            val lido = com.platos.domain.capture.QrPayload.read(qr.payload)
+            val payload = (lido as com.platos.domain.capture.PayloadReading.Read).payload
+            assertEquals(regiao.index, payload.regionIndex, "o QR `${qr.id}` diz outra regiao")
+        }
+    }
+
+    /** Cenario "Regiao discursiva completa". */
+    @Test
+    fun `a regiao discursiva declara a questao, a area de resposta e o QR, e nenhuma bolha`() {
+        val map = engine.layout(prova(objetiva("q1"), discursiva("q2")))
+        val regiao = map.regiaoDa("q2")
+
+        assertEquals(LayoutEngine.ESSAY_KIND, regiao.kind)
+        assertTrue(regiao.bubbles.isEmpty(), "regiao discursiva com bolha")
+        val area = requireNotNull(regiao.answerArea)
+        for (valor in listOf(area.u, area.v, area.u + area.uSize, area.v + area.vSize)) {
+            assertTrue(valor in 0..1_000_000, "area de resposta fora de [0,1]: $area")
+        }
+        assertTrue(
+            map.primitivasDa(regiao.page).any { it is DrawQr && it.id == regiao.qrId },
+            "o QR `${regiao.qrId}` nao esta na pagina ${regiao.page}",
+        )
+    }
+
+    /** Cenario "A rubrica dimensiona a moldura". */
+    @Test
+    fun `a rubrica dimensiona a moldura, e so ela`() {
+        val curta = engine.layout(prova(objetiva("q1"), discursiva("q2", 3, 2)))
+        val longa = engine.layout(prova(objetiva("q1"), discursiva("q2", 5, 2)))
+
+        fun moldura(map: LayoutMap): DrawRect {
+            val regiao = map.regiaoDa("q2")
+            return map.primitivasDa(regiao.page).filterIsInstance<DrawRect>()
+                .single { it.id == "r${regiao.index}-moldura" }
+        }
+
+        // Duas linhas a mais: a moldura cresce exatamente 2 x 8,6 mm.
+        assertEquals(
+            (EssayGeometry.PAUTA * 2).raw,
+            moldura(longa).height - moldura(curta).height,
+            "a altura da moldura nao seguiu os expected_lines",
+        )
+        // E o resto da regiao nao mexe: mesma largura, mesma distancia do topo do quadrilatero ao QR,
+        // mesmo marcador de cima.
+        val rc = curta.regiaoDa("q2")
+        val rl = longa.regiaoDa("q2")
+        assertEquals(rc.quadWidth, rl.quadWidth)
+        assertEquals(rc.quadX, rl.quadX)
+        assertEquals(moldura(curta).width, moldura(longa).width)
+        assertEquals(moldura(curta).y - rc.quadY, moldura(longa).y - rl.quadY)
+        // A pauta tem uma linha a menos que o numero de linhas: as bordas da moldura sao a 0 e a n.
+        val pautaLonga = longa.primitivasDa(rl.page).count { it.id.startsWith("r${rl.index}-p") }
+        assertEquals(5 + 2 - 1, pautaLonga)
+    }
+
+    /** Cenario "O enunciado fica fora da moldura". */
+    @Test
+    fun `nenhum texto do enunciado cai dentro da regiao`() {
+        val map = engine.layout(prova(objetiva("q1"), discursiva("q2")))
+        val regiao = map.regiaoDa("q2")
+        // O quadrilatero e pelos centros dos marcadores; a regiao desenhada vai meio marcador alem.
+        val meio = com.platos.domain.capture.CaptureGeometry.MARKER_SIDE.divFloor(2).raw
+        val topo = regiao.quadY - meio
+        val base = regiao.quadY + regiao.quadHeight + meio
+        val enunciado = map.primitivasDa(regiao.page).filterIsInstance<DrawText>()
+            .filter { it.id.startsWith("qq2-") }
+        assertTrue(enunciado.isNotEmpty(), "o enunciado da q2 nao foi desenhado")
+        for (texto in enunciado) {
+            assertTrue(
+                texto.baseline < topo || texto.baseline > base,
+                "o texto `${texto.id}` (linha de base ${texto.baseline}) cai dentro da regiao " +
+                    "[$topo, $base]",
+            )
+        }
+    }
+
+    /**
+     * Cenario "Enunciado e moldura nao se separam".
+     *
+     * Varia o numero de objetivas antes da discursiva para que ela caia em lugares diferentes da
+     * paginacao, e afirma, em todos, que o numero da questao e a regiao estao na mesma pagina e na
+     * mesma coluna. A guarda de vacuidade exige que ao menos um caso tenha levado a discursiva para
+     * fora da primeira coluna — senao a afirmacao seria sobre um bloco que nunca foi empurrado.
+     */
+    @Test
+    fun `enunciado e moldura ficam juntos onde quer que o paginador os ponha`() {
+        val lugares = mutableSetOf<Pair<Int, Int>>()
+        for (n in 1..30) {
+            val objetivas = (1..n).map { objetiva("o$it") }
+            val map = engine.layout(prova(*(objetivas + discursiva("d")).toTypedArray()))
+            val regiao = map.regiaoDa("d")
+            val numero = map.pages.flatMap { p -> p.primitives.map { p.index to it } }
+                .single { it.second.id == "qd-n" }
+            val texto = numero.second as DrawText
+            assertEquals(regiao.page, numero.first, "com $n objetivas o numero e a regiao se separaram")
+            val xDaRegiao = regiao.quadX - com.platos.domain.capture.CaptureGeometry.MARKER_SIDE.divFloor(2).raw
+            assertEquals(xDaRegiao, texto.x, "com $n objetivas a regiao foi para outra coluna")
+            lugares += regiao.page to texto.x
+        }
+        assertTrue(lugares.size > 1, "a discursiva caiu sempre no mesmo lugar: $lugares")
+    }
+
+    /** Cenario "Moldura maior que a coluna". */
+    @Test
+    fun `moldura maior que a coluna e recusada, nomeando a questao`() {
+        val falha = kotlin.test.assertFailsWith<LayoutException> {
+            engine.layout(prova(objetiva("q1"), discursiva("q2", 40)))
+        }
+        assertTrue(falha.message!!.contains("q2"), falha.message!!)
+    }
+
     @Test
     fun `sem discursiva o gabarito continua numerando em sequencia`() {
         // Guarda do caminho de sempre: a prova so objetiva nao pode ter mudado de numeracao.

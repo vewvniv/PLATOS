@@ -155,3 +155,42 @@ Filtrado com `LayoutEngineTest`: 23 de 23.
 **Vista falhar:** com o número da linha trocado pela posição contígua (`${index + 1}`, `// MUTACAO`),
 caiu **só** o primeiro teste. O segundo, de prova só objetiva, continuou verde, como previsto: sem
 discursiva as duas numerações coincidem. Revertido, `grep MUTACAO` deu 0, e rodado de novo: 23 de 23.
+
+**3.3 — o bloco e a região discursivos.**
+- **As constantes num lugar só.** `EssayGeometry` guarda a pauta de 8,6 mm, o traço da moldura (o da
+  bolha, 0,22 mm), o traço da pauta (0,15 mm), o recuo de 1 mm da pauta em relação à moldura, e as
+  faixas de cima e de baixo, derivadas do marcador, do QR e da zona de silêncio.
+- **A altura é calculada uma vez.** `QuestionBlockBuilder` calcula `EssayContent` (linhas, altura do
+  enunciado e altura da região, cada uma na grade), e o motor só a lê. Reserva e desenho saem do mesmo
+  número.
+- **O que a região contém:** os quatro marcadores `4k…4k+3` nos cantos da coluna, o QR centrado no
+  topo com o payload da região, e a moldura desenhada **para dentro** da área de resposta, de modo que
+  a área declarada é a borda de fora da tinta. As linhas `1…n−1` da pauta são `rect` de traço com altura
+  zero, a forma (a), **provisória até a 6.3**. `answer_area`, `question_id` e `qr_id` ficam preenchidos.
+- **O índice da região** é a ordem entre as discursivas da prova, e não a ordem de colocação.
+
+Testes em `RegiaoDiscursivaTest`, um por cenário:
+- identificadores `4k…4k+3`;
+- o QR de cada região carrega o índice dela, lido pelo `QrPayload.read`, que é o mesmo leitor do
+  aparelho;
+- região completa;
+- a rubrica dimensiona a moldura, e só ela: duas linhas a mais dão exatamente 2 × 8,6 mm;
+- nenhum texto do enunciado cai dentro da região;
+- enunciado e moldura juntos, com 1 a 30 objetivas antes, e uma guarda de vacuidade que exige mais de
+  um lugar distinto;
+- moldura maior que a coluna é recusada nomeando a questão. A recusa vem do paginador, que já recusava
+  bloco maior que a coluna.
+
+Com `LayoutEngineTest`: 30 de 30.
+
+**Vista falhar, com duas mutações e conjuntos disjuntos:**
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| M1 — `answerHeight = PAUTA * 3`, a moldura de altura fixa | só "a rubrica dimensiona a moldura" | só ele (29 de 30) |
+| M2 — `markerIdsOf(regionIndex + 1)`, os IDs `4k+4` | só "cada discursiva tem a sua regiao" | só ele (29 de 30) |
+
+A tarefa previa que M2 também derrubasse "a validação". A validação da região discursiva é a 3.4, e
+ela ainda não existia quando M2 rodou, então não havia o que derrubar. A M2 **volta a rodar na 3.4**,
+e o conjunto real vai ao lado deste. As duas mutações foram revertidas pela cópia byte a byte,
+`grep -rn MUTACAO packages/domain/src` deu 0, e a suíte filtrada rodou de novo: 30 de 30.

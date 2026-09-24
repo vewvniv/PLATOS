@@ -4,6 +4,7 @@ import com.platos.domain.exam.ExamDefinition
 import com.platos.domain.exam.StatementSegment
 import com.platos.domain.exam.parseStatement
 import com.platos.domain.exam.Question
+import com.platos.domain.exam.QuestionKind
 import com.platos.domain.geometry.Um
 import com.platos.domain.text.MeasuredText
 import com.platos.domain.text.TextMeasurer
@@ -46,6 +47,23 @@ data class FormulaContent(
  * Enunciado, formula e alternativas viajam juntos: e isto que faz o bloco ser indivisivel (D34).
  * Nenhum consumidor pode posicionar as alternativas sem o enunciado.
  */
+/**
+ * A parte discursiva de um bloco: quanto do bloco e enunciado, e quanto e regiao.
+ *
+ * **Calculado uma vez, aqui, e so lido por quem desenha.** A altura reservada para o bloco e a altura
+ * desenhada da regiao saem destes dois numeros; se o motor recalculasse a regiao a partir da rubrica,
+ * reserva e desenho divergiriam em silencio — o mesmo defeito que `advanceAfterStatement` existe para
+ * impedir entre enunciado e alternativas.
+ */
+data class EssayContent(
+    /** Soma dos `expected_lines` dos criterios da rubrica: o numero de linhas da pauta (D35). */
+    val lines: Int,
+    /** Do topo do bloco ate o topo da regiao: o enunciado e o respiro, na grade. */
+    val statementHeight: Um,
+    /** Altura da regiao, na grade: faixa do QR, area de resposta e faixa dos marcadores de baixo. */
+    val regionHeight: Um,
+)
+
 data class QuestionContent(
     val questionId: String,
     val number: Int,
@@ -53,6 +71,8 @@ data class QuestionContent(
     val formula: FormulaContent?,
     val options: List<OptionContent>,
     val block: Block,
+    /** Nulo na objetiva. */
+    val essay: EssayContent? = null,
 )
 
 /**
@@ -107,9 +127,14 @@ class QuestionBlockBuilder(
             )
         }
 
-        val content = statement.height +
-            advanceAfterStatement(formula, style) +
-            options.fold(Um.ZERO) { total, option -> total + option.text.height }
+        val essay = essayContentOf(question, statement, formula)
+        val content = if (essay != null) {
+            essay.statementHeight + essay.regionHeight
+        } else {
+            statement.height +
+                advanceAfterStatement(formula, style) +
+                options.fold(Um.ZERO) { total, option -> total + option.text.height }
+        }
         val block = Block(
             id = question.id,
             height = profile.snapToGrid(content + SPACE_AFTER_BLOCK),
@@ -122,6 +147,35 @@ class QuestionBlockBuilder(
             formula = formula,
             options = options,
             block = block,
+            essay = essay,
+        )
+    }
+
+    /**
+     * A parte discursiva do bloco, ou nulo na objetiva.
+     *
+     * A altura da area de resposta e `Σ expected_lines x 8,6 mm` (D35, §7), e as duas partes do
+     * bloco vao para a grade de 3 mm separadamente: o topo da regiao cai na grade, e com ele os
+     * marcadores e o QR — posicoes inteiras de grade sao o que mantem o layout uma funcao pura sobre
+     * inteiros (D-1.2).
+     */
+    private fun essayContentOf(
+        question: Question,
+        statement: MeasuredText,
+        formula: FormulaContent?,
+    ): EssayContent? {
+        if (question.kind != QuestionKind.ESSAY) return null
+        // `requireSupported` ja recusou discursiva sem rubrica; aqui ela so e lida.
+        val rubric = requireNotNull(question.rubric) { "discursiva `${question.id}` sem rubrica" }
+        val lines = rubric.criteria.sumOf { it.expectedLines }
+        return EssayContent(
+            lines = lines,
+            statementHeight = profile.snapToGrid(
+                statement.height + advanceAfterStatement(formula, style),
+            ),
+            regionHeight = profile.snapToGrid(
+                EssayGeometry.TOP_BAND + EssayGeometry.PAUTA * lines + EssayGeometry.BOTTOM_CLEARANCE,
+            ),
         )
     }
 

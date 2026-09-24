@@ -57,7 +57,7 @@
 - [x] 3.2 O gabarito emite bolhas só das objetivas, numeradas pela posição na prova (decisão 7).
   Verificação: um teste com a discursiva na posição 3 afirma as linhas 1, 2, 4 e 5, e nenhuma bolha
   da 3. **Ver falhar:** com a numeração trocada para contígua, o teste cai. Reverter e rodar.
-- [ ] 3.3 O bloco discursivo e a região:
+- [x] 3.3 O bloco discursivo e a região:
   - enunciado fora da moldura;
   - área de resposta com altura igual a Σ `expected_lines` × 8,6 mm, e o bloco na grade de 3 mm;
   - marcadores e QR de 14 mm (decisão 5), com IDs `4k…4k+3`;
