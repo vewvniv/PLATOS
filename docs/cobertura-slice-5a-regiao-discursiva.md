@@ -584,6 +584,31 @@ O `build` levou 2m 8s contra 4m 23s na linha de base, com **as mesmas 183 tasks 
 diferença é de ambiente, com o daemon e o cache de SO quentes, e não de cobertura: o número de tasks
 executadas e o `timestamp` de cada relatório são a âncora, e não o tempo (P2, P3).
 
+## O CI lido no destino (tarefas 6.5 e 9.4)
+
+PR #65, run [35996809946](https://github.com/vewvniv/PLATOS/actions/runs/35996809946), `success` nos três
+jobs. O checkout foi `b5d078d`, o merge de `3d4b1d9` em `97aa59f`, que é o `main` depois da banda de
+correção.
+
+- **`build`**, de 12:04:50Z a 12:09:49Z: "Build e testes" com **179 de 183 tasks executadas** (as 4
+  restantes são `UP-TO-DATE` dentro da própria execução), `buildSrc` com 6 de 6, e o alvo Android do
+  domínio.
+- **`web`**, de 12:04:48Z a 12:05:28Z. Os três passos novos rodaram sobre a prova com discursiva:
+  - "Gerar o PDF da prova com discursiva": 212.544 bytes, 2 páginas;
+  - "Fidelidade da prova com discursiva": 63 verificações, maior 0,047 mm, OK;
+  - "Tinta da prova com discursiva": 16 bolhas, "regiões discursivas fora do orçamento de bolha: 2",
+    OK.
+
+  A guarda do registro de dívida disse "fatia corrente: 5a", mostrou a linha `5b` em dia, e leu 19
+  linhas, nenhuma vencida.
+- **`paridade`**, de 12:05:32Z a 12:11:00Z:
+  - o emulador executou 88 de 88 tasks;
+  - "Recolher os PDFs do Android" inclui `android-discursiva.pdf`, com `test -s`;
+  - "Fidelidade da prova com discursiva no Android": 63 verificações, maior 0,017 mm;
+  - "Paridade da prova com discursiva": 28 de 28 elementos e **12 traços**, com razão web de 0,995 a
+    1,015 e Android de 0,995 a 1,016, maior divergência 0,020 em `r2-p6`. **Os mesmos números da
+    medição local em Windows**, agora em Linux.
+
 ## 9. O que ainda não foi verificado
 
 É a seção que o `rigorous.md` §8 exige, e cada item está escrito como **lacuna**, e não como mitigado
@@ -611,7 +636,8 @@ executadas e o `timestamp` de cada relatório são a âncora, e não o tempo (P2
   e `prova-referencia-slice-2`. Se uma prova foi publicada depois disso, ela não está nesta lista. A
   tarefa 9.5 fica **desmarcada**.
 - **O web e o Android rodaram em Windows.** O CI roda em Linux, e é a leitura dele no destino (9.4)
-  que fecha o comando cheio naquela plataforma.
+  que fecha o comando cheio naquela plataforma. **Fechado em 12:11Z:** o CI da PR #65 reproduziu os
+  mesmos números, na seção acima.
 
 ## 10. A reconciliação do §16 para o archive (P27)
 

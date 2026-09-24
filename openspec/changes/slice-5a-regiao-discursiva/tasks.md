@@ -173,7 +173,7 @@
 - [x] 6.4 **Ver falhar** a paridade sobre a região discursiva: um marcador discursivo deslocado 0,5 mm
   só no renderizador Android faz `compare.mjs` reprovar, nomeando o marcador e a página. Reverter,
   gerar de novo e rodar (P10).
-- [ ] 6.5 `ci.yml`, job `paridade`: acrescentar a fixture discursiva aos passos de render web,
+- [x] 6.5 `ci.yml`, job `paridade`: acrescentar a fixture discursiva aos passos de render web,
   fidelidade, tinta, render Android, comparação e tinta Android. Verificação: a PR roda os passos
   novos. Ler no log que cada um processou a fixture nova e não pulou (P2, P15).
 
@@ -213,7 +213,7 @@
     folha em papel, a largura de 73 mm, e `answer_capture_mode` sem consumidor.
 
   Verificação: cada item do `rigorous.md` §8 tem resposta escrita.
-- [ ] 9.4 PR contra `main`, e o CI **lido no destino**: `build`, `web` e `paridade` verdes, com os
+- [x] 9.4 PR contra `main`, e o CI **lido no destino**: `build`, `web` e `paridade` verdes, com os
   passos novos da 6.5 no log, e a saída de `divida.mjs` com a linha `5b` (P2, P26). Verificação: o link
   do run e as linhas do log na cobertura.
 - [ ] 9.5 Nomear as provas publicadas em produção que o aplicativo atualizado passa a recusar
