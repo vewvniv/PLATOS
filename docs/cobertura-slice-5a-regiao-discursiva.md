@@ -512,3 +512,25 @@ de 2026-09-24T11:57:44Z a 11:58:00Z.
 **Literais trocados:** só o hash de `ExamPublicationTest`, na 5.2. Os pacotes literais de
 `ResultRouteTest` não divergiram: eles têm `layout` vazio, sem região a quem faltaria `qr_id`, e
 passaram sem mudança.
+
+## 8. O aparelho, sem mudança de produção
+
+**8.1 — a recusa de hoje, fixada.** Cenário novo em `ObjectiveScoringTest`: o pacote da prova com
+discursiva, com o payload de `tok-a` na região 0 e as respostas corretas das quatro objetivas.
+`ObjectiveScoring.score` recusa com exatamente "itens lidos divergem da variante 'v1'; faltando: d1,
+d2". Não sai nota, e em particular não sai uma nota objetiva que o aparelho trataria como definitiva
+numa prova com parte discursiva. O motivo engana, e é a linha `5b` do §16. O cenário existe para que a
+troca desse motivo seja visível quando a 5b a fizer. `ObjectiveScoringTest`: 29 de 29.
+
+**Vista falhar:** a conferência de conjunto trocada por "lido contido no declarado"
+(`!declared.containsAll(read)`, `// MUTACAO`).
+- **Previsto:** cai o cenário novo, porque sai nota.
+- **Real: 2 falhas.** O novo e o já existente "conjunto de itens divergente e recusado, e a mensagem
+  diz o que faltou". As duas mensagens são "esperava recusa, veio Scored", em
+  `ObjectiveScoringTest.kt:50`.
+
+O cenário antigo cai pelo **mesmo** mecanismo: uma leitura com item faltando é subconjunto do
+declarado. Ele já protegia esse caso, e o novo fixa a instância da prova com discursiva. "Item que a
+variante não declara", que é o conjunto oposto, continuou verde, como devia. A previsão estava
+incompleta, não há defeito, e nenhum teste foi mexido. Revertida, `grep MUTACAO` deu 0, e rodado de
+novo: 29 de 29.

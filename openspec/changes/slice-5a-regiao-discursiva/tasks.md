@@ -186,7 +186,7 @@
 
 ## 8. O aparelho, sem mudança de produção (decisão 12)
 
-- [ ] 8.1 Teste de domínio: `ObjectiveScoring.score` sobre o pacote da fixture discursiva, com as
+- [x] 8.1 Teste de domínio: `ObjectiveScoring.score` sobre o pacote da fixture discursiva, com as
   respostas das quatro objetivas, recusa com "itens lidos divergem da variante" e o identificador das
   discursivas. **Ver falhar:** com a conferência de conjunto trocada por "lido contido no declarado", o
   teste cai porque sai nota. Reverter e rodar.

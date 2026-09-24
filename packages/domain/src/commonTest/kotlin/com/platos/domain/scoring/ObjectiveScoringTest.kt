@@ -51,6 +51,37 @@ class ObjectiveScoringTest {
         return outcome.reason
     }
 
+    /**
+     * O que o aparelho faz hoje com uma prova com discursiva, fixado (`slice-5a-regiao-discursiva`,
+     * decisao 12; tarefa 8.1).
+     *
+     * A leitura do gabarito entrega so as objetivas; a variante declara tambem as discursivas. O
+     * conjunto nao fecha e a apuracao **recusa** — nao sai nota, e em particular nao sai uma nota
+     * objetiva tratada como definitiva de uma prova que tem parte discursiva. O **motivo** e o de
+     * divergencia de itens, que engana o professor: e a linha `5b` do §16, e a 5b e quem o troca. Este
+     * cenario existe para que a troca seja visivel quando acontecer, e para que nada entre agora e
+     * ela passe a produzir nota em silencio.
+     */
+    @Test
+    fun `prova com discursiva e recusada na apuracao objetiva, sem nota`() {
+        val discursiva: ExamPackage = Json.decodeFromString(
+            ExamPackage.serializer(),
+            Fixtures.PROVA_DISCURSIVA_PACKAGE_JSON,
+        )
+        val daFolha = CapturePayload(
+            examShortId = discursiva.meta.examId,
+            studentToken = "tok-a",
+            variant = "v1",
+            regionIndex = 0,
+        )
+        val soObjetivas = discursiva.answerKey.map { QuestionAnswer.Marcada(it.itemId, it.correct) }
+        assertEquals(listOf("q1", "q2", "q4", "q5"), soObjetivas.map { it.questionId })
+
+        val motivo = rejected(ObjectiveScoring.score(discursiva, daFolha, soObjetivas))
+
+        assertEquals("itens lidos divergem da variante 'v1'; faltando: d1, d2", motivo)
+    }
+
     @Test
     fun `folha toda correta tira o maximo que o pacote declara`() {
         val nota = scored(ObjectiveScoring.score(pacote, payload, todasCorretas()))
