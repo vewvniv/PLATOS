@@ -697,3 +697,22 @@ Implantar a imagem com a 5a faria um resultado pendente dessas provas, vindo de 
 antigo, receber 500 e reenviar sem fim. **Não é mitigado, é conhecido** (P8). Foi registrado no §16,
 com o evento `antes-de:implantar-api-da-5a`, por decisão do mantenedor. A guarda o lê como "aguarda
 evento", e com `--ocorrido implantar-api-da-5a` sai com `1`, nomeando só essa linha.
+
+## Correção de 2026-09-25 (P7): o aparelho não recusa, ele cai
+
+A decisão 12 do design, a tarefa 8.1, a linha `5b` do §16 e este documento afirmam que uma prova com
+discursiva chega ao aparelho e é **recusada na apuração**, com "itens lidos divergem da variante". As
+afirmações ficam onde estão, e estão **erradas** no que dizem do aparelho.
+
+Lido no código da `main`, e **não medido**:
+- `ScanActivity.kt:218` escolhe a região com `map.regions.single()`, e a prova com discursiva tem três.
+  A exceção sai ao abrir a câmera, e o aplicativo **cai** antes de qualquer apuração;
+- se não caísse, `RegionDetector.declaredMarkersOf` conta os ArUcos da **página** inteira, e não os da
+  região. Na página 0 da fixture são 8, e toda captura falharia com "declara 8 ArUcos; esperados 4".
+
+O teste da 8.1 continua certo no que afirma: ele fixa o comportamento de `ObjectiveScoring`, que é do
+domínio. O que estava errado era estender isso ao aparelho. Esse caminho a mudança marcou como
+**suposto**, e a suposição caiu para pior. Nenhuma prova com discursiva está em produção, e não há rota
+de publicação, então ninguém chega lá hoje. O conserto é da **5b-1**, e a linha `5b` do §16 recebeu a
+mesma correção.
+
