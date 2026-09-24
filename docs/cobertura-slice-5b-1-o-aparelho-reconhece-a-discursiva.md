@@ -36,3 +36,22 @@ O relatório de `buildSrc` saiu marcado **VELHO** (12:02:36Z): o `build` não ro
 - `Modo degradado (§10) não existe` (`5`);
 - `O limiar do OMR foi apurado sobre um aparelho e uma impressora` (`5`);
 - `A região discursiva ainda não passou pelo aparelho nem pelo papel` (`5b`).
+
+## 1. A captura por região
+
+**1.1 — os marcadores esperados são os da região.** `RegionDetector.declaredMarkersOf` passa a filtrar
+pelos `marker_ids` da região.
+
+O instrumento é `FolhaDiscursivaRenderizada`, em `androidTest`. Ele desenha a folha de `tok-a` da
+prova com discursiva pelo `LayoutMapRenderer` de produção, num PDF, e a rasteriza pelo `PdfRenderer`
+da plataforma a 10 px/mm. Não é dependência nova: `PdfRenderer` é do SDK. O cenário é
+`RegiaoDiscursivaInstrumentedTest.o_gabarito_e_retificado_numa_pagina_que_tem_outra_regiao`.
+
+**Visto falhar sobre o código real, antes da correção.** O teste foi escrito primeiro e rodado contra
+a `main`, às 22:52:06Z: 1 teste, 1 falha, "esperava a regiao 0 retificada, veio Failed(reason=a pagina
+0 declara 8 ArUcos; esperados 4)". Isto **mede** o segundo defeito que a correção P7 da linha `5b` (PR
+#68) descrevia só por leitura. Depois da correção, às 22:52:39Z: 1 de 1, e os marcadores detectados são
+`[0, 1, 2, 3]`.
+
+A mutação que a tarefa pedia ("sem o filtro") é exatamente o código anterior. A execução de antes é o
+vermelho dela, e a de depois é a reversão rodada.

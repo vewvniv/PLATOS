@@ -13,7 +13,7 @@
 
 ## 1. A captura por região (`capture-omr`)
 
-- [ ] 1.1 `declaredMarkersOf` filtra pelos `marker_ids` da região (decisão 2). Verificação: um teste
+- [x] 1.1 `declaredMarkersOf` filtra pelos `marker_ids` da região (decisão 2). Verificação: um teste
   instrumentado retifica a região 0 da fixture discursiva, que divide a página 0 com a região de `d1`,
   e a lê. **Ver falhar:** sem o filtro, o teste cai com "declara 8 ArUcos; esperados 4". Reverter e
   rodar.

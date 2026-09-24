@@ -104,12 +104,17 @@ object RegionDetector {
     private const val MAX_REPROJECTION_PX = 6.0
 
     /** Os quatro ArUcos declarados pela pagina da regiao, por identificador. */
+    // Os marcadores DA REGIAO, e nao os da pagina. Ate a `slice-5b-1-o-aparelho-reconhece-a-discursiva`
+    // eram todos os `DrawAruco` da pagina, o que so dava certo porque cada pagina tinha uma regiao; a
+    // pagina 0 de uma prova com discursiva tem o gabarito e a regiao de uma discursiva, 8 marcadores,
+    // e `detect` recusava com "declara 8 ArUcos; esperados 4" (medido em 2026-09-24).
     private fun declaredMarkersOf(map: LayoutMap, region: ScannableRegion): Map<Int, DrawAruco> =
         map.pages
             .firstOrNull { it.index == region.page }
             ?.primitives
             ?.filterIsInstance<DrawAruco>()
             .orEmpty()
+            .filter { it.markerId in region.markerIds }
             .associateBy { it.markerId }
 
     /**
