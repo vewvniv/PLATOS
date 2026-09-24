@@ -23,7 +23,18 @@ jobs:
   imagem:
     # `workflow_run` dispara tambem quando o CI **falha**: o filtro de `types` nao distingue
     # conclusao. Sem esta condicao, um CI vermelho publicaria imagem.
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    #
+    # E o `branches: [main]` do gatilho compara so o **nome** da branch que disparou o CI -- a de
+    # um fork inclusive, pela documentacao do GitHub (lido, nao medido). Com o repositorio publico,
+    # um PR vindo de uma branch `main` num fork, com CI verde, faria este job dar checkout do
+    # `head_sha` dele e publicar `latest` -- a tag que o Render segue -- com `packages: write`. Por
+    # isso a imagem so sai de `push` feito neste repositorio. O caminho do fork esta conferido por
+    # leitura, e nao visto falhar: exercita-lo exige uma segunda conta.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
 
     steps:
