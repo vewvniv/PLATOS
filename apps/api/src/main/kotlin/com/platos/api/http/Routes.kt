@@ -6,8 +6,8 @@ import com.platos.api.auth.toAuthenticatedSubject
 import com.platos.api.exam.Proveniencia
 import com.platos.api.exam.conferirProveniencia
 import com.platos.api.http.dto.ResultAcceptedDto
-import com.platos.api.http.dto.ResultSubmissionDto
 import com.platos.api.http.dto.paraNota
+import com.platos.domain.transport.ResultSubmissionDto
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate

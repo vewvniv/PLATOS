@@ -64,7 +64,36 @@ módulos**, **o que vence depois do archive** e **o artefato de release**.
 
 ## 2. Achados graves
 
-### 2.1 O contrato da API é copiado à mão entre `apps/api` e `apps/android` — quatro vezes, sem ADR
+### 2.1 O contrato da API é copiado à mão entre `apps/api` e `apps/android` — quatro vezes, sem ADR — ~~**aberto**~~ **fechado**, e uma frase dele estava errada
+
+> **Fechado em 2026-09-19, pela mudança `contrato-do-fio-com-dono-unico` e por ADR-0015** (ETAPA 6
+> de `docs/plano-de-correcao-antes-da-fatia-5.md`). O texto abaixo fica inteiro e não se apaga (P7).
+> **A marca só entrou aqui em 2026-09-23:** o archive da ETAPA 6 disse, na mensagem do commit
+> (`1875c7d`), que o achado "sai da lista", e não o escreveu neste arquivo, como as outras etapas
+> fizeram.
+>
+> Os quatro contratos passaram a ter um declarante, em `com.platos.domain.transport`, e o mapa
+> `answer_kind` passou de três registros cegos a dois que se conferem
+> (`tools/parity/answer-kind.mjs`). A prova de que é dono único, e não arquivo movido: um
+> `@SerialName` trocado no domínio derrubou os dois testes de literal, e nada além deles em 152
+> suítes (`docs/cobertura-contrato-do-fio-com-dono-unico.md` §2).
+>
+> **A frase errada é a que descreve a rede:** "Hoje a divergência é possível por construção e
+> contida por literais JSON escritos à mão nos dois lados." Ela cita só os dois testes de resultado e
+> afirma a rede para os quatro contratos — e vale para **dois**. Em organização e prova, o teste do
+> servidor desserializa o corpo com o mesmo tipo que a rota usa para escrevê-lo, e só o aparelho tem
+> literal. É P4, e já era assim antes da unificação: foi ela que o tornou visível. O detalhe, com
+> arquivo e linha, está no §8 daquela cobertura, corrigido na mesma data; o tipo da afirmação é
+> **conferido por leitura**, e não medido. A medição e a correção são a ETAPA 7.3,
+> `o-fio-preso-nos-dois-lados`. **Medido no mesmo dia**, antes de a mudança ser proposta: real =
+> previsto, `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte I.
+>
+> **Corrigido em 2026-09-23, pela mudança `o-fio-preso-nos-dois-lados`.** Organização e prova
+> ganharam literal do lado do servidor, e as três mutações passaram a derrubar os dois lados; uma
+> guarda (`tools/parity/fio.mjs`, no CI) reprova tipo de `transport` sem literal nos dois lados, e
+> fecha a porta para os contratos da fatia 5. Ela prova que o literal existe, e não que ele prende o
+> fio. A mesma cobertura, Parte II. O CI da PR ainda não foi observado. **Observado no mesmo dia:**
+> PR #59, os três jobs em `success`, e os dois passos da guarda lidos no log.
 
 **O que.** `ResultSubmissionDto`/`AnswerObservationDto` (`apps/api/.../http/dto/ResultDto.kt`) e
 `EnvioDeResultadoDto`/`ObservacaoDto` (`apps/android/.../api/ResultadoDto.kt`) são o **mesmo
@@ -211,7 +240,17 @@ promessa de §10 deixou de ter dono no momento em que a fatia que a carregava fe
 
 ## 3. Achados sérios
 
-### 3.1 A variante `release` não tem teste nenhum no grafo, e a guarda do APK só olha o `debug`
+### 3.1 A variante `release` não tem teste nenhum no grafo, e a guarda do APK só olha o `debug` — ~~**aberto**~~ **fechado**
+
+> **Fechado em 2026-09-23, pela mudança `o-apk-de-release-e-verificado`** (ETAPA 7.2). O texto
+> abaixo fica inteiro e não se apaga (P7). Os dois buracos foram medidos antes do código: um pacote em
+> `src/release/assets/` chegou ao APK de release com a guarda dizendo "0 asset(s) conferido(s)"; e um
+> teste que só cai onde `BuildConfig.DEBUG` é falso passava pelo `build`. Agora
+> `verificarApkSemPacote` abre os dois APKs, com vacuidade por variante, e `testReleaseUnitTest` existe
+> e roda no `build` — o mantenedor decidiu ligá-la. Os mesmos dois defeitos, plantados de novo, passaram
+> a derrubar o `build`. **O que continua fora:** o artefato de loja (assinado, talvez AAB, talvez com R8)
+> ainda não existe, e esta guarda não o verá; a fatia que o criar deve a guarda dele.
+> `docs/cobertura-o-apk-de-release-e-verificado.md`.
 
 **O que.** Três fatos que se somam:
 
@@ -484,6 +523,15 @@ alcance dele, e que **ninguém mediu**. Custa um `dataExtractionRules` e uma con
 Os três valem `1`, e **nada os compara**. A KDoc do Android diz "Espelha `RENDERER_VERSION` do lado
 web" — afirmação sem quem a imponha.
 
+> **Nota de 2026-09-23, medida na ETAPA 7.1 — a frase acima fica, e esta a qualifica (P7).** "Nada os
+> compara" e, logo abaixo, "divergir entre eles não quebra teste nenhum" valem **numa direção só** —
+> a que este achado chama de pior. Com um renderizador subindo sozinho para `2`, as suítes que o leem
+> passam inteiras: 14 de 14 no web, 308 de 308 no Android. Com `MIN` subindo sozinho, caem dois
+> testes, exatamente os que a leitura apontou: `LayoutEngineTest` › `mapa declara as duas versoes` (o
+> pino em `1`) e `RendererContractTest` › `renderizador compativel aceita o mapa` (o `<=`). A
+> severidade não muda, porque a direção já pega é a ruidosa. Medição, canários e reversões em
+> `docs/cobertura-versao-do-renderizador-conferida.md`, Parte I.
+
 O que torna isto um achado, e não uma observação, é que **esta base já reconheceu e resolveu esta
 exata forma de defeito** para o limiar do OMR. O `ci.yml` diz, sobre `tools/parity/limiar.mjs`:
 
@@ -583,7 +631,12 @@ O **desenho está certo** — a tabela de vínculo não tem como ser autorizada 
 exceções são estruturalmente necessárias. O que está errado é o absoluto num comentário de arquivo de
 segurança, que é onde a precisão mais vale. É §1 do `rigorous.md` em escala pequena.
 
-### 5.3 `concurrency: cancel-in-progress: true` continua sobre o job de paridade
+### 5.3 `concurrency: cancel-in-progress: true` continua sobre o job de paridade — ~~**aberto**~~ **fechado**
+
+> **Fechado em 2026-09-23, pela mudança `o-apk-de-release-e-verificado`** (ETAPA 7.2). O texto abaixo
+> fica (P7). A `concurrency` saiu do nível do workflow e passou a ser declarada por job, cada um com o
+> seu grupo: `cancel-in-progress` em `build` e `web`, e não em `paridade`. **Conferido por leitura do
+> YAML, e não medido.**
 
 `ci.yml:7-10`. P15 registra o incidente: "`concurrency: cancel-in-progress` derrubou a paridade na PR
 #30 e **custou horas**". A configuração permanece, e o job `paridade` — que `needs: web` e sobe
@@ -658,6 +711,22 @@ achado.
 ---
 
 ## 7. Uma coisa de processo, e ela explica quase toda a lista
+
+> **Fechado em 2026-09-24, pela mudança `registro-de-divida-executavel`** (ETAPA 8, a última da
+> banda). O texto abaixo fica inteiro (P7). As duas metades desta seção tiveram veículos diferentes:
+> - **o ADR-0013** passou a `aceito` na ETAPA 1;
+> - **o padrão** ("o que vence depois do archive não tem quem o cobre") virou regra e guarda.
+>
+> As regras estão no `rigorous.md`:
+> - **P27:** o registro de dívida é a tabela do §16, e o archive reconcilia as linhas que alcançou;
+> - **P28:** valor em dois módulos tem dono único ou conferência cruzada.
+>
+> A guarda é `tools/divida/divida.mjs`. Ela lê o §16, deriva a fatia corrente dos nomes `slice-*` e
+> reprova no CI a linha vencida sem reconciliação. Na primeira execução, sobre a árvore real, nomeou
+> duas linhas vencidas. Uma estava paga desde 2026-09-10, e a linha não o dizia. A outra tinha passado
+> do prazo sem que ninguém visse (`docs/cobertura-registro-de-divida-executavel.md`). **O que a guarda
+> não faz**, e o último parágrafo desta seção continua certo sobre isso: ela não acha dívida que nunca
+> entrou na tabela.
 
 **ADR-0013 está em `Status: proposto`.** É o único dos treze fora de `aceito`.
 

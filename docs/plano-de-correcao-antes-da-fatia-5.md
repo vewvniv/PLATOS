@@ -81,7 +81,7 @@ Sobram duas escolhas de ordem que valem defender:
 | 4 | 2.2 | mudança `result-sync` | etapa 3 |
 | 5 | 3.2, 3.3, 4.2 | mudança `result-sync` | etapa 4 |
 | 6 | 2.1 | ADR-0015 + mudança | etapa 5 |
-| 7 | 3.1, 4.4, 5.3 | duas mudanças de build/CI | etapa 6 |
+| 7 | 3.1, 4.4, 5.3 · e, desde 2026-09-23, um achado novo (7.3) | duas mudanças de build/CI · e uma de teste (7.3) | etapa 6 |
 | 8 | a causa de 2.3, 3.1, 4.6, 4.7 e 4.4 | `rigorous.md` + guarda executável | etapa 7 |
 
 ᵣ = fecha como **registro com fatia-limite e dono**, não como implementação. A implementação é da
@@ -138,10 +138,16 @@ Nomes no estilo que o repositório já usa — descritivos, sem `slice-`. Branch
 | 2 | `servidor-confere-a-proveniencia-do-resultado` | 4 | `result-sync` | — |
 | 3 | `o-pendente-nao-se-perde-no-aparelho` | 5 | `result-sync`, `scan-session` | — |
 | 4 | `contrato-do-fio-com-dono-unico` | 6 | **nenhuma** | **ADR-0015** |
+| 9 | `o-fio-preso-nos-dois-lados` — **acrescentada em 2026-09-23**, corre **aqui**, entre a 4 e a 5 | 7.3 | nenhuma | — |
 | 5 | `versao-do-renderizador-conferida` | 7.1 | nenhuma | — |
 | 6 | `o-apk-de-release-e-verificado` | 7.2 | nenhuma | — |
 | 7 | `registro-de-divida-executavel` | 8 | nenhuma | — |
 | (8) | `transferencia-entre-aparelhos` — **só se a medição confirmar** | 2 | `device-session` | — |
+
+**A mudança 9 leva o número seguinte, e não o da posição,** porque o texto deste plano cita as outras
+pelo número ("a mudança 3 está no limite", "as mudanças 5 e 6 não se fundem"): renumerá-las faria
+essas frases apontarem para outra mudança. A ordem é a da tabela; a razão de ela correr antes da 5
+está em 7.3.
 
 **Três observações que a tabela obriga**, e todas saem da regra 3 do `CLAUDE.md` ("se tocar mais de
 duas capabilities/specs, reavalie e divida"):
@@ -161,7 +167,8 @@ duas capabilities/specs, reavalie e divida"):
 
 ### O que precisa fechar antes de a fatia 5 abrir
 
-**Sete das oito.** E não é zelo: em cada caso a fatia 5 passa por cima do mesmo terreno.
+**Sete das oito** — e, desde 2026-09-23, oito das nove: a 9 entrou nesta lista no dia em que entrou
+no plano. E não é zelo: em cada caso a fatia 5 passa por cima do mesmo terreno.
 
 | Mudança | Por que bloqueia a fatia 5 |
 |---|---|
@@ -170,6 +177,7 @@ duas capabilities/specs, reavalie e divida"):
 | 2 · `proveniencia` | A 5 traz **correção manual**, que é um segundo escritor de `grading_result`. Conferir proveniência depois de haver dois escritores é retrofit |
 | 3 · `o-pendente` | A 5 estende o caminho de captura do aparelho. Acrescentar escritores a uma topologia de Room que já está errada multiplica o defeito |
 | 4 · `contrato-do-fio` | **É a de prazo mais curto.** A 5 é o maior acréscimo de superfície de contrato do projeto. Se ela rodar antes, nascem três ou quatro espelhos novos, e o ADR-0015 passa a legislar sobre um estado pior do que o que auditamos |
+| 9 · `o-fio-preso` | É a metade que a 4 deixou: o declarante único existe, mas em dois dos quatro contratos o teste do servidor desserializa com o próprio tipo, e o fio só está preso do lado do aparelho. Todo contrato que a 5 criar nasce em `transport` com o tipo a um `import` do teste da rota — é o caminho mais curto para escrever esse teste, e foi o que abriu os dois buracos de hoje. Sem guarda, a decisão 4 do ADR-0015 vale para os quatro contratos auditados e para **nenhum** dos novos |
 | 5 · `versao-do-renderizador` | A 5 acrescenta região discursiva ao `LayoutMap`, e é aí que `min_renderer_version` sobe pela primeira vez — o momento exato em que três registros cegos divergem |
 | 7 · `registro-de-divida` | Instalar o regime **depois** da 5 significa que a 5 cria dívida sob o regime antigo. A regra existe para a próxima fatia, e a próxima é ela |
 
@@ -177,6 +185,11 @@ duas capabilities/specs, reavalie e divida"):
 
 - **6 · `o-apk-de-release-e-verificado`** — não bloqueia a 5. Bloqueia o **lançamento**. Fica na
   tabela do §16 com essa fatia-limite.
+
+  > **Nota de 2026-09-23, no fechamento da 7.2 — a frase acima fica (P7).** Essa linha **nunca foi
+  > acrescentada** ao §16: a da credencial foi (item 7.2.4, em 2026-09-19), e a do APK de release e da
+  > variante de teste, não. A mudança fechou os dois itens sem que a linha tenha existido, e ela não
+  > se acrescenta agora só para ser fechada.
 - **8 · `transferencia-entre-aparelhos`** — a fatia-limite dela não é a 5: é **antes de qualquer
   piloto em modo `nominal`** (é dado pessoal de menor). Corre fora da fila, como a etapa 2 já diz.
 
@@ -210,6 +223,19 @@ de commits diretos mais sete mudanças —, e nenhuma delas começa antes de a a
 > **Por que isto fica escrito em vez de ser só feito:** a primeira decisão chegou a ser registrada, e
 > apagá-la deixaria o leitor sem o argumento que a derrubou — que é justamente o que faz a segunda
 > ser a certa (P7).
+
+> **Nota de 2026-09-24, ao abrir a fatia 5 — a frase "o GitHub re-aponta o seguinte para `main`
+> sozinho" fica (P7), e estava errada.** Nada foi re-apontado. As ETAPAs 1 a 5 entraram em `main`
+> porque os PRs delas (#52 a #56) tinham `main` como base. A #58, da ETAPA 6, tinha como base
+> `vewvniv/o-pendente-nao-se-perde-no-aparelho`, e foi mergeada **nessa branch** em 2026-09-23 às
+> 17:31Z, quando ela já tinha ido para `main` pela #56 em 2026-09-19. Daí em diante, #59 a #62
+> entraram cada uma na branch da etapa anterior, e `main` ficou em `26789c3` (o merge da #56), 57
+> commits atrás da ponta da pilha (`81358fb`, o merge da #62). Conferido em 2026-09-24 por
+> `git rev-list` e pela base de cada PR no `gh`. Pela documentação do GitHub — e isto é **lido, não
+> medido** —, o re-apontamento só acontece quando a branch-base é apagada no merge, e o repositório
+> tem `delete_branch_on_merge: false` (conferido pela API na mesma data). A frase foi escrita como
+> fato sem ter sido conferida, e por isso ninguém percebeu que as ETAPAs 6 a 8 não estavam em `main`
+> (P6). A pilha foi levada a `main` por um PR próprio, aberto na mesma data.
 
 ---
 
@@ -682,7 +708,8 @@ foi neutra no fio — e a âncora é o artefato daquela sessão (P3).
 ## ETAPA 7 — As guardas que faltam
 
 **Veículo:** **duas** mudanças OpenSpec, sem delta de spec — o precedente é
-`generatejooq-sem-registro-automatico`, que foi mudança de build sem `specs/`.
+`generatejooq-sem-registro-automatico`, que foi mudança de build sem `specs/`. **Três desde
+2026-09-23**: a 7.3 entrou depois do archive da ETAPA 6, e corre **antes** da 7.1.
 **Pré-requisito:** etapa 6 arquivada.
 
 ### 7.1 — A versão do renderizador para de viver em três registros cegos (achado 4.4)
@@ -691,6 +718,12 @@ foi neutra no fio — e a âncora é o artefato daquela sessão (P3).
 (o que o Android lê, **e o que o gate de captura consulta**, `PreparoDaProva.kt:271`) e
 `RENDERER_VERSION` em `apps/web/src/layoutMap.ts:124`. Os três valem `1` e nada os compara. A KDoc do
 Android diz "Espelha `RENDERER_VERSION` do lado web" — afirmação sem quem a imponha.
+
+> **Nota de 2026-09-23, da medição de entrada da 7.1 — a frase acima fica (P7).** "Nada os compara"
+> vale só na direção silenciosa: um renderizador subindo sozinho não derruba teste nenhum (14 de 14
+> no web, 308 de 308 no Android), e `MIN` subindo sozinho derruba dois (`LayoutEngineTest` e
+> `RendererContractTest`). A solução abaixo não muda, porque é a direção silenciosa que ela fecha
+> sozinha. `docs/cobertura-versao-do-renderizador-conferida.md`, Parte I.
 
 **A solução já existe nesta árvore e não se inventa nada.** `tools/parity/limiar.mjs` foi escrito
 para exatamente esta forma de defeito, e o comentário dele no `ci.yml` descreve o caso palavra por
@@ -735,11 +768,36 @@ quieta" — roda **só sobre o debug** (`build.gradle.kts:365,368`).
    guarda que pode parar de verificar o que afirma sem nada acusar, e esta afirma segurança.
    A medição está em `docs/cobertura-o-pendente-nao-se-perde-no-aparelho.md` §1 e §6.
 
+5. **O teste que devolve valor deixa de sumir da suíte sem ninguém ver** (achado **novo**, de
+   2026-09-23). **Acrescentado pela medição de entrada da 7.3**, pela regra 0.4, e posto **aqui**, e
+   não na 7.3, por decisão do mantenedor na mesma data: é a família da 4, e a 7.3 é outra
+   verificação. **Dono:** mantenedor. **Fatia-limite:** a da 7.2, o lançamento — e na fila ela corre
+   antes da fatia 5, porque a ETAPA 8 exige a 7 arquivada. Não é de segurança, LGPD nem
+   imutabilidade, e por isso não entra no §16 (P20).
+   `ApiPlatosPacoteTest` declara 9 `@Test`, e o relatório diz `tests="7"`, com 0 pulados.
+   `listagem sem rede vira SemRede` e `pacote sem rede vira SemRede` são
+   `= runBlocking { … assertInstanceOf(…) }`, e no JUnit Jupiter `assertInstanceOf` **devolve** o
+   objeto: as duas funções devolvem `Retorno$SemRede` — conferido por `javap` —, e o Jupiter não
+   descobre teste que devolve valor. Nenhuma falha, nenhum pulado, nenhuma linha no log. Nasceram
+   assim em `593bf9a` (2026-09-08) e **nunca rodaram**. Nas três suítes JVM são os únicos: 804 `@Test`
+   no fonte, 802 executados, e nenhum arquivo com `@Test` sem relatório.
+   Duas coisas, nesta ordem. **Os dois passam a rodar**, e cada um é visto falhar depois disso: um
+   teste que nunca rodou também nunca foi visto falhar. E **uma guarda que reprova quando a suíte
+   executa menos testes do que o fonte declara**, nas três suítes JVM. É o P13 num eixo que nenhuma
+   guarda desta base olha: o verde com contagem **menor** que a declarada, e não com contagem velha.
+   O mecanismo é do `design.md`; o instrumento de referência, e os dois modos em que ele falhou antes
+   de ser acreditado, estão em `docs/cobertura-o-fio-preso-nos-dois-lados.md` §6. O segundo modo —
+   `@Test` escrito com o nome qualificado passa despercebido por uma contagem de texto — é o limite
+   que a guarda tem de resolver ou declarar.
+
 **Ver falhar**, nas quatro: plantar a divergência de versão e ver `renderizador.mjs` nomear **quais
 dois** registros discordam; plantar um JSON com forma de pacote nos assets de release e ver a task
 recusar; para a `concurrency`, o sinal é a configuração — que **não** é medição, e fica dita como
 **conferida por leitura**, não como medida (P6); e, para a credencial, rodar o cenário **isolado e
 dentro da suíte cheia** e exigir o mesmo desfecho nos dois — que é a propriedade que hoje não vale.
+E, na quinta, acrescentada em 2026-09-23: trocar o tipo esperado em cada um dos dois testes
+reativados e ver **cada um** cair — o primeiro vermelho que eles terão tido —; e plantar um teste
+que devolve valor, e outro com `@Test` qualificado, e ver a guarda nomear os dois.
 
 ### Proibido nesta etapa
 
@@ -750,9 +808,170 @@ dentro da suíte cheia** e exigir o mesmo desfecho nos dois — que é a proprie
 - Fazer `renderizador.mjs` "ler tudo o que for versão" e virar um conferidor genérico. Ele confere
   três registros nomeados. Abstração sem necessidade comprovada é a regra 8 do `CLAUDE.md`.
 
+### 7.3 — O fio passa a estar preso nos dois lados, e o próximo contrato já nasce assim (achado novo)
+
+> **Acrescentado em 2026-09-23, depois do archive da ETAPA 6, pela regra 0.4:** achado novo vira
+> item escrito com dono e fatia-limite, nunca implementação silenciosa. É uma **terceira mudança**, e
+> não um item de 7.1 ou 7.2, pela razão que o §2 dá para aquelas duas não se fundirem: verificação
+> diferente, mutações diferentes, arquivos diferentes. **Corre antes de 7.1**, por decisão do
+> mantenedor na mesma data: é a promessa que falta de uma etapa já arquivada, e nenhum arquivo dela
+> cruza os de 7.1 ou 7.2. **Ao contrário de 7.2, bloqueia a fatia 5.** **Dono:** mantenedor.
+
+**Veículo:** mudança OpenSpec `o-fio-preso-nos-dois-lados`, sem delta de spec (`skip_specs`), como a
+ETAPA 6: nenhum comportamento observável muda, só o que o reprova.
+**Pré-requisito:** ETAPA 6 arquivada. **Ambiente:** Docker, para os testes de rota do servidor —
+e, se o comando cheio do §10 pedir emulador, pergunte antes (P22).
+
+**O que está em jogo.** A decisão 4 do ADR-0015 fixou o critério da unificação: um `@SerialName`
+trocado no domínio tem de derrubar **os dois** testes de literal, e "se derrubar um, a leitura
+correta não é 'o teste pegou': é que o outro lado não está preso". A ETAPA 6 aplicou a mutação a
+**um** dos quatro contratos — `capture_id`, no de resultado — e registrou os outros três como não
+submetidos. Lidos um a um, dois dos três não passariam:
+
+| Contrato | Aparelho | Servidor |
+|---|---|---|
+| `POST .../results` | `ResultadoDtoTest` — literal | `ResultRouteTest.corpo()` — literal · **medido** na ETAPA 6 |
+| `GET .../roster` | `ObtencaoDeRosterTest:53` — literal | `ExamPackageRouteTest:281` — literal |
+| `GET /me/organizations` | `ApiPlatosTest:38` — literal | `MeOrganizationsTest:112` **desserializa com o próprio `OrganizationDto`** |
+| `GET .../exams` | `ApiPlatosPacoteTest:32` — literal | `ExamPackageRouteTest:359` **desserializa com o próprio `ExamSummaryDto`** |
+
+Nos dois últimos, o teste do servidor julga a rota com o mesmo tipo que ela usa para escrever o
+corpo: a igualdade tem o mesmo código dos dois lados, que é P4. E os dois leem com
+`Json { ignoreUnknownKeys = true }`, então também não veem campo a mais — o argumento já está escrito
+no mesmo arquivo, em `ExamPackageRouteTest.kt:261-267`, e foi aplicado só ao roster.
+
+**Já era assim, e a unificação só o revelou.** Em `bd2934a`, antes da ETAPA 6, os dois testes
+desserializavam com o `OrganizationDto` e o `ExamSummaryDto` do próprio servidor. A mutação da
+decisão 4 só passou a ter onde ser injetada quando passou a haver um declarante único. O registro
+completo está em `docs/cobertura-contrato-do-fio-com-dono-unico.md` §8, na correção de 2026-09-23.
+
+**Tipo da afirmação: conferido por leitura, e não medido (P6).** Medir é a primeira coisa que esta
+mudança faz.
+
+> **Medido em 2026-09-23, antes do `/opsx:propose`,** no molde da ETAPA 2: se a leitura estivesse
+> errada, a mudança não deveria nem ser proposta. **Real = previsto nas três mutações** —
+> `docs/cobertura-o-fio-preso-nos-dois-lados.md`, Parte I. O passo "Antes de qualquer commit — ver o
+> buraco" abaixo **está feito**; a mudança começa pelo commit 1, e a tabela dele fica como previsão
+> registrada, com o real ao lado na cobertura.
+
+**Por que consertar os dois testes não basta.** A fatia 5 é o maior acréscimo de contrato do
+projeto, e todo contrato novo nasce em `com.platos.domain.transport`, com o tipo a um `import` do
+teste da rota. `json.decodeFromString<NovoDto>(corpo)` é o caminho mais curto para escrever esse
+teste — e foi exatamente ele que abriu os dois buracos de hoje. Os dois literais fecham o passado;
+**a guarda é o que fecha a 5**.
+
+**Antes de qualquer commit — ver o buraco.** Três mutações, uma por contrato não medido, cada uma
+revertida e **rodada** antes da próxima (P10). **A escolha do campo não é neutra:** `kind` está
+preso no servidor por acaso — `AuthenticationTest:131` procura `"kind":"personal"` no corpo, num
+teste de isolamento, e não de contrato. Mutar `kind` daria "o servidor segura", e seria a camada
+vizinha segurando (`rigorous.md` §3). A mutação de organização é sobre `name`.
+
+| Mutação | Aparelho | Servidor |
+|---|---|---|
+| `OrganizationDto.name` ganha `@SerialName("nome")` | `ApiPlatosTest` **cai** | **nada cai** — é o buraco |
+| `ExamSummaryDto.title` ganha `@SerialName("titulo")` | `ApiPlatosPacoteTest` **cai** | **nada cai** — é o buraco |
+| `RosterEntryDto`: `display_name` → `displayName` | `ObtencaoDeRosterTest` **cai** | `ExamPackageRouteTest`, o cenário do roster (`:270`), **cai** |
+| qualquer outra suíte, nas três | 0 | 0 |
+
+Se o servidor cair em uma das duas primeiras, a leitura estava errada: **pare** (regra 0.5), e o
+achado sai com a medição ao lado (`rigorous.md` §10). Se não cair na terceira, o roster também está
+solto, e a mudança cresce um contrato.
+
+**Commit 1 — a guarda, e ela nasce vermelha.** A propriedade: **um tipo `@Serializable` em
+`com.platos.domain.transport` sem literal escrito à mão nos dois lados reprova** — antes de a
+fatia 5 escrever o primeiro. O mecanismo é decisão do `design.md`; três coisas já estão decididas:
+
+- **Ela lê os arquivos de origem de `transport/`**, e não uma lista mantida à mão. A lista seria um
+  segundo registro, e o contrato que alguém esquece de pôr na lista é o mesmo que esquece de ganhar
+  literal. O precedente é `RetentionDeclarationTest`, que lê o catálogo real.
+- **Ser geral sobre o pacote não contradiz a proibição de 7.1.** Lá, o conferidor confere três
+  registros **nomeados**, e generalizá-lo seria abstração sem necessidade (regra 8 do `CLAUDE.md`).
+  Aqui o conjunto cresce por construção, e o caso que importa é justamente o que ainda não tem nome.
+  A necessidade está comprovada: dois dos quatro contratos já caíram no buraco.
+- **Ela tem piso** (P13). Um pacote lido como vazio passa em qualquer conferência; o precedente é
+  "o piso reprova um catálogo vazio", da guarda de RLS.
+
+O commit entra **antes** dos literais, e fica vermelho — esperado, e dito na mensagem do commit,
+como o commit 1 da ETAPA 3. A razão: o primeiro vermelho da guarda é sobre a **árvore
+real**, sem defeito plantado, e fica na história para quem quiser conferir. Ele tem de nomear
+**exatamente** `OrganizationDto` e `ExamSummaryDto`, **do lado do servidor**, e mais nada. Se nomear
+outro tipo, ou o lado do aparelho, a guarda ou a leitura acima está errada: pare.
+
+**Commit 2 — os dois literais do servidor.** `MeOrganizationsTest` e `ExamPackageRouteTest` ganham,
+cada um, um cenário que compara o corpo da rota contra JSON **escrito à mão**, no molde do cenário
+do roster (`ExamPackageRouteTest.kt:261-285`): igualdade do corpo inteiro, que prende nome de
+campo, ordem das chaves e ausência de campo a mais. **Os cenários que desserializam ficam** — eles
+afirmam conteúdo (quais organizações, qual papel), e isso continua certo. Deixam de ser os únicos a
+olhar o fio.
+
+**Ver falhar, depois do commit 2.**
+
+1. **As três mutações de antes, repetidas** — e agora cada uma derruba os dois lados:
+
+   | Mutação | Aparelho | Servidor |
+   |---|---|---|
+   | `name` → `nome` | `ApiPlatosTest` cai | o cenário novo de `MeOrganizationsTest` **cai** |
+   | `title` → `titulo` | `ApiPlatosPacoteTest` cai | o cenário novo de `ExamPackageRouteTest` **cai** |
+   | `display_name` → `displayName` | `ObtencaoDeRosterTest` cai | o cenário do roster cai |
+   | qualquer outra suíte | 0 | 0 |
+
+   Os cenários que desserializam **não** caem em nenhuma das três — mesmo código dos dois lados da
+   igualdade. Se caírem, eles não eram o que este plano diz que são: pare.
+2. **A guarda, com defeito plantado, e um lado de cada vez.** Um contrato de mentira em `transport/`
+   sem literal nenhum: a guarda o nomeia, **nos dois lados**. O literal do roster retirado: ela
+   nomeia `RosterEntryDto`, **só do lado do servidor**. A segunda é a que prova que a guarda
+   distingue os lados, e não só a presença do tipo.
+3. **O piso:** a guarda apontada para um diretório vazio reprova.
+
+**Proibido em 7.3.** A lista "Proibido nesta etapa" acima é de 7.1 e 7.2; esta é a de 7.3.
+
+- Reescrever os cenários que desserializam para comparar contra `Json.encodeToString` do tipo, ou
+  montar o literal esperado a partir dele. É o mesmo código dos dois lados de novo: P4, e a decisão
+  4 do ADR-0015.
+- Apagar os cenários que desserializam "porque agora há literal". Eles afirmam outra coisa.
+- Tirar o `"kind":"personal"` de `AuthenticationTest:131` "porque o literal agora cobre". Ele afirma
+  isolamento entre usuários, e não contrato (P19).
+- Mexer nos DTOs — renomear, acrescentar campo, mudar default ou `@SerialName`. As mutações de
+  medição são revertidas, e nada além delas toca `transport/` (P25).
+- Manter à mão a lista de contratos que a guarda confere. Seria um segundo registro, pelo mesmo
+  argumento com que a ETAPA 8 proíbe duplicar o §16 num YAML.
+- Estender a guarda para fora de `transport`. O pacote publicado é artefato hasheado, com as camadas
+  do ADR-0013; o espelho do `LayoutMap` em TypeScript foi isentado por escrito (ETAPA 6, "Proibido").
+- `packages/contracts`, OpenAPI ou geração de código. Recusados pela decisão 1 do ADR-0015, e pela
+  mesma razão: não há consumidor.
+
+**Fica escrito.** `docs/cobertura-o-fio-preso-nos-dois-lados.md`, com: os três conjuntos antes e
+depois, ao lado dos previstos; o primeiro vermelho da guarda sobre a árvore real, com os nomes que
+ele deu; os dois vermelhos plantados e o do piso. E, na seção do que **não** fica verificado, uma
+frase que não pode faltar: **a guarda prova que o literal existe, e não que ele prende o fio.** Quem
+prova isso é a mutação de `@SerialName`, e ela só roda quando alguém a roda — a mudança da fatia 5
+que criar um contrato continua devendo a mutação dele (P16: a guarda é a camada vizinha).
+
 ---
 
 ## ETAPA 8 — A orientação que impede a lista de voltar
+
+> **Arquivada em 2026-09-24**, como `openspec/changes/archive/2026-09-24-registro-de-divida-executavel`
+> (PR #62). **É a última etapa da banda, e a linha temporária do `CLAUDE.md` sai neste archive.** O
+> texto abaixo fica como o plano da etapa (P7). Seis coisas se afastaram dele, todas escritas no
+> `design.md` da mudança:
+>
+> 1. **A fatia corrente é derivada, e não "declarada em um lugar só".** Ela sai da maior mudança
+>    `slice-*` em `openspec/changes/`, por decisão do mantenedor. O nome da mudança já é a declaração,
+>    e uma linha digitada seria o espelho cego da P28, que fica verde se ninguém a atualizar.
+> 2. **Os dois itens do §9 com fatia-limite e sem linha no §16 entraram no §16**, por decisão do
+>    mantenedor: `assessment_fact` (`9`) e o release de lançamento (`antes-de:lancamento`).
+> 3. **A P27 cita cinco incidentes, e não quatro.** O quinto é a linha do APK de release, que o §2
+>    deste plano mandava pôr no §16 e que nunca entrou.
+> 4. **O §8 do `rigorous.md` ganhou a cláusula de fechamento da P27.** Ela só existia no quadro do §10
+>    deste plano, que sai de circulação com a banda. Não é uma terceira regra.
+> 5. **A guarda nasceu vermelha sobre a árvore real** e nomeou as duas linhas previstas. O mantenedor
+>    reconciliou as duas: `Uso offline` foi paga, e a `LGPD` foi reagendada para
+>    `antes-de:primeiro-piloto`.
+> 6. **A linha do propose no `CLAUDE.md` aponta para a guarda.** É o único acréscimo ao texto das duas
+>    linhas.
+>
+> O registro completo está em `docs/cobertura-registro-de-divida-executavel.md`.
 
 **Veículo:** `rigorous.md` (§10: regra nova entra **com o incidente que a pagou**) + uma guarda
 executável + duas linhas no `CLAUDE.md`.
@@ -864,6 +1083,16 @@ porque um plano que fecha sem esta seção ensina o oposto do que a etapa 8 inst
 | **`minifyEnabled`, assinatura, `versionCode`** | Trabalho de lançamento | fatia comercial | mantenedor |
 | **Sentry** | §13 o prevê e `deploy-api.md:421` já registra que não existe. Não é regressão | — | mantenedor |
 | **`assessment_fact`** | Adiamento **correto**: o insumo está preservado em `answer_observation` e a derivação por junção com o pacote imutável continua possível | **9** | mantenedor |
+
+> **Nota de 2026-09-24, no archive da ETAPA 8. A tabela acima fica (P7), mas deixou de ser registro.**
+> A P27 diz que o registro de dívida é um só, a tabela de ponto de não-retorno do §16. Todos os itens
+> desta tabela que têm fatia-limite estão agora lá:
+> - o modo degradado, a migration e o limiar/corpus, que traz junto os dois QRs, entraram na ETAPA 1;
+> - `assessment_fact` e `minifyEnabled`/assinatura/`versionCode` entraram na ETAPA 8, por decisão do
+>   mantenedor.
+>
+> Cifrar o roster segue a linha da classe H, que já estava lá. Os dois sem fatia-limite (renomear
+> `exam_id` e o Sentry) não são dívida com data. Quem ler esta tabela depois da banda deve ler o §16.
 
 ---
 

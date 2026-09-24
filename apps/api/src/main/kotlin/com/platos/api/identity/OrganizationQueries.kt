@@ -2,7 +2,7 @@ package com.platos.api.identity
 
 import com.platos.api.db.generated.tables.references.MEMBERSHIP
 import com.platos.api.db.generated.tables.references.ORGANIZATION
-import com.platos.api.http.dto.OrganizationDto
+import com.platos.domain.transport.OrganizationDto
 import org.jooq.DSLContext
 
 class OrganizationQueries {

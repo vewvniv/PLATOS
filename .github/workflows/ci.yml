@@ -5,13 +5,18 @@ on:
     branches: [main]
   pull_request:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
+# A `concurrency` e declarada por job, e nao no workflow. No workflow, um push novo cancelava a
+# execucao em curso inteira — `paridade` incluida — e foi assim que ela caiu na PR #30, com passo
+# marcado como falha sem erro no log, custando horas (P15). `build` e `web` continuam sendo
+# cancelados, porque sao rapidos e o commit novo os refaz; `paridade` nao, porque e o job mais caro de
+# perder e o que o §16 chama de maior risco do projeto se nao existir. O grupo carrega o nome do job:
+# com um grupo so, `build` e `web` da MESMA execucao disputariam o grupo, e um cancelaria o outro.
 jobs:
   build:
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-build
+      cancel-in-progress: true
     # Configuracao do aplicativo Android (tarefa 2.2 da fatia 4a-zero). Ausente, o build falha de
     # proposito: aplicativo sem destino nao serve para nada, e string vazia so quebraria na primeira
     # chamada de rede, com erro que fala de rede e nao de configuracao.
@@ -89,6 +94,9 @@ jobs:
 
   web:
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-web
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
 
@@ -191,6 +199,167 @@ jobs:
           fi
           echo "a verificacao do limiar acusou o numero fora do corredor, como deve"
 
+      # Mesma familia, outro valor: os quatro `answer_kind` vivem no dominio KMP e no `check` da
+      # migration. O ADR-0015 uniu as duas copias Kotlin e deixou o `check` de proposito — guarda de
+      # banco gerada por quem escreve as linhas nao e guarda. Divergir entre os dois nao quebra
+      # teste nenhum: o Kotlin compila, os testes de literal passam (eles afirmam o que o aparelho
+      # ENVIA, nao o que o banco ACEITA), e o desencontro so aparece como `violates check
+      # constraint` num INSERT em producao — depois de a folha ja ter sido corrigida.
+      - name: Os valores de answer_kind concordam com o check da migration
+        run: node tools/parity/answer-kind.mjs
+
+      - name: A verificacao de answer_kind continua capaz de falhar
+        run: |
+          if node tools/parity/answer-kind.mjs \
+               --esperado marcada,em_branco,multipla_marcacao,rasurada > /dev/null 2>&1; then
+            echo "::error::a verificacao de answer_kind aceitou 'rasurada', que o check nao admite"
+            exit 1
+          fi
+          echo "a verificacao de answer_kind acusou o valor que o check nao admite, como deve"
+
+      # O contrato de transporte tem um declarante (ADR-0015), e o que prende o nome de um campo e
+      # um JSON com esse nome digitado nos DOIS lados. Teste que desserializa o corpo com o proprio
+      # tipo nao prende nada: a rota escreve "nome", o teste le "nome", e o verde continua. Foi
+      # assim que organizacao e prova ficaram presas so do lado do aparelho, e so a mutacao mostrou
+      # (docs/cobertura-o-fio-preso-nos-dois-lados.md). A guarda le todo tipo @Serializable de
+      # com.platos.domain.transport da fonte e reprova o que nao tem literal nos dois lados — antes
+      # de a fatia 5 escrever o primeiro. Ela prova que o literal existe, e nao que ele prende o
+      # fio: isso so a mutacao de @SerialName prova.
+      - name: O fio de cada contrato esta preso nos dois lados
+        run: node tools/parity/fio.mjs
+
+      # Os dois defeitos sao plantados FORA do checkout: um contrato a mais, sem literal em lado
+      # nenhum, numa copia temporaria de transport/; e um diretorio vazio. O motivo e conferido, e
+      # nao so o codigo de saida — recusar pelo motivo errado seria a camada vizinha segurando.
+      - name: A verificacao do fio continua capaz de falhar
+        run: |
+          fantasma="$(mktemp -d)"
+          cp -r packages/domain/src/commonMain/kotlin/com/platos/domain/transport/. "$fantasma/"
+          printf '%s\n' \
+            'package com.platos.domain.transport' '' \
+            'import kotlinx.serialization.SerialName' \
+            'import kotlinx.serialization.Serializable' '' \
+            '@Serializable' \
+            'data class FantasmaDto(@SerialName("campo_fantasma") val campoFantasma: String)' \
+            > "$fantasma/FantasmaDto.kt"
+          codigo=0; saida="$(node tools/parity/fio.mjs --transport "$fantasma" 2>&1)" || codigo=$?
+          for lado in servidor aparelho; do
+            if [ "$codigo" -ne 1 ] \
+               || ! grep -q "FantasmaDto (.*) nao tem literal escrito a mao do lado do $lado" <<<"$saida"; then
+              echo "$saida"
+              echo "::error::a verificacao do fio nao acusou o contrato sem literal do lado do $lado (saida $codigo)"
+              exit 1
+            fi
+          done
+          vazio="$(mktemp -d)"
+          codigo=0; saida="$(node tools/parity/fio.mjs --transport "$vazio" 2>&1)" || codigo=$?
+          if [ "$codigo" -ne 2 ] || ! grep -q "piso:" <<<"$saida"; then
+            echo "$saida"
+            echo "::error::a verificacao do fio aceitou uma raiz de contratos vazia (saida $codigo)"
+            exit 1
+          fi
+          echo "a verificacao do fio acusou o contrato sem literal nos dois lados, e o piso, como deve"
+
+      # A versao do renderizador (D24) aparece em tres registros que nao se conhecem: o MIN que a
+      # publicacao escreve no mapa, e a versao de cada renderizador, Android e web. A direcao
+      # silenciosa e a pior: um renderizador que sobe a propria constante sem o mapa subir MIN faz
+      # cliente antigo desenhar mapa novo, e nenhum teste cai — medido, 14 de 14 no web e 308 de 308
+      # no Android (docs/cobertura-versao-do-renderizador-conferida.md). Mesma familia do limiar. A
+      # verificacao prova que os tres numeros concordam, e nao que estao certos.
+      - name: A versao do renderizador concorda nos tres registros
+        run: node tools/parity/renderizador.mjs
+
+      # Cada registro e forcado sozinho, um de cada vez: forcar so um provaria so esse, e uma
+      # comparacao que deixasse de incluir um dos tres passaria. O motivo e conferido — os dois pares
+      # que contem o registro forcado, e so eles —, e nao so o codigo de saida. Este passo prova a
+      # comparacao, e nao a leitura dos arquivos: essa foi vista falhar por mutacao na mudanca que o
+      # criou, e daqui em diante e protegida pela falha fechada (saida 2) do proprio script.
+      - name: A verificacao da versao do renderizador continua capaz de falhar
+        run: |
+          for forcado in dominio android web; do
+            codigo=0; saida="$(node tools/parity/renderizador.mjs --divergir "$forcado" 2>&1)" || codigo=$?
+            erro=""
+            if [ "$codigo" -ne 1 ]; then erro="saida $codigo, e nao 1"; fi
+            for par in "dominio android" "dominio web" "android web"; do
+              set -- $par
+              linha="os registros $1 e $2 discordam"
+              if [ "$1" = "$forcado" ] || [ "$2" = "$forcado" ]; then
+                grep -q "$linha" <<<"$saida" || erro="$erro; faltou '$linha'"
+              elif grep -q "$linha" <<<"$saida"; then
+                erro="$erro; sobrou '$linha'"
+              fi
+            done
+            if [ -n "$erro" ]; then
+              echo "$saida"
+              echo "::error::a verificacao da versao do renderizador, com $forcado forcado: ${erro#; }"
+              exit 1
+            fi
+          done
+          echo "a verificacao da versao do renderizador acusou cada registro forcado, e so os pares dele, como deve"
+
+      # O registro de divida do projeto e um so: a tabela de ponto de nao-retorno do par. 16 da
+      # arquitetura (rigorous.md P27). Os itens que entraram nela avancaram e fecharam; os que ficaram
+      # so em prosa de cobertura nao avancaram, e nenhum foi lido na abertura da fatia seguinte
+      # (docs/auditoria-2026-09-18-antes-da-fatia-5.md, par. 7). A guarda le a tabela real, deriva a
+      # fatia corrente dos nomes slice-* em openspec/changes, e reprova linha vencida sem
+      # reconciliacao. Ela prova que nada venceu em silencio, e nao que a divida foi paga: `paga` e
+      # afirmacao humana, e a divida que nunca entrou na tabela continua invisivel.
+      - name: O registro de divida do par. 16 esta em dia
+        run: node tools/divida/divida.mjs
+
+      # Os defeitos sao plantados FORA do checkout, numa copia do documento com uma linha-canario logo
+      # depois da separadora da tabela. O canario `0` vence em qualquer fatia corrente, entao o passo
+      # nao depende das linhas reais; e como o passo anterior passou, ele tem de ser a UNICA vencida.
+      # O motivo e conferido, e nao so o codigo de saida: `paga` segura, o evento dispara so quando
+      # ocorre, e os dois pisos (tabela vazia, nenhuma mudanca slice-*) falham fechados. Este passo
+      # prova a comparacao; a leitura da linha de eventos e a derivacao a partir de nomes reais foram
+      # vistas falhar por mutacao na mudanca que o criou (docs/cobertura-registro-de-divida-executavel.md).
+      - name: A verificacao da divida continua capaz de falhar
+        run: |
+          copia="$(mktemp -d)"
+          plantar() {
+            awk -v celula="$1" '
+              { print }
+              index(anterior, "| Risco | Fatia-limite |") == 1 && index($0, "|---") == 1 {
+                print "| Canario do CI | " celula " · plantado pelo CI | nada | CI |"
+              }
+              { anterior = $0 }' docs/architecture/ARQUITETURA-FINAL-v3.md > "$copia/doc.md"
+            grep -q '^| Canario do CI |' "$copia/doc.md" || { echo "::error::o canario nao foi plantado"; exit 1; }
+          }
+          erro=""
+          rodar() {  # rodar <caso> <saida esperada> <texto que tem de aparecer, ou vazio> <parametros...>
+            local caso="$1" esperada="$2" texto="$3"; shift 3
+            codigo=0; saida="$(node tools/divida/divida.mjs "$@" 2>&1)" || codigo=$?
+            if [ "$codigo" -ne "$esperada" ] || { [ -n "$texto" ] && ! grep -qF "$texto" <<<"$saida"; }; then
+              echo "$saida"
+              erro="$erro; $caso: saiu $codigo, e nao $esperada${texto:+ com '$texto'}"
+            fi
+          }
+          plantar '`0`'
+          rodar 'canario 0' 1 'linha vencida sem reconciliacao: Canario do CI (`0`)' --arquitetura "$copia/doc.md"
+          [ "$(grep -c 'linha vencida sem reconciliacao' <<<"$saida")" -eq 1 ] \
+            || erro="$erro; canario 0: nao foi a unica linha vencida"
+          plantar '`0` `paga`'
+          rodar 'canario 0 paga' 0 '' --arquitetura "$copia/doc.md"
+          plantar '`antes-de:canario-do-ci`'
+          rodar 'canario de evento, ocorrido' 1 \
+            'Canario do CI (`antes-de:canario-do-ci`): o evento canario-do-ci ja ocorreu' \
+            --arquitetura "$copia/doc.md" --ocorrido canario-do-ci
+          rodar 'canario de evento, nao ocorrido' 0 '' --arquitetura "$copia/doc.md"
+          awk '
+            index($0, "| Risco | Fatia-limite |") == 1 { tabela = 1; print; next }
+            tabela && index($0, "|---") == 1 { print; next }
+            tabela && index($0, "|") == 1 { next }
+            { tabela = 0; print }' docs/architecture/ARQUITETURA-FINAL-v3.md > "$copia/vazia.md"
+          rodar 'tabela sem linhas' 2 'piso:' --arquitetura "$copia/vazia.md"
+          mkdir "$copia/mudancas"
+          rodar 'nenhuma mudanca slice-*' 2 'piso:' --mudancas "$copia/mudancas"
+          if [ -n "$erro" ]; then
+            echo "::error::a verificacao da divida falhou: ${erro#; }"
+            exit 1
+          fi
+          echo "a verificacao da divida acusou o canario vencido, respeitou a marca e o evento, e os dois pisos, como deve"
+
       # As tres fixtures derivadas da digitalizacao — o vetor de referencia e o recorte retificado
       # — sao geradas por ferramenta e versionadas. Nada as verificava: se a imagem e o vetor
       # deixassem de corresponder, os testes do OMR continuariam verdes comparando com uma
@@ -220,6 +389,11 @@ jobs:
   paridade:
     runs-on: ubuntu-latest
     needs: web
+    # Sem cancelar: a execucao nova espera esta terminar. Se o `web` desta execucao for cancelado
+    # antes de acabar, a `paridade` dela nao chega a comecar — e a da execucao nova cobre o commit novo.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-paridade
+      cancel-in-progress: false
     # Configuracao do aplicativo Android (tarefa 2.2 da fatia 4a-zero). Ausente, o build falha de
     # proposito: aplicativo sem destino nao serve para nada, e string vazia so quebraria na primeira
     # chamada de rede, com erro que fala de rede e nao de configuracao.

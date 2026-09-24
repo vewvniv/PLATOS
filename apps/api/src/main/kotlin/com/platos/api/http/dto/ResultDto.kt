@@ -5,55 +5,10 @@ import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.PendingQuestion
 import com.platos.domain.scoring.PendingReason
 import com.platos.domain.scoring.QuestionOutcome
-import kotlinx.serialization.SerialName
+import com.platos.domain.transport.AnswerKind
+import com.platos.domain.transport.AnswerObservationDto
+import com.platos.domain.transport.ResultSubmissionDto
 import kotlinx.serialization.Serializable
-
-/**
- * A evidencia de uma questao, como ela viaja.
- *
- * Os quatro valores de [answerKind] sao os de `QuestionAnswer`, e o `check` da migration os repete.
- * Nao ha um quinto: "em branco" e afirmacao sobre o que o aluno fez, "indecisa" e afirmacao sobre o
- * que a leitura conseguiu apurar, e as duas so parecem iguais ate a nota.
- */
-@Serializable
-data class AnswerObservationDto(
-    @SerialName("item_id") val itemId: String,
-    @SerialName("answer_kind") val answerKind: String,
-    @SerialName("answer_options") val answerOptions: List<String> = emptyList(),
-    val worth: Int,
-    val earned: Int,
-)
-
-/**
- * Contrato de `POST /organizations/{organizationId}/exams/{shortId}/results`.
- *
- * **[captureId] e a chave de idempotencia, e ele nasce no aparelho.** Reenvio do mesmo resultado — a
- * confirmacao que se perdeu no caminho — chega com o mesmo valor. Recaptura da mesma folha e outra
- * captura, logo outro valor, logo revisao nova. Comparar conteudo no lugar disto seria errado: uma
- * recaptura que desse exatamente a mesma nota e recaptura, e nao reenvio.
- *
- * **[studentToken] e nulo na folha avulsa**, e nunca string vazia. O aluno fora da lista tem nota
- * valida; o que falta e a atribuicao (§7). Vazio faria todas as avulsas da mesma prova colidirem.
- *
- * **Nao ha campo de nome, turma ou matricula, e a ausencia e o requisito.** O resultado e fato sobre
- * a folha, e o que liga a folha ao aluno e o token — I5 e ADR-0002. Acrescentar um campo aqui e
- * acrescentar dado pessoal no transporte e no banco, e exige requisito que o justifique.
- *
- * **Tambem nao ha campo de habilidade.** O vinculo item->habilidade vive no `ExamPackage`, que e
- * imutavel e hasheado; o fato analitico e derivado dele por juncao, e nao enviado pelo aparelho.
- */
-@Serializable
-data class ResultSubmissionDto(
-    @SerialName("capture_id") val captureId: String,
-    @SerialName("student_token") val studentToken: String? = null,
-    @SerialName("package_hash") val packageHash: String,
-    @SerialName("variant_id") val variantId: String,
-    val points: Int,
-    @SerialName("max_score") val maxScore: Int,
-    val closed: Boolean,
-    @SerialName("captured_at") val capturedAt: String,
-    val observations: List<AnswerObservationDto>,
-)
 
 /**
  * O que a rota responde, e ela responde a mesma coisa nas duas vezes.
@@ -111,10 +66,17 @@ fun ResultSubmissionDto.paraNota(): ObjectiveScore {
     )
 }
 
+/**
+ * O caminho de volta: o valor recebido no fio vira o tipo de dominio que o produziu.
+ *
+ * **As quatro ramificacoes sao as constantes de [AnswerKind], e nao literais repetidos aqui.** Este
+ * `when` era o terceiro registro Kotlin dos mesmos quatro valores; ramificar sobre a constante e o
+ * que faz a unificacao alcancar tambem quem **le** o campo, e nao so quem o escreve (ADR-0015).
+ */
 private fun AnswerObservationDto.paraOutcome(): QuestionOutcome = QuestionOutcome(
     questionId = itemId,
     answer = when (answerKind) {
-        "marcada" -> QuestionAnswer.Marcada(
+        AnswerKind.MARCADA -> QuestionAnswer.Marcada(
             itemId,
             answerOptions.singleOrNull()
                 ?: throw IllegalArgumentException(
@@ -122,14 +84,14 @@ private fun AnswerObservationDto.paraOutcome(): QuestionOutcome = QuestionOutcom
                         "marcada e exatamente uma",
                 ),
         )
-        "em_branco" -> {
+        AnswerKind.EM_BRANCO -> {
             require(answerOptions.isEmpty()) {
                 "item '$itemId' e 'em_branco' e mesmo assim nomeia alternativa"
             }
             QuestionAnswer.EmBranco(itemId)
         }
-        "multipla_marcacao" -> QuestionAnswer.MultiplaMarcacao(itemId, answerOptions)
-        "indecisa" -> QuestionAnswer.Indecisa(itemId, answerOptions)
+        AnswerKind.MULTIPLA_MARCACAO -> QuestionAnswer.MultiplaMarcacao(itemId, answerOptions)
+        AnswerKind.INDECISA -> QuestionAnswer.Indecisa(itemId, answerOptions)
         else -> throw IllegalArgumentException(
             "item '$itemId' declara answer_kind '$answerKind', que nao existe",
         )
