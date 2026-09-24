@@ -93,7 +93,7 @@
   falhar:** com a checagem de região por item discursivo desligada, cai **só** "Item discursivo sem
   região". Com a checagem do índice no payload desligada, cai **só** "QR de atribuição associado à
   região errada". Os dois conjuntos são disjuntos. Reverter e rodar.
-- [ ] 4.3 `folhaDaAtribuicao` troca cada QR pelo `qr_id` da região (decisão 3). Verificação: o cenário
+- [x] 4.3 `folhaDaAtribuicao` troca cada QR pelo `qr_id` da região (decisão 3). Verificação: o cenário
   "Duas atribuições, uma geometria" sobre a fixture discursiva, com três regiões. **Ver falhar:** com
   a troca feita pela ordem das primitivas e as regiões emitidas fora de ordem num mapa de teste, o
   cenário cai.

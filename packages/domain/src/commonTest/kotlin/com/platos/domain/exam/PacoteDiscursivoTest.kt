@@ -111,6 +111,74 @@ class PacoteDiscursivoTest {
         pacote.requireCoherent()
     }
 
+    // --- 4.3: a folha do aluno troca um QR por regiao, pelo `qr_id` ---
+
+    private fun qrsDa(folha: com.platos.domain.layout.LayoutMap): Map<Int, com.platos.domain.layout.DrawQr> =
+        folha.regions.associate { regiao ->
+            regiao.index to folha.pages.single { it.index == regiao.page }.primitives
+                .filterIsInstance<com.platos.domain.layout.DrawQr>().single { it.id == regiao.qrId }
+        }
+
+    @Test
+    fun `a folha do aluno tem, em cada regiao, o QR que a atribuicao traz para ela`() {
+        val pacote = prova(objetiva("q1"), discursiva("q2"), discursiva("q3")).buildPackage(tokens = listOf("tok-a"))
+        val atribuicao = pacote.assignments.single()
+        val folha = requireNotNull(pacote.folhaDaAtribuicao("tok-a"))
+
+        val porRegiao = qrsDa(folha)
+        assertEquals(setOf(0, 1, 2), porRegiao.keys)
+        for (qr in atribuicao.qrs) {
+            assertEquals(qr.payload, porRegiao.getValue(qr.regionIndex).payload, "regiao ${qr.regionIndex}")
+            assertEquals(qr.modules, porRegiao.getValue(qr.regionIndex).modules, "regiao ${qr.regionIndex}")
+        }
+    }
+
+    /** Cenario "Duas atribuicoes, uma geometria", com tres regioes. */
+    @Test
+    fun `duas atribuicoes com discursiva produzem folhas que diferem so nos QRs`() {
+        val pacote = prova(objetiva("q1"), discursiva("q2"), discursiva("q3"))
+            .buildPackage(tokens = listOf("tok-a", "tok-b"))
+        val a = requireNotNull(pacote.folhaDaAtribuicao("tok-a"))
+        val b = requireNotNull(pacote.folhaDaAtribuicao("tok-b"))
+
+        fun semConteudoDeQr(m: com.platos.domain.layout.LayoutMap) = m.copy(
+            pages = m.pages.map { p ->
+                p.copy(
+                    primitives = p.primitives.map {
+                        if (it is com.platos.domain.layout.DrawQr) it.copy(payload = "", modules = emptyList()) else it
+                    },
+                )
+            },
+        )
+        assertEquals(semConteudoDeQr(a), semConteudoDeQr(b), "as folhas divergiram fora dos QRs")
+        val qa = qrsDa(a)
+        val qb = qrsDa(b)
+        for (indice in qa.keys) {
+            assertTrue(qa.getValue(indice).payload != qb.getValue(indice).payload, "regiao $indice com o mesmo QR")
+        }
+    }
+
+    /**
+     * A troca e pelo `qr_id`, e nao pela ordem das primitivas.
+     *
+     * A mesma geometria com as primitivas de cada pagina em ordem inversa: nada muda no desenho, e a
+     * troca por ordem poria o QR da regiao 2 na regiao 1. So a ligacao declarada acerta nos dois.
+     */
+    @Test
+    fun `a troca segue o qr_id mesmo com as primitivas em outra ordem`() {
+        val pacote = prova(objetiva("q1"), discursiva("q2"), discursiva("q3")).buildPackage(tokens = listOf("tok-a"))
+        val invertido = pacote.copy(
+            layout = pacote.layout.mapValues { (_, mapa) ->
+                mapa.copy(pages = mapa.pages.map { it.copy(primitives = it.primitives.reversed()) })
+            },
+        )
+        val folha = requireNotNull(invertido.folhaDaAtribuicao("tok-a"))
+        val porRegiao = qrsDa(folha)
+        for (qr in invertido.assignments.single().qrs) {
+            assertEquals(qr.payload, porRegiao.getValue(qr.regionIndex).payload, "regiao ${qr.regionIndex}")
+        }
+    }
+
     // --- 4.2: a coerencia do pacote discursivo ---
     //
     // Cada cenario parte de um pacote VALIDO e muda UMA coisa, e a assercao confere o motivo

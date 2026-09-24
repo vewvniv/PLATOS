@@ -245,31 +245,44 @@ fun ExamPackage.folhaDaAtribuicao(studentToken: String): LayoutMap? {
         "pacote incoerente: a atribuicao `$studentToken` aponta a variante `${atribuicao.variantId}`, " +
             "que nao tem layout"
     }
-    // Minimo para compilar sobre o contrato novo: ainda um QR so, o da regiao 0. A troca por
-    // `qr_id` de cada regiao e a tarefa 4.3 da `slice-5a-regiao-discursiva`.
-    val qr = requireNotNull(atribuicao.qrs.singleOrNull { it.regionIndex == 0 }) {
+    require(atribuicao.qrs.isNotEmpty()) {
         "pacote incoerente: a atribuicao `$studentToken` nao tem QR proprio"
     }
 
-    return geometria.comQrDe(qr)
+    return geometria.comQrsDe(atribuicao)
 }
 
 /**
- * A mesma geometria, com o payload e a matriz do QR substituidos.
+ * A mesma geometria, com o payload e a matriz do QR **de cada regiao** substituidos (D23).
  *
- * Exige **exatamente um** QR no mapa, e essa exigencia e a spec vigente escrita em codigo: toda
- * folha tem uma regiao escaneavel, com um QR dentro dela. Zero ou dois seria mapa que a validacao do
- * layout nao deveria ter deixado passar, e trocar "o primeiro que aparecer" esconderia isso.
+ * A ligacao e a que o mapa declara: a regiao diz o `qr_id` dela, e o QR que a atribuicao traz para
+ * aquela regiao entra no lugar da primitiva com aquele `id`, na pagina da regiao. Nao por ordem de
+ * primitivas nem pelo texto do `id` — as duas inferencias concordariam hoje por coincidencia de
+ * emissao, e esta regra roda tambem no TypeScript (`apps/web/scripts/examPackage.ts`).
+ *
+ * Cada regiao precisa do seu QR, e cada `qr_id` precisa existir na pagina: faltar qualquer um seria
+ * uma regiao impressa com o QR da variante, sem aluno — o pior resultado, porque a folha parece certa.
+ * A troca afirma, no fim, que trocou exatamente um QR por regiao.
  */
-private fun LayoutMap.comQrDe(qr: RegionQr): LayoutMap {
-    val quantos = pages.sumOf { pagina -> pagina.primitives.count { it is DrawQr } }
-    require(quantos == 1) { "esperava exatamente um QR no layout, e o mapa tem $quantos" }
+private fun LayoutMap.comQrsDe(atribuicao: PackageAssignment): LayoutMap {
+    val qrPorRegiao = atribuicao.qrs.associateBy { it.regionIndex }
+    // (pagina, id da primitiva) -> QR da atribuicao
+    val trocas = regions.associate { regiao ->
+        val qr = requireNotNull(qrPorRegiao[regiao.index]) {
+            "pacote incoerente: a atribuicao `${atribuicao.studentToken}` nao tem QR para a regiao " +
+                "${regiao.index}"
+        }
+        (regiao.page to regiao.qrId) to qr
+    }
 
-    return copy(
+    var trocados = 0
+    val folha = copy(
         pages = pages.map { pagina ->
             pagina.copy(
                 primitives = pagina.primitives.map { primitiva ->
-                    if (primitiva is DrawQr) {
+                    val qr = if (primitiva is DrawQr) trocas[pagina.index to primitiva.id] else null
+                    if (primitiva is DrawQr && qr != null) {
+                        trocados += 1
                         primitiva.copy(payload = qr.payload, modules = qr.modules)
                     } else {
                         primitiva
@@ -278,4 +291,9 @@ private fun LayoutMap.comQrDe(qr: RegionQr): LayoutMap {
             )
         },
     )
+    require(trocados == regions.size) {
+        "esperava trocar um QR por regiao (${regions.size}), e troquei $trocados: algum `qr_id` nao esta " +
+            "na pagina da regiao dele"
+    }
+    return folha
 }

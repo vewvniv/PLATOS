@@ -276,3 +276,23 @@ aprovados. Os únicos vermelhos são os oito das goldens, os mesmos do commit de
 
 Revertidas, `grep -rn MUTACAO packages/domain/src` deu 0, e rodado de novo: 96 aprovados, nenhuma falha
 fora das goldens.
+
+**4.3 — a folha do aluno troca um QR por região, pelo `qr_id`.** `folhaDaAtribuicao` monta
+`(página, qr_id) → QR da atribuição` a partir das regiões do mapa e troca cada `DrawQr` que casa. No
+fim, afirma que trocou **exatamente** um QR por região. Um `qr_id` que não está na página da região,
+ou uma região sem QR na atribuição, é recusado em vez de deixar o QR da variante, sem aluno, no
+lugar.
+
+Testes em `PacoteDiscursivoTest`, três:
+- cada região da folha tem o QR que a atribuição traz para ela;
+- duas atribuições produzem folhas que diferem só nos QRs, com três regiões;
+- a troca segue o `qr_id` mesmo com as primitivas de cada página em ordem **inversa**, que é a
+  geometria idêntica com outra ordem de emissão.
+
+`com.platos.domain.exam.*`: 81 aprovados, nenhuma falha fora das goldens.
+
+**Vista falhar:** M6 troca a ligação por `qr_id` por uma troca **por ordem**: o i-ésimo QR encontrado
+recebe o i-ésimo da atribuição. Previsto: cai **só** o cenário da ordem inversa, porque na ordem
+normal as duas regras coincidem. Real: só ele, com 80 aprovados. É a prova de que a ligação declarada
+faz diferença, e não coincide por acaso com a emissão. Revertida, `grep MUTACAO` deu 0, e rodado de
+novo: 81 aprovados.
