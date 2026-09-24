@@ -29,7 +29,7 @@
 
 ## 2. A sessão (`scan-session`)
 
-- [ ] 2.1 A sessão decide "prova com discursiva" por `fully_offline_gradable` do pacote (decisão 4) e
+- [x] 2.1 A sessão decide "prova com discursiva" por `fully_offline_gradable` do pacote (decisão 4) e
   entra no estado novo:
   - quem é o aluno;
   - o que foi reconhecido;
@@ -37,13 +37,20 @@
 
   Verificação: um teste em `ScanSessionTest` por cenário da ADDED de `scan-session`. Cada teste confere
   a **frase** e o **aluno**, e não só o tipo do estado.
-- [ ] 2.2 **Ver falhar**, com duas mutações de conjuntos disjuntos previstos:
-  - a sessão apura a prova com discursiva como objetiva: cai o cenário da folha no quadro (vira recusa
-    por divergência), e "nada é gravado" continua verde, porque recusa não grava;
-  - o estado novo devolve apuração: cai **só** "nada é gravado".
+- [x] 2.2 **Ver falhar** "nada é gravado" camada por camada. Ele tem **duas** proteções: a sessão, que
+  não apura a prova com discursiva, e o domínio (`ObjectiveScoring`), que a recusa (8.1 da 5a).
+  - **M-a**, a sessão apura a prova com discursiva como objetiva: cai o cenário da folha no quadro,
+    que vira recusa por divergência, e "nada é gravado" continua verde, porque o domínio recusa;
+  - **M-c**, só o domínio passa a aceitar leitura que é subconjunto do declarado: nada cai, porque a
+    sessão não o chama para esta prova;
+  - **M-a e M-c juntas:** cai "nada é gravado".
 
   Reverter e rodar.
-- [ ] 2.3 A tela desenha o estado novo (`ScanScreen`). Verificação: o build compila, e a tela é
+
+  *Corrigido ao executar (P7). A redação original pedia a mutação "o estado novo devolve apuração",
+  com "nada é gravado" caindo sozinho. Ela não pode ser montada: uma prova com discursiva não tem
+  `ObjectiveScore` para devolver. A proteção é em duas camadas, e é isso que as três mutações mostram.*
+- [x] 2.3 A tela desenha o estado novo (`ScanScreen`). Verificação: o build compila, e a tela é
   conferida na 4.2 ou fica escrita como lacuna (decisão 5).
 
 ## 3. A queda

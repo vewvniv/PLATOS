@@ -1,6 +1,7 @@
 package com.platos.android.scan
 
 import com.platos.android.vision.FrameOutcome
+import com.platos.android.vision.RegiaoDiscursivaNoQuadro
 import com.platos.domain.capture.CapturePayload
 import com.platos.domain.capture.InterpretedReading
 import com.platos.domain.exam.ExamPackage
@@ -36,7 +37,19 @@ class ScanSession(private val examPackage: ExamPackage) {
      * substitui um resultado e outro resultado.
      */
     private val holdsResult: Boolean
-        get() = state is ScanState.Scored || state is ScanState.Rejected
+        get() = state is ScanState.Scored || state is ScanState.Rejected ||
+            state is ScanState.DiscursivaNaoCorrigivel
+
+    /**
+     * Se a prova desta sessao tem parte discursiva — decidido pelo **pacote**, e nao pelo quadro
+     * (decisao 4 do `design.md` da `slice-5b-1-o-aparelho-reconhece-a-discursiva`).
+     *
+     * Um quadro da primeira folha de uma prova com discursiva pode trazer so o gabarito. Decidir pelo
+     * quadro apuraria essa folha como prova objetiva, e entregaria nota de uma prova que tem parte
+     * discursiva. `fully_offline_gradable` e o campo que declara isso, e desde a 5a a coerencia do
+     * pacote o recusa em desacordo com os itens.
+     */
+    private val comDiscursiva: Boolean = !examPackage.meta.fullyOfflineGradable
 
     fun onPermission(granted: Boolean) {
         state = if (granted) ScanState.Searching else ScanState.NoPermission
@@ -82,6 +95,11 @@ class ScanSession(private val examPackage: ExamPackage) {
      */
     fun onFrame(outcome: FrameOutcome): ApuracaoNova? {
         if (state is ScanState.NoPermission) return null
+        if (comDiscursiva) {
+            // Reconhece e explica, e nunca apura: nada desta prova vira resultado neste aparelho.
+            state = estadoDaDiscursiva(outcome)
+            return null
+        }
 
         state = when (outcome) {
             is FrameOutcome.Read -> resultOf(outcome.reading)
@@ -101,6 +119,60 @@ class ScanSession(private val examPackage: ExamPackage) {
 
         apurada = apuracao.reading.payload
         return ApuracaoNova(apuracao.reading, apuracao.score)
+    }
+
+    /**
+     * O que a tela mostra de uma folha de prova com discursiva.
+     *
+     * A folha e identificada pelo QR de qualquer regiao lida no quadro — o gabarito ou uma
+     * discursiva —, e a conferencia de prova e a mesma da prova objetiva: QR de outra prova e recusa,
+     * com a mesma frase. Nenhuma regiao com QR lido e "achei a folha e nao consegui ler", como hoje.
+     */
+    private fun estadoDaDiscursiva(outcome: FrameOutcome): ScanState {
+        if (outcome is FrameOutcome.NoSheet) return if (holdsResult) state else ScanState.Searching
+
+        val reconhecidas = outcome.discursivas.filterIsInstance<RegiaoDiscursivaNoQuadro.Reconhecida>()
+        val naoLidas = outcome.discursivas.filterIsInstance<RegiaoDiscursivaNoQuadro.NaoLida>()
+        val payloads = buildList {
+            if (outcome is FrameOutcome.Read) add(outcome.reading.payload)
+            reconhecidas.forEach { add(it.payload) }
+        }
+
+        if (payloads.isEmpty()) {
+            return when (outcome) {
+                // A recusa da interpretacao nao e transitoria, e continua sendo recusa.
+                is FrameOutcome.Unreadable -> ScanState.Rejected(outcome.reason)
+                else -> {
+                    val motivo = (outcome as? FrameOutcome.NotRead)?.reason
+                        ?: naoLidas.firstOrNull()?.reason
+                        ?: "nenhuma regiao do quadro foi lida"
+                    if (holdsResult) state else ScanState.NotRead(motivo)
+                }
+            }
+        }
+
+        val carregado = examPackage.meta.examId
+        payloads.firstOrNull { it.examShortId != carregado }?.let { deOutra ->
+            return ScanState.Rejected(
+                "a folha e de outra prova: o QR diz ${deOutra.examShortId}, e o aparelho carrega $carregado",
+            )
+        }
+        val alunos = payloads.map { it.studentToken }.distinct()
+        if (alunos.size > 1) {
+            return ScanState.Rejected("o quadro tem regioes de folhas diferentes: ${alunos.joinToString()}")
+        }
+
+        return ScanState.DiscursivaNaoCorrigivel(
+            aluno = alunos.single(),
+            gabarito = when (outcome) {
+                is FrameOutcome.Read -> "lido"
+                is FrameOutcome.NotRead -> "nao lido: ${outcome.reason}"
+                is FrameOutcome.Unreadable -> "nao lido: ${outcome.reason}"
+                is FrameOutcome.SoDiscursivas, is FrameOutcome.NoSheet -> null
+            },
+            discursivas = reconhecidas.map { it.questionId },
+            discursivasNaoLidas = naoLidas.map { "${it.questionId}: ${it.reason}" },
+        )
     }
 
     private fun resultOf(reading: InterpretedReading): ScanState {

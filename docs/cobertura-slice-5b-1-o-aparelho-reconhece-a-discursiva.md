@@ -102,3 +102,48 @@ Nenhuma asserção mudou.
 - `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro: **89** testes (os 84 da linha de
   base e os 5 novos), 0 falhas, 2 pulados, `timestamp` 22:58:43Z. Os 10 cenários de
   `CorpusInstrumentedTest` estão entre eles, verdes.
+
+## 2. A sessão
+
+**2.1 — a prova com discursiva é reconhecida e explicada, e não apurada.** `ScanSession` decide "prova
+com discursiva" por `fully_offline_gradable` do **pacote**, e não pelo quadro (decisão 4). Para essa
+prova, `onFrame` monta o estado novo `ScanState.DiscursivaNaoCorrigivel`, com:
+- o aluno, pelo QR de qualquer região lida;
+- o gabarito, como "lido", "não lido" com o motivo, ou ausente;
+- as discursivas reconhecidas e as não lidas, com o motivo;
+- o `AVISO` fixo: "A correcao de prova com discursiva ainda nao esta disponivel neste aparelho. Nada
+  foi guardado."
+
+`onFrame` **sempre devolve `null`**. QR de outra prova continua recusado com a frase de sempre, e
+regiões de alunos diferentes no mesmo quadro são recusadas.
+
+Testes em `ProvaComDiscursivaNaSessaoTest`, 7, na JVM:
+- a guarda de vacuidade: a fixture é de fato uma prova com discursiva;
+- a folha reconhecida, com o aluno, as regiões e o aviso, sem nota;
+- a folha só com `d2`, sem gabarito;
+- nada é entregue para gravar, com retomada no meio;
+- a sessão abre e procura;
+- a folha de outra prova;
+- a região não lida ao lado da reconhecida.
+
+7 de 7 e `ScanSessionTest` 19 de 19, às 23:01:06Z. A task filtrada fecha `FAILED` pela guarda contra
+comando estreito: 293 métodos sem resultado, e nenhuma falha.
+
+**2.2 — "nada é gravado", visto falhar camada por camada.** A tarefa foi corrigida ao executar (P7). A
+mutação original, "o estado novo devolve apuração", não pode ser montada: uma prova com discursiva não
+tem `ObjectiveScore`. "Nada é gravado" tem **duas** proteções: a sessão não apura, e o domínio recusa
+(8.1 da 5a).
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| **M-a** — `comDiscursiva = false` (a sessão apura como objetiva) | caem "folha reconhecida", "só `d2`" e "não lida"; "nada é gravado" **verde**, porque o domínio recusa | exatamente esses 3, com 7 testes e 3 falhas |
+| **M-c** — `ObjectiveScoring` aceita leitura que é subconjunto do declarado | nada cai: a sessão não chama o domínio para esta prova | 0 falhas |
+| **M-a e M-c juntas** | cai também "nada é gravado" | 4 falhas: os 3 de M-a e "nada é entregue para gravar" |
+
+As três foram revertidas pela cópia, `grep -rn MUTACAO` deu 0, e rodado de novo: 7 de 7. **Cada camada
+sozinha segura o cenário**, e só as duas desligadas o derrubam.
+
+**2.3 — a tela.** `ScanScreen` ganhou o ramo do estado novo: o aluno pelo roster (`DeQuemE`),
+"Prova com discursiva", o gabarito, as discursivas reconhecidas e as não lidas, e o aviso. O build
+compila. A tela desenhada **não tem teste automático** (decisão 5), e é conferida no aparelho na 4.3.
+Se isso não couber, fica como lacuna.

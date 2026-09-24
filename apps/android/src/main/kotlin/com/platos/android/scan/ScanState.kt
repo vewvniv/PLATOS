@@ -41,6 +41,32 @@ sealed interface ScanState {
      * mostrando a nota da folha A e plausivel para quem le. A segunda e a cobertura — quem revisa
      * uma pendencia precisa do numero que a produziu, e nao da palavra "indecisa".
      */
+    /**
+     * Folha de uma prova com discursiva: reconhecida, e nao apurada
+     * (`slice-5b-1-o-aparelho-reconhece-a-discursiva`).
+     *
+     * A correcao de prova com discursiva ainda nao existe no aparelho, e este estado diz isso em vez
+     * de o aplicativo cair, que era o que acontecia antes. Ele diz de quem e a folha e o que foi
+     * reconhecido nela, e **nao tem nota**: nem parcial, porque uma nota objetiva de prova com parte
+     * discursiva nao e a nota da prova (§10, D4). Nada e gravado a partir dele.
+     */
+    data class DiscursivaNaoCorrigivel(
+        /** O token do aluno, pelo QR: vazio na folha avulsa. */
+        val aluno: String,
+        /** "lido", o motivo de o gabarito nao ter fechado, ou nulo quando ele nao estava no quadro. */
+        val gabarito: String?,
+        /** As questoes discursivas reconhecidas no quadro, na ordem das regioes. */
+        val discursivas: List<String>,
+        /** As regioes discursivas presentes e nao lidas, cada uma com o motivo. */
+        val discursivasNaoLidas: List<String>,
+    ) : ScanState {
+        companion object {
+            const val AVISO =
+                "A correcao de prova com discursiva ainda nao esta disponivel neste aparelho. " +
+                    "Nada foi guardado."
+        }
+    }
+
     data class Scored(
         val reading: InterpretedReading,
         val score: ObjectiveScore,
