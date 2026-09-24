@@ -190,22 +190,22 @@
   respostas das quatro objetivas, recusa com "itens lidos divergem da variante" e o identificador das
   discursivas. **Ver falhar:** com a conferência de conjunto trocada por "lido contido no declarado", o
   teste cai porque sai nota. Reverter e rodar.
-- [ ] 8.2 A suíte do Android compila e passa com a forma nova do pacote: os testes que montam pacote à
+- [x] 8.2 A suíte do Android compila e passa com a forma nova do pacote: os testes que montam pacote à
   mão passam a usar `qrs`. Verificação: `./gradlew :apps:android:testDebugUnitTest` e
   `connectedDebugAndroidTest` verdes, sem filtro, com `timestamp`.
 
 ## 9. Fechamento
 
-- [ ] 9.1 `grep -rn "MUTACAO"` fora de `build/` e de `node_modules/` dá `0`, e toda reversão foi
+- [x] 9.1 `grep -rn "MUTACAO"` fora de `build/` e de `node_modules/` dá `0`, e toda reversão foi
   **rodada** (P10). Verificação: a saída do `grep` na cobertura.
-- [ ] 9.2 Comando cheio local, nesta sessão:
+- [x] 9.2 Comando cheio local, nesta sessão:
   - `./gradlew build --rerun-tasks` e `./gradlew :apps:android:connectedDebugAndroidTest`;
   - `npm test` em `apps/web`;
   - `node tools/parity/renderizador.mjs`, `divida.mjs`, `limiar.mjs`, `fio.mjs` e `answer-kind.mjs`.
 
   Verificação: contagem e `timestamp` de cada relatório, e quantas tasks foram **executadas**,
   comparados com a linha de base da 0.1 (P2, P3, P5).
-- [ ] 9.3 `docs/cobertura-slice-5a-regiao-discursiva.md`:
+- [x] 9.3 `docs/cobertura-slice-5a-regiao-discursiva.md`:
   - como cada verificação crítica foi **vista falhar**, com o conjunto previsto e o real;
   - as âncoras dos PDFs;
   - a guarda de geometria;
@@ -219,7 +219,7 @@
 - [ ] 9.5 Nomear as provas publicadas em produção que o aplicativo atualizado passa a recusar
   (ADR-0009). Verificação: a lista lida no banco, com a data. **Se o banco não for alcançável na
   sessão, a tarefa fica desmarcada** e a cobertura diz o que não foi lido.
-- [ ] 9.6 Preparar a reconciliação do archive (P27):
+- [x] 9.6 Preparar a reconciliação do archive (P27):
   - as três linhas `5` seguem **em dia**, alcançadas e não pagas, com a mudança da fatia que paga cada
     uma;
   - a linha `5b` nasceu nesta mudança;

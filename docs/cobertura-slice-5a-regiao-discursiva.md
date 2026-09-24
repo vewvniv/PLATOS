@@ -534,3 +534,93 @@ declarado. Ele já protegia esse caso, e o novo fixa a instância da prova com d
 variante não declara", que é o conjunto oposto, continuou verde, como devia. A previsão estava
 incompleta, não há defeito, e nenhum teste foi mexido. Revertida, `grep MUTACAO` deu 0, e rodado de
 novo: 29 de 29.
+
+**8.2 — a suíte do Android sobre a forma nova do pacote.** Nenhum teste do Android montava pacote à
+mão com `qr`: o único uso fora do domínio era `region.qr`, que não mudou. As suítes do Android leem as
+goldens regravadas e passam inteiras: `testDebugUnitTest` com 312 e a instrumentada com 84, no
+fechamento abaixo.
+
+## Fechamento local (tarefas 9.1 e 9.2)
+
+**9.1** — `grep -rn "MUTACAO"` fora de `build/`, `node_modules/`, `.git/` e dos documentos que descrevem
+as mutações: **0**. Nenhuma cópia `*.orig-mutacao` sobrou. Toda reversão foi rodada logo depois dela,
+como cada seção acima registra.
+
+**9.2 — o comando cheio, nesta sessão**, de 2026-09-24T11:59:56Z a 12:03:34Z:
+
+| Comando | Resultado |
+|---|---|
+| `./gradlew build --rerun-tasks` | `BUILD SUCCESSFUL in 2m 8s`, **183 de 183 tasks executadas** |
+| `./gradlew -p buildSrc test --rerun-tasks` | 6 de 6 executadas, 1 teste, relatório de 12:02:36Z |
+| `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro, no `platos-atd34` | **84 testes**, 0 falhas, 2 pulados, `timestamp` 12:03:32Z |
+| `npx vitest run` em `apps/web` | 16 de 16, 12:00:17Z; `npm run build` passa |
+| `node tools/parity/renderizador.mjs`, `limiar.mjs`, `answer-kind.mjs`, `fio.mjs` | `exit 0` os quatro |
+| `node tools/divida/divida.mjs` | `exit 0`, 19 linhas lidas, nenhuma vencida |
+
+Relatórios do `build`, todos posteriores ao início, sem nenhum marcado VELHO, e comparados com a linha
+de base da 0.1:
+
+| Task | Linha de base | Agora | Diferença, e de onde vem |
+|---|---|---|---|
+| `apps/android` `testDebugUnitTest` | 310 | 312 | +2: os dois cenários de 4.4 |
+| `apps/android` `testReleaseUnitTest` | 310 | 312 | +2: os mesmos |
+| `apps/api` `test` | 167 | 168 | +1: 7.1 |
+| `packages/domain` `jvmTest` | 329 | 375 | +46 |
+| `packages/domain` `jsNodeTest` | 321 | 366 | +45 |
+| `packages/domain` `testAndroidHostTest` | 321 | 366 | +45 |
+| instrumentado | 83 | 84 | +1: o PDF da prova com discursiva |
+
+Os +45 do domínio, comuns aos três alvos, são:
+- `ExamDefinitionTest`, +14 (15 novos e um reescrito no lugar);
+- `RegiaoDiscursivaTest`, +15;
+- `PacoteDiscursivoTest`, +14;
+- `GoldenLayoutTest`, +1;
+- `ObjectiveScoringTest`, +1.
+
+O +1 que só o `jvmTest` tem é o gravador novo do `GoldenWriterTest`, que é `jvmTest`. A contagem fecha
+com o que foi escrito, e nenhum teste antigo sumiu.
+
+O `build` levou 2m 8s contra 4m 23s na linha de base, com **as mesmas 183 tasks executadas**. A
+diferença é de ambiente, com o daemon e o cache de SO quentes, e não de cobertura: o número de tasks
+executadas e o `timestamp` de cada relatório são a âncora, e não o tempo (P2, P3).
+
+## 9. O que ainda não foi verificado
+
+É a seção que o `rigorous.md` §8 exige, e cada item está escrito como **lacuna**, e não como mitigado
+(P8).
+
+- **O caminho do `RegionDetector` diante de uma folha discursiva.** O domínio recusa a apuração (8.1),
+  mas o que o aparelho faz quando os marcadores `4…7` aparecem no quadro, antes de apurar, **não foi
+  exercitado**: nenhuma folha discursiva foi impressa e fotografada. Está na linha `5b` do §16.
+- **A folha discursiva em papel.** Fidelidade, paridade, tinta e traço são medidos no **documento**,
+  e não na impressão. A geometria da região usa as mesmas primitivas e o mesmo marcador de 14 mm do
+  gabarito, e isso é **herdado** da 2b e da 3b, não medido. Linha `5b`.
+- **A largura útil de ~73 mm por linha** (decisão 6) é **calculada**, e não medida contra escrita real.
+  Se é pouca para o aluno, só a 5b e a 5e dirão, com folhas respondidas.
+- **`answer_capture_mode` não tem consumidor nesta mudança** (decisão 1). Ele é validado e publicado,
+  mas nada o lê: o consumidor é a captura, na 5b. Se a 5b não o consumir, o campo sai, com evento de
+  hash próprio.
+- **A mensagem de `compare.mjs` não diz a página** do elemento que divergiu (6.4). O `id` é único no
+  mapa, e por isso ela identifica o marcador, mas a tarefa pedia a página, e ela não está lá.
+- **O pacote da ETAPA 3 deixou de exercitar a reserialização** (4.4). Ele agora cai no parse, e o ramo
+  da reserialização fica coberto só pelos cenários "campo com valor padrão omitido" e "ordem de campo
+  trocada".
+- **As provas publicadas em produção que o aplicativo atualizado passa a recusar (9.5): não foram
+  lidas no banco nesta sessão**, que não tem acesso a ele. O registro **herdado** é o da ETAPA 3
+  (`docs/cobertura-params-hash-no-pacote-publicado.md`, lido em 2026-09-18): `prova-referencia-slice-1`
+  e `prova-referencia-slice-2`. Se uma prova foi publicada depois disso, ela não está nesta lista. A
+  tarefa 9.5 fica **desmarcada**.
+- **O web e o Android rodaram em Windows.** O CI roda em Linux, e é a leitura dele no destino (9.4)
+  que fecha o comando cheio naquela plataforma.
+
+## 10. A reconciliação do §16 para o archive (P27)
+
+Esta mudança fez a guarda dizer "fatia corrente: 5a".
+- **As três linhas `5` (`Acurácia em manuscrito`, `Modo degradado (§10) não existe` e `O limiar do OMR
+  foi apurado sobre um aparelho e uma impressora`) foram alcançadas e não pagas.** Elas seguem **em
+  dia**, porque só vencem quando a fatia 6 abrir. A 5a não as tocava, por escopo, e cada uma tem veículo
+  dentro da fatia 5: o modo degradado é a mudança do modo degradado, e o manuscrito e o limiar são a do
+  corpus, precedida do ADR de critério que o ADR-0007 exige.
+- **Uma linha nasceu nesta mudança:** "A região discursiva ainda não passou pelo aparelho nem pelo
+  papel", token `5b`, vista falhar na 1.1.
+- **O evento `migration-da-5-em-producao` não foi alcançado:** esta mudança não tem migration.
