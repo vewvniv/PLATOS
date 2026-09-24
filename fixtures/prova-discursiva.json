@@ -1,0 +1,121 @@
+{
+  "id": "prova-discursiva-slice-5a",
+  "title": "Prova com discursiva - fatia 5a",
+  "questions": [
+    {
+      "id": "q1",
+      "kind": "objective",
+      "statement": "Quanto vale 12 + 15 ao todo?",
+      "options": ["27", "29", "32", "25"],
+      "skills": [{ "code": "EF06MA03", "coverage": "direct" }],
+      "points": 1,
+      "answer": "27",
+      "why": "12 + 15 = 27"
+    },
+    {
+      "id": "q2",
+      "kind": "objective",
+      "statement": "Qual fracao e equivalente a um meio?",
+      "options": ["5/12", "2/5", "3/6", "4/9"],
+      "skills": [{ "code": "EF06MA07", "coverage": "direct" }],
+      "points": 1,
+      "answer": "3/6",
+      "why": "3/6 simplifica para 1/2"
+    },
+    {
+      "id": "d1",
+      "kind": "essay",
+      "statement": "Explique, com as suas palavras, por que as fracoes 3/6 e 1/2 representam a mesma quantidade.",
+      "skills": [{ "code": "EF06MA07", "coverage": "direct" }],
+      "points": 3,
+      "rubric": {
+        "criteria": [
+          {
+            "id": "c1",
+            "description": "Relaciona numerador e denominador das duas fracoes",
+            "points": 2,
+            "expected_lines": 3,
+            "descriptors": [
+              { "points": 2, "text": "mostra que 3/6 se obtem de 1/2 multiplicando os dois termos por 3" },
+              { "points": 1, "text": "percebe a relacao, mas nao a justifica" },
+              { "points": 0, "text": "nao relaciona as fracoes" }
+            ]
+          },
+          {
+            "id": "c2",
+            "description": "Conclui que representam a mesma parte do inteiro",
+            "points": 1,
+            "expected_lines": 2,
+            "descriptors": [
+              { "points": 1, "text": "conclui corretamente" },
+              { "points": 0, "text": "nao conclui" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "q4",
+      "kind": "objective",
+      "statement": "Qual e o menor numero primo maior que 10?",
+      "options": ["11", "12", "13", "15"],
+      "skills": [{ "code": "EF07MA01", "coverage": "partial" }],
+      "points": 1,
+      "answer": "11",
+      "why": "11 so e divisivel por 1 e por ele mesmo"
+    },
+    {
+      "id": "q5",
+      "kind": "objective",
+      "statement": "Um retangulo tem 8 cm de base e 5 cm de altura. Qual e a sua area?",
+      "options": ["26 cm2", "40 cm2", "45 cm2", "13 cm2"],
+      "skills": [{ "code": "EF07MA32", "coverage": "direct" }],
+      "points": 1,
+      "answer": "40 cm2",
+      "why": "8 x 5 = 40"
+    },
+    {
+      "id": "d2",
+      "kind": "essay",
+      "statement": "Um terreno retangular tem 20 m de perimetro. Desenhe dois retangulos possiveis, pinte o de maior area e explique como voce comparou as areas.",
+      "skills": [{ "code": "EF07MA32", "coverage": "direct" }],
+      "points": 4,
+      "answer_capture_mode": "color",
+      "rubric": {
+        "criteria": [
+          {
+            "id": "c1",
+            "description": "Desenha dois retangulos com perimetro de 20 m",
+            "points": 1,
+            "expected_lines": 2,
+            "descriptors": [
+              { "points": 1, "text": "os dois tem perimetro 20 m" },
+              { "points": 0, "text": "algum nao tem perimetro 20 m" }
+            ]
+          },
+          {
+            "id": "c2",
+            "description": "Calcula a area de cada retangulo",
+            "points": 2,
+            "expected_lines": 3,
+            "descriptors": [
+              { "points": 2, "text": "calcula as duas areas corretamente" },
+              { "points": 1, "text": "calcula uma das areas" },
+              { "points": 0, "text": "nao calcula" }
+            ]
+          },
+          {
+            "id": "c3",
+            "description": "Identifica o de maior area e justifica",
+            "points": 1,
+            "expected_lines": 2,
+            "descriptors": [
+              { "points": 1, "text": "identifica e justifica pela comparacao" },
+              { "points": 0, "text": "nao identifica" }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

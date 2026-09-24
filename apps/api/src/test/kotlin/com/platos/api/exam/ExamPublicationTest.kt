@@ -29,7 +29,7 @@ class ExamPublicationTest {
      * Android calculam, o pacote deixaria de ser verificavel no dispositivo que o consome — e a
      * divergencia apareceria so na fatia 4, com pacote ja distribuido. Regravar junto com a fixture.
      */
-    private val hashDaFixture = "277d2f8cd0a7a87e6e26e5ecf47d2f5610dd6e173e724ab38a65373000ac391a"
+    private val hashDaFixture = "ff2b94ef600101e2c20d5b6b298f7d0612ee0a66beb4d74d7dcd954cfbde40da"
 
     private val definicao: ExamDefinition = Json { ignoreUnknownKeys = false }.decodeFromString(
         ExamDefinition.serializer(),
@@ -116,11 +116,11 @@ class ExamPublicationTest {
 
         // E cada uma com a folha DELA. Payload repetido entre alunos e o defeito que a captura nao
         // tem como desfazer: as duas folhas seriam do mesmo aluno.
-        val payloads = pacote.assignments.map { requireNotNull(it.qr).payload }
+        val payloads = pacote.assignments.map { it.qrs.single().payload }
         assertEquals(payloads.size, payloads.toSet().size, "payloads repetidos: $payloads")
         for (atribuicao in pacote.assignments) {
             assertTrue(
-                requireNotNull(atribuicao.qr).payload.contains(atribuicao.studentToken),
+                atribuicao.qrs.single().payload.contains(atribuicao.studentToken),
                 "o payload de `${atribuicao.studentToken}` nao carrega o token dele",
             )
         }
@@ -261,6 +261,35 @@ class ExamPublicationTest {
 
         assertEquals(0, contar("select count(*) from exam"))
         assertEquals(0, contar("select count(*) from exam_package"))
+    }
+
+    /**
+     * A prova com discursiva passa pela publicacao do servidor (`slice-5a-regiao-discursiva`,
+     * tarefa 7.1): a coerencia KMP roda aqui, os bytes gravados sao o texto canonico, e cada
+     * atribuicao traz um QR por regiao.
+     */
+    @Test
+    fun `a prova com discursiva e publicada, com um QR por regiao para cada aluno`() {
+        val discursiva: ExamDefinition = Json { ignoreUnknownKeys = false }.decodeFromString(
+            ExamDefinition.serializer(),
+            File(System.getProperty("platos.fixtures.dir"), "prova-discursiva.json").readText(),
+        )
+
+        val publicado = publicacao.publish(usuario, org, discursiva, title = "Prova com discursiva", roster = turma)
+
+        // O hash da coluna conferido contra os BYTES da coluna, com o MessageDigest da JVM.
+        assertEquals(PostgresSupport.sha256Hex(coluna("content")), coluna("content_hash"))
+        assertEquals(publicado.contentHash, coluna("content_hash"))
+
+        val pacote = Json.decodeFromString(ExamPackage.serializer(), coluna("content"))
+        // Os bytes gravados sao exatamente a serializacao canonica: reserializar e identidade.
+        assertEquals(coluna("content"), pacote.toCanonicalJson())
+        assertEquals(false, pacote.meta.fullyOfflineGradable)
+        assertEquals(turma.size, pacote.assignments.size)
+        for (atribuicao in pacote.assignments) {
+            assertEquals(listOf(0, 1, 2), atribuicao.qrs.map { it.regionIndex }, "atribuicao ${atribuicao.studentToken}")
+            assertTrue(atribuicao.qrs.all { atribuicao.studentToken in it.payload })
+        }
     }
 
     private fun coluna(nome: String, tabela: String = "exam_package"): String =

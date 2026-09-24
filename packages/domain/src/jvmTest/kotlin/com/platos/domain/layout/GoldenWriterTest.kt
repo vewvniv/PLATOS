@@ -2,6 +2,7 @@ package com.platos.domain.layout
 
 import com.platos.domain.exam.ExamDefinition
 import com.platos.domain.exam.buildPackage
+import com.platos.domain.exam.folhaDaAtribuicao
 import com.platos.domain.fixtures.Fixtures
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -135,6 +136,41 @@ class GoldenWriterTest {
         )
     }
 
+    /**
+     * A prova com discursiva (`slice-5a-regiao-discursiva`): o layout, o pacote e a folha de um
+     * aluno, gravados juntos a partir da mesma definicao.
+     *
+     * **O pacote tem duas atribuicoes, com tokens que sao codigos**, pela mesma razao do pacote da
+     * turma: sem atribuicao, "um QR por regiao" (D23) nao e conferivel nos renderizadores.
+     *
+     * **A folha do aluno e o oraculo do espelho TypeScript** (decisao 9 do design). Ela e derivada
+     * aqui, pela implementacao Kotlin de `folhaDaAtribuicao`; o teste do Vitest deriva a mesma folha
+     * do mesmo pacote pela implementacao TypeScript, e compara. Duas implementacoes da regra, em duas
+     * linguagens, julgadas pela saida — e o que a P28 aceita como espelho contido.
+     */
+    @Test
+    fun `regrava a prova com discursiva apenas quando solicitado`() {
+        if (System.getProperty("platos.golden.write") != "true") return
+        val definicao: ExamDefinition = Json { ignoreUnknownKeys = false }
+            .decodeFromString(ExamDefinition.serializer(), Fixtures.PROVA_DISCURSIVA_JSON)
+
+        val layout = File(System.getProperty("platos.discursiva.layout.path"))
+        layout.writeText(LayoutEngine().layout(definicao).toCanonicalJson())
+
+        val pacote = definicao.buildPackage(tokens = listOf("tok-a", "tok-b"))
+        val destinoPacote = File(System.getProperty("platos.discursiva.package.path"))
+        destinoPacote.writeText(pacote.toCanonicalJson())
+
+        val aluno = File(System.getProperty("platos.discursiva.aluno.path"))
+        aluno.writeText(requireNotNull(pacote.folhaDaAtribuicao("tok-a")).toCanonicalJson())
+
+        println(
+            "prova com discursiva regravada: layout ${layout.length()} bytes, pacote " +
+                "${destinoPacote.length()} bytes (hash ${pacote.contentHash()}), folha de `tok-a` " +
+                "${aluno.length()} bytes",
+        )
+    }
+
     /*
      * `fixtures/pacote-do-contrato-anterior.json` NAO e escrito por esta classe, e nao e por
      * esquecimento.
@@ -154,5 +190,22 @@ class GoldenWriterTest {
      * e um pacote do contrato atual — passa nas duas camadas, e o cenario que o consome vira verde
      * vazio. Se algum dia esta classe ganhar um metodo que o escreva, o cenario de
      * `ConferenciaDePacoteTest` que o usa deixa de afirmar qualquer coisa **sem ficar vermelho**.
+     */
+
+    /*
+     * `fixtures/pacote-antes-da-discursiva.json` tambem NAO e escrito por esta classe, pela mesma
+     * razao.
+     *
+     * Ele e o `prova-referencia.package.json` **do contrato anterior a `slice-5a-regiao-discursiva`**
+     * — antes de `PackageItem.kind`, da rubrica, de `ScannableRegion.qr_id` e de `qrs` por regiao —,
+     * congelado byte a byte em 2026-09-24, com
+     * `sha256 = 277d2f8cd0a7a87e6e26e5ecf47d2f5610dd6e173e724ab38a65373000ac391a` e 101.637 bytes. O
+     * hash e o que `ExamPackageTest` e `ExamPublicationTest` fixavam para a prova de referencia no
+     * mesmo dia, e e por ele que se sabe que o arquivo e o pacote daquele contrato, e nao outro.
+     *
+     * **Ele existe para ser recusado**, e pela camada (b), como o de cima: a mudanca aceita, no
+     * `design.md` dela (decisao 11), que pacote publicado antes dela deixe de ser interpretado pelo
+     * aplicativo atualizado. Os dois arquivos nao sao redundantes. Cada um prova que **uma**
+     * mudanca de contrato quebrou a leitura, e so ele prova que foi esta.
      */
 }

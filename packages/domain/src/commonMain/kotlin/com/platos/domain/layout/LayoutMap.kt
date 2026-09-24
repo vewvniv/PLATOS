@@ -182,6 +182,25 @@ data class ScannableRegion(
     val qr: NormalizedRect,
     val bubbles: List<Bubble>,
     @SerialName("ink_budget") val inkBudget: InkBudget = InkBudget.DEFAULT,
+    /**
+     * O `id` da primitiva `DrawQr` desta regiao, na pagina dela.
+     *
+     * **A ligacao entre regiao e QR e declarada, e nao inferida** — nem da ordem das primitivas, nem
+     * do texto do `id`. E por ela que a folha de uma atribuicao troca cada QR pelo da regiao certa, e
+     * a regra roda em duas implementacoes, Kotlin e TypeScript; uma ligacao inferida seria duas
+     * inferencias que concordam por coincidencia de emissao. Obrigatorio em toda regiao, inclusive
+     * no gabarito e na folha de teste: uma regra para a discursiva e outra para o gabarito seriam
+     * duas regras.
+     */
+    @SerialName("qr_id") val qrId: String,
+    /** A questao a que a regiao discursiva pertence. Nula no gabarito e na folha de teste. */
+    @SerialName("question_id") val questionId: String? = null,
+    /**
+     * A area de resposta da regiao discursiva, normalizada ao quadrilatero. Nula no gabarito e na
+     * folha de teste. E o que a captura recorta: a moldura contem so a resposta, e o enunciado fica
+     * fora (§8).
+     */
+    @SerialName("answer_area") val answerArea: NormalizedRect? = null,
 )
 
 @Serializable

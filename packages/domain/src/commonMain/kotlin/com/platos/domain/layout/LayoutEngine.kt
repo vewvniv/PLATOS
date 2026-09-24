@@ -5,6 +5,8 @@ import com.platos.domain.capture.QrEncoder
 import com.platos.domain.capture.linhasDeModulo
 import com.platos.domain.capture.QrPayload
 import com.platos.domain.exam.ExamDefinition
+import com.platos.domain.exam.Question
+import com.platos.domain.exam.QuestionKind
 import com.platos.domain.exam.requireSupported
 import com.platos.domain.geometry.Ppm
 import com.platos.domain.geometry.Um
@@ -65,9 +67,27 @@ class LayoutEngine(
             primitives = page(0),
         )
 
+        // O indice da regiao discursiva e a ordem da questao ENTRE AS DISCURSIVAS DA PROVA, e nao a
+        // ordem de colocacao: o paginador decide onde o bloco cai, e nao que regiao ele e. `1` e a
+        // primeira discursiva; `0` e sempre o gabarito (spec de `layout-engine`).
+        val essayIndex = exam.questions
+            .filter { it.kind == QuestionKind.ESSAY }
+            .withIndex()
+            .associate { (i, question) -> question.id to i + 1 }
+        val essayRegions = mutableListOf<ScannableRegion>()
+
         for (placement in pagination.placements) {
             val content = byId.getValue(placement.blockId)
             emitQuestion(content, placement, page(placement.page))
+            if (content.essay != null) {
+                essayRegions += emitEssayRegion(
+                    examId = exam.id,
+                    regionIndex = essayIndex.getValue(content.questionId),
+                    content = content,
+                    placement = placement,
+                    primitives = page(placement.page),
+                )
+            }
         }
 
         for (index in 0 until pagination.pageCount) {
@@ -92,7 +112,7 @@ class LayoutEngine(
                 grid = profile.grid.raw,
             ),
             pages = pages,
-            regions = listOf(region),
+            regions = listOf(region) + essayRegions.sortedBy { it.index },
         )
     }
 
@@ -103,8 +123,9 @@ class LayoutEngine(
      * o gabarito consolidado; a altura e que manda, porque ela come a pagina 1.
      */
     private fun gridFor(exam: ExamDefinition): BubbleGrid {
-        val questionCount = exam.questions.size
-        val optionCount = exam.questions.maxOf { it.options.size }
+        val objetivas = objetivasDe(exam)
+        val questionCount = objetivas.size
+        val optionCount = objetivas.maxOf { it.value.options.size }
         val columnWidth = CaptureGeometry.LABEL_WIDTH + CaptureGeometry.BUBBLE_PITCH_H * optionCount
 
         val availableWidth = profile.contentWidth -
@@ -248,8 +269,9 @@ class LayoutEngine(
         // O QR comeca na linha do quadrilatero, e nao no topo da regiao: o quadrilatero passa pelos
         // *centros* dos marcadores, entao qualquer coisa acima dele normalizaria para v negativo.
         val qrY = quadY
+        val qrId = "r$REGION_INDEX-qr"
         primitives += DrawQr(
-            id = "r$REGION_INDEX-qr",
+            id = qrId,
             x = qrX.raw,
             y = qrY.raw,
             side = qrSide.raw,
@@ -263,9 +285,14 @@ class LayoutEngine(
         val radius = CaptureGeometry.BUBBLE_DIAMETER.divFloor(2)
         val bubbles = mutableListOf<Bubble>()
 
-        emitBands(exam, grid, bubbleLeft, bubbleTop, primitives)
+        val objetivas = objetivasDe(exam)
+        emitBands(objetivas.size, grid, bubbleLeft, bubbleTop, primitives)
 
-        exam.questions.forEachIndexed { index, question ->
+        // So objetivas no gabarito, e cada linha com o numero DA QUESTAO NA PROVA, e nao o da linha:
+        // com a 3 discursiva, o gabarito numera 1, 2, 4, 5. Renumerar faria o aluno marcar a
+        // questao 4 na linha "3", que e o erro de transcricao que §7 inteiro existe para mitigar
+        // (decisao 7 do `design.md` da `slice-5a-regiao-discursiva`).
+        objetivas.forEachIndexed { index, (posicaoNaProva, question) ->
             val column = index / grid.rows
             val row = index % grid.rows
             val columnX = bubbleLeft +
@@ -277,7 +304,7 @@ class LayoutEngine(
                 x = columnX.raw,
                 baseline = (rowY + CaptureGeometry.BUBBLE_DIAMETER).raw,
                 size = style.size.raw,
-                text = "${index + 1}",
+                text = "${posicaoNaProva + 1}",
             )
 
             question.options.forEachIndexed { optionIndex, _ ->
@@ -338,6 +365,7 @@ class LayoutEngine(
                 vSize = Ppm.of(qrSide, quadHeight).raw,
             ),
             bubbles = bubbles,
+            qrId = qrId,
         )
     }
 
@@ -349,7 +377,7 @@ class LayoutEngine(
      * **antes** das bolhas na lista de primitivas, porque quem desenha depois fica por cima.
      */
     private fun emitBands(
-        exam: ExamDefinition,
+        questionCount: Int,
         grid: BubbleGrid,
         bubbleLeft: Um,
         bubbleTop: Um,
@@ -357,7 +385,7 @@ class LayoutEngine(
     ) {
         for (column in 0 until grid.columns) {
             val firstQuestion = column * grid.rows
-            val rowsInColumn = minOf(grid.rows, exam.questions.size - firstQuestion)
+            val rowsInColumn = minOf(grid.rows, questionCount - firstQuestion)
             if (rowsInColumn <= 0) continue
             // O tamanho do grupo e por **coluna**, e nao da grade: a ultima coluna costuma ter
             // menos linhas, e agrupa-la pelo tamanho das outras deixaria uma sobra de uma ou duas
@@ -506,8 +534,143 @@ class LayoutEngine(
         }
     }
 
+    /**
+     * A regiao discursiva de uma questao, logo abaixo do enunciado dela (§8).
+     *
+     * Montada como o gabarito: os quatro marcadores `{4k..4k+3}` nos cantos da coluna, o
+     * quadrilatero pelos centros deles, e o QR centrado no topo, comecando na linha do quadrilatero.
+     * Abaixo do QR, a **area de resposta**: a moldura e a pauta, e nada mais — o enunciado ja foi
+     * desenhado acima, fora da regiao.
+     *
+     * A moldura e desenhada **para dentro** da area de resposta (o traco inteiro fica nela), e e por
+     * isso que a area declarada e a borda de fora da tinta: a captura recorta o que o mapa declara, e
+     * um traco que vazasse meio para fora faria a borda recortada depender da espessura.
+     *
+     * A pauta e `rect` de traco com altura zero, a forma (a) da decisao 4 do design — **provisoria**:
+     * quem decide se ela desenha igual nos dois renderizadores e a medicao de traco de `compare.mjs`
+     * (tarefa 6.3), e nao esta KDoc.
+     */
+    private fun emitEssayRegion(
+        examId: String,
+        regionIndex: Int,
+        content: QuestionContent,
+        placement: Placement,
+        primitives: MutableList<Primitive>,
+    ): ScannableRegion {
+        val essay = requireNotNull(content.essay)
+        val marker = CaptureGeometry.MARKER_SIDE
+        val left = profile.columnLeft(placement.column)
+        val width = profile.columnWidth
+        val top = placement.top + essay.statementHeight
+        val bottom = top + essay.regionHeight
+
+        val quadX = left + marker.divFloor(2)
+        val quadY = top + marker.divFloor(2)
+        val quadWidth = width - marker
+        val quadHeight = essay.regionHeight - marker
+
+        val markerIds = CaptureGeometry.markerIdsOf(regionIndex)
+        val corners = listOf(
+            left to top,
+            (left + width - marker) to top,
+            left to (bottom - marker),
+            (left + width - marker) to (bottom - marker),
+        )
+        for ((index, corner) in corners.withIndex()) {
+            val markerId = markerIds[index]
+            primitives += DrawAruco(
+                id = "r$regionIndex-m$markerId",
+                markerId = markerId,
+                x = corner.first.raw,
+                y = corner.second.raw,
+                side = marker.raw,
+                module = CaptureGeometry.MARKER_MODULE.raw,
+                modules = CaptureGeometry.markerModules(markerId),
+            )
+        }
+
+        val payload = qrPayloadOf(examId, regionIndex)
+        val qrMatrix = QrEncoder.encode(payload)
+        val qrSide = CaptureGeometry.QR_SIDE
+        val qrX = left + (width - qrSide).divFloor(2)
+        val qrY = quadY
+        val qrId = "r$regionIndex-qr"
+        primitives += DrawQr(
+            id = qrId,
+            x = qrX.raw,
+            y = qrY.raw,
+            side = qrSide.raw,
+            module = qrSide.divFloor(qrMatrix.size).raw,
+            payload = payload,
+            modules = linhasDeModulo(qrMatrix),
+        )
+
+        // A area de resposta ocupa a largura do quadrilatero, entre as faixas dos marcadores.
+        val answerTop = top + EssayGeometry.TOP_BAND
+        val answerHeight = EssayGeometry.PAUTA * essay.lines
+        val frameStroke = EssayGeometry.FRAME_STROKE
+        val halfFrame = frameStroke.divFloor(2)
+        primitives += DrawRect(
+            id = "r$regionIndex-moldura",
+            x = (quadX + halfFrame).raw,
+            y = (answerTop + halfFrame).raw,
+            width = (quadWidth - frameStroke).raw,
+            height = (answerHeight - frameStroke).raw,
+            stroke = frameStroke.raw,
+        )
+        // Linhas 1..n-1: a borda de cima e a de baixo da moldura ja fazem o papel da linha 0 e da n.
+        for (linha in 1 until essay.lines) {
+            primitives += DrawRect(
+                id = "r$regionIndex-p$linha",
+                x = (quadX + EssayGeometry.PAUTA_INSET).raw,
+                y = (answerTop + EssayGeometry.PAUTA * linha).raw,
+                width = (quadWidth - EssayGeometry.PAUTA_INSET * 2).raw,
+                height = 0,
+                stroke = EssayGeometry.PAUTA_STROKE.raw,
+            )
+        }
+
+        return ScannableRegion(
+            index = regionIndex,
+            kind = ESSAY_KIND,
+            page = placement.page,
+            quadX = quadX.raw,
+            quadY = quadY.raw,
+            quadWidth = quadWidth.raw,
+            quadHeight = quadHeight.raw,
+            markerIds = markerIds,
+            qr = NormalizedRect(
+                u = Ppm.of(qrX - quadX, quadWidth).raw,
+                v = Ppm.of(qrY - quadY, quadHeight).raw,
+                uSize = Ppm.of(qrSide, quadWidth).raw,
+                vSize = Ppm.of(qrSide, quadHeight).raw,
+            ),
+            bubbles = emptyList(),
+            qrId = qrId,
+            questionId = content.questionId,
+            answerArea = NormalizedRect(
+                u = 0,
+                v = Ppm.of(answerTop - quadY, quadHeight).raw,
+                uSize = Ppm.of(quadWidth, quadWidth).raw,
+                vSize = Ppm.of(answerHeight, quadHeight).raw,
+            ),
+        )
+    }
+
+    /**
+     * As objetivas da prova, cada uma com a posicao dela na prova.
+     *
+     * Um lugar so para "quais questoes o gabarito tem", porque tres pontos perguntam: a grade, as
+     * faixas e as bolhas. Tres filtros escritos a parte concordariam por coincidencia.
+     */
+    private fun objetivasDe(exam: ExamDefinition): List<IndexedValue<Question>> =
+        exam.questions.withIndex().filter { it.value.kind == QuestionKind.OBJECTIVE }
+
     companion object {
         private const val REGION_INDEX = 0
+
+        /** O `kind` da regiao discursiva, ao lado de `answer_block` e `print_test`. */
+        const val ESSAY_KIND = "essay"
         private const val MAX_BUBBLE_COLUMNS = 6
         private val SPACE_AFTER_REGION = Um.mm(6)
 
@@ -571,13 +734,20 @@ class LayoutEngine(
         ): String = QrPayload.of(examId, regionIndex, studentToken, variant)
 
         /**
-         * Payload da folha de uma atribuicao.
+         * Payload de uma regiao da folha de uma atribuicao.
          *
-         * O indice da regiao **nao** entra por parametro: ele e decisao do engine, e um chamador
-         * que o passasse errado produziria folha cujo QR discorda dos marcadores dela — a
-         * divergencia que a leitura confere e recusa, descoberta so na captura.
+         * O indice da regiao **nao** entra como numero solto: ele e decisao do engine, e um
+         * chamador que o passasse errado produziria folha cujo QR discorda dos marcadores dela — a
+         * divergencia que a leitura confere e recusa, descoberta so na captura. Por isso quem chama
+         * entrega a **regiao que o engine produziu**, e o indice sai dela. Ate a
+         * `slice-5a-regiao-discursiva` a folha tinha uma regiao so e o indice era fixo aqui; com a
+         * discursiva ha uma por questao (D23), e a regra continua a mesma.
          */
-        fun qrPayloadDaAtribuicao(examId: String, studentToken: String, variant: String): String =
-            qrPayloadOf(examId, REGION_INDEX, studentToken, variant)
+        fun qrPayloadDaAtribuicao(
+            examId: String,
+            studentToken: String,
+            variant: String,
+            regiao: ScannableRegion,
+        ): String = qrPayloadOf(examId, regiao.index, studentToken, variant)
     }
 }

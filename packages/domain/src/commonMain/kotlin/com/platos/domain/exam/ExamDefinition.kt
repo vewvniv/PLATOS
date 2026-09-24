@@ -1,5 +1,6 @@
 package com.platos.domain.exam
 
+import com.platos.domain.capture.CaptureGeometry
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -12,6 +13,52 @@ enum class QuestionKind {
     @SerialName("essay")
     ESSAY,
 }
+
+/**
+ * Como a resposta de uma discursiva e recortada da folha (§8, "Modo de cor").
+ *
+ * Cinza por padrao, e cor so quando a questao declara: resposta com grafico colorido, mapa, lamina.
+ * Quem consome e a captura da regiao discursiva, na fatia seguinte a que introduziu este tipo — e
+ * ele entrou antes do consumidor para que o `content_hash` quebrasse uma vez so, com todo o contrato
+ * discursivo junto (decisao 1 do `design.md` da `slice-5a-regiao-discursiva`).
+ */
+@Serializable
+enum class AnswerCaptureMode {
+    @SerialName("gray")
+    GRAY,
+
+    @SerialName("color")
+    COLOR,
+}
+
+/** Um nivel de desempenho de um criterio: quanto ele vale e como se reconhece. */
+@Serializable
+data class RubricDescriptor(
+    val points: Int,
+    val text: String,
+)
+
+/**
+ * Um criterio da rubrica analitica (§5, §11 `item_rubric_criterion`).
+ *
+ * [expectedLines] e **por criterio**, e a moldura da questao mede a soma deles (D35, §7): a IA — ou o
+ * professor — escreve a rubrica, a rubrica define o espaco, e o espaco condiciona a resposta. O §11 e
+ * quem diz em que nivel o campo mora; o §5 so o lista.
+ */
+@Serializable
+data class RubricCriterion(
+    val id: String,
+    val description: String,
+    val points: Int,
+    @SerialName("expected_lines") val expectedLines: Int,
+    val descriptors: List<RubricDescriptor>,
+)
+
+/** Rubrica analitica de uma questao discursiva: a lista dos criterios, na ordem declarada. */
+@Serializable
+data class Rubric(
+    val criteria: List<RubricCriterion>,
+)
 
 /**
  * Um recurso embutido no meio do enunciado — imagem, ou formula em linha.
@@ -113,6 +160,13 @@ data class Question(
     val why: String? = null,
     /** Pontuacao do item. */
     val points: Int = 1,
+    /** Rubrica analitica. Obrigatoria na discursiva e proibida na objetiva. */
+    val rubric: Rubric? = null,
+    /**
+     * Modo de captura da resposta discursiva. Nulo e o padrao, que e cinza; na objetiva nao se
+     * declara, porque o gabarito e preto e branco por construcao (§8).
+     */
+    @SerialName("answer_capture_mode") val answerCaptureMode: AnswerCaptureMode? = null,
 )
 
 /**
@@ -141,6 +195,11 @@ class UnsupportedContentException(message: String) : IllegalArgumentException(me
  * A fatia 1.5 **estreita** esta barreira em vez de remove-la: formula em bloco passa, formula em
  * linha, imagem de enunciado e discursiva continuam recusadas. Sem o estreitamento a barreira
  * viraria letra morta na primeira fatia que precisasse de qualquer coisa nova.
+ *
+ * A `slice-5a-regiao-discursiva` a estreita de novo, pela mesma razao: a discursiva **com rubrica**
+ * passa, porque agora ela tem moldura, e a moldura sai da rubrica (D35). A discursiva sem rubrica
+ * continua recusada — e pelo mesmo motivo que a recusava antes: ela seria uma questao sem onde
+ * escrever.
  */
 fun ExamDefinition.requireSupported() {
     if (questions.isEmpty()) {
@@ -155,11 +214,9 @@ fun ExamDefinition.requireSupported() {
     }
 
     for (question in questions) {
-        if (question.kind != QuestionKind.OBJECTIVE) {
-            throw UnsupportedContentException(
-                "questao `${question.id}` e do tipo `${question.kind}`; esta fatia desenha apenas " +
-                    "questoes objetivas, e a regiao discursiva pertence a uma fatia posterior",
-            )
+        when (question.kind) {
+            QuestionKind.OBJECTIVE -> question.requireObjectiveShape()
+            QuestionKind.ESSAY -> question.requireEssayShape()
         }
         if (question.assets.isNotEmpty()) {
             val kinds = question.assets.map { it.kind }.distinct().sorted()
@@ -201,21 +258,128 @@ fun ExamDefinition.requireSupported() {
                 )
             }
         }
-        if (question.options.size < MIN_OPTIONS) {
-            throw UnsupportedContentException(
-                "questao `${question.id}` tem ${question.options.size} alternativa(s); o minimo e " +
-                    "$MIN_OPTIONS",
-            )
-        }
-        if (question.options.size > MAX_OPTIONS) {
-            throw UnsupportedContentException(
-                "questao `${question.id}` tem ${question.options.size} alternativas; o maximo e " +
-                    "$MAX_OPTIONS",
-            )
-        }
         if (question.statement.isBlank()) {
             throw UnsupportedContentException("questao `${question.id}` tem enunciado vazio")
         }
+    }
+
+    // Toda folha tem uma regiao de gabarito (§8, "sempre uma regiao `ANSWER_BLOCK`"). Sem objetiva
+    // ela seria uma regiao sem bolha nenhuma, que nenhum leitor consome — decisao 7 do `design.md`
+    // da `slice-5a-regiao-discursiva`. Libera-la e decisao para quando houver pedido.
+    if (questions.none { it.kind == QuestionKind.OBJECTIVE }) {
+        throw UnsupportedContentException(
+            "prova `$id` nao tem questao objetiva; toda folha tem uma regiao de gabarito (§8), e " +
+                "sem objetiva ela nao teria bolha nenhuma a medir",
+        )
+    }
+
+    // O teto vem do dicionario, e nao de um numero escolhido: cada discursiva e uma regiao de quatro
+    // marcadores, e a regiao 0 e a do gabarito. Recusar aqui, antes do calculo, e o que faz a
+    // mensagem nomear a prova em vez de estourar no meio do layout (decisao 8).
+    val discursivas = questions.count { it.kind == QuestionKind.ESSAY }
+    val teto = CaptureGeometry.MAX_REGIONS - 1
+    if (discursivas > teto) {
+        throw UnsupportedContentException(
+            "prova `$id` tem $discursivas questoes discursivas; o dicionario de marcadores comporta " +
+                "${CaptureGeometry.MAX_REGIONS} regioes, uma delas e a do gabarito, e sobram $teto",
+        )
+    }
+}
+
+/** A objetiva tem alternativas, e nao tem rubrica nem modo de captura. */
+private fun Question.requireObjectiveShape() {
+    if (rubric != null) {
+        throw UnsupportedContentException(
+            "questao `$id` e objetiva e declara rubrica; rubrica e da discursiva, e a objetiva e " +
+                "corrigida pelo gabarito",
+        )
+    }
+    // Nao ha requisito que nomeie este caso, e ele cai na clausula geral da spec: conteudo que a
+    // capacidade nao desenha nao degrada em silencio. Ignorar o campo seria exatamente isso.
+    if (answerCaptureMode != null) {
+        throw UnsupportedContentException(
+            "questao `$id` e objetiva e declara modo de captura; o gabarito e preto e branco por " +
+                "construcao (§8), e o modo e da resposta discursiva",
+        )
+    }
+    if (options.size < MIN_OPTIONS) {
+        throw UnsupportedContentException(
+            "questao `$id` tem ${options.size} alternativa(s); o minimo e $MIN_OPTIONS",
+        )
+    }
+    if (options.size > MAX_OPTIONS) {
+        throw UnsupportedContentException(
+            "questao `$id` tem ${options.size} alternativas; o maximo e $MAX_OPTIONS",
+        )
+    }
+}
+
+/**
+ * A discursiva tem rubrica que fecha com a pontuacao dela, e nao tem alternativas nem gabarito.
+ *
+ * Cada recusa aqui e uma folha que sairia errada sem ninguem notar: sem rubrica nao ha moldura; com
+ * alternativas o aluno veria opcoes que nenhuma bolha le; e uma rubrica que nao soma a pontuacao
+ * faria a nota maxima da prova depender de qual dos dois numeros alguem lesse.
+ */
+private fun Question.requireEssayShape() {
+    val rubrica = rubric ?: throw UnsupportedContentException(
+        "questao `$id` e discursiva e nao declara rubrica; a moldura e dimensionada pelos " +
+            "`expected_lines` da rubrica (D35), e sem ela a folha nao teria onde o aluno escrever",
+    )
+    if (options.isNotEmpty()) {
+        throw UnsupportedContentException(
+            "questao `$id` e discursiva e declara ${options.size} alternativa(s); discursiva nao tem " +
+                "alternativas, e nenhuma bolha leria a escolha",
+        )
+    }
+    if (answer != null) {
+        throw UnsupportedContentException(
+            "questao `$id` e discursiva e declara resposta de gabarito; discursiva e corrigida pela " +
+                "rubrica, e nao pelo gabarito",
+        )
+    }
+    if (rubrica.criteria.isEmpty()) {
+        throw UnsupportedContentException("a rubrica da questao `$id` nao tem criterio")
+    }
+    val repetidos = rubrica.criteria.groupingBy { it.id }.eachCount().filterValues { it > 1 }.keys
+    if (repetidos.isNotEmpty()) {
+        throw UnsupportedContentException(
+            "a rubrica da questao `$id` tem criterios com identificador repetido: " +
+                repetidos.sorted().joinToString(),
+        )
+    }
+    for (criterio in rubrica.criteria) {
+        if (criterio.points <= 0) {
+            throw UnsupportedContentException(
+                "o criterio `${criterio.id}` da questao `$id` tem pontos nao positivos: " +
+                    "${criterio.points}",
+            )
+        }
+        if (criterio.expectedLines < 1) {
+            throw UnsupportedContentException(
+                "o criterio `${criterio.id}` da questao `$id` pede ${criterio.expectedLines} " +
+                    "linha(s); o minimo e 1, porque e dele que sai a altura da moldura",
+            )
+        }
+        if (criterio.descriptors.isEmpty()) {
+            throw UnsupportedContentException(
+                "o criterio `${criterio.id}` da questao `$id` nao tem descritor",
+            )
+        }
+        val foraDaEscala = criterio.descriptors.filter { it.points !in 0..criterio.points }
+        if (foraDaEscala.isNotEmpty()) {
+            throw UnsupportedContentException(
+                "o criterio `${criterio.id}` da questao `$id` tem descritor fora de " +
+                    "[0, ${criterio.points}]: ${foraDaEscala.map { it.points }}",
+            )
+        }
+    }
+    val soma = rubrica.criteria.sumOf { it.points }
+    if (soma != points) {
+        throw UnsupportedContentException(
+            "a rubrica da questao `$id` soma $soma ponto(s), e a questao vale $points; os dois " +
+                "precisam ser o mesmo numero",
+        )
     }
 }
 

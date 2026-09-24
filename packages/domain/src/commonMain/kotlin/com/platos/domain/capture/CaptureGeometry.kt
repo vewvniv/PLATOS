@@ -39,6 +39,15 @@ object CaptureGeometry {
     /** Teto de altura da regiao de gabarito, para que ela nao engula a pagina 1. */
     val MAX_REGION_HEIGHT = Um.mm(100)
 
+    /**
+     * Quantas regioes o dicionario comporta: quatro marcadores por regiao (§8).
+     *
+     * Derivado, e nao escolhido. Com `DICT_5X5_100` sao 25 — a do gabarito e 24 discursivas. Um
+     * numero digitado aqui seria um segundo registro do tamanho do dicionario, e o dia em que um dos
+     * dois mudasse sem o outro a recusa passaria a acontecer no lugar errado.
+     */
+    const val MAX_REGIONS: Int = ArucoDictionary.SIZE / 4
+
     /** Identificadores dos quatro marcadores da regiao [regionIndex] (§8). */
     fun markerIdsOf(regionIndex: Int): List<Int> {
         val first = 4 * regionIndex

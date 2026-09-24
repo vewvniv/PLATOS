@@ -54,8 +54,8 @@ class FolhaDaAtribuicaoTest {
         // Tres afirmacoes separadas: que o QR e o da atribuicao, que a matriz veio com ele, e que
         // **nada mais** mudou. Uma composicao que reconstruisse a geometria passaria nas duas
         // primeiras e falharia na terceira — e e a terceira que sustenta compartilhar geometria.
-        assertEquals(requireNotNull(atribuicao.qr).payload, qrDaFolha(folha).payload)
-        assertEquals(requireNotNull(atribuicao.qr).modules, qrDaFolha(folha).modules)
+        assertEquals(atribuicao.qrs.single().payload, qrDaFolha(folha).payload)
+        assertEquals(atribuicao.qrs.single().modules, qrDaFolha(folha).modules)
         assertEquals(geometria.semOQr(), folha.semOQr(), "a composicao mexeu em algo alem do QR")
 
         // E o QR da folha do aluno nao e o da variante: a geometria compartilhada carrega o payload
@@ -104,7 +104,7 @@ class FolhaDaAtribuicaoTest {
         // defesa — pacote que chegou de outro lugar, como o disco do aparelho, e no qual a
         // composicao nao confia.
         val pacote = exam.buildPackage(tokens = listOf("tok-1"))
-            .let { it.copy(assignments = it.assignments.map { a -> a.copy(qr = null) }) }
+            .let { it.copy(assignments = it.assignments.map { a -> a.copy(qrs = emptyList()) }) }
 
         // O desfecho errado seria silencioso: devolver a folha da variante, com o campo de aluno
         // vazio, para um aluno que existe. A folha sairia impressa sem dono e ninguem notaria.

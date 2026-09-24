@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
  */
 class ExamPackageTest {
 
-    private val HASH_DA_FIXTURE = "277d2f8cd0a7a87e6e26e5ecf47d2f5610dd6e173e724ab38a65373000ac391a"
+    private val HASH_DA_FIXTURE = "ff2b94ef600101e2c20d5b6b298f7d0612ee0a66beb4d74d7dcd954cfbde40da"
 
     private val exam: ExamDefinition = Json.decodeFromString(
         ExamDefinition.serializer(),
@@ -36,7 +36,13 @@ class ExamPackageTest {
     private fun atribuicao(token: String, variante: String = DEFAULT_VARIANT) = PackageAssignment(
         studentToken = token,
         variantId = variante,
-        qr = AssignmentQr(payload = "prova.$token.$variante.0.ABCD", modules = listOf("101", "010")),
+        qrs = listOf(
+            RegionQr(
+                regionIndex = 0,
+                payload = "prova.$token.$variante.0.ABCD",
+                modules = listOf("101", "010"),
+            ),
+        ),
     )
 
     // --- hash ---
@@ -190,7 +196,7 @@ class ExamPackageTest {
         // que a VALIDACAO faz, e nao o que o construtor aceita.
         val pacote = exam.buildPackage(tokens = listOf("tok-1"))
         val quebrado = pacote.copy(
-            assignments = listOf(PackageAssignment("tok-1", DEFAULT_VARIANT, qr = null)),
+            assignments = listOf(PackageAssignment("tok-1", DEFAULT_VARIANT, qrs = emptyList())),
         )
 
         val erro = assertFailsWith<ExamPackageException> { quebrado.requireCoherent() }
@@ -220,12 +226,20 @@ class ExamPackageTest {
     fun `layout divergente dos itens e recusado`() {
         // Tirar o item E a posicao dele: sem isso a recusa da variante dispara antes, e o teste
         // passaria por outro motivo que nao o que ele afirma cobrir.
+        //
+        // E descontar a pontuacao dele da nota maxima. Desde a `slice-5a-regiao-discursiva` a
+        // coerencia confere `max_score` contra gabarito e rubricas, e ela roda antes do layout: sem o
+        // desconto, este cenario passou a recusar por "a nota maxima ... e 40, e gabarito (39) ...
+        // somam 39" — outra camada, e o sombreamento de fixture de `rigorous.md` §3. A assercao nao
+        // mudou; a fixture voltou a ser coerente em tudo menos no que o cenario nomeia.
         val pacote = exam.buildPackage()
         val ultimo = pacote.items.last().id
+        val pontosDoUltimo = pacote.answerKey.single { it.itemId == ultimo }.points
         val quebrado = pacote.copy(
             items = pacote.items.dropLast(1),
             variants = pacote.variants.map { v -> v.copy(positions = v.positions.filterValues { it != ultimo }) },
             answerKey = pacote.answerKey.filter { it.itemId != ultimo },
+            scoring = pacote.scoring.copy(maxScore = pacote.scoring.maxScore - pontosDoUltimo),
         )
         val erro = assertFailsWith<ExamPackageException> { quebrado.requireCoherent() }
         assertContains(erro.message!!, "layout")

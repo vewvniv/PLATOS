@@ -62,7 +62,7 @@ class IdentidadeDaProvaTest {
         )
 
         pacote.assignments.forEach { atribuicao ->
-            val qr = atribuicao.qr
+            val qr = atribuicao.qrs.singleOrNull()
                 ?: throw AssertionError("atribuicao de `${atribuicao.studentToken}` sem QR")
 
             // Lido pelo mesmo leitor que o aparelho usa, e nao por `split` local: um leitor proprio
@@ -85,7 +85,7 @@ class IdentidadeDaProvaTest {
     @Test
     fun `os tres coincidem, e e essa a afirmacao inteira`() {
         val doQr = pacote.assignments
-            .mapNotNull { it.qr }
+            .flatMap { it.qrs }
             .map { QrPayload.read(it.payload) }
             .filterIsInstance<PayloadReading.Read>()
             .map { it.payload.examShortId }

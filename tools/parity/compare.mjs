@@ -26,6 +26,21 @@ const TINT_TOLERANCE = 0.01;
 /** Distancia admitida entre a trama medida e a declarada no mapa, em fracao de preto. */
 const TINT_VS_DECLARED = 0.02;
 
+/**
+ * Retangulo de **traco** — moldura e pauta da regiao discursiva (`slice-5a-regiao-discursiva`,
+ * tarefa 6.1b). Os tres numeros foram fixados **antes da primeira medicao** (P11), na propria tarefa:
+ *
+ * - a faixa de medicao vai `stroke/2 + STROKE_SLACK_UM` para cada lado do contorno declarado;
+ * - a **presenca** exige, em cada documento, tinta entre 0,5 e 1,5 vezes a area que o traco declarado
+ *   ocupa. O piso pega o traco que nao foi desenhado; o teto pega o traco grosso demais **nos dois
+ *   lados**, que a concordancia sozinha deixaria passar;
+ * - a **concordancia** admite no maximo 0,10 dessa razao entre web e Android.
+ */
+const STROKE_SLACK_UM = 200;
+const STROKE_PRESENCE_MIN = 0.5;
+const STROKE_PRESENCE_MAX = 1.5;
+const STROKE_TOLERANCE = 0.1;
+
 /** Folga da janela de medicao da formula, de cada lado. Ver `targetsOf`. */
 const WINDOW_SLACK_UM = 1_000;
 const MM_PER_PX = 25.4 / DPI;
@@ -156,6 +171,77 @@ function tintTargetsOf(map) {
     }
   }
   return targets;
+}
+
+/**
+ * Retangulos de traco: `stroke > 0` e sem trama (tarefa 6.1b).
+ *
+ * Ate a `slice-5a-regiao-discursiva` nenhum oraculo olhava traco: a paridade media centroide e trama,
+ * a fidelidade media marcador e circulo. A moldura e a pauta da regiao discursiva sao so traco, e um
+ * renderizador que nao as desenhasse passaria verde — o mesmo modo de falha da faixa da 2b.
+ */
+function strokeTargetsOf(map) {
+  const targets = [];
+  for (const page of map.pages) {
+    for (const primitive of page.primitives) {
+      if (primitive.type !== 'rect') continue;
+      if (!(primitive.stroke > 0)) continue;
+      if (primitive.fill !== null && primitive.fill !== undefined) continue;
+      targets.push({
+        id: primitive.id,
+        page: page.index,
+        stroke: primitive.stroke,
+        rectUm: { x: primitive.x, y: primitive.y, width: primitive.width, height: primitive.height },
+      });
+    }
+  }
+  return targets;
+}
+
+/**
+ * Area que o traco declarado ocupa, em micrometros quadrados: o retangulo crescido de meio traco,
+ * menos o retangulo encolhido de meio traco quando ele existe. Vale para o retangulo degenerado de
+ * altura zero da pauta, em que o miolo nao existe e a area e `(largura + traco) x traco`.
+ */
+function declaredStrokeAreaUm2(rectUm, stroke) {
+  const outer = (rectUm.width + stroke) * (rectUm.height + stroke);
+  const iw = rectUm.width - stroke;
+  const ih = rectUm.height - stroke;
+  return outer - (iw > 0 && ih > 0 ? iw * ih : 0);
+}
+
+/**
+ * Tinta na faixa do contorno, em micrometros quadrados: a soma da escuridao dos pixels entre o
+ * retangulo crescido de `stroke/2 + folga` e o encolhido do mesmo tanto. Antialiasing conserva area,
+ * entao somar a escuridao, e nao contar pixels acima de um limiar, e o que torna o numero comparavel
+ * com a area declarada.
+ */
+function strokeInkIn(page, rectUm, stroke) {
+  const grow = stroke / 2 + STROKE_SLACK_UM;
+  const ox0 = umToPx(rectUm.x - grow);
+  const oy0 = umToPx(rectUm.y - grow);
+  const ox1 = umToPx(rectUm.x + rectUm.width + grow);
+  const oy1 = umToPx(rectUm.y + rectUm.height + grow);
+  const hasInner = rectUm.width - 2 * grow > 0 && rectUm.height - 2 * grow > 0;
+  const ix0 = umToPx(rectUm.x + grow);
+  const iy0 = umToPx(rectUm.y + grow);
+  const ix1 = umToPx(rectUm.x + rectUm.width - grow);
+  const iy1 = umToPx(rectUm.y + rectUm.height - grow);
+
+  let darkness = 0;
+  for (let y = Math.max(0, Math.floor(oy0)); y <= Math.min(page.height - 1, Math.ceil(oy1)); y += 1) {
+    const cy = y + 0.5;
+    if (cy < oy0 || cy > oy1) continue;
+    for (let x = Math.max(0, Math.floor(ox0)); x <= Math.min(page.width - 1, Math.ceil(ox1)); x += 1) {
+      const cx = x + 0.5;
+      if (cx < ox0 || cx > ox1) continue;
+      if (hasInner && cx > ix0 && cx < ix1 && cy > iy0 && cy < iy1) continue;
+      darkness += 255 - page.pixels[y * page.width + x];
+    }
+  }
+  const pxUm = MM_PER_PX * 1000;
+  const area = (darkness / 255) * pxUm * pxUm;
+  return Number.isFinite(area) ? area : null;
 }
 
 /**
@@ -347,6 +433,44 @@ function compare(webPath, androidPath, mapPath) {
     }
   }
 
+  // Traco: presenca contra a area declarada, em cada documento, e concordancia entre os dois.
+  const strokeTargets = strokeTargetsOf(map);
+  let worstStroke = { id: null, delta: 0 };
+  const ratios = { web: [], android: [] };
+  for (const target of strokeTargets) {
+    const webPage = web[target.page];
+    const androidPage = android[target.page];
+    if (!webPage || !androidPage) continue;
+
+    const declared = declaredStrokeAreaUm2(target.rectUm, target.stroke);
+    const inkWeb = strokeInkIn(webPage, target.rectUm, target.stroke);
+    const inkAndroid = strokeInkIn(androidPage, target.rectUm, target.stroke);
+    if (inkWeb === null || inkAndroid === null || !(declared > 0)) {
+      problems.push(`traco ${target.id}: medicao nao finita ou area declarada nao positiva`);
+      continue;
+    }
+    const a = inkWeb / declared;
+    const b = inkAndroid / declared;
+    ratios.web.push(a);
+    ratios.android.push(b);
+    for (const [lado, razao] of [['web', a], ['android', b]]) {
+      if (razao < STROKE_PRESENCE_MIN || razao > STROKE_PRESENCE_MAX) {
+        problems.push(
+          `traco ${target.id} no ${lado}: tinta ${razao.toFixed(3)} da area declarada ` +
+            `(presenca exige ${STROKE_PRESENCE_MIN} a ${STROKE_PRESENCE_MAX})`,
+        );
+      }
+    }
+    const delta = Math.abs(a - b);
+    if (delta > worstStroke.delta) worstStroke = { id: target.id, delta };
+    if (delta > STROKE_TOLERANCE) {
+      problems.push(
+        `traco ${target.id} divergiu ${delta.toFixed(3)} da area declarada ` +
+          `(web ${a.toFixed(3)}, android ${b.toFixed(3)}; tolerancia ${STROKE_TOLERANCE})`,
+      );
+    }
+  }
+
   console.log(`rasterizador unico: mupdf a ${DPI} dpi (${MM_PER_PX.toFixed(4)} mm/px)`);
   console.log(`piso de escuridao do centroide: ${darknessFloor} de 255`);
   console.log(`paginas: ${web.length} | elementos comparados: ${measured} de ${targets.length}`);
@@ -361,6 +485,18 @@ function compare(webPath, androidPath, mapPath) {
         ? ` | maior divergencia ${(worstTint.delta * 100).toFixed(2)} pontos` +
           (worstTint.id ? ` em ${worstTint.id}` : '') +
           ` | tolerancia ${(TINT_TOLERANCE * 100).toFixed(2)} pontos`
+        : ''),
+  );
+
+  const faixa = (lista) =>
+    lista.length ? `${Math.min(...lista).toFixed(3)} a ${Math.max(...lista).toFixed(3)}` : '-';
+  console.log(
+    `tracos comparados: ${strokeTargets.length}` +
+      (strokeTargets.length > 0
+        ? ` | razao web ${faixa(ratios.web)}, android ${faixa(ratios.android)}` +
+          ` | maior divergencia ${worstStroke.delta.toFixed(3)}` +
+          (worstStroke.id ? ` em ${worstStroke.id}` : '') +
+          ` | tolerancia ${STROKE_TOLERANCE}`
         : ''),
   );
 

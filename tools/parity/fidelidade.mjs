@@ -175,20 +175,32 @@ const pageBoxMm = (um) => (Math.round((um * 72) / 25400) * 25.4) / 72;
 check('largura da pagina', width * MM, pageBoxMm(map.page_width));
 check('altura da pagina', height * MM, pageBoxMm(map.page_height));
 
-// Marcadores ArUco: lado e posicao
+// Marcadores ArUco: lado e posicao, em TODAS as paginas.
+//
+// Ate a `slice-5a-regiao-discursiva` so a pagina 0 era medida, porque so ela tinha marcador. A regiao
+// discursiva poe marcadores em qualquer pagina, e a versao anterior deixava um marcador da pagina 1
+// deslocado 0,5 mm passar com "fidelidade OK" — medido em 2026-09-24, com as mesmas 47 verificacoes
+// da folha correta. O rotulo da pagina 0 fica como era, para a saida de sempre nao mudar.
 const arucos = map.pages[0].primitives.filter((p) => p.type === 'aruco');
 const boxes = new Map();
-for (const aruco of arucos) {
-  const box = inkBox(aruco.x, aruco.y, aruco.side, aruco.side);
-  if (!box) {
-    console.error(`marcador ${aruco.marker_id} nao encontrado no raster`);
-    process.exit(1);
+for (const page of map.pages) {
+  const doPage = page.primitives.filter((p) => p.type === 'aruco');
+  if (doPage.length === 0) continue;
+  const raster = page.index === 0 ? page0 : rasterize(page.index);
+  const nome = (aruco) =>
+    page.index === 0 ? `marcador ${aruco.marker_id}` : `marcador ${aruco.marker_id} (pagina ${page.index})`;
+  for (const aruco of doPage) {
+    const box = inkBox(aruco.x, aruco.y, aruco.side, aruco.side, 60, raster);
+    if (!box) {
+      console.error(`${nome(aruco)} nao encontrado no raster`);
+      process.exit(1);
+    }
+    if (page.index === 0) boxes.set(aruco.marker_id, box);
+    check(`${nome(aruco)}: lado horizontal`, box.x1 - box.x0, aruco.side / 1000);
+    check(`${nome(aruco)}: lado vertical`, box.y1 - box.y0, aruco.side / 1000);
+    check(`${nome(aruco)}: borda esquerda`, box.x0, aruco.x / 1000);
+    check(`${nome(aruco)}: borda superior`, box.y0, aruco.y / 1000);
   }
-  boxes.set(aruco.marker_id, box);
-  check(`marcador ${aruco.marker_id}: lado horizontal`, box.x1 - box.x0, aruco.side / 1000);
-  check(`marcador ${aruco.marker_id}: lado vertical`, box.y1 - box.y0, aruco.side / 1000);
-  check(`marcador ${aruco.marker_id}: borda esquerda`, box.x0, aruco.x / 1000);
-  check(`marcador ${aruco.marker_id}: borda superior`, box.y0, aruco.y / 1000);
 }
 
 // Vaos entre marcadores: e o que a regua tenta medir no papel

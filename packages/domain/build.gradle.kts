@@ -28,6 +28,10 @@ val embedFixtures = tasks.register<EmbedFixturesTask>("embedFixtures") {
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.package.json"),
         rootProject.layout.projectDirectory.file("fixtures/prova-referencia.turma.package.json"),
         rootProject.layout.projectDirectory.file("fixtures/prova-2.json"),
+        rootProject.layout.projectDirectory.file("fixtures/prova-discursiva.json"),
+        rootProject.layout.projectDirectory.file("fixtures/prova-discursiva.layout.json"),
+        rootProject.layout.projectDirectory.file("fixtures/prova-discursiva.package.json"),
+        rootProject.layout.projectDirectory.file("fixtures/prova-discursiva.aluno.layout.json"),
         rootProject.layout.projectDirectory.file("fixtures/folha-de-teste.layout.json"),
         rootProject.layout.projectDirectory.file("fixtures/formulas.manifest.json"),
     )
@@ -152,6 +156,16 @@ tasks.withType<Test>().configureEach {
         rootProject.layout.projectDirectory.file("fixtures/folha-de-teste.layout.json")
             .asFile.absolutePath,
     )
+    // A prova com discursiva (`slice-5a-regiao-discursiva`): o golden do layout, o pacote com duas
+    // atribuicoes, e a folha de uma delas — que e o oraculo do espelho TypeScript de
+    // `folhaDaAtribuicao`, derivada aqui pela implementacao Kotlin (decisao 9 do design).
+    for ((propriedade, arquivo) in listOf(
+        "platos.discursiva.layout.path" to "fixtures/prova-discursiva.layout.json",
+        "platos.discursiva.package.path" to "fixtures/prova-discursiva.package.json",
+        "platos.discursiva.aluno.path" to "fixtures/prova-discursiva.aluno.layout.json",
+    )) {
+        systemProperty(propriedade, rootProject.layout.projectDirectory.file(arquivo).asFile.absolutePath)
+    }
 }
 
 // As tarefas de lint do AGP leem os diretorios de fonte diretamente, sem passar pela dependencia
