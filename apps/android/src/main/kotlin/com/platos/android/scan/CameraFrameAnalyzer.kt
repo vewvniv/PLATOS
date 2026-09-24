@@ -41,4 +41,28 @@ class CameraFrameAnalyzer(
             }
         }
     }
+
+    companion object {
+        /**
+         * O analisador **como a `ScanActivity` o monta**, e so por aqui.
+         *
+         * Existe para a montagem poder ser exercitada sem abrir a tela. Foi na montagem que o
+         * aplicativo caia diante de uma prova com discursiva: a `ScanActivity` escolhia a regiao com
+         * `map.regions.single()`, e a prova tem uma regiao por discursiva alem do gabarito
+         * (`slice-5b-1-o-aparelho-reconhece-a-discursiva`). A regiao agora sai de cada quadro, e o
+         * mapa entra inteiro; um teste chama esta funcao com o mapa da prova com discursiva.
+         *
+         * O limiar e o apurado na 3b (ADR-0011), e mora aqui porque e parte de como a sessao le.
+         */
+        fun daSessao(
+            map: LayoutMap,
+            deveAnalisar: () -> Boolean,
+            entrega: (FrameOutcome) -> Unit,
+        ): CameraFrameAnalyzer = CameraFrameAnalyzer(
+            map = map,
+            threshold = OmrThreshold.MEDIDO_NA_FATIA_3B,
+            deveAnalisar = deveAnalisar,
+            entrega = entrega,
+        )
+    }
 }

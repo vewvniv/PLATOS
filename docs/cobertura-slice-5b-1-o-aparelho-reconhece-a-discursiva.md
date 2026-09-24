@@ -147,3 +147,22 @@ sozinha segura o cenário**, e só as duas desligadas o derrubam.
 "Prova com discursiva", o gabarito, as discursivas reconhecidas e as não lidas, e o aviso. O build
 compila. A tela desenhada **não tem teste automático** (decisão 5), e é conferida no aparelho na 4.3.
 Se isso não couber, fica como lacuna.
+
+## 3. A queda
+
+**3.1 — a queda sai por construção, e é vista falhar na montagem.** A montagem do analisador saiu da
+`ScanActivity` para `CameraFrameAnalyzer.daSessao(map, deveAnalisar, entrega)`, que a `Activity`
+chama e o teste também. O mapa entra inteiro, e o limiar da 3b mora na montagem. O teste é
+`MontagemDoAnalisadorTest`, na JVM: ele monta o analisador com o mapa da fixture discursiva, e tem
+uma guarda de vacuidade que exige 3 regiões.
+- **Verde:** 1 de 1, às 23:03:37Z.
+- **Visto falhar:** com `map.also { it.regions.single() }` na montagem (`// MUTACAO`), 1 falha às
+  23:03:44Z, com **"java.lang.IllegalArgumentException: List has more than one element."** É a queda
+  que a correção P7 da linha `5b` (PR #68) descrevia só por leitura, agora **medida** no ponto em que
+  ela acontecia.
+- **Reversão:** pela cópia; `grep MUTACAO` deu 0, e rodado de novo, 1 de 1, às 23:03:51Z.
+- **`grep` de `regions.single()` em `apps/android/src/main`, fora de linha de comentário:** nenhuma
+  ocorrência. As duas que sobram são as KDoc que contam por que a montagem mudou.
+
+A tela que abre a câmera numa prova com discursiva não foi aberta por teste nenhum: a base não tem
+teste instrumentado de `Activity` (decisão 5). Ela é conferida no aparelho na 4.3, ou fica como lacuna.

@@ -22,7 +22,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import com.platos.android.pacote.PacotesEmArquivo
-import com.platos.domain.capture.OmrThreshold
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.layout.LayoutMap
 import androidx.lifecycle.lifecycleScope
@@ -213,9 +212,8 @@ class ScanActivity : ComponentActivity() {
 
             analise.setAnalyzer(
                 analysisExecutor,
-                CameraFrameAnalyzer(
+                CameraFrameAnalyzer.daSessao(
                     map = map,
-                    threshold = OmrThreshold.MEDIDO_NA_FATIA_3B,
                     // A analise para assim que ha resposta na tela; retomar e acao de quem segura o
                     // aparelho. Ver `design.md`, decisao 4.
                     deveAnalisar = {

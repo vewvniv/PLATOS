@@ -55,7 +55,7 @@
 
 ## 3. A queda
 
-- [ ] 3.1 A montagem do analisador sai da `ScanActivity` para uma função que a `Activity` e o teste
+- [x] 3.1 A montagem do analisador sai da `ScanActivity` para uma função que a `Activity` e o teste
   chamam, sem região pré-escolhida (decisão 5). Verificação: um teste monta o analisador com o mapa da
   fixture discursiva e não recebe exceção. `grep` não acha `regions.single()` em
   `apps/android/src/main`. **Ver falhar:** com o `.single()` restaurado na função, o teste cai com
