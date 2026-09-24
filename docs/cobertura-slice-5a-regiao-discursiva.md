@@ -1,7 +1,7 @@
 # Cobertura — `slice-5a-regiao-discursiva`
 
 Primeira mudança da fatia 5. Proposta, specs, design e tarefas em
-`openspec/changes/slice-5a-regiao-discursiva/`. Este documento registra **como** cada verificação foi
+`openspec/changes/archive/2026-09-24-slice-5a-regiao-discursiva/` (arquivada em 2026-09-24). Este documento registra **como** cada verificação foi
 vista falhar, e não que ela passa (`rigorous.md` §8). As datas são UTC.
 
 ## 0. Linha de base, antes do primeiro commit de código
@@ -675,3 +675,10 @@ Esta mudança fez a guarda dizer "fatia corrente: 5a".
 - **Uma linha nasceu nesta mudança:** "A região discursiva ainda não passou pelo aparelho nem pelo
   papel", token `5b`, vista falhar na 1.1.
 - **O evento `migration-da-5-em-producao` não foi alcançado:** esta mudança não tem migration.
+
+**No archive, em 2026-09-24:** a reconciliação acima foi aplicada como estava escrita. As três linhas
+`5` seguem **em dia**. Elas não foram pagas nem reagendadas, porque a fatia-limite delas é a fatia 5
+inteira, e ela não terminou. A guarda as reprova quando a 6 abrir. A linha `5b` segue aberta, e a
+guarda a reprova quando a 5c abrir. As specs principais de `layout-engine` e `exam-package` receberam
+os 6 requisitos substituídos e os 3 novos, conferidos bloco a bloco contra os deltas. Os não tocados
+ficaram iguais a `HEAD`, e `openspec validate --specs --strict` passou nas 11.
