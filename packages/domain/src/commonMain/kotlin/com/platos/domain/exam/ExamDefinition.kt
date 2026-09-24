@@ -14,6 +14,52 @@ enum class QuestionKind {
 }
 
 /**
+ * Como a resposta de uma discursiva e recortada da folha (§8, "Modo de cor").
+ *
+ * Cinza por padrao, e cor so quando a questao declara: resposta com grafico colorido, mapa, lamina.
+ * Quem consome e a captura da regiao discursiva, na fatia seguinte a que introduziu este tipo — e
+ * ele entrou antes do consumidor para que o `content_hash` quebrasse uma vez so, com todo o contrato
+ * discursivo junto (decisao 1 do `design.md` da `slice-5a-regiao-discursiva`).
+ */
+@Serializable
+enum class AnswerCaptureMode {
+    @SerialName("gray")
+    GRAY,
+
+    @SerialName("color")
+    COLOR,
+}
+
+/** Um nivel de desempenho de um criterio: quanto ele vale e como se reconhece. */
+@Serializable
+data class RubricDescriptor(
+    val points: Int,
+    val text: String,
+)
+
+/**
+ * Um criterio da rubrica analitica (§5, §11 `item_rubric_criterion`).
+ *
+ * [expectedLines] e **por criterio**, e a moldura da questao mede a soma deles (D35, §7): a IA — ou o
+ * professor — escreve a rubrica, a rubrica define o espaco, e o espaco condiciona a resposta. O §11 e
+ * quem diz em que nivel o campo mora; o §5 so o lista.
+ */
+@Serializable
+data class RubricCriterion(
+    val id: String,
+    val description: String,
+    val points: Int,
+    @SerialName("expected_lines") val expectedLines: Int,
+    val descriptors: List<RubricDescriptor>,
+)
+
+/** Rubrica analitica de uma questao discursiva: a lista dos criterios, na ordem declarada. */
+@Serializable
+data class Rubric(
+    val criteria: List<RubricCriterion>,
+)
+
+/**
  * Um recurso embutido no meio do enunciado — imagem, ou formula em linha.
  *
  * Continua fora do escopo. Formula em linha exige caixa com alinhamento de linha de base dentro da
@@ -113,6 +159,13 @@ data class Question(
     val why: String? = null,
     /** Pontuacao do item. */
     val points: Int = 1,
+    /** Rubrica analitica. Obrigatoria na discursiva e proibida na objetiva. */
+    val rubric: Rubric? = null,
+    /**
+     * Modo de captura da resposta discursiva. Nulo e o padrao, que e cinza; na objetiva nao se
+     * declara, porque o gabarito e preto e branco por construcao (§8).
+     */
+    @SerialName("answer_capture_mode") val answerCaptureMode: AnswerCaptureMode? = null,
 )
 
 /**

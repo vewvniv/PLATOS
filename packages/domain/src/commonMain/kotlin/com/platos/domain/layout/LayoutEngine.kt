@@ -248,8 +248,9 @@ class LayoutEngine(
         // O QR comeca na linha do quadrilatero, e nao no topo da regiao: o quadrilatero passa pelos
         // *centros* dos marcadores, entao qualquer coisa acima dele normalizaria para v negativo.
         val qrY = quadY
+        val qrId = "r$REGION_INDEX-qr"
         primitives += DrawQr(
-            id = "r$REGION_INDEX-qr",
+            id = qrId,
             x = qrX.raw,
             y = qrY.raw,
             side = qrSide.raw,
@@ -338,6 +339,7 @@ class LayoutEngine(
                 vSize = Ppm.of(qrSide, quadHeight).raw,
             ),
             bubbles = bubbles,
+            qrId = qrId,
         )
     }
 

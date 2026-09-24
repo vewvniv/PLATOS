@@ -116,11 +116,11 @@ class ExamPublicationTest {
 
         // E cada uma com a folha DELA. Payload repetido entre alunos e o defeito que a captura nao
         // tem como desfazer: as duas folhas seriam do mesmo aluno.
-        val payloads = pacote.assignments.map { requireNotNull(it.qr).payload }
+        val payloads = pacote.assignments.map { it.qrs.single().payload }
         assertEquals(payloads.size, payloads.toSet().size, "payloads repetidos: $payloads")
         for (atribuicao in pacote.assignments) {
             assertTrue(
-                requireNotNull(atribuicao.qr).payload.contains(atribuicao.studentToken),
+                atribuicao.qrs.single().payload.contains(atribuicao.studentToken),
                 "o payload de `${atribuicao.studentToken}` nao carrega o token dele",
             )
         }

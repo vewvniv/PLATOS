@@ -69,7 +69,7 @@ fun ExamPackage.requireCoherent() {
     // A atribuicao existe para enderecar uma folha, e sem QR proprio ela nao endereca nenhuma.
     // O desfecho errado seria silencioso: a folha sairia impressa com o campo de aluno vazio, para
     // um aluno que existe, e ninguem notaria ate a captura nao ter a quem atribuir.
-    val semQr = assignments.filter { it.qr == null }
+    val semQr = assignments.filter { it.qrs.isEmpty() }
     if (semQr.isNotEmpty()) {
         throw ExamPackageException(
             "atribuicoes sem QR proprio: " + semQr.map { it.studentToken }.sorted().joinToString() +

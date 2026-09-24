@@ -143,8 +143,9 @@ class PrintTestSheet(
         val qrSide = CaptureGeometry.QR_SIDE
         val qrX = left + (profile.contentWidth - qrSide).divFloor(2)
         val qrY = quadY
+        val qrId = "r0-qr"
         primitives += DrawQr(
-            id = "r0-qr",
+            id = qrId,
             x = qrX.raw,
             y = qrY.raw,
             side = qrSide.raw,
@@ -204,6 +205,7 @@ class PrintTestSheet(
                 vSize = Ppm.of(qrSide, quadHeight).raw,
             ),
             bubbles = bubbles,
+            qrId = qrId,
         )
     }
 

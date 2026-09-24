@@ -39,7 +39,15 @@ fun ExamDefinition.buildPackage(
         PackageAssignment(
             studentToken = token,
             variantId = variantId,
-            qr = AssignmentQr(payload = payload, modules = linhasDeModulo(QrEncoder.encode(payload))),
+            // Minimo para compilar sobre o contrato novo: o QR da regiao 0, e so ele. Um QR por
+            // regiao do layout e a tarefa 4.1 da `slice-5a-regiao-discursiva`.
+            qrs = listOf(
+                RegionQr(
+                    regionIndex = 0,
+                    payload = payload,
+                    modules = linhasDeModulo(QrEncoder.encode(payload)),
+                ),
+            ),
         )
     }
 

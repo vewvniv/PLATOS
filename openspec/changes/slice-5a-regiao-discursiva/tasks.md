@@ -1,6 +1,6 @@
 ## 0. Antes do primeiro commit
 
-- [ ] 0.1 Medir a linha de base na árvore de `main` (`97aa59f`):
+- [x] 0.1 Medir a linha de base na árvore de `main` (`97aa59f`):
   - `./gradlew build --rerun-tasks` e `./gradlew :apps:android:connectedDebugAndroidTest`, sem
     filtro;
   - `npm test` em `apps/web`.
@@ -8,12 +8,12 @@
   Anotar em `docs/cobertura-slice-5a-regiao-discursiva.md` a contagem de testes por suíte, o
   `timestamp` de cada relatório e quantas tasks foram **executadas** (P2, P3). Verificação: os
   relatórios existem, e o `timestamp` é desta sessão.
-- [ ] 0.2 Registrar a saída de `node tools/divida/divida.mjs`: "fatia corrente: 5a", e as três linhas
+- [x] 0.2 Registrar a saída de `node tools/divida/divida.mjs`: "fatia corrente: 5a", e as três linhas
   `5` sob "vence nesta fatia". Verificação: a saída colada na cobertura, com `exit 0`.
 
 ## 1. O registro, antes do código (P27)
 
-- [ ] 1.1 Acrescentar ao §16 de `docs/architecture/ARQUITETURA-FINAL-v3.md` a linha "A região
+- [x] 1.1 Acrescentar ao §16 de `docs/architecture/ARQUITETURA-FINAL-v3.md` a linha "A região
   discursiva ainda não passou pelo aparelho nem pelo papel", com token `5b`, dono mantenedor e as duas
   partes da decisão 12 do design:
   - o motivo errado da recusa no aparelho;
@@ -26,10 +26,16 @@
 
 ## 2. O contrato, sozinho (decisão 11)
 
-- [ ] 2.1 Congelar `fixtures/prova-referencia.package.json` como
-  `fixtures/pacote-antes-da-discursiva.json`, byte a byte, com um `README` curto ao lado dizendo que é
-  artefato do contrato anterior e que o `GoldenWriterTest` não o escreve. Verificação: `cmp` entre os
-  dois arquivos, e `sha256` dos bytes igual ao `content_hash` declarado dentro dele.
+- [x] 2.1 Congelar `fixtures/prova-referencia.package.json` como
+  `fixtures/pacote-antes-da-discursiva.json`, byte a byte. O motivo fica escrito na KDoc do
+  `GoldenWriterTest`, ao lado da do `pacote-do-contrato-anterior.json`, e não num `README` em
+  `fixtures/`. Verificação: `cmp` entre os dois arquivos, e `sha256` dos bytes igual ao hash que
+  `ExamPackageTest` e `ExamPublicationTest` fixam para a prova de referência.
+
+  *Corrigido ao executar (P7), em dois pontos. A redação original pedia um `README` ao lado, mas a
+  ETAPA 3 documentou a fixture congelada dela na KDoc do `GoldenWriterTest`, e esta segue a casa. E
+  pedia comparar com "o `content_hash` declarado dentro dele", que não existe: o pacote não declara o
+  próprio hash, e nem poderia. A âncora certa é o literal dos testes.*
 - [ ] 2.2 Commit só de contrato, em `packages/domain`:
   - `Question`: `rubric` e `answerCaptureMode`;
   - `Rubric`, `RubricCriterion` e `RubricDescriptor`;

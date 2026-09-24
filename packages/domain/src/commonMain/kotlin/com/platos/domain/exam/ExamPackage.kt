@@ -61,6 +61,12 @@ data class PackageItem(
     val skills: List<ItemSkill>,
     /** Referencias de formula em bloco e em linha que o item usa. */
     val assets: List<String> = emptyList(),
+    /** Objetivo ou discursivo. E daqui que quem le o pacote sabe se o item tem gabarito ou rubrica. */
+    val kind: QuestionKind = QuestionKind.OBJECTIVE,
+    /** A rubrica analitica do item discursivo. Nula no objetivo. */
+    val rubric: Rubric? = null,
+    /** O modo de captura da resposta discursiva, ja resolvido: nunca nulo na discursiva. */
+    @SerialName("answer_capture_mode") val answerCaptureMode: AnswerCaptureMode? = null,
 )
 
 /** Uma variante: o mapa de posicao fisica na folha para o item que ocupa aquela posicao. */
@@ -72,22 +78,28 @@ data class PackageVariant(
 )
 
 /**
- * O que distingue a folha de uma atribuicao da folha da variante: o QR dela.
+ * O que distingue uma regiao da folha de uma atribuicao da mesma regiao da folha da variante: o QR
+ * dela.
  *
  * **Carrega o conteudo, e nao a geometria.** Posicao, lado e modulo do QR ficam onde sempre
  * estiveram — na primitiva da geometria da variante —, e aqui ficam so o payload e a matriz que dele
- * decorre. E isso que torna "folhas da mesma prova diferem so no QR" verdadeiro **por construcao**:
+ * decorre. E isso que torna "folhas da mesma prova diferem so nos QRs" verdadeiro **por construcao**:
  * uma folha com o QR em outro lugar nao e representavel.
  *
- * **Um QR, e nao uma lista.** A spec vigente exige exatamente uma regiao escaneavel por folha; QR
- * repetido por regiao e D23, e quando ele chegar muda as duas specs juntas. Lista agora seria a
- * abstracao prematura que a regra 8 proibe.
+ * **Um por regiao, e por isso lista** (D23). Esta classe se chamava `AssignmentQr` e era um so, e a
+ * KDoc dela dizia: "QR repetido por regiao e D23, e quando ele chegar muda as duas specs juntas. Lista
+ * agora seria a abstracao prematura que a regra 8 proibe." Chegou com a regiao discursiva
+ * (`slice-5a-regiao-discursiva`), e as duas specs mudaram juntas.
+ *
+ * [regionIndex] e o indice da regiao do layout a que este QR pertence. O payload tambem o carrega, e
+ * a coerencia do pacote confere que os dois concordam.
  *
  * [modules] vem ja codificada, como em `DrawQr`, e pela mesma razao: o payload e resolvido **uma
  * vez**, na publicacao, e ninguem recodifica depois.
  */
 @Serializable
-data class AssignmentQr(
+data class RegionQr(
+    @SerialName("region_index") val regionIndex: Int,
     val payload: String,
     val modules: List<String>,
 )
@@ -100,10 +112,11 @@ data class AssignmentQr(
  * importa: campo dentro do pacote e excluido do hash continua sendo dado pessoal dentro de um
  * artefato imutavel copiado para dispositivo offline (ADR-0002).
  *
- * **O [qr] e nulavel no tipo, e a validacao e quem recusa a ausencia.** Nao e frouxidao: a spec
- * exige um cenario de recusa para "atribuicao sem folha enderecavel", e campo nao-nulavel tornaria
- * esse estado inconstruivel — a recusa ficaria sem como ser testada. Pacote com atribuicao sem QR
- * existe o tempo suficiente para ser recusado antes de gravar, e nao mais que isso.
+ * **[qrs] pode vir vazia no tipo, e a validacao e quem recusa.** Nao e frouxidao: a spec exige um
+ * cenario de recusa para "atribuicao sem folha enderecavel", e uma lista que nao pudesse ser vazia
+ * tornaria esse estado inconstruivel — a recusa ficaria sem como ser testada. Pacote com atribuicao
+ * sem QR existe o tempo suficiente para ser recusado antes de gravar, e nao mais que isso. A forma
+ * anterior era `qr: AssignmentQr?`, nulavel pela mesma razao.
  *
  * Prova publicada sem roster nao tem atribuicao nenhuma — e o caso da folha avulsa, em que o campo
  * de aluno do payload fica vazio.
@@ -112,7 +125,8 @@ data class AssignmentQr(
 data class PackageAssignment(
     @SerialName("student_token") val studentToken: String,
     @SerialName("variant_id") val variantId: String,
-    val qr: AssignmentQr? = null,
+    /** Um QR por regiao do layout da variante, em ordem de indice (D23). */
+    val qrs: List<RegionQr> = emptyList(),
 )
 
 /** Gabarito: item -> alternativa correta e pontuacao. */
@@ -231,7 +245,9 @@ fun ExamPackage.folhaDaAtribuicao(studentToken: String): LayoutMap? {
         "pacote incoerente: a atribuicao `$studentToken` aponta a variante `${atribuicao.variantId}`, " +
             "que nao tem layout"
     }
-    val qr = requireNotNull(atribuicao.qr) {
+    // Minimo para compilar sobre o contrato novo: ainda um QR so, o da regiao 0. A troca por
+    // `qr_id` de cada regiao e a tarefa 4.3 da `slice-5a-regiao-discursiva`.
+    val qr = requireNotNull(atribuicao.qrs.singleOrNull { it.regionIndex == 0 }) {
         "pacote incoerente: a atribuicao `$studentToken` nao tem QR proprio"
     }
 
@@ -245,7 +261,7 @@ fun ExamPackage.folhaDaAtribuicao(studentToken: String): LayoutMap? {
  * folha tem uma regiao escaneavel, com um QR dentro dela. Zero ou dois seria mapa que a validacao do
  * layout nao deveria ter deixado passar, e trocar "o primeiro que aparecer" esconderia isso.
  */
-private fun LayoutMap.comQrDe(qr: AssignmentQr): LayoutMap {
+private fun LayoutMap.comQrDe(qr: RegionQr): LayoutMap {
     val quantos = pages.sumOf { pagina -> pagina.primitives.count { it is DrawQr } }
     require(quantos == 1) { "esperava exatamente um QR no layout, e o mapa tem $quantos" }
 

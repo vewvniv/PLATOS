@@ -36,7 +36,13 @@ class ExamPackageTest {
     private fun atribuicao(token: String, variante: String = DEFAULT_VARIANT) = PackageAssignment(
         studentToken = token,
         variantId = variante,
-        qr = AssignmentQr(payload = "prova.$token.$variante.0.ABCD", modules = listOf("101", "010")),
+        qrs = listOf(
+            RegionQr(
+                regionIndex = 0,
+                payload = "prova.$token.$variante.0.ABCD",
+                modules = listOf("101", "010"),
+            ),
+        ),
     )
 
     // --- hash ---
@@ -190,7 +196,7 @@ class ExamPackageTest {
         // que a VALIDACAO faz, e nao o que o construtor aceita.
         val pacote = exam.buildPackage(tokens = listOf("tok-1"))
         val quebrado = pacote.copy(
-            assignments = listOf(PackageAssignment("tok-1", DEFAULT_VARIANT, qr = null)),
+            assignments = listOf(PackageAssignment("tok-1", DEFAULT_VARIANT, qrs = emptyList())),
         )
 
         val erro = assertFailsWith<ExamPackageException> { quebrado.requireCoherent() }
