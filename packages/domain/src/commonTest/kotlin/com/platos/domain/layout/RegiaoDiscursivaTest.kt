@@ -217,6 +217,71 @@ class RegiaoDiscursivaTest {
         assertTrue(falha.message!!.contains("q2"), falha.message!!)
     }
 
+    // --- 3.4: a validacao da regiao discursiva ---
+    //
+    // Cada cenario parte de um mapa VALIDO produzido pelo motor e muda UMA coisa (`rigorous.md` §3):
+    // se a recusa viesse de outra conferencia, a assercao do motivo nao passaria.
+
+    private val valido: LayoutMap by lazy {
+        engine.layout(prova(objetiva("q1"), discursiva("q2"), discursiva("q3")))
+    }
+
+    private fun LayoutMap.comRegiao(indice: Int, muda: (ScannableRegion) -> ScannableRegion) =
+        copy(regions = regions.map { if (it.index == indice) muda(it) else it })
+
+    private fun problemas(map: LayoutMap): List<String> {
+        val resultado = map.validate()
+        assertTrue(resultado is ValidationResult.Invalid, "esperava mapa invalido")
+        return resultado.problems
+    }
+
+    @Test
+    fun `o mapa com discursivas que o motor produz e valido, e a validacao nao o altera`() {
+        val antes = valido.toCanonicalJson()
+        assertEquals(ValidationResult.Valid, valido.validate())
+        assertEquals(antes, valido.toCanonicalJson())
+    }
+
+    /** Cenario "Area de resposta sobre o QR". */
+    @Test
+    fun `area de resposta sobre o QR e recusada`() {
+        val quebrado = valido.comRegiao(1) { it.copy(answerArea = it.qr) }
+        assertEquals(
+            listOf("a area de resposta da regiao 1 sobrepoe o QR da regiao"),
+            problemas(quebrado),
+        )
+    }
+
+    @Test
+    fun `area de resposta fora do quadrilatero e recusada`() {
+        val quebrado = valido.comRegiao(2) { r -> r.copy(answerArea = requireNotNull(r.answerArea).copy(u = 100_000)) }
+        val lista = problemas(quebrado)
+        assertEquals(1, lista.size, "$lista")
+        assertTrue(lista.single().startsWith("a area de resposta da regiao 2 sai do quadrilatero"), "$lista")
+    }
+
+    /** Cenario "Duas regioes para a mesma questao". */
+    @Test
+    fun `duas regioes para a mesma questao e recusado`() {
+        val quebrado = valido.comRegiao(2) { it.copy(questionId = "q2") }
+        assertEquals(listOf("questoes com mais de uma regiao discursiva: q2"), problemas(quebrado))
+    }
+
+    /** Cenario "QR declarado que nao existe". */
+    @Test
+    fun `QR declarado que nao existe na pagina e recusado`() {
+        val quebrado = valido.comRegiao(1) { it.copy(qrId = "nao-existe") }
+        val lista = problemas(quebrado)
+        assertEquals(1, lista.size, "$lista")
+        assertTrue(lista.single().contains("regiao 1 declara o QR `nao-existe`"), "$lista")
+    }
+
+    @Test
+    fun `regiao discursiva sem questao e recusada`() {
+        val quebrado = valido.comRegiao(1) { it.copy(questionId = null) }
+        assertEquals(listOf("regiao 1 e discursiva e nao declara questao"), problemas(quebrado))
+    }
+
     @Test
     fun `sem discursiva o gabarito continua numerando em sequencia`() {
         // Guarda do caminho de sempre: a prova so objetiva nao pode ter mudado de numeracao.

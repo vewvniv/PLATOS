@@ -69,7 +69,7 @@
   da região discursiva. **Ver falhar**, com duas mutações de conjuntos disjuntos previstos:
   - moldura de altura fixa: cai só "A rubrica dimensiona a moldura";
   - IDs `4k+4`: cai só o de identificadores, e a validação.
-- [ ] 3.4 `LayoutMapValidation` recusa os quatro casos da ADDED "A região discursiva declara a questão e
+- [x] 3.4 `LayoutMapValidation` recusa os quatro casos da ADDED "A região discursiva declara a questão e
   a área de resposta". Verificação: cada teste parte de um mapa **válido** produzido pelo motor e muda
   **uma** coisa, e a asserção confere a mensagem (`rigorous.md` §3). O teste "Mapa válido" passa sobre
   o mapa da fixture discursiva.

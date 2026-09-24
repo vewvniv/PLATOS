@@ -194,3 +194,33 @@ A tarefa previa que M2 também derrubasse "a validação". A validação da regi
 ela ainda não existia quando M2 rodou, então não havia o que derrubar. A M2 **volta a rodar na 3.4**,
 e o conjunto real vai ao lado deste. As duas mutações foram revertidas pela cópia byte a byte,
 `grep -rn MUTACAO packages/domain/src` deu 0, e a suíte filtrada rodou de novo: 30 de 30.
+
+**3.4 — a validação da região discursiva.** `LayoutMap.validate` passa a recusar:
+- em **toda** região, `qr_id` que não está entre as primitivas da página dela;
+- duas regiões para a mesma questão;
+- na região discursiva, questão ausente, bolha declarada, área de resposta ausente ou fora de
+  `[0,1]`, e área de resposta sobre o QR.
+
+Cada cenário parte do mapa **válido** que o motor produz, com duas discursivas, muda **uma** coisa e
+afirma a lista **exata** de problemas. `RegiaoDiscursivaTest` 15, `LayoutMapValidationTest` 20 e
+`LayoutEngineTest` 21, sem falha.
+
+**Vista falhar:**
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| M3 — `if (false && cruza)`, a sobreposição com o QR desligada | só "área de resposta sobre o QR" | só ele (55 de 56) |
+| M2 de novo — IDs `4k+4`, agora com a validação existindo | "cada discursiva tem a sua região" e "o mapa com discursivas que o motor produz é válido" | **7 falhas**: as duas previstas e mais as **cinco** de uma mudança só (sobre o QR, fora do quadrilátero, sem questão, duas regiões, QR que não existe) |
+
+**A M2 divergiu do previsto, e a regra de parada foi aplicada** (decisão 13): o real fica ao lado, e o
+significado vem da mensagem de cada uma, lida no XML, e não da contagem (P12). As cinco extras caem
+pela **mesma** causa. Todas partem do mapa do motor. Com a M2, esse mapa ganha dois problemas ("regiao
+1 deveria usar os marcadores [4, 5, 6, 7], veio [8, 9, 10, 11]", e o mesmo para a região 2), e a lista
+exata que cada uma afirma deixa de bater. **Em todas as cinco, o problema que o cenário testa continua
+presente na lista.** A previsão errou por não contar que os cinco dividem a base. O comportamento é o
+desejado: afirmar a lista exata é o que faz esses cenários acusarem também uma base inválida, em vez
+de passar com um problema a mais que ninguém lê. Nenhum teste foi mexido. A M3, que muta só a
+validação, caiu no conjunto exato, e isso mostra que a camada está isolada.
+
+As duas foram revertidas pela cópia byte a byte, `grep -rn MUTACAO packages/domain/src` deu 0, e a
+suíte filtrada rodou de novo: 56 de 56.

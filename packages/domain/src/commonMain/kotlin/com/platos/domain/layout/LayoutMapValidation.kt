@@ -137,6 +137,26 @@ fun LayoutMap.validate(): ValidationResult {
             problems += "QR da regiao ${region.index} sai do quadrilatero: " +
                 "u=${qr.u}+${qr.uSize}, v=${qr.v}+${qr.vSize}"
         }
+
+        // A ligacao regiao -> QR e declarada, e e por ela que a folha de cada aluno troca o QR
+        // certo. Um `qr_id` que nao existe na pagina da regiao e folha cujo QR nunca seria trocado
+        // — o aluno receberia o payload da variante, sem identidade, e ninguem notaria.
+        val qrDaPagina = pages.firstOrNull { it.index == region.page }?.primitives
+            ?.any { it is DrawQr && it.id == region.qrId } == true
+        if (!qrDaPagina) {
+            problems += "regiao ${region.index} declara o QR `${region.qrId}`, que nao esta entre " +
+                "as primitivas da pagina ${region.page}"
+        }
+
+        if (region.kind == LayoutEngine.ESSAY_KIND) checkEssayRegion(region, problems)
+    }
+
+    // Duas regioes para a mesma questao sao duas molduras para uma resposta: a captura recortaria
+    // as duas, e qual delas vale seria decidido por quem as lesse primeiro.
+    val porQuestao = regions.mapNotNull { it.questionId }.groupingBy { it }.eachCount()
+        .filterValues { it > 1 }.keys
+    if (porQuestao.isNotEmpty()) {
+        problems += "questoes com mais de uma regiao discursiva: ${porQuestao.sorted().joinToString()}"
     }
 
     checkInkBudget(problems)
@@ -152,6 +172,39 @@ fun LayoutMap.validate(): ValidationResult {
     }
 
     return if (problems.isEmpty()) ValidationResult.Valid else ValidationResult.Invalid(problems)
+}
+
+/**
+ * A regiao discursiva declara a questao e a area de resposta, e a area nao cobre o QR.
+ *
+ * A area e o que a captura vai recortar (§8). Fora de `[0,1]` ela recortaria alem dos marcadores, e
+ * sobre o QR ela entregaria o codigo como se fosse escrita do aluno. Bolha numa regiao discursiva e
+ * questao lida por OMR onde a spec diz que nao ha OMR.
+ */
+private fun checkEssayRegion(region: ScannableRegion, problems: MutableList<String>) {
+    if (region.questionId == null) {
+        problems += "regiao ${region.index} e discursiva e nao declara questao"
+    }
+    if (region.bubbles.isNotEmpty()) {
+        problems += "regiao ${region.index} e discursiva e declara ${region.bubbles.size} bolha(s)"
+    }
+    val area = region.answerArea
+    if (area == null) {
+        problems += "regiao ${region.index} e discursiva e nao declara area de resposta"
+        return
+    }
+    val dentro = Ppm(area.u).isInUnitRange && Ppm(area.v).isInUnitRange &&
+        Ppm(area.u + area.uSize).isInUnitRange && Ppm(area.v + area.vSize).isInUnitRange
+    if (!dentro) {
+        problems += "a area de resposta da regiao ${region.index} sai do quadrilatero: " +
+            "u=${area.u}+${area.uSize}, v=${area.v}+${area.vSize}"
+    }
+    val qr = region.qr
+    val cruza = area.u < qr.u + qr.uSize && qr.u < area.u + area.uSize &&
+        area.v < qr.v + qr.vSize && qr.v < area.v + area.vSize
+    if (cruza) {
+        problems += "a area de resposta da regiao ${region.index} sobrepoe o QR da regiao"
+    }
 }
 
 /**
