@@ -36,7 +36,7 @@
   ETAPA 3 documentou a fixture congelada dela na KDoc do `GoldenWriterTest`, e esta segue a casa. E
   pedia comparar com "o `content_hash` declarado dentro dele", que não existe: o pacote não declara o
   próprio hash, e nem poderia. A âncora certa é o literal dos testes.*
-- [ ] 2.2 Commit só de contrato, em `packages/domain`:
+- [x] 2.2 Commit só de contrato, em `packages/domain`:
   - `Question`: `rubric` e `answerCaptureMode`;
   - `Rubric`, `RubricCriterion` e `RubricDescriptor`;
   - `PackageItem`: `kind`, `rubric` e `answer_capture_mode`;
@@ -50,7 +50,7 @@
 
 ## 3. O motor
 
-- [ ] 3.1 `requireSupported` aceita discursiva com rubrica e recusa os oito casos da spec. Verificação:
+- [x] 3.1 `requireSupported` aceita discursiva com rubrica e recusa os oito casos da spec. Verificação:
   um teste em `ExamDefinitionTest` por cenário de "Recusa de entrada não suportada". Cada teste confere
   a **mensagem** (a questão e o motivo), e não só que houve exceção (P9). O teste antigo "questão
   discursiva é recusada" é **reescrito** para o caso sem rubrica, e o commit diz isso (P12).

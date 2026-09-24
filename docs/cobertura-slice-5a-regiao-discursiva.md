@@ -109,3 +109,36 @@ inteiro.
 **O que não rodou neste commit:** as suítes de `apps/api` e `apps/android`. Elas leem as mesmas
 goldens e o mesmo pacote congelado, e ficam vermelhas pelas mesmas razões até a regravação da 5.2.
 Voltam a rodar no fechamento.
+
+## 3. O motor
+
+**3.1 — a recusa de entrada.** `requireSupported` passa a separar objetiva e discursiva. A discursiva
+com rubrica passa. Continuam recusados, cada um com teste que confere a mensagem:
+- discursiva sem rubrica, com alternativas ou com resposta de gabarito;
+- objetiva com rubrica ou com modo de captura. Este último cai na cláusula geral da spec, "conteúdo
+  não suportado não degrada em silêncio";
+- rubrica sem critério, com critério repetido, ou que não soma a pontuação;
+- critério com pontos ou linhas não positivos, sem descritor, ou com descritor fora da escala;
+- prova sem objetiva;
+- mais de 24 discursivas.
+
+O teto de discursivas vem de `CaptureGeometry.MAX_REGIONS = ArucoDictionary.SIZE / 4`, derivado, e o
+teste afirma que 24 passam e 25 não.
+
+Dois testes antigos que afirmavam a recusa de **toda** discursiva foram reescritos, com o motivo no
+próprio arquivo (P12):
+- `ExamDefinitionTest.questao discursiva e recusada com erro identificavel` virou "questao discursiva
+  na entrada sem rubrica e recusada";
+- `LayoutEngineTest.questao discursiva impede a emissao do mapa` virou "discursiva sem rubrica impede
+  a emissao do mapa", e passou a conferir o motivo. A entrada do segundo não mudou, e ele sempre montou
+  uma discursiva sem rubrica.
+
+`./gradlew :packages:domain:jvmTest` filtrado nas duas classes: `ExamDefinitionTest` 21 de 21 e
+`LayoutEngineTest` 21 de 21, relatórios de 2026-09-24T11:11:53Z. A task fecha `FAILED` por desenho:
+o `build.gradle.kts` do domínio reprova execução em que método `@Test` fica sem resultado no relatório
+(301, pelo filtro). É a guarda contra ler comando estreito como suíte, e ela funcionou.
+
+**Vista falhar:** com a conferência da soma trocada por `if (false && …)` (`// MUTACAO`), caiu **só**
+`rubrica que nao fecha com a pontuacao e recusada, com os dois valores`: o `assertFailsWith` não
+recebeu exceção (`ExamDefinitionTest.kt:39`). Previsto: só esse. Revertida a partir da cópia salva,
+`grep MUTACAO` deu 0, e a classe rodou de novo com 21 aprovados e 0 falhas.

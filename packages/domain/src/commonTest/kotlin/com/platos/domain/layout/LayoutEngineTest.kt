@@ -363,8 +363,12 @@ class LayoutEngineTest {
         assertTrue(!semStrings.contains("E-"), "o mapa tem numero em notacao cientifica")
     }
 
+    // Este cenario se chamava `questao discursiva impede a emissao do mapa` e afirmava que TODA
+    // discursiva impedia o mapa. Com a `slice-5a-regiao-discursiva` isso deixou de ser verdade: o
+    // que impede e a discursiva sem rubrica, que e o caso que este teste sempre montou. O nome e o
+    // motivo conferido mudaram; a entrada, nao.
     @Test
-    fun `questao discursiva impede a emissao do mapa`() {
+    fun `discursiva sem rubrica impede a emissao do mapa`() {
         val exam = prova(4).let {
             it.copy(questions = it.questions.mapIndexed { index, q ->
                 if (index == 2) q.copy(kind = QuestionKind.ESSAY) else q
@@ -372,6 +376,7 @@ class LayoutEngineTest {
         }
         val falha = assertFailsWith<UnsupportedContentException> { engine.layout(exam) }
         assertTrue(falha.message!!.contains("q3"), falha.message!!)
+        assertTrue(falha.message!!.contains("nao declara rubrica"), falha.message!!)
     }
 
     @Test
