@@ -41,8 +41,8 @@ class LayoutMapRendererInstrumentedTest {
      * API nativa. O que mudou e a origem — e e ela que faz a paridade e a fidelidade, que ja
      * existem e ja sabem falhar, passarem a julgar o artefato que o dispositivo vai receber.
      */
-    private fun layoutDoPacote(): LayoutMap {
-        val json = context.assets.open("prova-referencia.package.json")
+    private fun layoutDoPacote(arquivo: String = "prova-referencia.package.json"): LayoutMap {
+        val json = context.assets.open(arquivo)
             .bufferedReader()
             .use { it.readText() }
         val pacote = Json { ignoreUnknownKeys = false }
@@ -107,6 +107,27 @@ class LayoutMapRendererInstrumentedTest {
             ByteArray(5).also { input.read(it) }.decodeToString()
         }
         assertEquals("%PDF-", header)
+    }
+
+    /**
+     * A prova com discursiva (`slice-5a-regiao-discursiva`), desenhada pelo `PdfDocument` real.
+     *
+     * Vai para a paridade ao lado da prova de referencia: e aqui que a moldura, a pauta, os
+     * marcadores `4k..4k+3` e o QR de cada regiao discursiva sao desenhados pelo Android, e e contra
+     * este PDF que a medicao de traco de `compare.mjs` e a fidelidade de todas as paginas julgam a
+     * regiao. Mesmo renderizador, mesmo caminho: so o pacote e outro.
+     */
+    @Test
+    fun geraPdfDaProvaComDiscursivaParaOJobDeParidade() {
+        val map = layoutDoPacote("prova-discursiva.package.json")
+        val output = File(outputDir(), "android-discursiva.pdf")
+
+        output.outputStream().use { stream ->
+            LayoutMapRenderer(embeddedTypeface(), formulaRasters()).render(map, stream)
+        }
+
+        assertTrue("o PDF do Android da prova com discursiva nao foi escrito", output.exists())
+        assertTrue("o PDF do Android da prova com discursiva saiu vazio", output.length() > 1_000)
     }
 
     /**

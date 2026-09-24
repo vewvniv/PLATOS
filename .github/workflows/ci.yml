@@ -169,6 +169,24 @@ jobs:
         working-directory: tools/parity
         run: node tinta.mjs ../../build/parity/teste-web.pdf ../../fixtures/folha-de-teste.layout.json
 
+      # `slice-5a-regiao-discursiva`: a prova com discursiva passa pelas mesmas guardas da prova de
+      # referencia. E aqui que a moldura, a pauta e os marcadores {4k..4k+3} de cada regiao
+      # discursiva sao medidos no documento — a regiao de `d2` cai na pagina 1, e e ela que exige a
+      # fidelidade de todas as paginas.
+      - name: Gerar o PDF da prova com discursiva
+        working-directory: apps/web
+        env:
+          PLATOS_PACKAGE: fixtures/prova-discursiva.package.json
+        run: npx tsx scripts/render-fixture.ts ../../build/parity/discursiva-web.pdf
+
+      - name: Fidelidade da prova com discursiva
+        working-directory: tools/parity
+        run: node fidelidade.mjs ../../build/parity/discursiva-web.pdf ../../fixtures/prova-discursiva.layout.json
+
+      - name: Tinta da prova com discursiva
+        working-directory: tools/parity
+        run: node tinta.mjs ../../build/parity/discursiva-web.pdf ../../fixtures/prova-discursiva.layout.json
+
       # Os defeitos de tinta nao quebram golden, fidelidade nem paridade: eles chegariam ao papel
       # com a suite inteira no verde. Por isso a medicao precisa ser vista falhando a cada CI.
       - name: A medicao de tinta continua capaz de falhar
@@ -383,6 +401,7 @@ jobs:
             build/parity/web.pdf
             build/parity/teste-web.pdf
             build/parity/tinta-sem-faixa.pdf
+            build/parity/discursiva-web.pdf
 
   # §16: "se o teste de paridade nao existir, vira o maior risco do projeto". Fica em job separado
   # porque o emulador domina o tempo do pipeline, e nao deve atrasar o retorno do build do servidor.
@@ -473,7 +492,7 @@ jobs:
       - name: Recolher os PDFs do Android
         run: |
           mkdir -p build/parity
-          for nome in android.pdf android-teste.pdf; do
+          for nome in android.pdf android-teste.pdf android-discursiva.pdf; do
             find apps/android/build/outputs/connected_android_test_additional_output \
               -name $nome -exec cp {} build/parity/$nome \;
             test -s build/parity/$nome
@@ -504,11 +523,22 @@ jobs:
         working-directory: tools/parity
         run: node compare.mjs ../../build/parity/teste-web.pdf ../../build/parity/android-teste.pdf ../../fixtures/folha-de-teste.layout.json
 
+      # A prova com discursiva, dos dois lados. A comparacao mede tambem o traco — moldura e pauta
+      # —, que nenhum oraculo olhava antes desta fatia (`slice-5a-regiao-discursiva`, tarefa 6.1b).
+      - name: Fidelidade da prova com discursiva no Android
+        working-directory: tools/parity
+        run: node fidelidade.mjs ../../build/parity/android-discursiva.pdf ../../fixtures/prova-discursiva.layout.json
+
+      - name: Paridade da prova com discursiva
+        working-directory: tools/parity
+        run: node compare.mjs ../../build/parity/discursiva-web.pdf ../../build/parity/android-discursiva.pdf ../../fixtures/prova-discursiva.layout.json
+
       - name: Tinta dos documentos do Android
         working-directory: tools/parity
         run: |
           node tinta.mjs ../../build/parity/android.pdf ../../fixtures/prova-referencia.layout.json
           node tinta.mjs ../../build/parity/android-teste.pdf ../../fixtures/folha-de-teste.layout.json
+          node tinta.mjs ../../build/parity/android-discursiva.pdf ../../fixtures/prova-discursiva.layout.json
 
       # A faixa ausente e o defeito que o Android carregou desde a fatia 1 sem ninguem ver: ele nao
       # move centroide nenhum. Quem o pega e a comparacao de trama, e so ela.

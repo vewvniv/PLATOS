@@ -121,7 +121,15 @@ let measuredBubbles = 0;
 let worstBubble = { id: null, coverage: 0 };
 let corridorFloor = 1;
 
+let essayRegions = 0;
 for (const region of map.regions) {
+  // A regiao discursiva nao tem bolha por construcao (`slice-5a-regiao-discursiva`), e o orcamento de
+  // tinta decorativa e sobre bolha. Ela sai desta medicao pelo `kind`, e SO por ele: qualquer outra
+  // regiao sem bolha continua caindo em "nenhuma bolha desenhada" abaixo, que e a guarda de vacuidade.
+  if (region.kind === 'essay' && region.bubbles.length === 0) {
+    essayRegions += 1;
+    continue;
+  }
   const budget = region.ink_budget;
   if (!budget) {
     problems.push(`regiao ${region.index} nao declara orcamento de tinta`);
@@ -275,6 +283,9 @@ console.log(
       : ''),
 );
 console.log(`monocromia: ${colored === 0 ? 'nenhum pixel cromatico' : `${colored} pixels em cor`}`);
+if (essayRegions > 0) {
+  console.log(`regioes discursivas fora do orcamento de bolha: ${essayRegions} (sem bolha por construcao)`);
+}
 
 if (problems.length > 0) {
   console.error('\nTINTA FALHOU:');

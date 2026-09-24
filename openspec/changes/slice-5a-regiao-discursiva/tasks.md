@@ -137,7 +137,7 @@
   **Antes de estender:** com um marcador discursivo deslocado 0,5 mm numa página ≥ 1 do PDF web, a
   versão atual **passa**, e isso registra a lacuna. **Depois:** a mesma mutação **reprova**, nomeando o
   marcador. Reverter e rodar.
-- [ ] 6.1b `compare.mjs` passa a medir **retângulo de traço**. Acrescentada em 2026-09-24, por decisão
+- [x] 6.1b `compare.mjs` passa a medir **retângulo de traço**. Acrescentada em 2026-09-24, por decisão
   do mantenedor: a correção na decisão 4 do design mostra que nenhum oráculo olhava moldura nem pauta.
   Para cada `rect` com `stroke > 0` e sem `fill`, mede-se a tinta na **faixa do contorno**: o
   retângulo expandido de `stroke/2 + 0,2 mm`, menos o retângulo encolhido do mesmo tanto, quando ele
@@ -158,7 +158,7 @@
     concordância.
 
   Os conjuntos disjuntos vão para a cobertura. Reverter e rodar (P10).
-- [ ] 6.2 Gerar o PDF da fixture discursiva nos dois lados **nesta sessão**:
+- [x] 6.2 Gerar o PDF da fixture discursiva nos dois lados **nesta sessão**:
   - web por `render-fixture.ts`;
   - Android por `connectedDebugAndroidTest`, com a suíte instrumentada do renderizador desenhando a
     fixture nova.
@@ -166,11 +166,11 @@
   Rodar `fidelidade.mjs` nos dois, `compare.mjs` entre eles e `tinta.mjs` nos dois. Rodar também os
   mesmos passos sobre `prova-referencia` e `folha-de-teste` regravadas. Verificação: todos verdes, com
   a data e o `sha256` de cada PDF na cobertura (P3, P23).
-- [ ] 6.3 Fechar a forma da pauta (decisão 4) pelo resultado da 6.2, com a medição de traço da 6.1b. Se
+- [x] 6.3 Fechar a forma da pauta (decisão 4) pelo resultado da 6.2, com a medição de traço da 6.1b. Se
   a forma (a) passar, fica. Se não, experimentar a (b). **Se nenhuma passar, parar**: a decisão da
   versão volta ao mantenedor, e não se mexe em tolerância (P11). Verificação: a forma escolhida e o
   número que a decidiu, na cobertura.
-- [ ] 6.4 **Ver falhar** a paridade sobre a região discursiva: um marcador discursivo deslocado 0,5 mm
+- [x] 6.4 **Ver falhar** a paridade sobre a região discursiva: um marcador discursivo deslocado 0,5 mm
   só no renderizador Android faz `compare.mjs` reprovar, nomeando o marcador e a página. Reverter,
   gerar de novo e rodar (P10).
 - [ ] 6.5 `ci.yml`, job `paridade`: acrescentar a fixture discursiva aos passos de render web,

@@ -426,3 +426,72 @@ As 16 verificações novas são os 4 marcadores da página 1, com 4 medidas cada
 página 0, inclusive os da região de `d1`, já eram medidos. Os rótulos da página 0 não mudaram, e a
 saída de sempre continua igual. A mutação foi num PDF gerado fora da árvore, e não em código: não há
 reversão de fonte a conferir, e os PDFs corretos continuaram passando.
+
+**6.1b — `compare.mjs` passa a medir retângulo de traço.** Para cada `rect` com `stroke > 0` e sem
+`fill`, soma a escuridão na faixa do contorno e divide pela área que o traço declarado ocupa. Os
+números vieram da tarefa, fixados antes da primeira medição (P11): folga de 0,2 mm, presença entre 0,5
+e 1,5, e concordância de 0,10.
+
+A primeira medição foi o web contra ele mesmo, na prova com discursiva: 12 traços, que são as 2
+molduras e as 4 + 6 linhas de pauta, com razão de 0,995 a 1,015. Nas outras provas: a de referência não
+tem traço (0), e a folha de teste tem 1, o "vão de referência", com razão 1,001 nos dois lados.
+
+**Vista falhar, com duas mutações de conjuntos disjuntos:**
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| **M-a** — o renderizador **Android** pula o traço dos `rect` com `id` iniciado por `r2-` (`LayoutMapRenderer.kt`, `// MUTACAO`), PDF gerado às 11:54:25Z | presença e concordância caem nos 7 retângulos da região 2 (moldura e 6 linhas); nenhum `r1-`; nenhum centroide | exatamente os 7 `r2-`, com 2 problemas cada (presença no Android e divergência). Razão no Android de 0,000 a 1,015. **0** problemas de centroide; maior divergência de centroide 0,047 mm, igual à de antes |
+| **M-b** — o traço com o **dobro** da espessura **nos dois lados**: o mesmo PDF, gerado pelo web de um mapa com `stroke × 2` (`traco-dobrado.mts`, no scratchpad), comparado com ele mesmo contra o mapa original | cai o **teto** da presença nos 12 retângulos, nos dois lados; a concordância **não** cai | razão de 1,990 a 2,011 nos dois lados, **24** problemas de presença (12 × 2; a saída mostra 20 e "e mais 4"), **0** de concordância, 0 de centroide |
+
+A M-a foi revertida pela cópia, `grep MUTACAO` deu 0, e o PDF do Android foi gerado de novo às
+11:54:50Z, com 127.604 bytes e `sha256` `f882bd8d…`, **idêntico** ao das 11:51Z: o PDF do Android é
+determinístico, e a reversão se confere byte a byte. A paridade voltou a passar. A M-b foi num PDF
+gerado fora da árvore, e não há fonte a reverter.
+
+**6.2 — P23 fechada nesta sessão.** Os PDFs dos dois lados são desta sessão:
+- **web**, às 11:50:50Z, por `render-fixture.ts`, `render-test-sheet.ts` e `render-fixture.ts` com
+  `PLATOS_PACKAGE` da discursiva;
+- **Android**, pela suíte instrumentada **inteira**, das 11:50:50Z às 11:51:59Z: 84 testes (os 83 da
+  linha de base e `geraPdfDaProvaComDiscursivaParaOJobDeParidade`), 0 falhas, 2 pulados, `timestamp`
+  11:51:57Z. Os PDFs na origem têm horário de 11:51:18Z a 11:51:19Z, dentro da execução, e os tamanhos
+  batem com as cópias.
+
+| PDF | `sha256` (16) | Fidelidade | Tinta |
+|---|---|---|---|
+| `web.pdf` (referência) | `ad98dca8ee5e1c85` | OK, 116 verif., maior 0,046 mm | OK, 160 bolhas |
+| `android.pdf` | `0c54d78ad667a256` | OK, 116, 0,042 mm | OK, 160 |
+| `teste-web.pdf` | `829d5a3fdd5eab03` | OK, 31, 0,046 mm | OK, 5 |
+| `android-teste.pdf` | `01e33321f2c7f11e` | OK, 31, 0,017 mm | OK, 5 |
+| `discursiva-web.pdf` | `1a7ead9c88f20efe` | OK, 63, 0,047 mm | OK, 16 bolhas, 2 regiões discursivas fora do orçamento |
+| `android-discursiva.pdf` | `f882bd8d33483c56` | OK, 63, 0,017 mm | OK, idem |
+
+Paridade (`compare.mjs`):
+- **referência:** 185 de 185 elementos, maior 0,048 mm, 4 tramas, 0 traços;
+- **folha de teste:** 9 de 9, maior 0,044 mm, 2 tramas, 1 traço;
+- **discursiva:** 28 de 28, maior 0,047 mm, **12 traços**, razão web de 0,995 a 1,015 e Android de
+  0,995 a 1,016, maior divergência de traço 0,020 em `r2-p6`.
+
+Os passos de "ver falhar" do job `paridade` também rodaram nesta sessão:
+- "a medição de tinta continua capaz de falhar" acusou `tinta-faixa` e `tinta-cor`;
+- "a paridade enxerga trama" acusou a faixa ausente;
+- o deslocamento deliberado de `render-shifted.ts` foi acusado pela paridade **e** pela fidelidade.
+
+**`tinta.mjs` precisou de um ajuste, e ele foi achado aqui.** A primeira execução sobre as duas
+discursivas reprovou, nos dois renderizadores, com "regiao 2: nenhuma bolha desenhada na pagina 1".
+O instrumento supunha que toda região tem bolha, e a região discursiva não tem por construção. Agora a
+região com `kind: essay` e sem bolha fica fora do orçamento de bolha, e a saída diz isso ("regiões
+discursivas fora do orçamento de bolha: 2"). **Só ela:** a guarda de vacuidade continua de pé, e um
+mapa com o gabarito sem círculos ainda reprova com "regiao 0: nenhuma bolha desenhada na pagina 0",
+conferido com um layout modificado no scratchpad.
+
+**6.3 — a forma da pauta.** A forma (a), `rect` de traço com altura zero, **fica**. A medição da 6.2 a
+decide: 12 traços com razão de 0,995 a 1,016 nos dois lados, e divergência máxima de 0,020, contra
+0,10. Nenhuma primitiva nova, e `min_renderer_version` continua em 1, como o mantenedor decidiu.
+
+**6.4 — a paridade vê a região discursiva deslocada.** O marcador `r2-m8` foi deslocado 0,5 mm **só**
+no renderizador Android (`// MUTACAO` em `LayoutMapRenderer.kt`, PDF das 11:55:43Z). `compare.mjs`
+reprovou com **um** problema: "aruco r2-m8 divergiu 0.452 mm (tolerancia 0.3 mm)". Os traços
+continuaram concordando. A tarefa pedia "nomeando o marcador **e a página**". A mensagem nomeia o
+marcador pelo `id`, que é único no mapa, e **não** diz a página: fica registrado como está, e a saída do
+`compare.mjs` não foi mexida por isso. Revertida, `grep MUTACAO` deu 0, o PDF foi gerado de novo às
+11:55:55Z com os 127.604 bytes de antes, e a paridade voltou a passar.
