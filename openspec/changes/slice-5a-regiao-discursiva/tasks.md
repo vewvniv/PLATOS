@@ -216,7 +216,7 @@
 - [x] 9.4 PR contra `main`, e o CI **lido no destino**: `build`, `web` e `paridade` verdes, com os
   passos novos da 6.5 no log, e a saída de `divida.mjs` com a linha `5b` (P2, P26). Verificação: o link
   do run e as linhas do log na cobertura.
-- [ ] 9.5 Nomear as provas publicadas em produção que o aplicativo atualizado passa a recusar
+- [x] 9.5 Nomear as provas publicadas em produção que o aplicativo atualizado passa a recusar
   (ADR-0009). Verificação: a lista lida no banco, com a data. **Se o banco não for alcançável na
   sessão, a tarefa fica desmarcada** e a cobertura diz o que não foi lido.
 - [x] 9.6 Preparar a reconciliação do archive (P27):

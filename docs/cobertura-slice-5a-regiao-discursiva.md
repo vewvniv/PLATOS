@@ -634,10 +634,35 @@ correção.
   lidas no banco nesta sessão**, que não tem acesso a ele. O registro **herdado** é o da ETAPA 3
   (`docs/cobertura-params-hash-no-pacote-publicado.md`, lido em 2026-09-18): `prova-referencia-slice-1`
   e `prova-referencia-slice-2`. Se uma prova foi publicada depois disso, ela não está nesta lista. A
-  tarefa 9.5 fica **desmarcada**.
+  tarefa 9.5 fica **desmarcada**. **Superado em 2026-09-24:** o mantenedor rodou a consulta no banco
+  (seção "As provas em produção", abaixo), e a 9.5 fechou.
 - **O web e o Android rodaram em Windows.** O CI roda em Linux, e é a leitura dele no destino (9.4)
   que fecha o comando cheio naquela plataforma. **Fechado em 12:11Z:** o CI da PR #65 reproduziu os
   mesmos números, na seção acima.
+
+## As provas em produção (tarefa 9.5)
+
+**Lido no banco de produção pelo mantenedor**, no SQL Editor do Supabase, em 2026-09-24, com uma
+consulta só de leitura sobre `exam_package`, `exam` e `organization`. A coluna `contrato_novo` diz se o
+`content` do pacote já tem `"qr_id"`, que só existe a partir desta mudança.
+
+| `short_id` | Título | Organização | `published_at` | `content_hash` (16) | `contrato_novo` |
+|---|---|---|---|---|---|
+| `prova-referencia-slice-1` | Prova de referencia — fatias 1 e 1.5 | Escola de Teste | 2026-09-08 18:40:01Z | `26612ad52b0cb967` | falso |
+| `prova-referencia-slice-2` | Prova adversarial — mesma estrutura, outra identidade | Escola de Teste | 2026-09-08 18:40:01Z | `9dccf215652ecc38` | falso |
+
+**O que isso diz:**
+- São as mesmas duas que a ETAPA 3 registrou em 2026-09-18, e **nenhuma prova foi publicada depois
+  de 2026-09-08**. O registro herdado estava certo, e agora está conferido.
+- As duas são do contrato de antes da discursiva, e o aplicativo atualizado as recusa por
+  interpretação.
+- **Elas já eram recusadas desde a ETAPA 3.** Os 16 primeiros caracteres do hash de
+  `prova-referencia-slice-1` em produção coincidem com o `sha256` de `fixtures/pacote-do-contrato-anterior.json`,
+  `26612ad52b0cb967309f…`, recalculado agora pelo `crypto` do Node sobre os bytes da fixture. É o
+  pacote de antes do `params_hash`. A 5a não muda a situação delas: acrescenta mais uma razão para a
+  mesma recusa.
+- **A saída continua a do ADR-0009:** publicar prova nova, com `short_id` próprio, quando houver
+  aparelho atualizado para escaneá-la.
 
 ## 10. A reconciliação do §16 para o archive (P27)
 
