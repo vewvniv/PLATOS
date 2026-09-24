@@ -54,7 +54,7 @@
   um teste em `ExamDefinitionTest` por cenário de "Recusa de entrada não suportada". Cada teste confere
   a **mensagem** (a questão e o motivo), e não só que houve exceção (P9). O teste antigo "questão
   discursiva é recusada" é **reescrito** para o caso sem rubrica, e o commit diz isso (P12).
-- [ ] 3.2 O gabarito emite bolhas só das objetivas, numeradas pela posição na prova (decisão 7).
+- [x] 3.2 O gabarito emite bolhas só das objetivas, numeradas pela posição na prova (decisão 7).
   Verificação: um teste com a discursiva na posição 3 afirma as linhas 1, 2, 4 e 5, e nenhuma bolha
   da 3. **Ver falhar:** com a numeração trocada para contígua, o teste cai. Reverter e rodar.
 - [ ] 3.3 O bloco discursivo e a região:

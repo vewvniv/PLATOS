@@ -5,6 +5,8 @@ import com.platos.domain.capture.QrEncoder
 import com.platos.domain.capture.linhasDeModulo
 import com.platos.domain.capture.QrPayload
 import com.platos.domain.exam.ExamDefinition
+import com.platos.domain.exam.Question
+import com.platos.domain.exam.QuestionKind
 import com.platos.domain.exam.requireSupported
 import com.platos.domain.geometry.Ppm
 import com.platos.domain.geometry.Um
@@ -103,8 +105,9 @@ class LayoutEngine(
      * o gabarito consolidado; a altura e que manda, porque ela come a pagina 1.
      */
     private fun gridFor(exam: ExamDefinition): BubbleGrid {
-        val questionCount = exam.questions.size
-        val optionCount = exam.questions.maxOf { it.options.size }
+        val objetivas = objetivasDe(exam)
+        val questionCount = objetivas.size
+        val optionCount = objetivas.maxOf { it.value.options.size }
         val columnWidth = CaptureGeometry.LABEL_WIDTH + CaptureGeometry.BUBBLE_PITCH_H * optionCount
 
         val availableWidth = profile.contentWidth -
@@ -264,9 +267,14 @@ class LayoutEngine(
         val radius = CaptureGeometry.BUBBLE_DIAMETER.divFloor(2)
         val bubbles = mutableListOf<Bubble>()
 
-        emitBands(exam, grid, bubbleLeft, bubbleTop, primitives)
+        val objetivas = objetivasDe(exam)
+        emitBands(objetivas.size, grid, bubbleLeft, bubbleTop, primitives)
 
-        exam.questions.forEachIndexed { index, question ->
+        // So objetivas no gabarito, e cada linha com o numero DA QUESTAO NA PROVA, e nao o da linha:
+        // com a 3 discursiva, o gabarito numera 1, 2, 4, 5. Renumerar faria o aluno marcar a
+        // questao 4 na linha "3", que e o erro de transcricao que §7 inteiro existe para mitigar
+        // (decisao 7 do `design.md` da `slice-5a-regiao-discursiva`).
+        objetivas.forEachIndexed { index, (posicaoNaProva, question) ->
             val column = index / grid.rows
             val row = index % grid.rows
             val columnX = bubbleLeft +
@@ -278,7 +286,7 @@ class LayoutEngine(
                 x = columnX.raw,
                 baseline = (rowY + CaptureGeometry.BUBBLE_DIAMETER).raw,
                 size = style.size.raw,
-                text = "${index + 1}",
+                text = "${posicaoNaProva + 1}",
             )
 
             question.options.forEachIndexed { optionIndex, _ ->
@@ -351,7 +359,7 @@ class LayoutEngine(
      * **antes** das bolhas na lista de primitivas, porque quem desenha depois fica por cima.
      */
     private fun emitBands(
-        exam: ExamDefinition,
+        questionCount: Int,
         grid: BubbleGrid,
         bubbleLeft: Um,
         bubbleTop: Um,
@@ -359,7 +367,7 @@ class LayoutEngine(
     ) {
         for (column in 0 until grid.columns) {
             val firstQuestion = column * grid.rows
-            val rowsInColumn = minOf(grid.rows, exam.questions.size - firstQuestion)
+            val rowsInColumn = minOf(grid.rows, questionCount - firstQuestion)
             if (rowsInColumn <= 0) continue
             // O tamanho do grupo e por **coluna**, e nao da grade: a ultima coluna costuma ter
             // menos linhas, e agrupa-la pelo tamanho das outras deixaria uma sobra de uma ou duas
@@ -507,6 +515,15 @@ class LayoutEngine(
             }
         }
     }
+
+    /**
+     * As objetivas da prova, cada uma com a posicao dela na prova.
+     *
+     * Um lugar so para "quais questoes o gabarito tem", porque tres pontos perguntam: a grade, as
+     * faixas e as bolhas. Tres filtros escritos a parte concordariam por coincidencia.
+     */
+    private fun objetivasDe(exam: ExamDefinition): List<IndexedValue<Question>> =
+        exam.questions.withIndex().filter { it.value.kind == QuestionKind.OBJECTIVE }
 
     companion object {
         private const val REGION_INDEX = 0

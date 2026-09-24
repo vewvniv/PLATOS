@@ -142,3 +142,16 @@ o `build.gradle.kts` do domínio reprova execução em que método `@Test` fica 
 `rubrica que nao fecha com a pontuacao e recusada, com os dois valores`: o `assertFailsWith` não
 recebeu exceção (`ExamDefinitionTest.kt:39`). Previsto: só esse. Revertida a partir da cópia salva,
 `grep MUTACAO` deu 0, e a classe rodou de novo com 21 aprovados e 0 falhas.
+
+**3.2 — o gabarito só com objetivas, numeradas pela posição na prova.** `objetivasDe(exam)` é o lugar
+único que diz quais questões o gabarito tem. A grade, as faixas e as bolhas leem dele, e não de três
+filtros separados. Testes em `RegiaoDiscursivaTest`:
+- "o gabarito tem só as objetivas, numeradas pela posição na prova": com a 3 discursiva, as linhas
+  são 1, 2, 4 e 5, e não há bolha da 3;
+- "sem discursiva o gabarito continua numerando em sequência": a guarda do caminho de sempre.
+
+Filtrado com `LayoutEngineTest`: 23 de 23.
+
+**Vista falhar:** com o número da linha trocado pela posição contígua (`${index + 1}`, `// MUTACAO`),
+caiu **só** o primeiro teste. O segundo, de prova só objetiva, continuou verde, como previsto: sem
+discursiva as duas numerações coincidem. Revertido, `grep MUTACAO` deu 0, e rodado de novo: 23 de 23.
