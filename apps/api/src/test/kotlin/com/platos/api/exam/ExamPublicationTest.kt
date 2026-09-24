@@ -263,6 +263,35 @@ class ExamPublicationTest {
         assertEquals(0, contar("select count(*) from exam_package"))
     }
 
+    /**
+     * A prova com discursiva passa pela publicacao do servidor (`slice-5a-regiao-discursiva`,
+     * tarefa 7.1): a coerencia KMP roda aqui, os bytes gravados sao o texto canonico, e cada
+     * atribuicao traz um QR por regiao.
+     */
+    @Test
+    fun `a prova com discursiva e publicada, com um QR por regiao para cada aluno`() {
+        val discursiva: ExamDefinition = Json { ignoreUnknownKeys = false }.decodeFromString(
+            ExamDefinition.serializer(),
+            File(System.getProperty("platos.fixtures.dir"), "prova-discursiva.json").readText(),
+        )
+
+        val publicado = publicacao.publish(usuario, org, discursiva, title = "Prova com discursiva", roster = turma)
+
+        // O hash da coluna conferido contra os BYTES da coluna, com o MessageDigest da JVM.
+        assertEquals(PostgresSupport.sha256Hex(coluna("content")), coluna("content_hash"))
+        assertEquals(publicado.contentHash, coluna("content_hash"))
+
+        val pacote = Json.decodeFromString(ExamPackage.serializer(), coluna("content"))
+        // Os bytes gravados sao exatamente a serializacao canonica: reserializar e identidade.
+        assertEquals(coluna("content"), pacote.toCanonicalJson())
+        assertEquals(false, pacote.meta.fullyOfflineGradable)
+        assertEquals(turma.size, pacote.assignments.size)
+        for (atribuicao in pacote.assignments) {
+            assertEquals(listOf(0, 1, 2), atribuicao.qrs.map { it.regionIndex }, "atribuicao ${atribuicao.studentToken}")
+            assertTrue(atribuicao.qrs.all { atribuicao.studentToken in it.payload })
+        }
+    }
+
     private fun coluna(nome: String, tabela: String = "exam_package"): String =
         comoAdmin("select $nome from $tabela")
 

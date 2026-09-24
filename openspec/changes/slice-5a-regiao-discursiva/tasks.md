@@ -179,7 +179,7 @@
 
 ## 7. O servidor
 
-- [ ] 7.1 Teste de API: publicar `prova-discursiva` com roster por `ExamPublication`, sobre o Postgres
+- [x] 7.1 Teste de API: publicar `prova-discursiva` com roster por `ExamPublication`, sobre o Postgres
   de teste. Os bytes gravados são o texto canônico, o `content_hash` confere, e cada atribuição tem três
   QRs. Atualizar os literais de pacote dos testes existentes que passam a divergir. Verificação:
   `./gradlew :apps:api:test` verde, com os literais trocados listados na cobertura.

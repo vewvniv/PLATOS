@@ -495,3 +495,20 @@ continuaram concordando. A tarefa pedia "nomeando o marcador **e a página**". A
 marcador pelo `id`, que é único no mapa, e **não** diz a página: fica registrado como está, e a saída do
 `compare.mjs` não foi mexida por isso. Revertida, `grep MUTACAO` deu 0, o PDF foi gerado de novo às
 11:55:55Z com os 127.604 bytes de antes, e a paridade voltou a passar.
+
+## 7. O servidor
+
+**7.1 — a prova com discursiva publicada pelo servidor.** Cenário novo em `ExamPublicationTest`:
+publicar `prova-discursiva.json` com o roster de dois alunos, sobre o Postgres de teste. Ele confere:
+- o `content_hash` da coluna contra os **bytes** da coluna, pelo `MessageDigest` da JVM, e contra o
+  hash devolvido pela publicação;
+- que reserializar o `content` gravado é identidade, ou seja, que os bytes são o texto canônico;
+- `fully_offline_gradable` falso;
+- em cada atribuição, QRs das regiões 0, 1 e 2, todos com o token dela.
+
+`./gradlew :apps:api:test --rerun`: 168 testes (os 167 da linha de base e este), 0 falhas, relatórios
+de 2026-09-24T11:57:44Z a 11:58:00Z.
+
+**Literais trocados:** só o hash de `ExamPublicationTest`, na 5.2. Os pacotes literais de
+`ResultRouteTest` não divergiram: eles têm `layout` vazio, sem região a quem faltaria `qr_id`, e
+passaram sem mudança.
