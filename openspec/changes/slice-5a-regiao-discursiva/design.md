@@ -130,6 +130,16 @@ instalado para o D24 proteger: nenhum APK foi entregue.
 
 A escolha se faz na tarefa 3.3, **pela paridade e pela fidelidade**, e não por preferência.
 
+> **Correção de 2026-09-24, ao executar a 3.3 — a frase acima fica (P7), e a premissa dela estava
+> errada.** Nem a paridade nem a fidelidade, na forma que tinham, conseguiam escolher a pauta.
+> `compare.mjs` mede centroides de ArUco, bolha e fórmula, e trama de retângulo **preenchido**
+> (`targetsOf` e `tintTargetsOf`). `fidelidade.mjs` mede ArUcos e círculos. Nenhum dos dois olha
+> retângulo de **traço**, que é o que moldura e pauta são. Um renderizador que não as desenhasse
+> passaria verde em tudo: o mesmo modo de falha da faixa da 2b, que o Android ignorava enquanto "as 185
+> comparações de centroide continuavam verdes" (comentário em `compare.mjs`). *Conferido por leitura.*
+> **Decidido pelo mantenedor nesta sessão:** `compare.mjs` passa a medir o traço (decisão 10, e a
+> tarefa 6.1b). A escolha da pauta se faz por ele, depois de ele ter sido visto falhar.
+
 **Regra de parada:** se nenhuma das duas desenhar igual nos dois renderizadores, dentro das tolerâncias
 que já existem, a mudança **para**. Uma primitiva nova é capacidade de renderizador nova, e aí
 `min_renderer_version` sobe, que é a decisão que o mantenedor tomou com a informação contrária. Não se
@@ -207,6 +217,18 @@ A prova de que a mudança fez alguma coisa é a diferença entre 1 e 2.
 
 `compare.mjs` já percorre as páginas. O que se confere é que ele reprova um marcador discursivo
 deslocado 0,5 mm só no Android, com a tolerância de 0,3 mm que já existe.
+
+**`compare.mjs` passa a medir retângulo de traço** (acrescentado em 2026-09-24, por decisão do
+mantenedor; ver a correção na decisão 4). Hoje nenhum oráculo olha moldura nem pauta. Para cada
+`rect` com `stroke > 0` e sem `fill`, ele mede a tinta ao longo das **quatro bordas** nos dois PDFs,
+com o mesmo rasterizador e a mesma janela. Duas asserções, as mesmas que a trama já tem:
+- **presença:** a tinta de cada lado fica acima de um piso, e o traço existe;
+- **concordância:** web e Android não divergem além de uma tolerância.
+
+O piso e a tolerância são **fixados antes da primeira medição** (ADR-0007, P11) e escritos na tarefa.
+A mutação que prova a camada é o renderizador Android **pulando** o traço dos retângulos de uma região
+discursiva. A presença deve cair, e os centroides não. Os conjuntos disjuntos provam que a medição
+nova vê o que a antiga não via.
 
 ### 11. O contrato entra sozinho, e o pacote do contrato atual é congelado antes
 
