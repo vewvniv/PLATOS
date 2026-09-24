@@ -231,6 +231,58 @@ juntar contrato/DB/API com consumidor quando separar reduz risco.
 destino.** Publicar imagem não é implantar; implantar não é responder; responder `/health` não é
 alcançar o banco. Cada elo se observa onde ele termina.
 
+### E. Depois do archive, e entre módulos
+
+As regras acima governam o que acontece **dentro** de uma mudança, e ali esta base é implacável. As
+duas abaixo cobrem as duas fronteiras que a auditoria de 2026-09-18 achou sem camada posicionada
+para vê-las (`docs/auditoria-2026-09-18-antes-da-fatia-5.md` §7). Uma é o **tempo**: o que vence
+depois do archive. A outra é o **espaço**: o que atravessa dois módulos. Entraram juntas, com a
+ETAPA 8 do plano de correção, e são duas e não três. O terceiro eixo da auditoria, o artefato de
+release, é **um** incidente, e já foi corrigido.
+
+**P27 [V].** **Nunca adiar item com dono em prosa.** O registro de dívida do projeto é **um**: a tabela
+de ponto de não-retorno do §16. Item adiado que não entra nela não tem data, e item sem data volta
+a flutuar — que é o que §16 já dizia da LGPD, e o que quatro itens repetiram depois. **O archive de
+uma mudança SHALL dizer, para cada linha cuja fatia-limite ou gatilho ela alcançou, se foi paga ou
+reagendada**; reagendar é legítimo e exige fatia-limite nova com o motivo escrito. Silêncio não é.
+Adiar em `docs/cobertura-*.md` continua certo e continua obrigatório — o que deixa de valer é adiar
+**só** lá.
+
+Paga por cinco incidentes. Em todos, o item tinha dono e tinha prazo, e o prazo morava em prosa:
+
+| Incidente | Onde |
+|---|---|
+| **Modo degradado.** §15 o pôs na fatia 4, que fechou inteira sem ele. ADR-0013 o mandou para uma "4c" que nunca existiu. E o spec passou a afirmar o contrário de §10, sem marca de provisoriedade | auditoria 2.3; `openspec/specs/device-session/spec.md:395`, desde `6f2dfe9`; `docs/adr/0013-pull-de-referencia-imutavel-no-aparelho.md:138`, desde `46c4ffb`; `docs/cobertura-slice-4b-outbox-de-resultado.md:379` (`c0f327a`) |
+| **Variante release.** O gatilho escrito, "a próxima que mexer em build ou variante", disparou duas vezes sem ninguém atender. A dívida chegou a ser documentada de novo sem ser paga, e só foi paga quando ganhou veículo (`f761306`) | auditoria 3.1; `docs/cobertura-fatia-4a-cache-referencia.md:220`, desde `60ba7bd`; os disparos `d054e1f` e `6c9356a`; `438030a` |
+| **Migration em produção.** Produziu **HTTP 500** na conferência da 4b, com `/health` em 200, e continuou sem data numa lista de "o que este roteiro não cobre" | auditoria 4.6; `docs/deploy-api.md:459`, desde `5fb26b7`; o 500 em `docs/cobertura-slice-4b-outbox-de-resultado.md:302-304` |
+| **Reexame do limiar do OMR.** A 3b o atribuiu "à fatia da câmera". A 3c era essa fatia, e registrou "continua aberta" sem novo prazo | auditoria 4.7; `docs/cobertura-fatia-3b.md:332` (`8e4e1b3`); `docs/cobertura-fatia-3c.md:266` (`f40fd9c`) |
+| **A linha que o próprio plano de correção mandava pôr no §16.** O item do APK de release trazia a instrução escrita, "Fica na tabela do §16 com essa fatia-limite", e nunca entrou: fechou sem que a linha tenha existido. Nem o documento que propôs esta regra escapou do padrão | `docs/plano-de-correcao-antes-da-fatia-5.md:186-187` (`72e1557`), e a nota que registra a ausência, `:189` (`c7013c4`) |
+
+O contraste que a sustenta: os itens que entraram na tabela (o roster cacheado, a classe H, a
+retenção da classe B) avançaram e fecharam. A diferença entre os dois grupos não é importância: é
+**estar na tabela**. A guarda que a torna reprovável é `tools/divida/divida.mjs`. Ela lê a tabela do
+próprio §16 e reprova, no CI, uma linha vencida sem reconciliação.
+
+**P28.** **Nunca deixar o mesmo valor, contrato ou recurso viver em dois módulos sem dono único
+compilado ou sem uma conferência cruzada que reprove a divergência.** Espelho é permitido; espelho
+**cego** não. Divergir entre registros que não se conhecem não quebra teste nenhum: compila, o
+golden não muda, o hash continua igual, e o defeito chega ao papel ou à nota. Espelho contido por
+**oráculo de saída** — como o `LayoutMap` em TypeScript, julgado pela paridade sobre o documento
+rasterizado — satisfaz esta regra; espelho contido só por literal combinado nos dois lados, não.
+
+Paga por três incidentes. O rigor desta base é por módulo, porque todo teste vive dentro de um, e
+os três atravessavam dois:
+
+| Incidente | Onde |
+|---|---|
+| **A versão do renderizador em três registros que não se conheciam.** Um renderizador subindo sozinho não derrubava teste nenhum: 14 de 14 no web e 308 de 308 no Android, medido | auditoria 4.4; `LayoutMap.kt:237`, `RendererContract.kt:25`, `apps/web/src/layoutMap.ts:124`; conferência cruzada desde `54160b9` |
+| **O contrato do fio, digitado duas vezes** em quatro DTOs, e o mapa `QuestionAnswer → string` escrito três vezes | auditoria 2.1; dono único desde `1af2460`, e os espelhos removidos em `ea28ad0` (ADR-0015) |
+| **A instância de Room, alcançada por três caminhos sem dono.** Duas `Activity` e o worker abriam, cada um, uma base nova sobre o mesmo `outbox.db` | auditoria 3.2; uma instância por processo desde `75f05ed` |
+
+O precedente que mostra que a regra é barata: `tools/parity/limiar.mjs` (`8e4e1b3`) já fazia isto
+para o limiar do OMR, e o comentário dele em `.github/workflows/ci.yml:187` escreveu a justificativa
+desta regra antes de ela existir.
+
 > **Sobre IA e custo:** as regras de `prompt_version`, schema validation e registro de chamadas
 > estão no `CLAUDE.md` e valem integralmente. Não são repetidas aqui porque **ainda não há incidente
 > que as pague** — e uma regra sem incidente não entra neste documento (§10).
@@ -283,8 +335,8 @@ Ao escrever um "ver falhar" para uma camada específica:
 
 ## 4. A zona vermelha: o que a insistência não libera
 
-São quinze, e a lista é normativa: **P1, P2, P3, P6, P7, P9, P10, P11, P12, P17, P20, P22, P23, P24,
-P26.** Ela está aqui, e não só na marca de cada regra, para que tirar uma da zona vermelha seja uma
+São dezesseis, e a lista é normativa: **P1, P2, P3, P6, P7, P9, P10, P11, P12, P17, P20, P22, P23,
+P24, P26, P27.** Eram quinze até 2026-09-24, quando a P27 entrou. Ela está aqui, e não só na marca de cada regra, para que tirar uma da zona vermelha seja uma
 edição visível e não um `[V]` que some.
 
 As regras marcadas **[V]** têm em comum **corromper o registro ou o irreversível**. Um registro
@@ -372,6 +424,9 @@ Uma tarefa está concluída quando **todas** estas respostas existem por escrito
 Uma fatia está concluída quando, além disso, `docs/cobertura-*.md` traz **como** cada verificação
 crítica foi vista falhar — e não que ela passa — e a seção "o que ainda não foi verificado" existe e
 está honesta.
+
+E uma mudança só se arquiva quando o archive diz, para cada linha do §16 cuja fatia-limite ou
+gatilho ela alcançou, se foi paga ou reagendada com fatia-limite nova e motivo (P27).
 
 ---
 

@@ -712,6 +712,22 @@ achado.
 
 ## 7. Uma coisa de processo, e ela explica quase toda a lista
 
+> **Fechado em 2026-09-24, pela mudança `registro-de-divida-executavel`** (ETAPA 8, a última da
+> banda). O texto abaixo fica inteiro (P7). As duas metades desta seção tiveram veículos diferentes:
+> - **o ADR-0013** passou a `aceito` na ETAPA 1;
+> - **o padrão** ("o que vence depois do archive não tem quem o cobre") virou regra e guarda.
+>
+> As regras estão no `rigorous.md`:
+> - **P27:** o registro de dívida é a tabela do §16, e o archive reconcilia as linhas que alcançou;
+> - **P28:** valor em dois módulos tem dono único ou conferência cruzada.
+>
+> A guarda é `tools/divida/divida.mjs`. Ela lê o §16, deriva a fatia corrente dos nomes `slice-*` e
+> reprova no CI a linha vencida sem reconciliação. Na primeira execução, sobre a árvore real, nomeou
+> duas linhas vencidas. Uma estava paga desde 2026-09-10, e a linha não o dizia. A outra tinha passado
+> do prazo sem que ninguém visse (`docs/cobertura-registro-de-divida-executavel.md`). **O que a guarda
+> não faz**, e o último parágrafo desta seção continua certo sobre isso: ela não acha dívida que nunca
+> entrou na tabela.
+
 **ADR-0013 está em `Status: proposto`.** É o único dos treze fora de `aceito`.
 
 E é o ADR que governa: o pull de referência imutável, o cache endereçado por conteúdo, as três

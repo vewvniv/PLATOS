@@ -938,6 +938,28 @@ que criar um contrato continua devendo a mutação dele (P16: a guarda é a cama
 
 ## ETAPA 8 — A orientação que impede a lista de voltar
 
+> **Arquivada em 2026-09-24**, como `openspec/changes/archive/2026-09-24-registro-de-divida-executavel`
+> (PR #62). **É a última etapa da banda, e a linha temporária do `CLAUDE.md` sai neste archive.** O
+> texto abaixo fica como o plano da etapa (P7). Seis coisas se afastaram dele, todas escritas no
+> `design.md` da mudança:
+>
+> 1. **A fatia corrente é derivada, e não "declarada em um lugar só".** Ela sai da maior mudança
+>    `slice-*` em `openspec/changes/`, por decisão do mantenedor. O nome da mudança já é a declaração,
+>    e uma linha digitada seria o espelho cego da P28, que fica verde se ninguém a atualizar.
+> 2. **Os dois itens do §9 com fatia-limite e sem linha no §16 entraram no §16**, por decisão do
+>    mantenedor: `assessment_fact` (`9`) e o release de lançamento (`antes-de:lancamento`).
+> 3. **A P27 cita cinco incidentes, e não quatro.** O quinto é a linha do APK de release, que o §2
+>    deste plano mandava pôr no §16 e que nunca entrou.
+> 4. **O §8 do `rigorous.md` ganhou a cláusula de fechamento da P27.** Ela só existia no quadro do §10
+>    deste plano, que sai de circulação com a banda. Não é uma terceira regra.
+> 5. **A guarda nasceu vermelha sobre a árvore real** e nomeou as duas linhas previstas. O mantenedor
+>    reconciliou as duas: `Uso offline` foi paga, e a `LGPD` foi reagendada para
+>    `antes-de:primeiro-piloto`.
+> 6. **A linha do propose no `CLAUDE.md` aponta para a guarda.** É o único acréscimo ao texto das duas
+>    linhas.
+>
+> O registro completo está em `docs/cobertura-registro-de-divida-executavel.md`.
+
 **Veículo:** `rigorous.md` (§10: regra nova entra **com o incidente que a pagou**) + uma guarda
 executável + duas linhas no `CLAUDE.md`.
 **Pré-requisito:** etapas 1 e 7 arquivadas. As duas: a 1 porque cria as linhas do §16 sobre as quais
@@ -1048,6 +1070,16 @@ porque um plano que fecha sem esta seção ensina o oposto do que a etapa 8 inst
 | **`minifyEnabled`, assinatura, `versionCode`** | Trabalho de lançamento | fatia comercial | mantenedor |
 | **Sentry** | §13 o prevê e `deploy-api.md:421` já registra que não existe. Não é regressão | — | mantenedor |
 | **`assessment_fact`** | Adiamento **correto**: o insumo está preservado em `answer_observation` e a derivação por junção com o pacote imutável continua possível | **9** | mantenedor |
+
+> **Nota de 2026-09-24, no archive da ETAPA 8. A tabela acima fica (P7), mas deixou de ser registro.**
+> A P27 diz que o registro de dívida é um só, a tabela de ponto de não-retorno do §16. Todos os itens
+> desta tabela que têm fatia-limite estão agora lá:
+> - o modo degradado, a migration e o limiar/corpus, que traz junto os dois QRs, entraram na ETAPA 1;
+> - `assessment_fact` e `minifyEnabled`/assinatura/`versionCode` entraram na ETAPA 8, por decisão do
+>   mantenedor.
+>
+> Cifrar o roster segue a linha da classe H, que já estava lá. Os dois sem fatia-limite (renomear
+> `exam_id` e o Sentry) não são dívida com data. Quem ler esta tabela depois da banda deve ler o §16.
 
 ---
 
