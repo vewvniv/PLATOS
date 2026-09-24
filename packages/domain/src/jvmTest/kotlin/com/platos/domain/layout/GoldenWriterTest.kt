@@ -155,4 +155,21 @@ class GoldenWriterTest {
      * vazio. Se algum dia esta classe ganhar um metodo que o escreva, o cenario de
      * `ConferenciaDePacoteTest` que o usa deixa de afirmar qualquer coisa **sem ficar vermelho**.
      */
+
+    /*
+     * `fixtures/pacote-antes-da-discursiva.json` tambem NAO e escrito por esta classe, pela mesma
+     * razao.
+     *
+     * Ele e o `prova-referencia.package.json` **do contrato anterior a `slice-5a-regiao-discursiva`**
+     * — antes de `PackageItem.kind`, da rubrica, de `ScannableRegion.qr_id` e de `qrs` por regiao —,
+     * congelado byte a byte em 2026-09-24, com
+     * `sha256 = 277d2f8cd0a7a87e6e26e5ecf47d2f5610dd6e173e724ab38a65373000ac391a` e 101.637 bytes. O
+     * hash e o que `ExamPackageTest` e `ExamPublicationTest` fixavam para a prova de referencia no
+     * mesmo dia, e e por ele que se sabe que o arquivo e o pacote daquele contrato, e nao outro.
+     *
+     * **Ele existe para ser recusado**, e pela camada (b), como o de cima: a mudanca aceita, no
+     * `design.md` dela (decisao 11), que pacote publicado antes dela deixe de ser interpretado pelo
+     * aplicativo atualizado. Os dois arquivos nao sao redundantes. Cada um prova que **uma**
+     * mudanca de contrato quebrou a leitura, e so ele prova que foi esta.
+     */
 }
