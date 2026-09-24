@@ -17,13 +17,13 @@
   instrumentado retifica a região 0 da fixture discursiva, que divide a página 0 com a região de `d1`,
   e a lê. **Ver falhar:** sem o filtro, o teste cai com "declara 8 ArUcos; esperados 4". Reverter e
   rodar.
-- [ ] 1.2 Os marcadores são detectados uma vez por quadro, e cada região com os quatro `marker_ids`
+- [x] 1.2 Os marcadores são detectados uma vez por quadro, e cada região com os quatro `marker_ids`
   encontrados é lida (decisão 1). O resultado do quadro passa a ser por região (decisão 3). A região
   discursiva é retificada e tem o QR conferido, sem medição de bolha. Verificação: testes para os
   cenários da ADDED "A captura identifica as regiões presentes…" (duas regiões, só a discursiva, região
   pela metade) e da ADDED "A região discursiva é reconhecida…". Os documentos são renderizados da
   fixture discursiva, sem foto.
-- [ ] 1.3 A prova só objetiva não muda de fora. Verificação: `CorpusInstrumentedTest` e os testes
+- [x] 1.3 A prova só objetiva não muda de fora. Verificação: `CorpusInstrumentedTest` e os testes
   existentes de `RegionDetector` e `SheetReader` passam sem mudar de sentido. Os ajustes de assinatura
   são listados na cobertura.
 

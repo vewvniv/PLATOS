@@ -88,6 +88,10 @@ class ScanSession(private val examPackage: ExamPackage) {
             is FrameOutcome.Unreadable -> ScanState.Rejected(outcome.reason)
             is FrameOutcome.NotRead -> if (holdsResult) state else ScanState.NotRead(outcome.reason)
             is FrameOutcome.NoSheet -> if (holdsResult) state else ScanState.Searching
+            // Prova so objetiva nao tem regiao discursiva no mapa, entao nenhuma pode ter sido achada
+            // no quadro: o caso nao acontece, e se acontecer e folha que nao e desta prova — o mesmo
+            // que nao ter achado folha nenhuma.
+            is FrameOutcome.SoDiscursivas -> if (holdsResult) state else ScanState.Searching
         }
 
         val apuracao = state as? ScanState.Scored ?: return null

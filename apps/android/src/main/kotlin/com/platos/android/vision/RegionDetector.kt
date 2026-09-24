@@ -140,7 +140,14 @@ object RegionDetector {
         return orderOf(declared, region).map { centerOf(found.getValue(it)) }
     }
 
-    private fun detectMarkers(gray: Mat): Map<Int, List<Point>> {
+    /**
+     * Os marcadores do quadro, por identificador, com os quatro cantos de cada um.
+     *
+     * Chamado **uma vez por quadro** por quem le a folha, e nao uma vez por regiao: e daqui que sai
+     * quais regioes estao presentes (§8, "detecta ArUcos → identifica regiao pelos IDs"), e detectar
+     * de novo para cada regiao seria o mesmo trabalho repetido sobre o mesmo quadro.
+     */
+    fun detectMarkers(gray: Mat): Map<Int, List<Point>> {
         val corners = ArrayList<Mat>()
         val ids = Mat()
         ArucoDetector(Objdetect.getPredefinedDictionary(Objdetect.DICT_5X5_100))
@@ -156,7 +163,16 @@ object RegionDetector {
         return found
     }
 
-    fun detect(gray: Mat, map: LayoutMap, region: ScannableRegion): DetectionOutcome {
+    fun detect(gray: Mat, map: LayoutMap, region: ScannableRegion): DetectionOutcome =
+        detect(gray, map, region, detectMarkers(gray))
+
+    /** A mesma retificacao, sobre marcadores que quem chama ja detectou neste quadro. */
+    fun detect(
+        gray: Mat,
+        map: LayoutMap,
+        region: ScannableRegion,
+        found: Map<Int, List<Point>>,
+    ): DetectionOutcome {
         val declared = declaredMarkersOf(map, region)
         if (declared.size != 4) {
             return DetectionOutcome.Failed(
@@ -164,7 +180,6 @@ object RegionDetector {
             )
         }
 
-        val found = detectMarkers(gray)
         if (found.isEmpty()) {
             return DetectionOutcome.Failed("nenhum marcador ArUco encontrado na captura")
         }

@@ -274,7 +274,7 @@ class SheetReaderInstrumentedTest {
     fun quadro_sem_marcador_nenhum_para_no_primeiro_estagio() {
         val liso = Mat(1_200, 1_600, CvType.CV_8UC1, Scalar(235.0))
 
-        val resultado = SheetReader.analyze(liso, map, region, LIMIAR_DE_TESTE)
+        val resultado = SheetReader.analyze(liso, map, LIMIAR_DE_TESTE)
 
         assertTrue("esperava NoSheet, veio $resultado", resultado is FrameOutcome.NoSheet)
     }
@@ -286,7 +286,7 @@ class SheetReaderInstrumentedTest {
         // vazio: a folha esta enquadrada, e insistir mais um quadro pode fechar.
         val foto = assetGray("corpus-3b-prova2-a.jpg")
 
-        val resultado = SheetReader.analyze(foto, map, region, LIMIAR_DE_TESTE)
+        val resultado = SheetReader.analyze(foto, map, LIMIAR_DE_TESTE)
 
         val naoLida = resultado as? FrameOutcome.NotRead
             ?: throw AssertionError("esperava NotRead, veio $resultado")
@@ -299,7 +299,13 @@ class SheetReaderInstrumentedTest {
             inkBudget = region.inkBudget.copy(thresholdFloor = 100, thresholdCeiling = 180),
         )
 
-        val resultado = SheetReader.analyze(capture(), map, outroCorredor, LIMIAR_DE_TESTE)
+        // A regiao entra dentro do mapa: desde a `slice-5b-1-o-aparelho-reconhece-a-discursiva` a
+        // analise acha a regiao pelos marcadores do quadro, e nao a recebe de quem chama.
+        val resultado = SheetReader.analyze(
+            capture(),
+            map.copy(regions = listOf(outroCorredor)),
+            LIMIAR_DE_TESTE,
+        )
 
         // Nao e `NotRead`: repetir o quadro da o mesmo resultado, porque a recusa e sobre o par
         // folha-leitor. Cair no estagio anterior deixaria a tela pedindo insistencia inutil.
@@ -310,7 +316,7 @@ class SheetReaderInstrumentedTest {
 
     @Test
     fun folha_boa_fecha_e_carrega_a_leitura_interpretada() {
-        val resultado = SheetReader.analyze(capture(), map, region, LIMIAR_DE_TESTE)
+        val resultado = SheetReader.analyze(capture(), map, LIMIAR_DE_TESTE)
 
         val lida = resultado as? FrameOutcome.Read
             ?: throw AssertionError("esperava Read, veio $resultado")

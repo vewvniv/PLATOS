@@ -215,7 +215,6 @@ class ScanActivity : ComponentActivity() {
                 analysisExecutor,
                 CameraFrameAnalyzer(
                     map = map,
-                    region = map.regions.single(),
                     threshold = OmrThreshold.MEDIDO_NA_FATIA_3B,
                     // A analise para assim que ha resposta na tela; retomar e acao de quem segura o
                     // aparelho. Ver `design.md`, decisao 4.

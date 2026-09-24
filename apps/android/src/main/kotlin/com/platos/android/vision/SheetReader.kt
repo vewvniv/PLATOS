@@ -6,9 +6,11 @@ import com.platos.domain.capture.InterpretationOutcome
 import com.platos.domain.capture.OmrReading
 import com.platos.domain.capture.OmrThreshold
 import com.platos.domain.capture.SheetInterpreter
+import com.platos.domain.layout.LayoutEngine
 import com.platos.domain.layout.LayoutMap
 import com.platos.domain.layout.ScannableRegion
 import org.opencv.core.Mat
+import org.opencv.core.Point
 
 /**
  * O pipeline de §8, inteiro, de uma captura ate as medicoes.
@@ -60,35 +62,87 @@ object SheetReader {
     }
 
     /**
-     * O mesmo pipeline, com o **estagio em que ele parou** preservado (fatia 3c).
+     * O pipeline sobre um quadro inteiro, com o **estagio em que ele parou** preservado (fatia 3c).
      *
      * A diferenca para [readInterpreted] nao esta no que e feito — e a mesma sequencia, nas mesmas
      * funcoes —, e sim no que sobrevive ao retorno. `OmrReading.Rejected` diz que a folha nao foi
      * lida; [FrameOutcome] diz **onde** ela parou, que e o que separa "ainda nao achei folha" de
      * "achei a folha e nao consegui ler". Ver [FrameOutcome].
      *
+     * **A regiao sai do quadro, e nao de quem chama** (`slice-5b-1-o-aparelho-reconhece-a-discursiva`).
+     * Ate aqui esta funcao recebia a regiao, e a `ScanActivity` a escolhia com `map.regions.single()`
+     * — que derrubava o aplicativo diante de uma prova com discursiva, de tres regioes. Agora os
+     * marcadores sao detectados uma vez, e cada regiao cujos quatro marcadores aparecem e lida (§8:
+     * "detecta ArUcos → identifica regiao pelos IDs"). Regiao pela metade nao e lida, e nao e erro:
+     * um quadro de perto da pagina 0 pode pegar metade da moldura de uma discursiva, e o gabarito,
+     * inteiro no quadro, nao pode deixar de ser lido por causa dela.
+     *
      * A decomposicao nao duplica nada: [read] e esta funcao chamam o mesmo [readFrom].
      */
-    fun analyze(
-        gray: Mat,
-        map: LayoutMap,
-        region: ScannableRegion,
-        threshold: OmrThreshold,
-    ): FrameOutcome {
-        val detection = RegionDetector.detect(gray, map, region)
-        val rectified = when (detection) {
-            is DetectionOutcome.Failed -> return FrameOutcome.NoSheet(detection.reason)
+    fun analyze(gray: Mat, map: LayoutMap, threshold: OmrThreshold): FrameOutcome {
+        val found = RegionDetector.detectMarkers(gray)
+        if (found.isEmpty()) return FrameOutcome.NoSheet("nenhum marcador ArUco encontrado na captura")
+
+        val presentes = map.regions.filter { regiao -> regiao.markerIds.all { it in found } }
+        if (presentes.isEmpty()) {
+            return FrameOutcome.NoSheet(
+                "achei os marcadores ${found.keys.sorted()}, e nenhuma regiao do mapa tem os quatro " +
+                    "dela: " + map.regions.joinToString { "regiao ${it.index} ${it.markerIds}" },
+            )
+        }
+
+        val discursivas = presentes
+            .filter { it.kind == LayoutEngine.ESSAY_KIND }
+            .map { reconhecer(gray, map, it, found) }
+        val gabarito = presentes.firstOrNull { it.kind != LayoutEngine.ESSAY_KIND }
+            ?: return FrameOutcome.SoDiscursivas(discursivas)
+
+        val rectified = when (val detection = RegionDetector.detect(gray, map, gabarito, found)) {
+            // Sem discursiva no quadro, o de sempre: geometria que nao fecha e "ainda nao achei a
+            // folha". Com discursiva reconhecida, a folha foi achada, e dizer "procurando" apagaria
+            // o que foi reconhecido nela.
+            is DetectionOutcome.Failed -> return if (discursivas.isEmpty()) {
+                FrameOutcome.NoSheet(detection.reason)
+            } else {
+                FrameOutcome.NotRead(detection.reason, discursivas)
+            }
             is DetectionOutcome.Rectified -> detection
         }
 
-        val reading = when (val lida = readFrom(rectified, map, region)) {
-            is OmrReading.Rejected -> return FrameOutcome.NotRead(lida.reason)
+        val reading = when (val lida = readFrom(rectified, map, gabarito)) {
+            is OmrReading.Rejected -> return FrameOutcome.NotRead(lida.reason, discursivas)
             is OmrReading.Read -> lida
         }
 
-        return when (val interpretada = SheetInterpreter.interpret(reading, region, threshold)) {
-            is InterpretationOutcome.Rejected -> FrameOutcome.Unreadable(interpretada.reason)
-            is InterpretationOutcome.Interpreted -> FrameOutcome.Read(interpretada.reading)
+        return when (val interpretada = SheetInterpreter.interpret(reading, gabarito, threshold)) {
+            is InterpretationOutcome.Rejected -> FrameOutcome.Unreadable(interpretada.reason, discursivas)
+            is InterpretationOutcome.Interpreted -> FrameOutcome.Read(interpretada.reading, discursivas)
+        }
+    }
+
+    /**
+     * A regiao discursiva: retificada e com o QR conferido contra os marcadores, e mais nada.
+     *
+     * Nao ha bolha a medir, e o recorte da resposta e da 5b-2. O QR passa pela mesma conferencia de
+     * qualquer regiao — `region_idx` contra os marcadores encontrados —, e e ela que recusa o QR de
+     * uma regiao dentro dos marcadores de outra.
+     */
+    private fun reconhecer(
+        gray: Mat,
+        map: LayoutMap,
+        regiao: ScannableRegion,
+        found: Map<Int, List<Point>>,
+    ): RegiaoDiscursivaNoQuadro {
+        // A validacao do mapa recusa regiao discursiva sem questao; vazio nunca chega aqui.
+        val questao = regiao.questionId.orEmpty()
+        val rectified = when (val detection = RegionDetector.detect(gray, map, regiao, found)) {
+            is DetectionOutcome.Failed ->
+                return RegiaoDiscursivaNoQuadro.NaoLida(regiao.index, questao, detection.reason)
+            is DetectionOutcome.Rectified -> detection
+        }
+        return when (val qr = RegionQrReader.read(rectified.qrCanvas, rectified.detectedMarkerIds)) {
+            is QrOutcome.Failed -> RegiaoDiscursivaNoQuadro.NaoLida(regiao.index, questao, qr.reason)
+            is QrOutcome.Read -> RegiaoDiscursivaNoQuadro.Reconhecida(regiao.index, questao, qr.payload)
         }
     }
 
