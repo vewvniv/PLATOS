@@ -133,7 +133,7 @@
 
 ## 6. Paridade, fidelidade e tinta — nos dois renderizadores, na mesma sessão da 5.2
 
-- [ ] 6.1 `fidelidade.mjs` passa a medir ArUcos e círculos em todas as páginas (decisão 10).
+- [x] 6.1 `fidelidade.mjs` passa a medir ArUcos e círculos em todas as páginas (decisão 10).
   **Antes de estender:** com um marcador discursivo deslocado 0,5 mm numa página ≥ 1 do PDF web, a
   versão atual **passa**, e isso registra a lacuna. **Depois:** a mesma mutação **reprova**, nomeando o
   marcador. Reverter e rodar.

@@ -408,3 +408,21 @@ Revertido pela cópia, `grep MUTACAO` deu 0, e rodado de novo: 16 de 16.
 `fidelidade.mjs` roda sobre o primeiro: 47 verificações, maior desvio de 0,047 mm em "marcador 2:
 borda superior", com tolerância de 0,05 mm, e "fidelidade OK". **Isso só cobre a página 0.** A região
 `d2`, na página 1, não é medida pela versão atual, e é a lacuna que a 6.1 fecha.
+
+## 6. Paridade, fidelidade e tinta
+
+**6.1 — `fidelidade.mjs` passa a medir ArUcos em todas as páginas.** O instrumento de "ver falhar" é
+`desloca-discursiva.mts`, no scratchpad e fora da árvore. Ele renderiza a folha da variante da prova
+com discursiva, pelo renderizador do web, com **um** marcador deslocado 0,5 mm para baixo: `r2-m8`, o
+marcador 8, da região de `d2`, na **página 1**.
+
+| Momento | PDF | Resultado |
+|---|---|---|
+| **Antes** de estender | com `r2-m8` deslocado | **"fidelidade OK"**, 47 verificações, maior desvio de 0,047 mm, igual à folha correta. É a lacuna, medida |
+| **Depois** de estender | com `r2-m8` deslocado | **"FIDELIDADE FALHOU"**, 63 verificações: "marcador 8 (pagina 1): borda superior: observado 104.542 mm, declarado 104.000 mm (desvio 0.542)" |
+| **Depois** de estender | correto (`discursiva-web.pdf`) | "fidelidade OK", 63 verificações, maior desvio de 0,047 mm |
+
+As 16 verificações novas são os 4 marcadores da página 1, com 4 medidas cada. Os marcadores da
+página 0, inclusive os da região de `d1`, já eram medidos. Os rótulos da página 0 não mudaram, e a
+saída de sempre continua igual. A mutação foi num PDF gerado fora da árvore, e não em código: não há
+reversão de fonte a conferir, e os PDFs corretos continuaram passando.
