@@ -734,13 +734,20 @@ class LayoutEngine(
         ): String = QrPayload.of(examId, regionIndex, studentToken, variant)
 
         /**
-         * Payload da folha de uma atribuicao.
+         * Payload de uma regiao da folha de uma atribuicao.
          *
-         * O indice da regiao **nao** entra por parametro: ele e decisao do engine, e um chamador
-         * que o passasse errado produziria folha cujo QR discorda dos marcadores dela — a
-         * divergencia que a leitura confere e recusa, descoberta so na captura.
+         * O indice da regiao **nao** entra como numero solto: ele e decisao do engine, e um
+         * chamador que o passasse errado produziria folha cujo QR discorda dos marcadores dela — a
+         * divergencia que a leitura confere e recusa, descoberta so na captura. Por isso quem chama
+         * entrega a **regiao que o engine produziu**, e o indice sai dela. Ate a
+         * `slice-5a-regiao-discursiva` a folha tinha uma regiao so e o indice era fixo aqui; com a
+         * discursiva ha uma por questao (D23), e a regra continua a mesma.
          */
-        fun qrPayloadDaAtribuicao(examId: String, studentToken: String, variant: String): String =
-            qrPayloadOf(examId, REGION_INDEX, studentToken, variant)
+        fun qrPayloadDaAtribuicao(
+            examId: String,
+            studentToken: String,
+            variant: String,
+            regiao: ScannableRegion,
+        ): String = qrPayloadOf(examId, regiao.index, studentToken, variant)
     }
 }

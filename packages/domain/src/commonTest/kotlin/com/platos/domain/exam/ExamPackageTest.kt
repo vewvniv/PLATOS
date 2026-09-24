@@ -226,12 +226,20 @@ class ExamPackageTest {
     fun `layout divergente dos itens e recusado`() {
         // Tirar o item E a posicao dele: sem isso a recusa da variante dispara antes, e o teste
         // passaria por outro motivo que nao o que ele afirma cobrir.
+        //
+        // E descontar a pontuacao dele da nota maxima. Desde a `slice-5a-regiao-discursiva` a
+        // coerencia confere `max_score` contra gabarito e rubricas, e ela roda antes do layout: sem o
+        // desconto, este cenario passou a recusar por "a nota maxima ... e 40, e gabarito (39) ...
+        // somam 39" — outra camada, e o sombreamento de fixture de `rigorous.md` §3. A assercao nao
+        // mudou; a fixture voltou a ser coerente em tudo menos no que o cenario nomeia.
         val pacote = exam.buildPackage()
         val ultimo = pacote.items.last().id
+        val pontosDoUltimo = pacote.answerKey.single { it.itemId == ultimo }.points
         val quebrado = pacote.copy(
             items = pacote.items.dropLast(1),
             variants = pacote.variants.map { v -> v.copy(positions = v.positions.filterValues { it != ultimo }) },
             answerKey = pacote.answerKey.filter { it.itemId != ultimo },
+            scoring = pacote.scoring.copy(maxScore = pacote.scoring.maxScore - pontosDoUltimo),
         )
         val erro = assertFailsWith<ExamPackageException> { quebrado.requireCoherent() }
         assertContains(erro.message!!, "layout")

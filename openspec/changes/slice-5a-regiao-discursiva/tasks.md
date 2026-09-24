@@ -79,7 +79,7 @@
 
 ## 4. O pacote
 
-- [ ] 4.1 `Publish`:
+- [x] 4.1 `Publish`:
   - o item leva `kind`, `rubric` e `answer_capture_mode`;
   - o gabarito leva só objetivas, e `max_score` inclui as discursivas;
   - `fully_offline_gradable` é falso com discursiva;
@@ -88,7 +88,7 @@
 
   Verificação: os três cenários da ADDED "O item discursivo publica a sua rubrica" e "A atribuição traz
   um QR por região".
-- [ ] 4.2 `requireCoherent` recusa as incoerências novas da spec. Verificação: um teste por cenário
+- [x] 4.2 `requireCoherent` recusa as incoerências novas da spec. Verificação: um teste por cenário
   novo, cada um com um pacote **coerente em todo o resto**, e a asserção confere o motivo. **Ver
   falhar:** com a checagem de região por item discursivo desligada, cai **só** "Item discursivo sem
   região". Com a checagem do índice no payload desligada, cai **só** "QR de atribuição associado à

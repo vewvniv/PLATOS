@@ -16,6 +16,17 @@ import kotlin.test.assertTrue
  */
 class QrPayloadTest {
 
+    /** A regiao de gabarito de uma prova minima: e dela que o indice do payload sai. */
+    private val gabarito = LayoutEngine().layout(
+        com.platos.domain.exam.ExamDefinition(
+            id = "prova",
+            title = "Prova",
+            questions = listOf(
+                com.platos.domain.exam.Question(id = "q1", statement = "Enunciado", options = listOf("a", "b")),
+            ),
+        ),
+    ).regions.single()
+
     private fun read(text: String): PayloadReading = QrPayload.read(text)
 
     private fun readOrFail(text: String): CapturePayload {
@@ -74,7 +85,7 @@ class QrPayloadTest {
         // literal no meio. Um escritor que divergisse do leitor atribuiria a folha ao aluno errado
         // em silencio, e e por isso que os dois moram juntos.
         val payload = readOrFail(
-            LayoutEngine.qrPayloadDaAtribuicao("prova-referencia-slice-1", "tok-1", "v1"),
+            LayoutEngine.qrPayloadDaAtribuicao("prova-referencia-slice-1", "tok-1", "v1", gabarito),
         )
 
         assertEquals("prova-referencia-slice-1", payload.examShortId)
@@ -96,8 +107,8 @@ class QrPayloadTest {
 
     @Test
     fun `dois alunos da mesma prova produzem payloads diferentes`() {
-        val um = LayoutEngine.qrPayloadDaAtribuicao("prova", "tok-1", "v1")
-        val outro = LayoutEngine.qrPayloadDaAtribuicao("prova", "tok-2", "v1")
+        val um = LayoutEngine.qrPayloadDaAtribuicao("prova", "tok-1", "v1", gabarito)
+        val outro = LayoutEngine.qrPayloadDaAtribuicao("prova", "tok-2", "v1", gabarito)
 
         assertTrue(um != outro, "os dois alunos receberiam folhas com a mesma identidade: $um")
         assertEquals("tok-1", readOrFail(um).studentToken)

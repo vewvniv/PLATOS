@@ -28,26 +28,28 @@ fun ExamDefinition.buildPackage(
 ): ExamPackage {
     val map = LayoutEngine(profile = profile).layout(this)
 
-    // Uma atribuicao por token, e o QR de cada uma resolvido aqui. A geometria nao se repete: ela
-    // fica em `layout[variantId]`, e a folha do aluno e ela com este QR no lugar do da variante.
+    // Uma atribuicao por token, e um QR por regiao do layout, resolvidos aqui (D23). A geometria nao
+    // se repete: ela fica em `layout[variantId]`, e a folha do aluno e ela com estes QRs no lugar dos
+    // da variante. As regioes vem do mapa, e nao de uma contagem de discursivas: o conjunto de regioes
+    // de uma folha e o que o layout declara, e nao se declara uma segunda vez (spec de `exam-package`).
+    val regioes = map.regions.sortedBy { it.index }
     val assignments = tokens.map { token ->
-        val payload = LayoutEngine.qrPayloadDaAtribuicao(
-            examId = id,
-            studentToken = token,
-            variant = variantId,
-        )
         PackageAssignment(
             studentToken = token,
             variantId = variantId,
-            // Minimo para compilar sobre o contrato novo: o QR da regiao 0, e so ele. Um QR por
-            // regiao do layout e a tarefa 4.1 da `slice-5a-regiao-discursiva`.
-            qrs = listOf(
+            qrs = regioes.map { regiao ->
+                val payload = LayoutEngine.qrPayloadDaAtribuicao(
+                    examId = id,
+                    studentToken = token,
+                    variant = variantId,
+                    regiao = regiao,
+                )
                 RegionQr(
-                    regionIndex = 0,
+                    regionIndex = regiao.index,
                     payload = payload,
                     modules = linhasDeModulo(QrEncoder.encode(payload)),
-                ),
-            ),
+                )
+            },
         )
     }
 
@@ -60,6 +62,14 @@ fun ExamDefinition.buildPackage(
             assets = buildList {
                 question.formula?.let { add(it.reference) }
                 question.inline.forEach { add(it.reference) }
+            },
+            kind = question.kind,
+            rubric = question.rubric,
+            // Na discursiva o modo sai resolvido: cinza quando a questao nao declara (§8). Na objetiva
+            // fica nulo — `requireSupported` ja recusou objetiva que o declarasse.
+            answerCaptureMode = when (question.kind) {
+                QuestionKind.ESSAY -> question.answerCaptureMode ?: AnswerCaptureMode.GRAY
+                QuestionKind.OBJECTIVE -> null
             },
         )
     }

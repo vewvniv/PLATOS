@@ -224,3 +224,55 @@ validação, caiu no conjunto exato, e isso mostra que a camada está isolada.
 
 As duas foram revertidas pela cópia byte a byte, `grep -rn MUTACAO packages/domain/src` deu 0, e a
 suíte filtrada rodou de novo: 56 de 56.
+
+## 4. O pacote
+
+**4.1 e 4.2, juntas** — `buildPackage` chama `requireCoherent`, e o pacote discursivo só passa pela
+publicação com as duas. Rodando só a 4.1, os três cenários de publicação caíram com
+`ExamPackageException`, pela coerência antiga ("sem gabarito" e "layout diverge"), como previsto.
+
+**O que mudou em `Publish`:**
+- o item leva `kind`, `rubric` e `answer_capture_mode`. A discursiva sem modo declarado sai `gray`, e
+  a objetiva sai com nulo;
+- cada atribuição traz um `RegionQr` por região do mapa, com o índice lido **da região que o motor
+  produziu**. `qrPayloadDaAtribuicao` passou a receber a região, e não um inteiro. A razão da KDoc
+  antiga ("o índice é decisão do engine") ficou de pé.
+
+**O que mudou em `requireCoherent`:**
+- recusa discursiva com gabarito, objetiva com rubrica, discursiva sem rubrica;
+- recusa `max_score` que não fecha com gabarito mais rubricas. O pacote não tem pontuação por item: a
+  da objetiva mora no gabarito, e a da discursiva é a soma da rubrica. Esta é a forma executável de
+  "rubrica que não soma a pontuação do item";
+- recusa `fully_offline_gradable` contra os itens, e item discursivo sem **exatamente uma** região por
+  variante;
+- a atribuição precisa trazer QR para cada região da variante, e cada payload é lido por
+  `QrPayload.read`, o mesmo leitor do aparelho, conferindo índice e token;
+- a divergência de layout passa a contar a discursiva pela região, e não por bolha.
+
+Testes em `PacoteDiscursivoTest`, 11:
+- os quatro de publicação: rubrica e modo, nota máxima e gabarito, prova só objetiva, um QR por
+  região;
+- sete de coerência, cada um partindo de um pacote válido e mudando uma coisa. "Item discursivo sem
+  região" usa pacote **sem roster**: com roster, tirar a região faria a conferência de QR por região
+  recusar antes, e o cenário mediria a camada vizinha.
+
+**Um cenário antigo foi sombreado pela conferência nova, e a fixture dele foi corrigida.** A
+asserção não mudou. `ExamPackageTest.layout divergente dos itens e recusado` tira um item e a entrada
+dele no gabarito, e deixava `max_score` em 40. Passou a cair por "a nota maxima ... e 40, e gabarito
+(39) ... somam 39", que é a camada nova, e não pela de layout que ele nomeia (a mensagem foi lida no
+XML). A fixture agora desconta a pontuação do item removido, e o motivo ficou escrito no teste
+(`rigorous.md` §3, P12).
+
+`./gradlew :packages:domain:jvmTest --tests "com.platos.domain.exam.*" --tests "…QrPayloadTest"`: 96
+aprovados. Os únicos vermelhos são os oito das goldens, os mesmos do commit de contrato (hash,
+`IdentidadeDaProvaTest`, `PacoteVersionadoTest`), que esperam a 5.2.
+
+**Vista falhar:**
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| M4 — `if (false && regioes != 1)` | só "item discursivo sem região" (a conferência antiga de layout recusa, mas com outro motivo, e o teste confere o motivo) | só ele |
+| M5 — `if (false && payload.regionIndex != qr.regionIndex)` | só "QR associado à região errada" | só ele |
+
+Revertidas, `grep -rn MUTACAO packages/domain/src` deu 0, e rodado de novo: 96 aprovados, nenhuma falha
+fora das goldens.

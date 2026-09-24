@@ -1,5 +1,8 @@
 package com.platos.domain.exam
 
+import com.platos.domain.capture.PayloadReading
+import com.platos.domain.capture.QrPayload
+
 /**
  * Recusa pacote incoerente **antes** de qualquer gravacao.
  *
@@ -16,6 +19,16 @@ package com.platos.domain.exam
  * - atribuicao sem QR proprio imprime folha com o campo de aluno vazio, para um aluno que existe;
  * - token repetido produz duas folhas com a mesma identidade, indistinguiveis na captura;
  * - layout divergente dos itens poe bolha onde nao ha questao, e o OMR le lixo em silencio.
+ *
+ * E, desde a `slice-5a-regiao-discursiva`:
+ *
+ * - discursiva com gabarito, ou objetiva com rubrica, e item corrigido pelo caminho errado;
+ * - discursiva sem regiao no layout e questao impressa sem onde escrever;
+ * - atribuicao sem o QR de uma regiao imprime aquela regiao com o QR da variante, sem aluno;
+ * - QR cujo payload diz outra regiao ou outro aluno atribui a resposta errada, em silencio;
+ * - `fully_offline_gradable` verdadeiro com discursiva faria o aparelho tratar como definitiva uma
+ *   nota que ainda nao tem a parte discursiva;
+ * - `max_score` que nao fecha com gabarito e rubricas faz a nota maxima depender de qual numero se le.
  */
 fun ExamPackage.requireCoherent() {
     if (items.isEmpty()) {
@@ -90,8 +103,20 @@ fun ExamPackage.requireCoherent() {
         )
     }
 
+    val objetivas = items.filter { it.kind == QuestionKind.OBJECTIVE }.map { it.id }.toSet()
+    val discursivas = items.filter { it.kind == QuestionKind.ESSAY }
+
+    conferirQrsPorRegiao()
+
     val comGabarito = answerKey.map { it.itemId }.toSet()
-    val semGabarito = idsDeItem - comGabarito
+    val discursivaComGabarito = discursivas.map { it.id }.filter { it in comGabarito }
+    if (discursivaComGabarito.isNotEmpty()) {
+        throw ExamPackageException(
+            "itens discursivos com entrada no gabarito: " + discursivaComGabarito.sorted().joinToString() +
+                "; discursiva e corrigida pela rubrica, e nao pelo gabarito",
+        )
+    }
+    val semGabarito = objetivas - comGabarito
     if (semGabarito.isNotEmpty()) {
         throw ExamPackageException(
             "itens sem alternativa correta declarada: " + semGabarito.sorted().joinToString() +
@@ -105,13 +130,60 @@ fun ExamPackage.requireCoherent() {
         )
     }
 
+    // Rubrica e da discursiva, e so dela.
+    val objetivaComRubrica = items.filter { it.kind == QuestionKind.OBJECTIVE && it.rubric != null }
+    if (objetivaComRubrica.isNotEmpty()) {
+        throw ExamPackageException(
+            "itens objetivos com rubrica: " + objetivaComRubrica.map { it.id }.sorted().joinToString(),
+        )
+    }
+    val discursivaSemRubrica = discursivas.filter { it.rubric == null || it.rubric.criteria.isEmpty() }
+    if (discursivaSemRubrica.isNotEmpty()) {
+        throw ExamPackageException(
+            "itens discursivos sem rubrica: " + discursivaSemRubrica.map { it.id }.sorted().joinToString() +
+                "; sem rubrica a discursiva nao tem como ser corrigida nem ter moldura",
+        )
+    }
+
+    // O pacote nao tem pontuacao por item: a da objetiva mora no gabarito, e a da discursiva e a soma
+    // da rubrica. O que pode divergir, e e aqui que se confere, e a nota maxima declarada.
+    val somaDoGabarito = answerKey.sumOf { it.points }
+    val somaDasRubricas = discursivas.sumOf { item -> requireNotNull(item.rubric).criteria.sumOf { it.points } }
+    if (scoring.maxScore != somaDoGabarito + somaDasRubricas) {
+        throw ExamPackageException(
+            "a nota maxima do pacote `${meta.examId}` e ${scoring.maxScore}, e gabarito ($somaDoGabarito) " +
+                "mais rubricas ($somaDasRubricas) somam ${somaDoGabarito + somaDasRubricas}",
+        )
+    }
+
+    // Correcao objetiva local so e definitiva sem discursiva (§10, D4). O campo dizer o contrario
+    // faria o aparelho fechar como definitiva uma nota que ainda nao tem a parte discursiva.
+    val semDiscursiva = discursivas.isEmpty()
+    if (meta.fullyOfflineGradable != semDiscursiva) {
+        throw ExamPackageException(
+            "o pacote declara fully_offline_gradable = ${meta.fullyOfflineGradable}, e tem " +
+                "${discursivas.size} item(ns) discursivo(s)",
+        )
+    }
+
     // O layout precisa falar das mesmas questoes que os itens declaram. Divergencia aqui poe bolha
-    // onde nao ha questao, e o OMR le a folha inteira deslocada sem nada acusar.
+    // onde nao ha questao, e o OMR le a folha inteira deslocada sem nada acusar. A discursiva entra
+    // pela regiao dela, e nao por bolha.
     for (variante in variants) {
         val mapa = layout[variante.variantId] ?: throw ExamPackageException(
             "variante `${variante.variantId}` nao tem layout no pacote",
         )
-        val noLayout = mapa.regions.flatMap { regiao -> regiao.bubbles.map { it.questionId } }.toSet()
+        for (item in discursivas) {
+            val regioes = mapa.regions.count { it.questionId == item.id }
+            if (regioes != 1) {
+                throw ExamPackageException(
+                    "o item discursivo `${item.id}` tem $regioes regiao(oes) no layout da variante " +
+                        "`${variante.variantId}`, e precisa de exatamente uma",
+                )
+            }
+        }
+        val noLayout = mapa.regions.flatMap { regiao -> regiao.bubbles.map { it.questionId } }.toSet() +
+            mapa.regions.mapNotNull { it.questionId }.toSet()
         if (noLayout != idsDeItem) {
             val sobrando = (noLayout - idsDeItem).sorted()
             val faltando = (idsDeItem - noLayout).sorted()
@@ -120,6 +192,48 @@ fun ExamPackage.requireCoherent() {
                     "itens do pacote; no layout e nao nos itens: ${sobrando.joinToString()}; " +
                     "nos itens e nao no layout: ${faltando.joinToString()}",
             )
+        }
+    }
+}
+
+/**
+ * Cada atribuicao traz um QR para cada regiao do layout da variante dela, e cada QR diz a regiao e o
+ * aluno certos (D23).
+ *
+ * O payload e lido pelo **mesmo** leitor que o aparelho usa (`QrPayload.read`): um leitor proprio
+ * aqui concordaria com um escritor errado. E a conferencia que o espelho TypeScript de
+ * `folhaDaAtribuicao` nao faz — ele troca o QR que o pacote manda, e se o pacote mandar o QR da regiao
+ * errada, a folha sai errada nas duas implementacoes ao mesmo tempo.
+ */
+private fun ExamPackage.conferirQrsPorRegiao() {
+    for (atribuicao in assignments) {
+        val mapa = layout[atribuicao.variantId] ?: continue // a variante orfa ja foi recusada antes
+        val esperadas = mapa.regions.map { it.index }.toSet()
+        val trazidas = atribuicao.qrs.map { it.regionIndex }
+        if (trazidas.toSet() != esperadas || trazidas.size != esperadas.size) {
+            throw ExamPackageException(
+                "a atribuicao `${atribuicao.studentToken}` traz QR para as regioes ${trazidas.sorted()}, e " +
+                    "o layout da variante `${atribuicao.variantId}` tem ${esperadas.sorted()}",
+            )
+        }
+        for (qr in atribuicao.qrs) {
+            val lido = QrPayload.read(qr.payload)
+            val payload = (lido as? PayloadReading.Read)?.payload ?: throw ExamPackageException(
+                "a atribuicao `${atribuicao.studentToken}` tem QR ilegivel na regiao ${qr.regionIndex}: " +
+                    (lido as PayloadReading.Rejected).reason,
+            )
+            if (payload.regionIndex != qr.regionIndex) {
+                throw ExamPackageException(
+                    "a atribuicao `${atribuicao.studentToken}` associa a regiao ${qr.regionIndex} a um QR " +
+                        "que diz regiao ${payload.regionIndex}",
+                )
+            }
+            if (payload.studentToken != atribuicao.studentToken) {
+                throw ExamPackageException(
+                    "o QR da regiao ${qr.regionIndex} da atribuicao `${atribuicao.studentToken}` diz o aluno " +
+                        "`${payload.studentToken}`",
+                )
+            }
         }
     }
 }
