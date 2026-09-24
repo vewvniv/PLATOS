@@ -115,6 +115,31 @@ mesmo vermelho.
 Depois disso, às `22:47:04Z`, a guarda saiu `0`: 18 linhas lidas, nenhuma vencida, 4 pagas, 2
 contínuas, 7 aguardando evento e 5 em dia.
 
+### 6.1 "A interface não existe": de herdado a conferido
+
+**Adicionada em 2026-09-24, às `04:54Z`, depois da implementação e a pedido do mantenedor.** Na
+reconciliação, a frase "a interface não existe", que entrou na linha LGPD do §16, era **herdada**: veio
+do texto do próprio §16 ("Falta… a coerção do papel na interface e o bloqueio de roster nominal sem
+contrato de operador registrado… que vão com a tela de cadastro de aluno"), e ninguém tinha olhado o
+código (P6). Agora ela está **conferida por busca**, e os comandos estão abaixo.
+
+| O que a política pede | O que se procurou | O que se achou |
+|---|---|---|
+| §3.5: no primeiro cadastro de aluno, exibir qual cenário se aplica e registrar a declaração | uma tela de cadastro de aluno: `grep -rli "aluno\|student\|cadastro" apps/web/src` e `grep -rli "cadastro" apps/android/src/main` | **0 e 0.** O web tem três arquivos (`layoutMap.ts`, `main.tsx`, `renderer.ts`), todos de renderização |
+| §3.5: a declaração registrada | uma tabela ou coluna para ela: `grep -rni "operator\|operador\|contrato\|declaration\|…" supabase/migrations/*.sql` | **1 ocorrência, e é falso positivo**: um comentário em `20260917134500_result_tables.sql:218` que cita `RetentionDeclarationTest` |
+| §4: bloquear o roster nominal sem contrato de operador | o mesmo `grep`, e quem escreve em `exam_roster` | nenhum registro de contrato no schema. O único escritor de `exam_roster` no código de produção é `ExamPublication.kt:171`, e **`ExamPublication` não tem chamador em produção**: só `ExamPublicationTest` e `PublicarFixturesNoBancoRealTest` o chamam. Não há rota que receba aluno. A única rota `POST` é a de resultados (`Routes.kt:213`) |
+
+**O que isso quer dizer, e o que não quer.** Hoje não há caminho de produto para cadastrar aluno. O
+roster só chega ao banco pela publicação da prova, e essa publicação só roda em teste. Então a
+coerção do §3.5 e o bloqueio do §4 não existem, e ainda não têm onde existir: a tela que os carrega
+não foi construída. O que **existe** do lado do banco é o modo de identificação. Uma organização nasce
+`coded`, e o modo `nominal` tem de ser escolhido explicitamente. Matrícula só entra em `nominal`
+(`20260827223416_identification_mode.sql`). Essa garantia é declarativa, e não depende de interface.
+
+**O que continua sem verificação:** a busca procura nomes. Uma tela com outro nome, ou uma declaração
+guardada numa coluna genérica, escaparia dela. O que sustenta a conclusão é a combinação de duas
+coisas: não existe rota que receba aluno, e o único escritor do roster não tem chamador em produção.
+
 ## 7. A guarda contra a árvore mutada: conjunto previsto e conjunto real
 
 As mutações da decisão 8 do `design.md`. M1, M2 e M6 são por parâmetro, e não tocam a árvore. As que
