@@ -73,7 +73,7 @@
   a área de resposta". Verificação: cada teste parte de um mapa **válido** produzido pelo motor e muda
   **uma** coisa, e a asserção confere a mensagem (`rigorous.md` §3). O teste "Mapa válido" passa sobre
   o mapa da fixture discursiva.
-- [ ] 3.5 Determinismo: o mapa da fixture discursiva recalculado é idêntico, e o cálculo nos alvos que
+- [x] 3.5 Determinismo: o mapa da fixture discursiva recalculado é idêntico, e o cálculo nos alvos que
   o `GoldenLayoutTest` já compara bate byte a byte com a golden. Verificação: `GoldenLayoutTest` com a
   fixture nova, em todos os alvos que ele roda hoje.
 
@@ -105,14 +105,14 @@
 
 ## 5. Fixtures e goldens — a sessão de P23 começa aqui e fecha na 6
 
-- [ ] 5.1 `fixtures/prova-discursiva.json`:
+- [x] 5.1 `fixtures/prova-discursiva.json`:
   - quatro objetivas e duas discursivas, com rubrica de 2 e de 3 critérios e `expected_lines`
     diferentes;
   - uma discursiva com `answer_capture_mode: color`;
   - habilidades BNCC em todas (I1).
 
   Verificação: a definição passa em `requireSupported`, e o motor produz 3 regiões.
-- [ ] 5.2 Rodar o `GoldenWriterTest` com `-Dplatos.golden.write=true`:
+- [x] 5.2 Rodar o `GoldenWriterTest` com `-Dplatos.golden.write=true`:
   - grava as goldens da fixture nova (`.layout.json`, `.package.json` e `.aluno.layout.json`);
   - regrava as de `prova-referencia`, `prova-2`, a da turma e `folha-de-teste`.
 

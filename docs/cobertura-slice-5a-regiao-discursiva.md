@@ -296,3 +296,56 @@ recebe o i-ésimo da atribuição. Previsto: cai **só** o cenário da ordem inv
 normal as duas regras coincidem. Real: só ele, com 80 aprovados. É a prova de que a ligação declarada
 faz diferença, e não coincide por acaso com a emissão. Revertida, `grep MUTACAO` deu 0, e rodado de
 novo: 81 aprovados.
+
+## 5. Fixtures e goldens, e a 3.5
+
+**5.1 — `fixtures/prova-discursiva.json`.** Tem quatro objetivas (`q1`, `q2`, `q4`, `q5`) e duas
+discursivas:
+- `d1`, na posição 3: rubrica de 2 critérios, 5 linhas, 3 pontos;
+- `d2`, na posição 6: 3 critérios, 7 linhas, 4 pontos, e `answer_capture_mode: color`.
+
+Todas as questões têm habilidade BNCC (I1). O texto vai sem acento, como a fixture de referência.
+
+**5.2 — a regravação**, com `./gradlew :packages:domain:jvmTest --tests "…GoldenWriterTest"
+-Dplatos.golden.write=true`, iniciada às 2026-09-24T11:40:39Z. O `GoldenWriterTest` ganhou o gravador
+da prova com discursiva: layout, pacote com as atribuições `tok-a` e `tok-b`, e a folha de `tok-a`.
+
+- **Previsto antes de rodar, conjunto de arquivos:** modificados `prova-referencia.layout.json`,
+  `prova-referencia.package.json`, `prova-referencia.turma.package.json`, `prova-2.package.json` e
+  `folha-de-teste.layout.json`; novos `prova-discursiva.layout.json`, `.package.json` e
+  `.aluno.layout.json`. **Real:** exatamente esses, e nenhum outro (`git status --short fixtures/`).
+  `*.papel.json`, `*.recorte.pgm`, os dois pacotes congelados e as fórmulas não mudaram.
+- **Guarda de geometria** (`guarda-geometria.mjs`, no scratchpad). Para cada golden regravada, lê a
+  versão de `HEAD` e a da árvore e remove só o que esta mudança acrescentou: `qr_id`, `question_id` e
+  `answer_area` nas regiões, `kind`, `rubric` e `answer_capture_mode` nos itens. Também converte
+  `qrs` de volta a `qr`, exigindo que só exista a região 0. Depois exige igualdade profunda. Resultado:
+  as **cinco iguais**. O canário, `quad_x` + 1 µm, foi **acusado**. Nenhuma coordenada da prova
+  objetiva mudou.
+- **A fixture nova, lida:**
+  - três regiões: o gabarito com 16 bolhas (4 × 4), `d1` na página 0 com marcadores 4–7, e `d2` na
+    **página 1** com 8–11. A página 1 é a que `fidelidade.mjs` não mede hoje (6.1);
+  - duas páginas;
+  - `fully_offline_gradable` falso, `max_score` 11, gabarito só com objetivas, e QRs `0,1,2` nas duas
+    atribuições.
+- **Hashes novos**, pelo `crypto` do Node sobre os bytes, independente do SHA-256 em Kotlin (P4):
+  - `prova-referencia.package.json`: `ff2b94ef600101e2c20d5b6b298f7d0612ee0a66beb4d74d7dcd954cfbde40da`,
+    104.091 bytes. Os literais de `ExamPackageTest` e `ExamPublicationTest` passaram a ser este;
+  - `prova-discursiva.package.json`: `f91838c4…3c09`, 27.227 bytes;
+  - `prova-referencia.turma.package.json`: `7282a186…4df7`, 107.282 bytes.
+
+**3.5 — o determinismo nos três alvos.** `GoldenLayoutTest` ganhou "mapa da prova com discursiva bate
+byte a byte com o golden". Ele também afirma a validação e tem uma guarda de vacuidade: três regiões, e
+uma discursiva fora da página 0. As quatro goldens novas entram no `embedFixtures`.
+`./gradlew :packages:domain:allTests --rerun`, com 17 tasks executadas:
+
+| Alvo | Testes | Falhas | `timestamp` |
+|---|---|---|---|
+| `jvmTest` | 374 | 0 | 11:42:15Z .. 11:42:17Z |
+| `jsNodeTest` | 365 | 0 | 11:42:37Z .. 11:42:38Z |
+| `testAndroidHostTest` | 365 | 0 | 11:42:23Z .. 11:42:25Z |
+
+O caso novo aparece nos três XML, sem falha. As 49 falhas do commit de contrato fecharam todas com a
+regravação.
+
+**P23 fica aberta até a 6.2:** paridade e fidelidade destas goldens, com os PDFs dos dois lados
+gerados **nesta** sessão.

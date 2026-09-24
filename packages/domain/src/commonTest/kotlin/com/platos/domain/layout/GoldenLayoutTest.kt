@@ -45,6 +45,26 @@ class GoldenLayoutTest {
         assertEquals(golden, produced)
     }
 
+    /**
+     * A prova com discursiva (`slice-5a-regiao-discursiva`, tarefa 3.5): o mesmo byte a byte, nos
+     * mesmos tres alvos. E daqui que "calculo em plataformas diferentes da o mesmo mapa" passa a
+     * valer tambem para a regiao discursiva — moldura, pauta, QR por regiao e a area de resposta.
+     */
+    @Test
+    fun `mapa da prova com discursiva bate byte a byte com o golden`() {
+        val discursiva = Json.decodeFromString(ExamDefinition.serializer(), Fixtures.PROVA_DISCURSIVA_JSON)
+        val produced = LayoutEngine().layout(discursiva).toCanonicalJson()
+        val golden = Fixtures.PROVA_DISCURSIVA_LAYOUT_JSON.trim()
+        val at = produced.zip(golden).indexOfFirst { (a, b) -> a != b }
+        assertEquals(golden, produced, "o mapa com discursiva divergiu do golden a partir do caractere $at")
+        assertEquals(ValidationResult.Valid, LayoutEngine().layout(discursiva).validate())
+        // Guarda de vacuidade: o golden tem de ter as duas regioes discursivas, uma delas fora da
+        // pagina 0 — senao "byte a byte" estaria comparando uma prova que nao exercita a regiao.
+        val map = LayoutEngine().layout(discursiva)
+        assertEquals(listOf(0, 1, 2), map.regions.map { it.index })
+        assertTrue(map.regions.any { it.questionId != null && it.page > 0 }, "nenhuma regiao discursiva fora da pagina 0")
+    }
+
     @Test
     fun `golden e um mapa valido`() {
         val map = LayoutEngine().layout(exam)
