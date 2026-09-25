@@ -100,7 +100,7 @@ class LayoutEngine(
 
         return LayoutMap(
             layoutEngineVersion = LayoutMap.ENGINE_VERSION,
-            minRendererVersion = LayoutMap.MIN_RENDERER_VERSION,
+            minRendererVersion = LayoutMap.minRendererVersionOf(pages),
             examId = exam.id,
             pageWidth = profile.pageWidth.raw,
             pageHeight = profile.pageHeight.raw,

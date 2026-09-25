@@ -99,7 +99,7 @@
     professor dimensiona a moldura".
 
   Reverter e rodar.
-- [ ] 3.3 Versão mínima de renderizador por mapa (decisão 4), numa função única ao lado das
+- [x] 3.3 Versão mínima de renderizador por mapa (decisão 4), numa função única ao lado das
   primitivas, usada pelo motor e pela folha de teste. Verificação: os cenários "Mapa com pauta exige
   o renderizador que desenha linha" e "Mapa sem linha continua exigindo a versão 1". **Ver falhar:**
   com a função devolvendo sempre 2, cai **só** o segundo. O `sha256` de `prova-referencia.layout.json`

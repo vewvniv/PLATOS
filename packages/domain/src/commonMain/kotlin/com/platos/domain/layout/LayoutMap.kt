@@ -274,8 +274,30 @@ data class LayoutMap(
         /** Versao do Layout Engine que produz este formato (D24). */
         const val ENGINE_VERSION = 1
 
-        /** Versao minima de renderizador capaz de desenhar este formato (D24). */
-        const val MIN_RENDERER_VERSION = 1
+        /** Versao minima de renderizador de um mapa sem linha: a de antes de `line` (D24). */
+        const val BASE_RENDERER_VERSION = 1
+
+        /**
+         * A versao de renderizador que desenha `line`, e a mais alta que o motor pode exigir hoje
+         * (D24). E o registro do dominio que `tools/parity/renderizador.mjs` compara com os dois
+         * renderizadores: quem acrescentar a proxima capacidade sobe os renderizadores, e a guarda
+         * reprova ate ler o registro novo (decisao 4 da `slice-5b-0-a-regiao-discursiva-compacta`).
+         */
+        const val LINE_RENDERER_VERSION = 2
+
+        /**
+         * A menor versao de renderizador capaz de desenhar todas as primitivas de [pages] (D24).
+         *
+         * Por mapa, e nao uma constante global: um mapa nao exige capacidade que nao usa, e a prova so
+         * objetiva continua saindo identica byte a byte (decisao 4). Motor e folha de teste chamam
+         * esta funcao, e a regra mora so aqui (P28).
+         */
+        fun minRendererVersionOf(pages: List<Page>): Int =
+            if (pages.any { page -> page.primitives.any { it is DrawLine } }) {
+                LINE_RENDERER_VERSION
+            } else {
+                BASE_RENDERER_VERSION
+            }
 
         /** Preto pleno na escala de tom e de trama: a permilagem cheia (D-2b.1). */
         const val TONE_FULL = 1000

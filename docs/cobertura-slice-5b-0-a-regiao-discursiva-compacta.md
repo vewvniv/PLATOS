@@ -226,3 +226,46 @@ A reversão de A foi observada na rodada de B (o teste da diagonal passou nela).
 `grep MUTACAO` em `packages/`, `apps/web/src`, `apps/android/src` e `tools/` deu `0`, e
 `./gradlew :packages:domain:allTests` rodou às 14:33Z: 1 de 386, 1 de 377 e 1 de 377, a golden da
 discursiva em cada alvo, como previsto.
+
+### 3.3 — a versão mínima de renderizador, por mapa
+
+`LayoutMap.MIN_RENDERER_VERSION` saiu. No lugar, ao lado das primitivas: `BASE_RENDERER_VERSION = 1`,
+`LINE_RENDERER_VERSION = 2` e `minRendererVersionOf(pages)`, a única função da regra, chamada pelo
+motor e pela folha de teste (decisão 4 e a atualização dela). Dois testes, em `RegiaoDiscursivaTest`:
+`mapa com pauta exige o renderizador que desenha linha` (a prova tem `line` e declara 2) e `mapa sem
+linha continua exigindo a versao 1` (a prova objetiva não tem `line` e declara 1).
+
+`./gradlew :packages:domain:allTests`, 14:35:01Z: só a golden da discursiva, vermelha desde a 3.2.
+
+**Visto falhar: a função devolvendo sempre 2.**
+
+- **Previsto na tarefa:** "cai só o segundo" dos dois cenários novos.
+- **Previsto corrigido, antes de rodar,** pela leitura dos testes que fixam a versão 1 na prova
+  objetiva. Caem também os pinos que já existiam: `LayoutEngineTest` › `mapa declara as duas versoes`,
+  `GoldenLayoutTest` › `mapa da fixture bate byte a byte com o golden`, `LayoutProfileTest` › `perfil
+  padrao produz exatamente o mapa de antes de o perfil existir`, `PacoteVersionadoTest` › `o pacote
+  versionado e o que a publicacao produz hoje` e `o pacote da turma e o que a publicacao produz hoje`,
+  `ExamPackageTest` › `o hash da fixture e o mesmo nos tres alvos` e `PrintTestSheetTest` › `folha de
+  teste bate byte a byte com a versionada`.
+- **Real:** 9 de 388 no `jvmTest`: a golden da discursiva, que já estava vermelha, e exatamente os
+  oito previstos. `mapa com pauta exige o renderizador que desenha linha` ficou verde.
+
+**O que isso significa.** A previsão da tarefa só olhava os dois cenários novos, e entre eles ela
+vale: só o segundo cai. Os outros sete são guardas independentes da mesma propriedade, e é a decisão 8
+vista pelo lado dos testes: a versão global em 2 muda os bytes da prova objetiva, e tudo o que fixa
+esses bytes reage.
+
+**A guarda da decisão 8 também pega.** Com a mutação na árvore, o `GoldenWriterTest` regravou os
+artefatos, e `prova-referencia.layout.json` foi copiado para o scratchpad: `sha256`
+`e1582b603452fa97154656fc364a640fc267b6600f7922b73ae1c19395205115`, 91.960 bytes, com
+`"min_renderer_version":2`, contra o `8c9756a9…` da 0.3. Os arquivos que o writer sobrescreveu em
+`fixtures/` voltaram ao `HEAD` com `git checkout -- fixtures/`, e os cinco `sha256` da 0.3 foram
+conferidos **iguais** logo depois.
+
+A mutação foi revertida, `grep MUTACAO` deu `0`, e a reversão foi rodada: `allTests` às 14:36Z, só a
+golden da discursiva em cada alvo (1 de 388, 1 de 379, 1 de 379).
+
+**A guarda da versão do renderizador, sobre esta árvore**, ainda lendo o registro antigo: `node
+tools/parity/renderizador.mjs` sai com `2` e nomeia o registro `dominio` — "zero declaracoes de
+\`MIN_RENDERER_VERSION\` — a constante mudou de forma ou saiu daqui". É o "ver falhar" da 4.3,
+observado aqui porque a constante saiu neste commit; a 4.3 a faz ler o registro novo.

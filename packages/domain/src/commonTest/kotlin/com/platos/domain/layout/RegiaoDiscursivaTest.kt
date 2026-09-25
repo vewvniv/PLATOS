@@ -441,6 +441,24 @@ class RegiaoDiscursivaTest {
         assertTrue(lugares.size > 1, "a discursiva caiu sempre no mesmo lugar: $lugares")
     }
 
+    // --- a versao minima de renderizador, por mapa (decisao 4) ---
+
+    /** Cenario "Mapa com pauta exige o renderizador que desenha linha". */
+    @Test
+    fun `mapa com pauta exige o renderizador que desenha linha`() {
+        val map = engine.layout(prova(objetiva("q1"), discursiva("q2")))
+        assertTrue(map.pages.any { page -> page.primitives.any { it is DrawLine } }, "o mapa nao tem linha")
+        assertEquals(2, map.minRendererVersion)
+    }
+
+    /** Cenario "Mapa sem linha continua exigindo a versao 1". */
+    @Test
+    fun `mapa sem linha continua exigindo a versao 1`() {
+        val map = engine.layout(prova(objetiva("q1"), objetiva("q2"), objetiva("q3")))
+        assertTrue(map.pages.none { page -> page.primitives.any { it is DrawLine } }, "a prova objetiva tem linha")
+        assertEquals(1, map.minRendererVersion)
+    }
+
     /** Cenario "Moldura maior que a coluna". */
     @Test
     fun `moldura maior que a coluna e recusada, nomeando a questao`() {
