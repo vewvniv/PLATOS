@@ -149,9 +149,14 @@ class LayoutMapRenderer(
                 imagePaint,
             )
 
-            is DrawLine -> throw UnknownPrimitiveException(
-                "primitiva `line` (${primitive.id}) ainda nao e desenhada por este renderizador; " +
-                    "nenhum documento parcial e entregue",
+            // Entre os dois pontos, com a espessura e o cinza do tom (ADR-0016). Sem inversao de Y,
+            // como o resto deste renderizador.
+            is DrawLine -> canvas.drawLine(
+                pt(primitive.x1),
+                pt(primitive.y1),
+                pt(primitive.x2),
+                pt(primitive.y2),
+                linePaint(primitive.stroke, primitive.tone),
             )
         }
     }
@@ -201,6 +206,20 @@ class LayoutMapRenderer(
         style = Paint.Style.STROKE
         strokeWidth = pt(strokeUm)
         color = android.graphics.Color.BLACK
+    }
+
+    /**
+     * Traco de linha: a espessura e o tom do mapa, e arremate reto.
+     *
+     * `Cap.BUTT` ja e o padrao do `Paint`, e fica escrito mesmo assim: com o redondo ou o quadrado, a
+     * pauta passaria meio traco de cada ponta, e a paridade mede a linha pela area que ela declara.
+     */
+    private fun linePaint(strokeUm: Int, tone: Int?) = Paint().apply {
+        isAntiAlias = true
+        style = Paint.Style.STROKE
+        strokeWidth = pt(strokeUm)
+        strokeCap = Paint.Cap.BUTT
+        color = grayOf(tone)
     }
 
     /**

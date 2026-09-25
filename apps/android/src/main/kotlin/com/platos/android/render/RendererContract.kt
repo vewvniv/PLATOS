@@ -21,8 +21,11 @@ class MissingResourceException(message: String) : IllegalStateException(message)
  */
 object RendererContract {
 
-    /** Versao deste renderizador (D24). Espelha `RENDERER_VERSION` do lado web. */
-    const val RENDERER_VERSION = 1
+    /**
+     * Versao deste renderizador (D24). Espelha `RENDERER_VERSION` do lado web. A 2 desenha `line`, a
+     * pauta cinza da discursiva (ADR-0016).
+     */
+    const val RENDERER_VERSION = 2
 
     /**
      * Recusa desenhar quando a versao exigida pelo mapa e maior que a deste renderizador.
