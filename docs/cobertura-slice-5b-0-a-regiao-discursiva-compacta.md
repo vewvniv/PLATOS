@@ -636,6 +636,26 @@ Vitest são os dois da 4.1. Nenhum teste de outro módulo foi acrescentado, e ne
 
 Recalculados pelo `crypto` do Node depois de cada regravação; os valores inteiros estão na 0.3.
 
+## 7.4 — o CI da PR #70, lido no destino
+
+A branch foi enviada com `125c67a` (o `git ls-remote` devolve o mesmo SHA do local), e a PR #70 foi
+aberta contra `main`. A execução `36166986577`, de `pull_request`, tem `headSha`
+`125c67a0d54943f102c9a8a5e5c6e71cd3b6be8c`, e foi lida pelo log baixado com `gh run view --log`:
+
+| Job | Janela | Passos | O que o log diz |
+|---|---|---|---|
+| `build` | 17:25:07Z–17:29:16Z | 13, nenhum vermelho, nenhum pulado | `buildSrc` com 6 de 6 executadas; o `build` com 179 de 183 executadas, e `jvmTest`, `jsNodeTest` e `testAndroidHostTest` do domínio entre elas |
+| `web` | 17:25:07Z–17:25:52Z | 35, nenhum vermelho, nenhum pulado | fidelidade da discursiva com 47 verificações; "os tres registros concordam: versao 2"; "a verificacao da versao do renderizador acusou cada registro forcado, e so os pares dele, como deve"; a dívida com "fatia corrente: 5b" e "nenhuma linha vencida: 21 linhas lidas"; e cada "continua capaz de falhar" acusando, como deve |
+| `paridade` | 17:25:55Z–17:30:21Z | 27, nenhum vermelho, nenhum pulado | `connectedDebugAndroidTest` com 88 de 88 tasks executadas e "Starting 84 tests"; paridade da discursiva com 24 elementos e `linhas comparadas: 12 | razao web 1.010 a 1.013, android 0.996 a 0.999 | maior divergencia 0.017 em r2-p5` — os mesmos números da medição local; "a paridade acusou a faixa ausente, como deve"; "as duas ferramentas acusaram o deslocamento, como devem" |
+
+**"Finished 87 tests" não é contagem de testes:** "Finished" soma os pulados, como a
+`cobertura-o-apk-de-release-e-verificado.md` já registrou. São 84 que começaram mais 3 pulados; no CI
+o probe do Supabase também é pulado, e aqui ele roda. O "Starting 84 tests" bate com os 84 locais.
+
+Os "PARIDADE FALHOU" e "FIDELIDADE FALHOU" que aparecem no fim do log da `paridade` são as falhas
+**esperadas** dos dois passos que provam que as ferramentas continuam capazes de falhar; os dois passos
+saíram verdes.
+
 ## A reconciliação do §16 para o archive (tarefa 7.5, preparada)
 
 `node tools/divida/divida.mjs`, `exit 0`, 21 linhas lidas, "fatia corrente: 5b". Para cada linha cujo

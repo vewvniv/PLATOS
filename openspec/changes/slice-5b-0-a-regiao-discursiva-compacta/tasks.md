@@ -263,10 +263,13 @@
 
   **Fechada no mesmo dia:** a impressão foi aprovada nos quatro critérios, e o resultado, a
   digitalização e o `sha256` dela estão na cobertura, seção 6.1.
-- [ ] 7.4 PR contra `main`, e o CI **lido no destino** (P2, P26).
+- [x] 7.4 PR contra `main`, e o CI **lido no destino** (P2, P26).
 
   **Aberta:** nada foi publicado. Abrir a PR é ação para fora do repositório local, e espera a
   palavra do mantenedor.
+
+  **Fechada no mesmo dia:** com a palavra do mantenedor, PR #70. A execução `36166986577`, sobre
+  `125c67a`, saiu verde nos três jobs, e foi lida pelo log (cobertura, seção 7.4).
 - [x] 7.5 Preparar a reconciliação do archive (P27):
   - nenhuma linha do §16 paga;
   - a linha nova da 1.1 em dia;
