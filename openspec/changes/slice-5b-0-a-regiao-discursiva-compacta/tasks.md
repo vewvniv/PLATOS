@@ -1,6 +1,6 @@
 ## 0. Antes do primeiro commit
 
-- [ ] 0.1 Medir a linha de base na árvore desta branch, que é a `main` com os ADR-0016 a ADR-0019:
+- [x] 0.1 Medir a linha de base na árvore desta branch, que é a `main` com os ADR-0016 a ADR-0019:
   - `./gradlew build --rerun-tasks`;
   - `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro, no `platos-atd34`;
   - `npx vitest run` em `apps/web`.
@@ -8,9 +8,9 @@
   Anotar em `docs/cobertura-slice-5b-0-a-regiao-discursiva-compacta.md` a contagem de testes por
   suíte, o `timestamp` de cada relatório e as tasks **executadas** (P2, P3). Verificação: os
   relatórios são desta sessão.
-- [ ] 0.2 Registrar a saída de `node tools/divida/divida.mjs`: "fatia corrente: 5b", e as quatro
+- [x] 0.2 Registrar a saída de `node tools/divida/divida.mjs`: "fatia corrente: 5b", e as quatro
   linhas sob "vence nesta fatia". Verificação: a saída na cobertura, com `exit 0`.
-- [ ] 0.3 **A âncora da guarda da decisão 8.** Anotar na cobertura o `sha256`, calculado pelo
+- [x] 0.3 **A âncora da guarda da decisão 8.** Anotar na cobertura o `sha256`, calculado pelo
   `crypto` do Node sobre os bytes (P4), destes arquivos:
   - `prova-referencia.layout.json`;
   - `prova-referencia.package.json`;
@@ -148,6 +148,18 @@
   - `LayoutMapRendererInstrumentedTest` gera `android-discursiva.pdf` sem exceção.
 
   O oráculo do desenho é a 5.3, e não este teste.
+- [ ] 4.3 **Acrescentada ao aplicar, com o motivo na decisão 4 (atualização de 2026-09-25).** A guarda
+  da versão do renderizador lê o registro novo do domínio:
+  - `tools/parity/renderizador.mjs` lê `LayoutMap.LINE_RENDERER_VERSION`, com rótulo e papel que dizem
+    "a versão mais alta que o motor pode exigir";
+  - o comentário do passo do CI acompanha.
+
+  Verificação: `node tools/parity/renderizador.mjs` sai `0` com os três registros em 2, e o passo "A
+  verificação da versão do renderizador continua capaz de falhar" roda localmente: cada `--divergir`
+  sai `1` e nomeia só os dois pares do registro forçado.
+
+  **Ver falhar:** sobre a árvore nova, com a guarda ainda lendo `MIN_RENDERER_VERSION`, ela sai `2` e
+  nomeia o registro `dominio`.
 
 ## 5. Fixtures, goldens, paridade e fidelidade — uma sessão só (P23)
 

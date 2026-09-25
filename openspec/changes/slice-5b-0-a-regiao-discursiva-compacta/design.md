@@ -134,6 +134,23 @@ Os dois renderizadores passam a `RENDERER_VERSION = 2`.
 - **A regra mora num lugar só**, junto das primitivas (P28). Motor e folha de teste chamam a mesma
   função.
 
+**Atualizado ao aplicar, em 2026-09-25, por decisão do mantenedor.** O texto acima não previu um
+consumidor da constante. `tools/parity/renderizador.mjs`, passo do CI desde a ETAPA 7.1, lê
+`LayoutMap.MIN_RENDERER_VERSION` como o registro do domínio e exige **igualdade** com os dois
+renderizadores. Sem a constante, a guarda sai com `2`; com ela em 1 e os renderizadores em 2, sai com
+`1`. *Conferido por leitura* (`renderizador.mjs`, a lista `REGISTROS`); nenhuma tarefa a cobria, e o
+CI da 7.4 ficaria vermelho.
+- **O registro do domínio passa a ser a versão mais alta que o motor pode exigir:**
+  `LayoutMap.LINE_RENDERER_VERSION = 2`, literal, ao lado de `BASE_RENDERER_VERSION = 1`. A função por
+  mapa escolhe entre as duas, e continua sendo o único lugar da regra.
+- **A igualdade continua sendo a propriedade certa.** O que o motor pode exigir no máximo é o que cada
+  renderizador desenha. Um renderizador que suba sozinho continua reprovando, que é a direção
+  silenciosa que a guarda existe para pegar.
+- **`renderizador.mjs` passa a ler `LINE_RENDERER_VERSION`.** Quem acrescentar a próxima capacidade
+  sobe os renderizadores, e a guarda reprova até ler o registro novo: em voz alta, e não em silêncio.
+- **A razão original desta decisão continua certa.** Muda o nome do registro que a guarda lê, e não a
+  regra por mapa. Tarefa 4.3.
+
 ### 5. O tom e a espessura da pauta: provisórios agora, decididos no papel
 
 **Valor provisório:** tom 300‰, traço 0,2 mm. É o que a prévia de 2026-09-25 usou e o mantenedor
