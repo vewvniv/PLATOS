@@ -79,7 +79,7 @@
     {
       "id": "d2",
       "kind": "essay",
-      "answer_lines": 7,
+      "answer_lines": 9,
       "answer_width": "column",
       "statement": "Um terreno retangular tem 20 m de perimetro. Desenhe dois retangulos possiveis, pinte o de maior area e explique como voce comparou as areas.",
       "skills": [{ "code": "EF07MA32", "coverage": "direct" }],

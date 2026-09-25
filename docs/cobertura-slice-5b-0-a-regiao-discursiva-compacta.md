@@ -399,3 +399,44 @@ Os cinco `sha256` da 0.3 continuam iguais. A fixture nova tem regiões com marca
 (`snap(30,8 + 7n)`, com n = 5 e 7). Na mesma rodada, o `GoldenLayoutTest` da discursiva continua
 vermelho, porque compara contra a golden **embutida na compilação**, que ainda é a velha; ele só
 passa a comparar com a nova na rodada seguinte.
+
+**5.2, primeira regravação (14:46:17Z), com `d1` a 5 linhas e `d2` a 7.** Real ao lado do previsto:
+
+| Previsto | Real |
+|---|---|
+| mudam só os três arquivos da discursiva | `git status --short fixtures/`: exatamente esses três |
+| os cinco `sha256` da 0.3 iguais | iguais os cinco |
+| marcadores `[0,1,2,3]`, `[4,7]` e `[8,11]` | esses |
+| `min_renderer_version` 2 | 2, no mapa, no pacote (`meta`) e na folha de `tok-a` |
+| região de `d1` com 66 mm e de `d2` com 81 mm | 66.000 e 81.000 µm de `quad_height` |
+| (5.5) a região de `d2` fora da página 0 | **não: o mapa tem uma página só.** A região de `d2` está na página 0, coluna 2 (`m8` em 108.000, 191.000) |
+
+**A divergência parou a seção 5 (decisão 10).** Não é defeito do motor: é o ganho da região compacta.
+O bloco de `d2` começa a 174 mm na coluna 2 e mede 17 + 81 + 6 = 104 mm, e sobram 108 até a margem;
+na 5a a região tinha 4 marcadores de 14 mm e não cabia. O que se perdia com isso:
+- a guarda de vacuidade do `GoldenLayoutTest` ("nenhuma regiao discursiva fora da pagina 0"), que
+  cairia;
+- a única testemunha da fidelidade dos marcadores depois da página 0, que a 5a pôs no CI ("a regiao
+  de `d2` cai na pagina 1, e e ela que exige a fidelidade de todas as paginas"). A prova de referência
+  só tem marcadores na página 0.
+
+**O mantenedor decidiu: `d2` passa a 9 linhas**, e a rubrica dela continua somando 7. O bloco passa a
+17 + 96 + 6 = 119 mm, não cabe nos 108, e volta à página 1, com 11 mm de folga. O custo, aceito: a
+diferença de geometria de `d2` deixa de vir só do motor. O ganho: o golden passa a provar também que
+a rubrica não dimensiona a moldura. A 5.1 e a 5.2 foram atualizadas com isso, sem apagar o plano de
+antes.
+
+**5.2, segunda regravação (15:04:41Z), com `d2` a 9 linhas.**
+- `git status --short fixtures/`: os três da discursiva e a definição (`prova-discursiva.json`, a
+  linha de `d2`), e nada mais;
+- os cinco `sha256` da 0.3: iguais;
+- a fixture nova, lida: duas páginas; regiões com marcadores `[0,1,2,3]`, `[4,7]` e `[8,11]`; a de
+  `d1` na página 0 com 66 mm, a de `d2` na **página 1** com 96 mm; `min_renderer_version` 2 no mapa,
+  no `meta` do pacote e na folha de `tok-a`; doze linhas de pauta, todas a 300‰ com 0,2 mm, quatro na
+  página 0 e oito na 1, e nenhum `rect` de pauta.
+
+`./gradlew :packages:domain:allTests`, 15:05:02Z, `exit 0`, **agora sem vermelho**: `jvmTest` 393,
+`jsNodeTest` 384, `testAndroidHostTest` 384, 0 falhas, `timestamp` de 15:05:09Z a 15:05:17Z. A golden
+da discursiva bate byte a byte nos três alvos, e a guarda de vacuidade dele volta a achar a região de
+`d2` fora da página 0. `npx vitest run` no web, 18 de 18, 15:05:51Z: o espelho TypeScript da folha do
+aluno bate com a de `tok-a` regravada.

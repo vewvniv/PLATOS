@@ -172,6 +172,15 @@
   `GoldenLayoutTest` da discursiva e o `ExamPublicationTest` da API, que leem esta definição, cairiam
   no commit da 3.1. Como o motor ainda lia Σ `expected_lines` até a 3.2, declarar 5 e 7 ali não mudou
   golden nenhum. A verificação desta tarefa continua sendo feita aqui.
+
+  **Atualizado ao aplicar, em 2026-09-25, por decisão do mantenedor: `d2` passa a 9 linhas.** Com 5 e
+  7, a regravação da 5.2 saiu com uma página só: a região compacta de `d2` coube na coluna 2 da
+  página 0. Com isso sumiam a guarda de vacuidade do `GoldenLayoutTest` (região discursiva fora da
+  página 0) e a única testemunha da fidelidade dos marcadores depois da página 0. Com 9 linhas, o
+  bloco de `d2` (17 + 96 + 6 mm) não cabe nos 108 mm que sobram, e volta à página 1. A rubrica de
+  `d2` continua somando 7, e o golden passa a provar também que ela não dimensiona a moldura. O custo
+  é que a diferença de geometria de `d2` deixa de vir só do motor, e isso está escrito aqui e na
+  cobertura. O texto acima fica como o plano de antes.
 - [ ] 5.2 Rodar o `GoldenWriterTest` com `-Dplatos.golden.write=true`.
 
   **Previsto antes de rodar**, anotado na cobertura: mudam **só** estes três arquivos:
@@ -186,6 +195,9 @@
     - regiões com marcadores `[0,1,2,3]`, `[4,7]` e `[8,11]`;
     - `min_renderer_version` 2;
     - região de `d1` com 66 mm e de `d2` com 81 mm, pela fórmula da decisão 1.
+
+    **Atualizado ao aplicar:** com `d2` a 9 linhas (5.1), a região dela passa a 96 mm, e a fixture
+    volta a ter duas páginas, com `d2` na página 1.
 
   Se sobrar arquivo fora da lista, **pare** (P13).
 - [ ] 5.3 `compare.mjs` mede a linha pela tinta esperada (decisão 7), com as tolerâncias de traço que
