@@ -140,8 +140,8 @@ export interface LayoutMap {
   regions: ScannableRegion[];
 }
 
-/** Versao deste renderizador (D24). */
-export const RENDERER_VERSION = 1;
+/** Versao deste renderizador (D24). A 2 desenha `line`, a pauta cinza da discursiva (ADR-0016). */
+export const RENDERER_VERSION = 2;
 
 export class RendererVersionError extends Error {}
 

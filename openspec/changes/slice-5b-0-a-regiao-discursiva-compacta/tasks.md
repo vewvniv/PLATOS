@@ -130,7 +130,7 @@
 
 ## 4. Os renderizadores
 
-- [ ] 4.1 Web: `renderer.ts` desenha `line` entre os dois pontos, com a espessura, o cinza do tom e
+- [x] 4.1 Web: `renderer.ts` desenha `line` entre os dois pontos, com a espessura, o cinza do tom e
   sem arremate, e `RENDERER_VERSION = 2`.
 
   Verificação: um teste do Vitest desenha um mapa com uma linha cinza e uma sem tom, e confere no

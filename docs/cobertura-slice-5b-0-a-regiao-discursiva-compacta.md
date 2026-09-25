@@ -326,3 +326,34 @@ contagem:
 
 M2 revertida, `grep MUTACAO` deu `0`, e a reversão foi rodada: `allTests` às 14:41Z, só a golden da
 discursiva em cada alvo (1 de 393, 1 de 384, 1 de 384).
+
+## 4. Os renderizadores
+
+### 4.1 — o web
+
+`renderer.ts` desenha `line` com `drawLine` do `pdf-lib`, entre os dois pontos, com a espessura e o
+cinza do tom, e `RENDERER_VERSION = 2`. **O arremate reto não é um operador escrito:**
+`LineCapStyle.Butt` vale `0`, o `pdf-lib` só emite o operador de arremate quando ele é verdadeiro, e
+o estado inicial do PDF já é o reto. Conferido lendo `operations.js` do `pdf-lib` e o fluxo gerado,
+que é `q / 0.7 0.7 0.7 RG / 0.5669… w / [] 0 d / … m / … l / S / Q`, sem `J`.
+
+Dois testes novos no Vitest, e o ajudante `contentOps` passou a recolher também os fluxos que só têm
+cor de traço (`RG`), que é o caso de uma página só com linhas:
+- `desenha a linha entre os dois pontos, com o traco e o tom declarados, sem arremate`: uma linha a
+  300‰ e uma sem tom; o fluxo tem `0.7 0.7 0.7 RG` e `0 0 0 RG`, as duas larguras iguais a
+  `umToPt(200)`, os pontos declarados com o eixo invertido, dois `S`, e nenhum `1 J` nem `2 J`;
+- `recusa o mapa que exige a versao seguinte a esta, e desenha o que exige esta`: um mapa que exige 3
+  é recusado com `RendererVersionError`, e um que exige 2 é desenhado.
+
+`npx tsc --noEmit` limpo; `npx vitest run`, 18 de 18, "Start at 16:43:26" (14:43:26Z).
+
+**Visto falhar**, mesmo sem a tarefa pedir (P9): com o ramo `line` desenhando sempre em preto, cai
+**só** o teste do desenho da linha, 1 de 18: "expected 'q\n0 0 0 RG\n0.5669291338582677 w\n[]…' to
+match /0\.7 0\.7 0\.7 RG/". Revertido, `grep -c MUTACAO` `0`, e rodado: 18 de 18, 14:43:42Z.
+
+**O cenário "Renderizador anterior recusa mapa com linha" fica coberto por composição, e não por um
+teste próprio** (P16). Ele se apoia em duas coisas: o motor declara 2 para mapa com linha (3.3, visto
+falhar), e a guarda de versão de cada renderizador recusa mapa acima da própria versão (os testes que
+já existiam, `recusa imprimir quando o mapa exige renderizador mais novo` no web e o de
+`RendererContractTest` no Android). Nenhum renderizador na versão 1 existe fora do repositório para
+ser testado.
