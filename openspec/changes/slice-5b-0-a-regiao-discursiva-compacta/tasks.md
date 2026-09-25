@@ -140,7 +140,7 @@
   cobertura diz isso (P16):
   - o motor declara 2 para mapa com linha (3.3);
   - a guarda de versão recusa mapa acima da própria versão (teste existente).
-- [ ] 4.2 Android: `LayoutMapRenderer` desenha `DrawLine` com `Paint` de traço, cinza do tom e
+- [x] 4.2 Android: `LayoutMapRenderer` desenha `DrawLine` com `Paint` de traço, cinza do tom e
   `Cap.BUTT`, e `RendererContract.RENDERER_VERSION = 2`.
 
   Verificação:
@@ -163,7 +163,7 @@
 
 ## 5. Fixtures, goldens, paridade e fidelidade — uma sessão só (P23)
 
-- [ ] 5.1 `fixtures/prova-discursiva.json`: `d1` com `answer_lines: 5` e `d2` com `answer_lines: 7`,
+- [x] 5.1 `fixtures/prova-discursiva.json`: `d1` com `answer_lines: 5` e `d2` com `answer_lines: 7`,
   as mesmas somas de `expected_lines` de hoje, e as duas com `answer_width: column`. A diferença de
   geometria sai só desta mudança. Verificação: a definição passa em `requireSupported`, e o motor
   produz três regiões.
@@ -181,7 +181,7 @@
   `d2` continua somando 7, e o golden passa a provar também que ela não dimensiona a moldura. O custo
   é que a diferença de geometria de `d2` deixa de vir só do motor, e isso está escrito aqui e na
   cobertura. O texto acima fica como o plano de antes.
-- [ ] 5.2 Rodar o `GoldenWriterTest` com `-Dplatos.golden.write=true`.
+- [x] 5.2 Rodar o `GoldenWriterTest` com `-Dplatos.golden.write=true`.
 
   **Previsto antes de rodar**, anotado na cobertura: mudam **só** estes três arquivos:
   - `prova-discursiva.layout.json`;
@@ -200,7 +200,7 @@
     volta a ter duas páginas, com `d2` na página 1.
 
   Se sobrar arquivo fora da lista, **pare** (P13).
-- [ ] 5.3 `compare.mjs` mede a linha pela tinta esperada (decisão 7), com as tolerâncias de traço que
+- [x] 5.3 `compare.mjs` mede a linha pela tinta esperada (decisão 7), com as tolerâncias de traço que
   já existem, e recusa linha inclinada com erro. **Ver falhar**, cada mutação sozinha:
   - o web não desenha `line`: a paridade da discursiva reprova e nomeia as linhas da pauta;
   - o Android desenha `line` em preto, ignorando o tom: reprova com razão perto de 3,3;
@@ -208,7 +208,7 @@
     verde.
 
   Reverter e rodar.
-- [ ] 5.4 **Na mesma sessão da 5.2:**
+- [x] 5.4 **Na mesma sessão da 5.2:**
   - gerar os PDFs web e Android: `web.pdf`, `teste-web.pdf`, `discursiva-web.pdf`, e no
     `platos-atd34` `android.pdf`, `android-teste.pdf` e `android-discursiva.pdf`;
   - rodar localmente cada passo de fidelidade, paridade e tinta que o `ci.yml` roda, para as três
@@ -218,7 +218,7 @@
   fidelidade **reprova** e o nomeia.
 
   Verificação: tudo verde, e só o deslocado vermelho. As saídas vão na cobertura, com horário.
-- [ ] 5.5 Determinismo nos três alvos. `GoldenLayoutTest` bate byte a byte com a golden nova, e a
+- [x] 5.5 Determinismo nos três alvos. `GoldenLayoutTest` bate byte a byte com a golden nova, e a
   guarda de vacuidade dele confere três regiões e a de `d2` fora da página 0. Verificação:
   `./gradlew :packages:domain:allTests --rerun`, com contagem e `timestamp` por alvo.
 

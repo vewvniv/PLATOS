@@ -440,3 +440,75 @@ antes.
 da discursiva bate byte a byte nos três alvos, e a guarda de vacuidade dele volta a achar a região de
 `d2` fora da página 0. `npx vitest run` no web, 18 de 18, 15:05:51Z: o espelho TypeScript da folha do
 aluno bate com a de `tok-a` regravada.
+
+### 5.3 — a paridade mede a linha pela tinta esperada
+
+`compare.mjs` ganha `lineTargetsOf`, `expectedLineInkUm2` e `lineInkIn`. A faixa de medição vai
+`stroke/2 + STROKE_SLACK_UM` para cada lado da linha e a mesma folga além de cada ponta; a tinta
+esperada é `comprimento × stroke × tom/1000`, com tom nulo contando 1000. Presença e concordância usam
+`STROKE_PRESENCE_MIN` (0,5), `STROKE_PRESENCE_MAX` (1,5) e `STROKE_TOLERANCE` (0,10), os três da 5a:
+**nenhum número novo foi escolhido** (P11). A linha inclinada é recusada **antes** de rasterizar, com
+saída `2` e a linha nomeada. `strokeTargetsOf` ficou como estava, para a moldura.
+
+**Medido, sobre os PDFs desta sessão** (web às 15:07Z, Android às 15:07:27Z):
+`linhas comparadas: 12 | razao web 1.010 a 1.013, android 0.996 a 0.999 | maior divergencia 0.017 em
+r2-p5 | tolerancia 0.1`. A moldura continua medida como traço: `razao web 0.999 a 1.001, android 0.999
+a 1.002`.
+
+**Visto falhar, cada mutação sozinha:**
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| (a) o web não desenha `line` (`return` no ramo, `// MUTACAO`), PDF em `discursiva-web-sem-linha.pdf` | a paridade da discursiva reprova e nomeia as linhas da pauta | `exit 1`, 24 problemas e **só de linha**: para cada uma das 12, "linha r…-p… no web: tinta 0.000 da esperada (presenca exige 0.5 a 1.5)" e a divergência contra o Android (0,996 a 0,999). Marcadores, bolhas e moldura sem problema |
+| (b) o Android desenha `line` em preto (`color = grayOf(null)`), suíte instrumentada inteira às 15:10:45Z, PDF em `android-discursiva-preta.pdf` | reprova com razão perto de 3,3 | `exit 1`, só linhas: "linha r1-p1 no android: tinta 3.345 da esperada", faixa 3,340 a 3,345; a aritmética dava 1/0,3 ≈ 3,33 |
+| (c) um mapa de teste, no scratchpad, com `r1-p2` inclinada 1 mm | a ferramenta sai com erro que a nomeia, e não com verde | `exit 2`: "::error::linha inclinada r1-p2 (pagina 0): de 109000,146000 a 194000,147000: a paridade so mede linha alinhada aos eixos, e nao a ignora" |
+
+**As reversões foram rodadas.** (a): o `renderer.ts` voltou ao `HEAD` (`git diff` vazio), o
+`discursiva-web.pdf` foi regerado e a paridade saiu "paridade OK". (b): o `LayoutMapRenderer.kt`
+voltou ao `HEAD`, a suíte instrumentada inteira rodou de novo às 15:11:53Z (84 testes, 0 falhas, 2
+pulados, `timestamp` 15:12:43Z), os três PDFs do Android foram recolhidos de novo —
+`android-discursiva.pdf` com os mesmos 126.922 bytes da primeira execução boa, contra 126.898 do
+mutado — e o job de paridade inteiro saiu verde de novo.
+
+### 5.4 — os PDFs e os passos do CI, na mesma sessão da 5.2
+
+- **Web**, gerados às 15:07:05Z pelos scripts do CI: `web.pdf`, `teste-web.pdf`,
+  `discursiva-web.pdf` (2 páginas), os de tinta (`render-inked.ts`) e `shifted.pdf`.
+- **Android**, `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro, no `platos-atd34`,
+  15:07:05Z–15:08:04Z, `exit 0`: 84 testes, 0 falhas, 2 pulados, `timestamp` 15:08:02Z. Os três PDFs
+  foram recolhidos de `connected_android_test_additional_output`, com data de 15:07:27Z. Os
+  `android*.pdf` que estavam em `build/parity/` eram de 24/09, e **não** foram usados (P3).
+- **Os passos do job `web`**, num roteiro local que copia os do `ci.yml` (`ci-web.sh`, no scratchpad),
+  15:08:08Z–15:08:54Z: os **20 passos verdes**, inclusive fidelidade e tinta da discursiva, e cada
+  "continua capaz de falhar" (tinta, limiar, `answer_kind`, fio, versão do renderizador, dívida) e as
+  fixtures da digitalização.
+- **Os passos do job `paridade`** (`ci-paridade.sh`), 15:09:22Z–15:09:28Z: os **9 verdes**. Fidelidade
+  da discursiva no Android, 47 verificações, maior desvio 0,018 mm; paridade da discursiva com 24
+  elementos, maior divergência 0,047 mm, e as 12 linhas medidas; a trama ausente e o deslocamento da
+  prova de referência acusados como devem. Depois da reversão de (b), o job inteiro rodou de novo, e
+  saiu verde de novo.
+
+**Deslocamento deliberado:** o marcador 8 (`r2-m8`, região de `d2`, **página 1**) deslocado 0,5 mm
+para baixo no PDF web da discursiva, por um script no scratchpad que desenha pelo mesmo renderizador e
+pelo mesmo pacote. A fidelidade reprovou com **um** problema: "marcador 8 (pagina 1): borda superior:
+observado 104.542 mm, declarado 104.000 mm (desvio 0.542)". A paridade contra o Android também: "aruco
+r2-m8 divergiu 0.533 mm (tolerancia 0.3 mm)".
+
+**Isto também fecha a parte instrumentada da 4.2**: o `LayoutMapRendererInstrumentedTest` gerou o
+`android-discursiva.pdf` a partir do pacote regravado, com as doze linhas, sem exceção, e a paridade
+o julgou.
+
+### 5.5 — determinismo nos três alvos
+
+A guarda de vacuidade do `GoldenLayoutTest` foi apertada: passa a exigir a região **de `d2`** fora da
+página 0, e não qualquer discursiva. `./gradlew :packages:domain:allTests --rerun-tasks`, 15:13:14Z,
+**37 de 37 tasks executadas**, `exit 0`: `jsNodeTest` 384, `jvmTest` 393, `testAndroidHostTest` 384, 0
+falhas, `timestamp` de 15:13:31Z a 15:13:41Z. O teste "mapa da prova com discursiva bate byte a byte com
+o golden" passou nos três.
+
+**A guarda apertada, vista falhar.** Ela só é alcançada se o byte a byte passar, então a mutação foi a
+condição inteira: `d2` de volta a 7 linhas na definição, goldens regravadas, e o `jvmTest` caiu **1 de
+393**, com "a regiao de d2 caiu na pagina 0". Revertido: `d2` a 9, regravado, `git status --short
+fixtures/` **vazio** — os artefatos voltaram byte a byte aos do `HEAD` —, e o `jvmTest` passou, 393 de
+393, às 15:14:49Z. Os outros dois alvos saíram `UP-TO-DATE` nessa última rodada, com entradas idênticas
+às da execução `--rerun-tasks` das 15:13:14Z, que é a que vale como evidência.
