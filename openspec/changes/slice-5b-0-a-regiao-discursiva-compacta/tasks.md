@@ -242,9 +242,9 @@
 
 ## 7. Fechamento
 
-- [ ] 7.1 `grep -rn "MUTACAO"` fora de `build/` e de `node_modules/` dá `0`, e toda reversão foi
+- [x] 7.1 `grep -rn "MUTACAO"` fora de `build/` e de `node_modules/` dá `0`, e toda reversão foi
   rodada (P10).
-- [ ] 7.2 Comando cheio local, com contagens e `timestamp` comparados com a 0.1 (P2, P3, P5):
+- [x] 7.2 Comando cheio local, com contagens e `timestamp` comparados com a 0.1 (P2, P3, P5):
   - `./gradlew build --rerun-tasks` e `connectedDebugAndroidTest`, sem filtro;
   - `vitest` e o `build` do web;
   - as guardas Node.
@@ -256,8 +256,15 @@
     - a detecção do marcador de 11,2 mm;
     - a leitura da região de dois ArUcos no aparelho;
     - a pauta numa impressora que não seja a do mantenedor.
+
+  **Aberta em 2026-09-25, 15:2xZ.** A cobertura já tem cada "visto falhar", os `sha256` antes e depois,
+  o comando cheio e a seção "o que ainda não foi verificado". **Falta a impressão da 6.1**, que é do
+  mantenedor: a folha de `tok-a` está gerada em `build/parity/discursiva-aluno-web.pdf`, 15:15:49Z.
 - [ ] 7.4 PR contra `main`, e o CI **lido no destino** (P2, P26).
-- [ ] 7.5 Preparar a reconciliação do archive (P27):
+
+  **Aberta:** nada foi publicado. Abrir a PR é ação para fora do repositório local, e espera a
+  palavra do mantenedor.
+- [x] 7.5 Preparar a reconciliação do archive (P27):
   - nenhuma linha do §16 paga;
   - a linha nova da 1.1 em dia;
   - a linha `5b` da região discursiva continua devida pela 5b-1;

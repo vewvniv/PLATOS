@@ -512,3 +512,100 @@ condição inteira: `d2` de volta a 7 linhas na definição, goldens regravadas,
 fixtures/` **vazio** — os artefatos voltaram byte a byte aos do `HEAD` —, e o `jvmTest` passou, 393 de
 393, às 15:14:49Z. Os outros dois alvos saíram `UP-TO-DATE` nessa última rodada, com entradas idênticas
 às da execução `--rerun-tasks` das 15:13:14Z, que é a que vale como evidência.
+
+## 6. O papel (decisão 5) — pendente, tarefa do mantenedor
+
+A folha de `tok-a` foi gerada nesta sessão, às 15:15:49Z, pelo renderizador web a partir do pacote
+regravado: `build/parity/discursiva-aluno-web.pdf`, 211.852 bytes, 2 páginas. Antes de ser entregue,
+ela passou pela fidelidade e pela tinta contra `prova-discursiva.aluno.layout.json` ("fidelidade OK",
+"tinta OK"). A que estava no lugar era de 25/09, 01:04, da geometria velha.
+
+**A impressão não foi feita, e a tarefa 6.1 está desmarcada.** Os critérios são os da decisão 5,
+escritos antes da impressão: pauta contínua, mais clara que a moldura e que o texto, e guiando três
+linhas escritas à mão; marcadores completos, com a borda fechada e a zona de silêncio livre. Até o
+resultado entrar aqui, o tom de 300‰ e o traço de 0,2 mm são **provisórios**, como a decisão 5 diz.
+
+Uma nota para quem imprime: a página 1 sai com um vão grande, porque o paginador de hoje leva as
+questões 4 e 5 inteiras para a página 2. Isso é da paginação, que o ADR-0019 muda numa mudança
+própria, e não é critério desta impressão.
+
+## O que ainda não foi verificado
+
+- **A impressão da 6.1**, acima: nem a pauta cinza nem o marcador de 11,2 mm passaram pelo papel. O
+  tom e o traço da pauta continuam provisórios até ela.
+- **A detecção do marcador de 11,2 mm em foto.** É da 4.1 retomada da `slice-5b-1`, com regra de
+  parada: se as fotos não o detectarem, o marcador volta a 14 mm. **Não é mitigado, é conhecido** (P8).
+- **A leitura da região de dois ArUcos no aparelho.** O `RegionDetector` da `main` não foi tocado, e o
+  da 5b-1 exige quatro marcadores. Na `main`, o aparelho continua caindo diante de prova com
+  discursiva — a linha `5b` do §16, que esta mudança não paga.
+- **O canto inferior esquerdo sem âncora** (ADR-0018, decisão 4) e a folga do recorte que o cobre:
+  geometria declarada aqui, e medida só com fotos em ângulo, na 5b-1.
+- **A pauta numa impressora que não seja a do mantenedor.** O instrumento para isso é a folha de
+  teste, e ela ainda não tem pauta nem marcador de 11,2 mm: é a linha nova do §16 (1.1).
+- **O cenário "Renderizador anterior recusa mapa com linha"** está coberto por composição, e não por
+  um teste próprio (4.1).
+- **O CI** ainda não rodou sobre estes commits: o comando cheio desta sessão é local (7.2), e o CI é
+  lido no destino na 7.4.
+
+## 7. Fechamento local
+
+**7.1 — nenhuma mutação na árvore.** `grep -rn "MUTACAO"` fora de `build/` e de `node_modules/`,
+restrito a arquivos de código e configuração (`.kt`, `.kts`, `.ts`, `.tsx`, `.mjs`, `.js`,
+`.yml`, `.sql`, `.json`), deu **0**. Sem o recorte, a busca acha 160 linhas, **todas** em `.md` de
+`docs/` e `openspec/` — os documentos que descrevem mutações, este inclusive. Toda reversão desta
+mudança foi rodada, e cada uma está anotada na seção dela.
+
+**7.2 — o comando cheio, depois de todas as reversões**, comparado com a 0.1:
+
+| Comando | 0.1 | 7.2 |
+|---|---|---|
+| `./gradlew build --rerun-tasks` | 183 de 183 executadas, 14:10:11Z–14:14:01Z | **183 de 183 executadas**, 15:16:52Z–15:19:44Z, `exit 0` |
+| `./gradlew -p buildSrc test --rerun-tasks` | 1 teste, 14:14:23Z | 6 de 6 executadas, 1 teste, `timestamp` 15:20:09Z |
+| `connectedDebugAndroidTest`, sem filtro, `platos-atd34` | 84 (2 pulados), 14:15:28Z | **84** (2 pulados), 0 falhas, `timestamp` 15:21:14Z; 2 tasks executadas e 86 `UP-TO-DATE`, porque a compilação acabara de rodar no `build` |
+| `npx vitest run` em `apps/web` | 16 | **18**, 15:17:01Z |
+| `npm run build` em `apps/web` | — | `exit 0` |
+| as guardas Node do job `web` (`ci-web.sh`) | — | os 20 passos verdes, até 15:19:04Z |
+
+Os relatórios do `build`, pelo `timestamp` de cada XML, todos depois de 15:16:52Z:
+
+| Task | 0.1 | 7.2 | Diferença |
+|---|---|---|---|
+| `apps/android` `testDebugUnitTest` | 312 | 312 | 0 |
+| `apps/android` `testReleaseUnitTest` | 312 | 312 | 0 |
+| `apps/api` `test` | 168 | 168 | 0 |
+| `packages/domain` `jsNodeTest` | 366 | 384 | +18 |
+| `packages/domain` `jvmTest` | 375 | 393 | +18 |
+| `packages/domain` `testAndroidHostTest` | 366 | 384 | +18 |
+| `buildSrc` `test` | 1 | 1 | 0 |
+| `connectedDebugAndroidTest` | 84 | 84 | 0 |
+
+A soma passa de 1984 a 2038. **Os +18 por alvo do domínio batem com o que foi escrito:** 4 da 3.1, 7
+líquidos da 3.2 (8 novos, e o da 5a que saiu com o cenário removido), 2 da 3.3 e 5 da 3.4. Os +2 do
+Vitest são os dois da 4.1. Nenhum teste de outro módulo foi acrescentado, e nenhum caiu.
+
+**Os `sha256` da decisão 8, antes e depois:**
+
+| Arquivo | 0.3 (`7478e82`) | Depois da regravação (`d755c96`) |
+|---|---|---|
+| `prova-referencia.layout.json` | `8c9756a9…` | `8c9756a9…`, igual |
+| `prova-referencia.package.json` | `ff2b94ef…` | `ff2b94ef…`, igual |
+| `prova-referencia.turma.package.json` | `7282a186…` | `7282a186…`, igual |
+| `prova-2.package.json` | `c2098e10…` | `c2098e10…`, igual |
+| `folha-de-teste.layout.json` | `d9f7b08c…` | `d9f7b08c…`, igual |
+
+Recalculados pelo `crypto` do Node depois de cada regravação; os valores inteiros estão na 0.3.
+
+## A reconciliação do §16 para o archive (tarefa 7.5, preparada)
+
+`node tools/divida/divida.mjs`, `exit 0`, 21 linhas lidas, "fatia corrente: 5b". Para cada linha cujo
+prazo ou gatilho esta mudança alcançou:
+
+| Linha | Situação no archive |
+|---|---|
+| A região discursiva ainda não passou pelo aparelho nem pelo papel (`5b`) | **não paga**, e continua devida pela 5b-1 retomada. Esta mudança produz a geometria que a 4.1 dela fotografa |
+| A folha de teste de impressão não aprova a região discursiva que a prova imprime (`5b`) | **nova**, entrou pela 1.1, `em dia`. O veículo é uma mudança posterior ao filtro de marcadores por região |
+| Acurácia em manuscrito; Modo degradado (§10) não existe; O limiar do OMR foi apurado sobre um aparelho e uma impressora (`5`) | **não pagas**, e em dia até a 6 abrir |
+| `antes-de:migration-da-5-em-producao` e `antes-de:implantar-api-da-5a` | **não alcançados**: nenhuma migration, e nenhuma imagem implantada |
+
+Nenhuma linha do §16 é paga por esta mudança. Depois do archive, a próxima ação é o `/opsx:update` da
+5b-1, para a região de dois ArUcos, e ela não é tarefa desta mudança.
