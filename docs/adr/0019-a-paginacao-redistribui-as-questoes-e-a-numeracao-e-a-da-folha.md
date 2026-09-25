@@ -25,18 +25,39 @@ nenhuma questão posterior pode preencher. Na prévia desenhada pelo renderizado
 A prévia usa um paginador simplificado, e não esta DP. Mas o buraco não depende do paginador: com a
 ordem preservada, tudo o que vem depois da questão 10 tem de ficar depois dela.
 
+**A ordem impressa nunca foi a ordem da definição.** O pacote guarda, por variante, o "mapa
+posição física → `item_id`" (§5), e a fatia 7 entrega a randomização (§15). O mantenedor lembrou
+que a randomização da ordem de questões e de alternativas é escolha do professor. *O §5 e o §15
+foram conferidos por leitura.* O que é novo aqui é só o motivo de mover: evitar branco.
+
 A decisão do mantenedor, na mesma data: "O sistema tem que redistribuir as questões para evitar o
-espaçamento em branco".
+espaçamento em branco". E o critério, nas palavras dele: "não deve haver espaço em branco se, nesse
+espaço, for possível acomodar de maneira IDEAL questões, não é pra acomodar de maneira forçada, mas
+sim de maneira que o fluxo não fique" desorganizado.
 
 ## Decisão
 
-1. **A paginação pode tirar uma questão da ordem em que o professor a pôs, para não deixar branco.**
-   - O objetivo continua o do §7: `Σ(sobra)² + penalidades`, e com ele menos páginas vêm primeiro.
-   - **Tirar uma questão da ordem do professor passa a ser uma das penalidades.** A ordem dele é
-     mantida, a menos que sair dela elimine branco que valha mais que a penalidade.
-   - O valor da penalidade é calibrado na mudança que implementa, contra dois exemplos:
-     - **tem de mudar:** a prévia com 124 mm em branco;
+1. **Não sobra, no meio da prova, espaço onde uma questão caberia de maneira ideal.**
+   - **"Ideal"** é a questão inteira, com a geometria e o espaçamento que ela teria em qualquer outro
+     ponto da folha, no fluxo normal de leitura.
+   - **Encaixe forçado é proibido.** Nada é comprimido, encolhido ou partido para caber: nem o
+     espaço entre blocos, nem a imagem, nem as linhas da discursiva, nem o corpo do texto.
+   - **Espaço no fim da última página não é buraco**, porque não há mais nada para pôr ali.
+   - Branco menor que qualquer questão restante é inevitável. Ele é espalhado pelo `Σ(sobra)²` do
+     §7, como hoje.
+   - **A ordem do professor é o desempate.** Entre as disposições sem buraco preenchível e com o
+     menor número de páginas, fica a que menos altera a ordem dele. Uma prova que já não deixa
+     buraco sai na ordem dele.
+   - **O fluxo de leitura fica inteiro.** Dentro de cada faixa, a leitura é a coluna da esquerda e
+     depois a da direita, e a numeração segue esse fluxo, sem salto.
+   - A mudança que implementa mostra o critério com dois exemplos:
+     - **tem de mudar:** a prévia com 124 mm em branco, se alguma questão restante couber ali;
      - **não pode mudar:** uma prova cuja ordem já não deixa buraco.
+
+   *Redação corrigida em 2026-09-25, antes do merge, depois da explicação do mantenedor. A versão
+   do commit `cc6c8e4` pesava o branco contra uma penalidade por sair da ordem. Com isso, um buraco
+   onde cabe uma questão podia ficar, se a penalidade ganhasse. O critério é o encaixe ideal, e a
+   ordem só desempata.*
 2. **A numeração impressa é a da folha.** Cada questão é numerada pela posição final dela na folha,
    e o gabarito lista as objetivas com esse número. A decisão 7 da 5a ("numeradas pela posição na
    prova") continua valendo, e "posição" passa a ser a posição impressa. Em todo o resto, a questão
@@ -46,8 +67,7 @@ espaçamento em branco".
    - enunciado com moldura;
    - texto-base com dependentes, que também mantêm a ordem interna.
 4. **A ordem sai determinística.** A mesma definição, com o mesmo perfil, produz sempre a mesma
-   ordem: o layout é uma função pura, e o hash do pacote depende dele. O desempate é a ordem do
-   professor.
+   ordem: o layout é uma função pura, e o hash do pacote depende dele.
 5. **O professor vê a ordem final antes de publicar**, na mesma prévia em que vê as páginas (§7,
    contador de páginas ao vivo; tela da fatia 6).
 
@@ -62,16 +82,16 @@ espaçamento em branco".
   continuam atribuídos por item e por habilidade (I2), e nada neles muda.
 - **As variantes da fatia 7 já embaralham a ordem.** Cada variante é paginada por si, e a
   redistribuição é mais uma razão para a ordem ser da variante, e não da definição.
-- **A ordem do professor vira preferência, e não restrição.** Uma sequência intencional, como da
-  mais fácil para a mais difícil, pode ser alterada quando houver branco a eliminar. Questões que
+- **A ordem do professor é desempate, e não restrição.** Uma sequência intencional, como da mais
+  fácil para a mais difícil, pode ser alterada quando houver buraco preenchível. Questões que
   **precisam** ficar juntas são declaradas como texto-base com dependentes, e aí não se separam.
 
 ## Gatilho para reabrir
 
-- **Professores pedirem ordem fixa.** Uma prova em ordem de dificuldade é o exemplo esperado. A
-  saída seria uma opção de ordem fixa por prova, decidida em ADR novo.
-- **A penalidade calibrada produzir reordenações que o mantenedor ache surpreendentes** nas provas
-  reais.
+- **Um cliente pedir ordem fixa**, por exemplo uma prova em ordem de dificuldade. A saída seria uma
+  opção de ordem fixa por prova, decidida em ADR novo.
+- **O critério de encaixe ideal produzir, em provas reais, disposições que o mantenedor ache
+  forçadas**, que é o que o critério existe para impedir.
 
 ## Como isto poderia ter falhado em silêncio
 
@@ -86,8 +106,13 @@ ordem e confere o número em cada consumidor.
 
 - **Manter a ordem e aceitar o buraco**, mostrando o contador de páginas ao professor. Descartada
   pelo mantenedor.
-- **Reordenar livremente, sem penalidade.** Qualquer ganho mínimo de branco embaralharia a prova
+- **Reordenar sempre que o `Σ(sobra)²` diminuir.** Qualquer ganho mínimo embaralharia a prova
   inteira. O professor perderia a ordem dele por 3 mm, e toda regravação de golden viraria uma
   reordenação.
+- **Pesar o branco contra uma penalidade por sair da ordem.** Era a primeira redação deste ADR. Com
+  ela, um buraco onde cabe uma questão pode ficar, se a penalidade ganhar. O mantenedor quer o
+  contrário: se cabe de maneira ideal, não fica buraco.
+- **Encaixar à força**, comprimindo espaçamento ou encolhendo imagem e pauta para caber. Isso é
+  justamente o que o mantenedor proibiu.
 - **Deixar o professor reordenar à mão.** Transfere para ele um problema que o sistema resolve
   melhor, e que o mantenedor atribuiu ao sistema.

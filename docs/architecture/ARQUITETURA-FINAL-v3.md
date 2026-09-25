@@ -267,12 +267,15 @@ Consequência: cada folha é única por aluno (já era, por causa de token e var
 **Paginação.** Medir → agrupar em super-blocos indivisíveis (enunciado+alternativas; enunciado+moldura; texto-base+dependentes com penalidade) → **DP minimizando `Σ(sobra)² + penalidades`** → posicionar regiões → emitir. O quadrado da sobra distribui o vazio em vez de empurrá-lo para o fim. Com N ≤ 60 blocos é O(N²), milissegundos. Colunas: **adaptativo** — 2 por padrão, blocos largos atravessam, 1 quando houver muito conteúdo largo.
 
 > **Emenda de 2026-09-25 — ADR-0019.** A DP acima distribui uma sequência **fixa**: ela nunca muda
-> a ordem das questões (`Pagination.kt`). A paginação passa a poder **tirar uma questão da ordem do
-> professor para não deixar branco**, e essa saída da ordem é uma das penalidades.
+> a ordem das questões (`Pagination.kt`). A paginação passa a **redistribuir as questões**: não sobra,
+> no meio da prova, espaço onde uma questão caberia de maneira **ideal**, que é inteira, com o
+> espaçamento normal e sem nada comprimido.
+> - Encaixe forçado é proibido.
+> - A ordem do professor desempata. A ordem impressa já era por variante (§5, "mapa posição física
+>   → `item_id`").
 > - A **numeração impressa é a da folha**, e o gabarito, os chips de completude e os relatórios
 >   usam esse número.
-> - Os super-blocos se movem inteiros.
-> - A ordem sai determinística, com a ordem do professor como desempate.
+> - Os super-blocos se movem inteiros, e a ordem sai determinística.
 > - "Com N ≤ 60 blocos é O(N²)" deixa de valer como está escrito: escolher a ordem é empacotamento,
 >   e a busca é heurística.
 
