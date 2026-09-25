@@ -26,13 +26,18 @@ class ExamDefinitionTest {
         ),
     )
 
-    /** Discursiva valida: a rubrica soma exatamente a pontuacao da questao. */
+    /**
+     * Discursiva valida: a rubrica soma exatamente a pontuacao da questao, e as duas escolhas do
+     * professor estao declaradas (ADR-0017).
+     */
     private fun discursiva(id: String, vararg pontos: Int = intArrayOf(2, 1)) = Question(
         id = id,
         kind = QuestionKind.ESSAY,
         statement = "Explique por que a soma dos angulos internos de um triangulo e 180 graus.",
         points = pontos.sum(),
         rubric = Rubric(pontos.mapIndexed { i, p -> criterio("c${i + 1}", p) }),
+        answerLines = 5,
+        answerWidth = AnswerWidth.COLUMN,
     )
 
     private fun recusa(prova: ExamDefinition): String =
@@ -59,6 +64,48 @@ class ExamDefinitionTest {
     fun `questao discursiva na entrada sem rubrica e recusada`() {
         val motivo = recusa(prova(objetiva("q1"), discursiva("q2").copy(rubric = null)))
         assertTrue(motivo.contains("q2") && motivo.contains("nao declara rubrica"), motivo)
+    }
+
+    // --- as escolhas do professor (slice-5b-0-a-regiao-discursiva-compacta, ADR-0017) ---
+    //
+    // A discursiva de partida e valida e declara `expected_lines` na rubrica: cada cenario muda uma
+    // coisa so, e confere que a recusa fala dela, e nao de outra.
+
+    /** Cenario "Discursiva sem numero de linhas". */
+    @Test
+    fun `discursiva sem numero de linhas e recusada, mesmo com expected_lines na rubrica`() {
+        val semLinhas = discursiva("q2").copy(answerLines = null)
+        assertTrue(requireNotNull(semLinhas.rubric).criteria.all { it.expectedLines > 0 })
+        val motivo = recusa(prova(objetiva("q1"), semLinhas))
+        assertTrue(motivo.contains("q2") && motivo.contains("nao declara o numero de linhas"), motivo)
+
+        val zero = recusa(prova(objetiva("q1"), discursiva("q2").copy(answerLines = 0)))
+        assertTrue(zero.contains("q2") && zero.contains("declara 0 linha(s)"), zero)
+    }
+
+    /** Cenario "Discursiva sem largura". */
+    @Test
+    fun `discursiva sem largura e recusada`() {
+        val motivo = recusa(prova(objetiva("q1"), discursiva("q2").copy(answerWidth = null)))
+        assertTrue(motivo.contains("q2") && motivo.contains("nao declara a largura"), motivo)
+    }
+
+    /** Cenario "Largura de pagina ainda e recusada". */
+    @Test
+    fun `largura de pagina ainda e recusada, e a mensagem diz que depende da paginacao em faixas`() {
+        val motivo = recusa(prova(objetiva("q1"), discursiva("q2").copy(answerWidth = AnswerWidth.PAGE)))
+        assertTrue(motivo.contains("q2") && motivo.contains("largura `page`"), motivo)
+        assertTrue(motivo.contains("paginacao em faixas"), motivo)
+    }
+
+    /** Cenario "Objetiva com escolha da discursiva". */
+    @Test
+    fun `objetiva com numero de linhas ou largura e recusada`() {
+        val comLinhas = recusa(prova(objetiva("q1").copy(answerLines = 3)))
+        assertTrue(comLinhas.contains("q1") && comLinhas.contains("objetiva e declara numero de linhas (3)"), comLinhas)
+
+        val comLargura = recusa(prova(objetiva("q1").copy(answerWidth = AnswerWidth.COLUMN)))
+        assertTrue(comLargura.contains("q1") && comLargura.contains("objetiva e declara largura (column)"), comLargura)
     }
 
     @Test

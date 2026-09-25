@@ -30,6 +30,8 @@ class PacoteDiscursivoTest {
         points = 3,
         skills = habilidade,
         answerCaptureMode = modo,
+        answerLines = 5,
+        answerWidth = AnswerWidth.COLUMN,
         rubric = Rubric(
             listOf(
                 RubricCriterion(

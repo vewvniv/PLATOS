@@ -199,6 +199,84 @@ function strokeTargetsOf(map) {
 }
 
 /**
+ * Linhas (`line`): a pauta cinza da regiao discursiva (ADR-0016; decisao 7 do `design.md` da
+ * `slice-5b-0-a-regiao-discursiva-compacta`).
+ *
+ * A pauta fica **abaixo** do piso de escuridao do centroide por decisao — ela e decoracao —, entao
+ * medi-la por posicao, ou so acima do piso, a tornaria invisivel: um renderizador que a omitisse
+ * passaria verde. Ela e medida pela **tinta esperada**, a area que declara vezes o tom que declara.
+ *
+ * So linha alinhada aos eixos e medida, e a inclinada e **recusada**, e nao ignorada: ignorar seria
+ * passar verde sobre uma primitiva que ninguem olhou. O motor so emite linha horizontal.
+ */
+function lineTargetsOf(map) {
+  const targets = [];
+  const inclinadas = [];
+  for (const page of map.pages) {
+    for (const primitive of page.primitives) {
+      if (primitive.type !== 'line') continue;
+      if (primitive.x1 !== primitive.x2 && primitive.y1 !== primitive.y2) {
+        inclinadas.push(
+          `${primitive.id} (pagina ${page.index}): de ${primitive.x1},${primitive.y1} a ` +
+            `${primitive.x2},${primitive.y2}`,
+        );
+        continue;
+      }
+      targets.push({
+        id: primitive.id,
+        page: page.index,
+        x0: Math.min(primitive.x1, primitive.x2),
+        x1: Math.max(primitive.x1, primitive.x2),
+        y0: Math.min(primitive.y1, primitive.y2),
+        y1: Math.max(primitive.y1, primitive.y2),
+        stroke: primitive.stroke,
+        // Tom nulo e preto pleno, como o contrato declara.
+        tone: (primitive.tone ?? 1000) / 1000,
+      });
+    }
+  }
+  return { targets, inclinadas };
+}
+
+/** Tinta esperada da linha, em micrometros quadrados: comprimento x traco x tom. */
+function expectedLineInkUm2(target) {
+  const comprimento = target.x1 - target.x0 + (target.y1 - target.y0);
+  return comprimento * target.stroke * target.tone;
+}
+
+/**
+ * Tinta na faixa da linha, em micrometros quadrados: a soma da escuridao dos pixels num retangulo que
+ * vai `stroke/2 + folga` para cada lado da linha e a mesma folga alem de cada ponta. A folga das pontas
+ * so recolhe o antialiasing; a tinta que um arremate redondo poria ali e uma fracao de milesimo da
+ * linha, e nao e o que esta medicao pega.
+ */
+function lineInkIn(page, target) {
+  const meio = target.stroke / 2 + STROKE_SLACK_UM;
+  const horizontal = target.y0 === target.y1;
+  const rect = horizontal
+    ? { x: target.x0 - STROKE_SLACK_UM, y: target.y0 - meio, x2: target.x1 + STROKE_SLACK_UM, y2: target.y0 + meio }
+    : { x: target.x0 - meio, y: target.y0 - STROKE_SLACK_UM, x2: target.x0 + meio, y2: target.y1 + STROKE_SLACK_UM };
+  const ox0 = umToPx(rect.x);
+  const oy0 = umToPx(rect.y);
+  const ox1 = umToPx(rect.x2);
+  const oy1 = umToPx(rect.y2);
+
+  let darkness = 0;
+  for (let y = Math.max(0, Math.floor(oy0)); y <= Math.min(page.height - 1, Math.ceil(oy1)); y += 1) {
+    const cy = y + 0.5;
+    if (cy < oy0 || cy > oy1) continue;
+    for (let x = Math.max(0, Math.floor(ox0)); x <= Math.min(page.width - 1, Math.ceil(ox1)); x += 1) {
+      const cx = x + 0.5;
+      if (cx < ox0 || cx > ox1) continue;
+      darkness += 255 - page.pixels[y * page.width + x];
+    }
+  }
+  const pxUm = MM_PER_PX * 1000;
+  const area = (darkness / 255) * pxUm * pxUm;
+  return Number.isFinite(area) ? area : null;
+}
+
+/**
  * Area que o traco declarado ocupa, em micrometros quadrados: o retangulo crescido de meio traco,
  * menos o retangulo encolhido de meio traco quando ele existe. Vale para o retangulo degenerado de
  * altura zero da pauta, em que o miolo nao existe e a area e `(largura + traco) x traco`.
@@ -324,6 +402,19 @@ function targetsOf(map) {
 
 function compare(webPath, androidPath, mapPath) {
   const map = JSON.parse(readFileSync(mapPath, 'utf8'));
+
+  // Antes de rasterizar: uma linha que esta verificacao nao sabe medir e erro dela, e nao divergencia
+  // entre renderizadores — sai com 2, nomeando a linha, e nunca com verde.
+  const linhas = lineTargetsOf(map);
+  if (linhas.inclinadas.length > 0) {
+    for (const linha of linhas.inclinadas) {
+      console.error(
+        `::error::linha inclinada ${linha}: a paridade so mede linha alinhada aos eixos, e nao a ignora`,
+      );
+    }
+    process.exit(2);
+  }
+
   const web = rasterize(webPath);
   const android = rasterize(androidPath);
 
@@ -471,6 +562,46 @@ function compare(webPath, androidPath, mapPath) {
     }
   }
 
+  // Linha: presenca contra a tinta ESPERADA, que e a area declarada vezes o tom declarado, e
+  // concordancia entre os dois. Os mesmos tres numeros do traco, fixados antes da primeira medicao:
+  // nenhum limiar novo e escolhido aqui (P11). A linha omitida mede ~0; a preta no lugar da de 300 por
+  // mil mede ~3,3 vezes a esperada.
+  let worstLine = { id: null, delta: 0 };
+  const lineRatios = { web: [], android: [] };
+  for (const target of linhas.targets) {
+    const webPage = web[target.page];
+    const androidPage = android[target.page];
+    if (!webPage || !androidPage) continue;
+
+    const esperada = expectedLineInkUm2(target);
+    const inkWeb = lineInkIn(webPage, target);
+    const inkAndroid = lineInkIn(androidPage, target);
+    if (inkWeb === null || inkAndroid === null || !(esperada > 0)) {
+      problems.push(`linha ${target.id}: medicao nao finita ou tinta esperada nao positiva`);
+      continue;
+    }
+    const a = inkWeb / esperada;
+    const b = inkAndroid / esperada;
+    lineRatios.web.push(a);
+    lineRatios.android.push(b);
+    for (const [lado, razao] of [['web', a], ['android', b]]) {
+      if (razao < STROKE_PRESENCE_MIN || razao > STROKE_PRESENCE_MAX) {
+        problems.push(
+          `linha ${target.id} no ${lado}: tinta ${razao.toFixed(3)} da esperada ` +
+            `(presenca exige ${STROKE_PRESENCE_MIN} a ${STROKE_PRESENCE_MAX})`,
+        );
+      }
+    }
+    const delta = Math.abs(a - b);
+    if (delta > worstLine.delta) worstLine = { id: target.id, delta };
+    if (delta > STROKE_TOLERANCE) {
+      problems.push(
+        `linha ${target.id} divergiu ${delta.toFixed(3)} da tinta esperada ` +
+          `(web ${a.toFixed(3)}, android ${b.toFixed(3)}; tolerancia ${STROKE_TOLERANCE})`,
+      );
+    }
+  }
+
   console.log(`rasterizador unico: mupdf a ${DPI} dpi (${MM_PER_PX.toFixed(4)} mm/px)`);
   console.log(`piso de escuridao do centroide: ${darknessFloor} de 255`);
   console.log(`paginas: ${web.length} | elementos comparados: ${measured} de ${targets.length}`);
@@ -496,6 +627,16 @@ function compare(webPath, androidPath, mapPath) {
         ? ` | razao web ${faixa(ratios.web)}, android ${faixa(ratios.android)}` +
           ` | maior divergencia ${worstStroke.delta.toFixed(3)}` +
           (worstStroke.id ? ` em ${worstStroke.id}` : '') +
+          ` | tolerancia ${STROKE_TOLERANCE}`
+        : ''),
+  );
+
+  console.log(
+    `linhas comparadas: ${linhas.targets.length}` +
+      (linhas.targets.length > 0
+        ? ` | razao web ${faixa(lineRatios.web)}, android ${faixa(lineRatios.android)}` +
+          ` | maior divergencia ${worstLine.delta.toFixed(3)}` +
+          (worstLine.id ? ` em ${worstLine.id}` : '') +
           ` | tolerancia ${STROKE_TOLERANCE}`
         : ''),
   );

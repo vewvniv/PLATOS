@@ -25,6 +25,8 @@
     {
       "id": "d1",
       "kind": "essay",
+      "answer_lines": 5,
+      "answer_width": "column",
       "statement": "Explique, com as suas palavras, por que as fracoes 3/6 e 1/2 representam a mesma quantidade.",
       "skills": [{ "code": "EF06MA07", "coverage": "direct" }],
       "points": 3,
@@ -77,6 +79,8 @@
     {
       "id": "d2",
       "kind": "essay",
+      "answer_lines": 9,
+      "answer_width": "column",
       "statement": "Um terreno retangular tem 20 m de perimetro. Desenhe dois retangulos possiveis, pinte o de maior area e explique como voce comparou as areas.",
       "skills": [{ "code": "EF07MA32", "coverage": "direct" }],
       "points": 4,

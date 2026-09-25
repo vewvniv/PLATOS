@@ -98,6 +98,19 @@ function drawPrimitive(
       });
       return;
 
+    case 'line':
+      // Sem arremate alem das extremidades: `LineCapStyle.Butt` vale 0, o `pdf-lib` so emite o
+      // operador de arremate quando ele e verdadeiro, e o estado inicial do PDF ja e esse. Nenhum
+      // outro arremate e pedido aqui — com o redondo, a pauta passaria meio traco de cada ponta.
+      page.drawLine({
+        start: { x: umToPt(primitive.x1), y: flipY(map, primitive.y1) },
+        end: { x: umToPt(primitive.x2), y: flipY(map, primitive.y2) },
+        thickness: umToPt(primitive.stroke),
+        // Tom nulo e preto pleno; a pauta chega cinza, e quem escolhe o cinza e o mapa.
+        color: primitive.tone === null ? BLACK : grayOf(primitive.tone),
+      });
+      return;
+
     case 'aruco':
       drawModuleGrid(page, map, primitive.x, primitive.y, primitive.module, primitive.modules);
       return;

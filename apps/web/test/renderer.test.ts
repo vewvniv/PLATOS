@@ -38,7 +38,8 @@ async function contentOps(pdf: Uint8Array): Promise<string> {
     if (object instanceof PDFRawStream) {
       try {
         const decoded = Buffer.from(decodePDFRawStream(object).decode()).toString('latin1');
-        if (decoded.includes(' rg')) ops += `${decoded}\n`;
+        // `rg` e a cor de preenchimento e `RG` a de traco: a linha so tem a segunda.
+        if (decoded.includes(' rg') || decoded.includes(' RG')) ops += `${decoded}\n`;
       } catch {
         // Fluxo que nao e de conteudo (fonte, imagem): nao interessa aqui.
       }
@@ -236,5 +237,51 @@ describe('tom e trama', () => {
     expect(ops).not.toMatch(/ RG/);
     expect(ops).not.toMatch(/\nS\n/);
     expect(ops).not.toMatch(/\nB\n/);
+  });
+});
+
+describe('linha', () => {
+  const cinza = {
+    type: 'line' as const,
+    id: 'l-cinza',
+    x1: 16_000,
+    y1: 40_000,
+    x2: 101_000,
+    y2: 40_000,
+    stroke: 200,
+    tone: 300,
+  };
+
+  it('desenha a linha entre os dois pontos, com o traco e o tom declarados, sem arremate', async () => {
+    const preta = { ...cinza, id: 'l-preta', y1: 50_000, y2: 50_000, tone: null };
+    const map = { ...(await folhaCom([cinza, preta])), min_renderer_version: 2 };
+    const ops = await contentOps(await renderLayoutMap(map, await fontBytes()));
+
+    // 300 por mil de preto = 0,7 de claridade, na cor de TRACO. O numero sai do mapa.
+    expect(ops).toMatch(/0\.7 0\.7 0\.7 RG/);
+    // Tom nulo continua preto pleno.
+    expect(ops).toMatch(/0 0 0 RG/);
+    // A espessura declarada, em pontos, nas duas linhas.
+    const larguras = [...ops.matchAll(/([\d.]+) w\n/g)].map((m) => Number(m[1]));
+    expect(larguras).toEqual([umToPt(200), umToPt(200)]);
+    // Entre os dois pontos declarados, com o eixo vertical invertido do PDF.
+    const alturaPt = umToPt(map.page_height);
+    for (const yUm of [40_000, 50_000]) {
+      const y = alturaPt - umToPt(yUm);
+      expect(ops).toContain(`${umToPt(16_000)} ${y} m`);
+      expect(ops).toContain(`${umToPt(101_000)} ${y} l`);
+    }
+    expect(ops.match(/\nS\n/g)?.length).toBe(2);
+    // Sem arremate alem das extremidades: nenhum arremate redondo (1) ou projetado (2) e pedido, e o
+    // estado inicial do PDF e o reto (0).
+    expect(ops).not.toMatch(/\b[12] J\b/);
+  });
+
+  it('recusa o mapa que exige a versao seguinte a esta, e desenha o que exige esta', async () => {
+    expect(RENDERER_VERSION).toBe(2);
+    const exige3 = { ...(await folhaCom([cinza])), min_renderer_version: 3 };
+    await expect(renderLayoutMap(exige3, await fontBytes())).rejects.toThrow(RendererVersionError);
+    const exige2 = { ...(await folhaCom([cinza])), min_renderer_version: 2 };
+    await expect(renderLayoutMap(exige2, await fontBytes())).resolves.toBeInstanceOf(Uint8Array);
   });
 });
