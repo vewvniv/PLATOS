@@ -258,9 +258,37 @@ Consequência: cada folha é única por aluno (já era, por causa de token e var
 | ArUco: lado gabarito / lado discursiva / zona de silêncio | ≥ 12 mm / ≥ 10 mm / ≥ 1 módulo |
 | Pauta discursiva | 8,6 mm (generosa: manuscrito espremido é o pior inimigo da leitura) |
 
+> **Emenda de 2026-09-25 — ADR-0016.** A pauta discursiva passa a ser de **7 mm, em cinza claro**,
+> do lado decorativo do ADR-0010, como a letra dentro da bolha: ela é guia para o aluno, e não
+> geometria para a câmera. O valor anterior e a razão dele ficam escritos acima (P7). A razão é uma
+> hipótese sobre leitura que nunca foi medida, e a medição continua sendo a da linha "Acurácia em
+> manuscrito" do §16, agora sobre a pauta nova.
+
 **Paginação.** Medir → agrupar em super-blocos indivisíveis (enunciado+alternativas; enunciado+moldura; texto-base+dependentes com penalidade) → **DP minimizando `Σ(sobra)² + penalidades`** → posicionar regiões → emitir. O quadrado da sobra distribui o vazio em vez de empurrá-lo para o fim. Com N ≤ 60 blocos é O(N²), milissegundos. Colunas: **adaptativo** — 2 por padrão, blocos largos atravessam, 1 quando houver muito conteúdo largo.
 
+> **Emenda de 2026-09-25 — ADR-0019.** A DP acima distribui uma sequência **fixa**: ela nunca muda
+> a ordem das questões (`Pagination.kt`). A paginação passa a **redistribuir as questões**: não sobra,
+> no meio da prova, espaço onde uma questão caberia de maneira **ideal**, que é inteira, com o
+> espaçamento normal e sem nada comprimido.
+> - Encaixe forçado é proibido.
+> - A ordem do professor desempata. A ordem impressa já era por variante (§5, "mapa posição física
+>   → `item_id`").
+> - A **numeração impressa é a da folha**, e o gabarito, os chips de completude e os relatórios
+>   usam esse número.
+> - Os super-blocos se movem inteiros, e a ordem sai determinística.
+> - "Com N ≤ 60 blocos é O(N²)" deixa de valer como está escrito: escolher a ordem é empacotamento,
+>   e a busca é heurística.
+
 **Área discursiva dimensionada pela rubrica:** `expected_lines` da rubrica define a altura da moldura. A IA gera a questão e a rubrica; a rubrica define o espaço; o espaço condiciona a resposta; a resposta é avaliada contra a mesma rubrica. Uma cadeia só, sem decisão manual. Nunca maior que uma página — se a rubrica pede mais, a questão vira itens (a), (b), (c).
+
+> **Emenda de 2026-09-25 — ADR-0017.** A cadeia acima perde um elo: **a rubrica deixa de definir o
+> espaço**, e "sem decisão manual" deixa de valer. O professor declara, questão por questão, o
+> número de linhas e a largura, que é uma coluna ou a página, **sem valor padrão**.
+> - `expected_lines` continua na rubrica, como o que cada critério espera, e a resposta continua
+>   avaliada contra ela.
+> - A questão de largura de página ocupa uma faixa própria. O fluxo das colunas continua antes e
+>   depois dela. É o "blocos largos atravessam" do parágrafo de paginação, acima.
+> - O teto "nunca maior que uma página" fica.
 
 **Economia de papel:** densidade em três níveis (espaçado/normal/compacto) dentro de faixas seguras para o CV, contador de páginas ao vivo, e sugestão automática quando a última página tem menos de 25% de ocupação.
 
@@ -269,6 +297,18 @@ Consequência: cada folha é única por aluno (já era, por causa de token e var
 ## 8. Regiões escaneáveis e pipeline de captura
 
 **Modelo.** Sempre uma região `ANSWER_BLOCK` (gabarito + QR ao lado, dentro de 4 ArUcos). Apenas se houver discursivas, uma região `ESSAY_REGION` por questão, cada uma com 4 ArUcos e um QR compacto.
+
+> **Emenda de 2026-09-25 — ADR-0018.** A região discursiva passa a ter **dois ArUcos na diagonal**:
+> `4k` no canto superior esquerdo e `4k+3` no inferior direito. O **QR fica no canto superior
+> direito**, na faixa do marcador, e **ancora o terceiro canto**.
+> - A alocação `{4k…4k+3}` do parágrafo "IDs de ArUco", abaixo, fica como está.
+> - A ordem do pipeline também fica. A primeira homografia sai dos dois ArUcos, o QR é lido na ROI
+>   já retificada, e só depois os padrões de posição dele entram num segundo ajuste, que dá o
+>   recorte.
+> - O canto inferior esquerdo é extrapolado, e a folga do recorte o cobre até a medição em papel.
+> - As coordenadas da região discursiva deixam de ser as do "quadrilátero dos 4 ArUcos" do §6, e
+>   passam a ser as do retângulo entre os dois marcadores.
+> - **O gabarito não muda:** continua com 4 ArUcos.
 
 **A moldura discursiva contém apenas a área de resposta.** O enunciado fica fora. Três razões, em ordem de peso: você já tem o enunciado em texto exato no pacote (fotografá-lo é pagar tokens de visão para reconstruir com erro um dado que você possui); a geometria da região precisa ser previsível; e o recorte limpo evita que o modelo "responda o enunciado" em vez de avaliar a resposta.
 
@@ -545,6 +585,15 @@ substituição de decisão. Não abre ADR, pelo mesmo critério das atualizaçõ
 ## 17. Registro de decisões
 
 **Aceitas (viram ADR):** D1 offline redefinido · D3 OMR template-driven · D4 nota no servidor, offline definitivo sem discursivas · D5 banco de itens com tiers de visibilidade · D6 QR com identidade e CRC · D7 multimodal-first · D8 pull de referência + push append-only · D9 gate de pré-voo e modo degradado · D10 revisão humana obrigatória · D11 UUIDv7 · D12 Bloom versionado · D13 maior resto estratificado · D14 override do professor vence · D15 provedor único atrás do `AiGateway` · D16 Storage separado com retenção · D17 BNCC obrigatória na geração · D18 sessão por regiões · D19 idempotência por revisão · D20 versionamento de prompt e modelo · D21 Room · D22 remover `OpenScanVision` · D23 QR repetido por região · D24 guarda de versão de renderizador · D25 ledger unificado · D26 `exam_assignment` fixado na publicação · D27 op-log de rascunho · D28 pipeline de imagem · D29 `DICT_5X5_100` com quad único · D30 sem compressão explícita · D31 gabarito no topo, cartão destacável como opção · D32 colunas adaptativas · D33 matemática via SVG · D34 atomicidade e agrupamento · D35 área dimensionada pela rubrica · D36 fonte embarcada · D37 densidade em três níveis · D38 detector de deriva.
+
+> **Emendas de 2026-09-25:**
+> - **D35, pela ADR-0017:** o espaço da discursiva, com linhas e largura, é declarado pelo
+>   professor, e não pela rubrica.
+> - **Pauta do §7, pela ADR-0016:** 7 mm, em cinza claro.
+> - **Modelo de região do §8, pela ADR-0018:** a região discursiva tem dois ArUcos, e o QR ancora o
+>   terceiro canto.
+> - **Paginação do §7, pela ADR-0019:** as questões são redistribuídas para não deixar branco, e a
+>   numeração impressa é a da folha.
 
 **Rejeitada:** D2 render server-side — substituído por Layout Engine compartilhado + renderizadores client-side.
 
