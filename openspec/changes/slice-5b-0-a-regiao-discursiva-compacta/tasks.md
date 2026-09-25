@@ -105,7 +105,7 @@
   com a função devolvendo sempre 2, cai **só** o segundo. O `sha256` de `prova-referencia.layout.json`
   regravado nessa condição, no scratchpad, difere do da 0.3, e isso anota que a guarda da 5.2 também o
   pegaria. Reverter e rodar.
-- [ ] 3.4 `LayoutMapValidation`:
+- [x] 3.4 `LayoutMapValidation`:
   - a região discursiva declara exatamente `4k` e `4k+3`, e o gabarito continua com os quatro;
   - o marcador declarado por região discursiva existe entre as primitivas da página dela;
   - a linha dentro da área de resposta tem tom declarado e abaixo do teto decorativo da região;

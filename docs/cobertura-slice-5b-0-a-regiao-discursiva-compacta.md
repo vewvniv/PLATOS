@@ -269,3 +269,60 @@ golden da discursiva em cada alvo (1 de 388, 1 de 379, 1 de 379).
 tools/parity/renderizador.mjs` sai com `2` e nomeia o registro `dominio` — "zero declaracoes de
 \`MIN_RENDERER_VERSION\` — a constante mudou de forma ou saiu daqui". É o "ver falhar" da 4.3,
 observado aqui porque a constante saiu neste commit; a 4.3 a faz ler o registro novo.
+
+### 3.4 — a validação
+
+*(Previsão da mutação M2, escrita aqui antes de ela rodar; o resultado vem abaixo.)*
+
+**M2 — o teto de 80‰ aplicado também à linha.** A tarefa previa "cai **só** 'Linha cinza não é
+trama'". A leitura dos testes, antes de rodar, diz que não: o mapa válido do motor tem a pauta a
+300‰, e sob M2 as linhas **não tocadas** de cada teste passam a gerar o problema de 80‰. Então cai
+todo teste que valida um mapa discursivo do motor e espera `Valid` ou uma lista exata de problemas.
+Previsto corrigido: em `RegiaoDiscursivaTest`, os onze — `o mapa com discursivas que o motor produz e
+valido, e a validacao nao o altera`, `area de resposta sobre o QR e recusada`, `area de resposta fora
+do quadrilatero e recusada`, `duas regioes para a mesma questao e recusado`, `QR declarado que nao
+existe na pagina e recusado`, `regiao discursiva sem questao e recusada`, e os cinco da 3.4. Além da
+golden da discursiva, já vermelha. E, lida a mensagem, `pauta sem tom` deve cair **com** o problema
+de tom ausente ainda na lista: é isso que mostra a camada de M1 intacta sob M2.
+
+**O que a validação passou a conferir.** A regra de marcadores por tipo (`[4k, 4k+3]` na discursiva,
+os quatro no gabarito e na folha de teste) entrou no commit da 3.2. Neste, a região discursiva passa
+a exigir que cada marcador declarado exista como `DrawAruco` na página dela, e a linha que alcança a
+área de resposta passa a exigir tom declarado e **abaixo** do teto decorativo da região. O tom de
+`DrawLine` ganha a conferência de faixa 0 a 1000, como o do texto; o teto de 80‰ continua só para
+preenchimento.
+
+**Um teste por cenário**, cada um partindo do mapa válido do motor e mudando uma coisa, e cada
+asserção conferindo a lista exata de problemas:
+
+| Cenário | Teste | O que muda | Problema conferido |
+|---|---|---|---|
+| Região discursiva com os marcadores errados | `regiao discursiva com os quatro marcadores, ou com outro par, e recusada` | a região 1 declara `[4, 5, 6, 7]`; e, à parte, `[8, 11]` | com os quatro, três problemas: a regra por tipo e os marcadores 5 e 6, que não são impressos; com `[8, 11]`, desenhados na mesma página, só a regra por tipo |
+| Marcador declarado que não existe | `marcador discursivo declarado que nao esta desenhado e recusado` | o `r1-m7` sai das primitivas | "regiao 1 declara o marcador 7, que nao esta entre as primitivas da pagina 0" |
+| Pauta preta é recusada | `pauta sem tom e recusada, nomeando a regiao e a linha` | `r1-p2` sem tom | a região, a linha e "nao declara tom" |
+| Pauta acima do teto é recusada | `pauta acima do teto decorativo e recusada, com o valor` | `r1-p2` a 600‰ | a região, a linha, o tom 600 e o teto 500 |
+| Linha cinza não é trama | `linha cinza acima de 8 por cento e abaixo do teto decorativo e aceita` | `r1-p2` a 450‰ | `Valid` |
+
+`./gradlew :packages:domain:allTests`, 14:39:45Z: +5 por alvo, e só a golden da discursiva vermelha.
+
+**Visto falhar**, no `jvmTest` inteiro, com `// MUTACAO` acima de cada mutação:
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| M1 — sem a checagem de tom da linha (`if (false) checkPauta(…)`) | caem só `pauta sem tom` e `pauta acima do teto` | 3 de 393: a golden e esses dois, os dois com "esperava mapa invalido" |
+| M2 — o teto de 80‰ aplicado também à linha | na tarefa: só `linha cinza`; **corrigido antes de rodar** (acima): os onze de `RegiaoDiscursivaTest` | 12 de 393: a golden e exatamente os onze |
+
+**O que M2 significa.** Os conjuntos **não** são disjuntos como a tarefa previa: M1 ⊂ M2. A razão é
+a composição da fixture, e não uma camada vazando para outra. O mapa válido do motor tem oito linhas de
+pauta a 300‰, e sob M2 as linhas que o teste **não** tocou passam a gerar o problema de 80‰; toda
+asserção de lista exata reage. A independência das duas camadas se lê pela mensagem, e não pela
+contagem:
+
+- sob M1, `linha cinza` continua verde;
+- sob M2, `pauta sem tom` cai com a lista contendo, além dos sete problemas de 80‰ das outras linhas,
+  **o problema de tom ausente** do `r1-p2`. A camada que M1 removeria continua funcionando sob M2;
+- sob M2, `linha cinza` cai com oito problemas "trama de `r…-p…` acima do teto de 80 por mil",
+  inclusive "`r1-p2` … 450".
+
+M2 revertida, `grep MUTACAO` deu `0`, e a reversão foi rodada: `allTests` às 14:41Z, só a golden da
+discursiva em cada alvo (1 de 393, 1 de 384, 1 de 384).

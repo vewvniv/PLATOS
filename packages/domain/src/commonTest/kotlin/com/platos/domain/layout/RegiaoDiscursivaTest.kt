@@ -535,6 +535,85 @@ class RegiaoDiscursivaTest {
         assertEquals(listOf("regiao 1 e discursiva e nao declara questao"), problemas(quebrado))
     }
 
+    // --- a validacao da regiao de dois marcadores e da pauta (slice-5b-0, tarefa 3.4) ---
+
+    private fun LayoutMap.comLinha(id: String, muda: (DrawLine) -> DrawLine) =
+        copy(pages = pages.map { page -> page.copy(primitives = page.primitives.map { if (it is DrawLine && it.id == id) muda(it) else it }) })
+
+    /** Cenario "Regiao discursiva com os marcadores errados" (ADR-0018). */
+    @Test
+    fun `regiao discursiva com os quatro marcadores, ou com outro par, e recusada`() {
+        // Os quatro 4k..4k+3: a regra por tipo recusa, e 5 e 6, que nao sao impressos, tambem nao
+        // existem na pagina. Sao tres problemas, e sao esses.
+        val quatro = valido.comRegiao(1) { it.copy(markerIds = listOf(4, 5, 6, 7)) }
+        assertEquals(
+            listOf(
+                "regiao 1 e discursiva e deveria declarar exatamente os marcadores [4, 7], veio [4, 5, 6, 7]",
+                "regiao 1 declara o marcador 5, que nao esta entre as primitivas da pagina 0",
+                "regiao 1 declara o marcador 6, que nao esta entre as primitivas da pagina 0",
+            ),
+            problemas(quatro),
+        )
+        // Outro par, desenhado na mesma pagina — os da regiao 2: so a regra por tipo recusa.
+        assertEquals(0, valido.regions.single { it.index == 2 }.page, "a regiao 2 saiu da pagina 0")
+        val outroPar = valido.comRegiao(1) { it.copy(markerIds = listOf(8, 11)) }
+        assertEquals(
+            listOf("regiao 1 e discursiva e deveria declarar exatamente os marcadores [4, 7], veio [8, 11]"),
+            problemas(outroPar),
+        )
+    }
+
+    /** Cenario "Marcador declarado que nao existe". */
+    @Test
+    fun `marcador discursivo declarado que nao esta desenhado e recusado`() {
+        val pagina = valido.regions.single { it.index == 1 }.page
+        val semO7 = valido.copy(
+            pages = valido.pages.map { p ->
+                if (p.index == pagina) p.copy(primitives = p.primitives.filterNot { it.id == "r1-m7" }) else p
+            },
+        )
+        assertEquals(
+            listOf("regiao 1 declara o marcador 7, que nao esta entre as primitivas da pagina $pagina"),
+            problemas(semO7),
+        )
+    }
+
+    /** Cenario "Pauta preta e recusada" (ADR-0016). */
+    @Test
+    fun `pauta sem tom e recusada, nomeando a regiao e a linha`() {
+        val preta = valido.comLinha("r1-p2") { it.copy(tone = null) }
+        assertEquals(
+            listOf(
+                "regiao 1: a linha `r1-p2` dentro da area de resposta nao declara tom, e sai preta; a " +
+                    "pauta e decoracao, abaixo do teto de 500 por mil",
+            ),
+            problemas(preta),
+        )
+    }
+
+    /** Cenario "Pauta acima do teto e recusada" (ADR-0010). */
+    @Test
+    fun `pauta acima do teto decorativo e recusada, com o valor`() {
+        val escura = valido.comLinha("r1-p2") { it.copy(tone = 600) }
+        assertEquals(
+            listOf(
+                "regiao 1: a linha `r1-p2` dentro da area de resposta tem tom 600, e a pauta precisa " +
+                    "ficar abaixo do teto decorativo de 500 por mil",
+            ),
+            problemas(escura),
+        )
+    }
+
+    /** Cenario "Linha cinza nao e trama": o teto de 8% e de tinta chapada, e nao de linha. */
+    @Test
+    fun `linha cinza acima de 8 por cento e abaixo do teto decorativo e aceita`() {
+        val tom = 450
+        assertTrue(tom > LayoutMap.FLAT_TONE_CEILING && tom < InkBudget.DEFAULT.decorativeToneMax)
+        val cinza = valido.comLinha("r1-p2") { it.copy(tone = tom) }
+        assertTrue(cinza != valido, "a linha r1-p2 nao existe no mapa valido")
+        assertEquals(ValidationResult.Valid, cinza.validate())
+    }
+
     @Test
     fun `sem discursiva o gabarito continua numerando em sequencia`() {
         // Guarda do caminho de sempre: a prova so objetiva nao pode ter mudado de numeracao.
