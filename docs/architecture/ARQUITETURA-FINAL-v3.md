@@ -266,6 +266,16 @@ Consequência: cada folha é única por aluno (já era, por causa de token e var
 
 **Paginação.** Medir → agrupar em super-blocos indivisíveis (enunciado+alternativas; enunciado+moldura; texto-base+dependentes com penalidade) → **DP minimizando `Σ(sobra)² + penalidades`** → posicionar regiões → emitir. O quadrado da sobra distribui o vazio em vez de empurrá-lo para o fim. Com N ≤ 60 blocos é O(N²), milissegundos. Colunas: **adaptativo** — 2 por padrão, blocos largos atravessam, 1 quando houver muito conteúdo largo.
 
+> **Emenda de 2026-09-25 — ADR-0019.** A DP acima distribui uma sequência **fixa**: ela nunca muda
+> a ordem das questões (`Pagination.kt`). A paginação passa a poder **tirar uma questão da ordem do
+> professor para não deixar branco**, e essa saída da ordem é uma das penalidades.
+> - A **numeração impressa é a da folha**, e o gabarito, os chips de completude e os relatórios
+>   usam esse número.
+> - Os super-blocos se movem inteiros.
+> - A ordem sai determinística, com a ordem do professor como desempate.
+> - "Com N ≤ 60 blocos é O(N²)" deixa de valer como está escrito: escolher a ordem é empacotamento,
+>   e a busca é heurística.
+
 **Área discursiva dimensionada pela rubrica:** `expected_lines` da rubrica define a altura da moldura. A IA gera a questão e a rubrica; a rubrica define o espaço; o espaço condiciona a resposta; a resposta é avaliada contra a mesma rubrica. Uma cadeia só, sem decisão manual. Nunca maior que uma página — se a rubrica pede mais, a questão vira itens (a), (b), (c).
 
 > **Emenda de 2026-09-25 — ADR-0017.** A cadeia acima perde um elo: **a rubrica deixa de definir o
@@ -579,6 +589,8 @@ substituição de decisão. Não abre ADR, pelo mesmo critério das atualizaçõ
 > - **Pauta do §7, pela ADR-0016:** 7 mm, em cinza claro.
 > - **Modelo de região do §8, pela ADR-0018:** a região discursiva tem dois ArUcos, e o QR ancora o
 >   terceiro canto.
+> - **Paginação do §7, pela ADR-0019:** as questões são redistribuídas para não deixar branco, e a
+>   numeração impressa é a da folha.
 
 **Rejeitada:** D2 render server-side — substituído por Layout Engine compartilhado + renderizadores client-side.
 

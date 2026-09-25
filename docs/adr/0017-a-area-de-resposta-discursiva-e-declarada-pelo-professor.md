@@ -52,7 +52,8 @@ necessidade de cada professor."
    - dentro de uma faixa de duas colunas, a leitura segue como hoje, a coluna da esquerda e depois
      a da direita.
 
-   Este ADR não decide a ordem em que as questões aparecem, só a forma da faixa.
+   Este ADR não decide a ordem em que as questões aparecem, só a forma da faixa. A ordem é do
+   ADR-0019.
 
    É o "blocos largos atravessam" do §7 (D32). O que este ADR acrescenta é quem declara que a
    discursiva é larga: o professor.
