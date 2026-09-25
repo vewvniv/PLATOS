@@ -22,7 +22,7 @@
 
 ## 1. O registro, antes do código (P27)
 
-- [ ] 1.1 Acrescentar ao §16 de `docs/architecture/ARQUITETURA-FINAL-v3.md` a linha "A folha de
+- [x] 1.1 Acrescentar ao §16 de `docs/architecture/ARQUITETURA-FINAL-v3.md` a linha "A folha de
   teste de impressão não aprova a região discursiva que a prova imprime" (decisão 9), com:
   - token `5b`, dono mantenedor;
   - o motivo: ela aprova marcador de 14 mm e não tem pauta cinza;

@@ -69,3 +69,23 @@ Antes da primeira linha de código, a leitura de `tools/parity/renderizador.mjs`
 constante e sobe os renderizadores a 2, e nenhuma tarefa cobria a guarda: o CI da 7.4 sairia
 vermelho. O mantenedor decidiu ajustá-la nesta mudança. A decisão 4 ganhou um parágrafo de
 atualização, e a tarefa 4.3 foi acrescentada, com o motivo escrito nela.
+
+## 1. A linha nova no §16 (tarefa 1.1)
+
+A linha "A folha de teste de impressão não aprova a região discursiva que a prova imprime" entrou com
+token `5b`, antes de qualquer código (P27). Os três testes instrumentados que ela nomeia foram
+conferidos por `grep` em `apps/android/src/androidTest` nesta sessão.
+
+- **Na árvore real:** a guarda a lista `em dia`, lê 21 linhas e sai com `0`. Ela aparece em "vence
+  nesta fatia (5b)", ao lado das quatro de antes.
+- **Vista falhar:** com `--mudancas` apontando para uma cópia de `openspec/changes/` no scratchpad,
+  acrescida de um diretório vazio `slice-5c-sonda`, a guarda deriva "fatia corrente: 5c" e sai com
+  `1`. As linhas nomeadas são **as duas** `5b`, e só elas:
+  - `::error::linha vencida sem reconciliacao: A região discursiva ainda não passou pelo aparelho nem
+    pelo papel (\`5b\`): a fatia 5b ja passou, e a corrente e 5c`;
+  - `::error::linha vencida sem reconciliacao: A folha de teste de impressão não aprova a região
+    discursiva que a prova imprime (\`5b\`): a fatia 5b ja passou, e a corrente e 5c`.
+
+  As três linhas `5` aparecem em "vence nesta fatia (5c)", e não como vencidas, o que está certo:
+  `5` vence na 6.
+- **A cópia foi apagada**, e a guarda sobre a árvore real voltou a sair com `0`.
