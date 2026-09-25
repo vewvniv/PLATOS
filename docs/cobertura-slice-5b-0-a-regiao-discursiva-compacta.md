@@ -388,3 +388,14 @@ constante mudou de forma ou saiu daqui".
   **só** os dois pares que contêm o registro forçado — por exemplo, `--divergir dominio`: "os
   registros dominio e android discordam: dominio diz 3, android diz 2" e "os registros dominio e web
   discordam: dominio diz 3, web diz 2", e nada de "android e web".
+
+## 5. Fixtures, goldens, paridade e fidelidade — uma sessão só (P23)
+
+*(Previsão da 5.2, escrita aqui antes de o writer rodar.)* O `GoldenWriterTest` com
+`-Dplatos.golden.write=true` regrava todos os artefatos, e mudam **só** três arquivos:
+`prova-discursiva.layout.json`, `prova-discursiva.package.json` e `prova-discursiva.aluno.layout.json`.
+Os cinco `sha256` da 0.3 continuam iguais. A fixture nova tem regiões com marcadores `[0,1,2,3]`,
+`[4,7]` e `[8,11]`, `min_renderer_version` 2, e a região de `d1` com 66 mm e a de `d2` com 81 mm
+(`snap(30,8 + 7n)`, com n = 5 e 7). Na mesma rodada, o `GoldenLayoutTest` da discursiva continua
+vermelho, porque compara contra a golden **embutida na compilação**, que ainda é a velha; ele só
+passa a comparar com a nova na rodada seguinte.
