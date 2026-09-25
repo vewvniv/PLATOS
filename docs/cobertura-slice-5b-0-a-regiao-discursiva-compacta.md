@@ -167,3 +167,62 @@ teste; o comando cheio fica para a 7.2.
 
 Revertida, `grep -c MUTACAO` no arquivo deu `0`, e a reversão foi rodada: `jvmTest`, 379 de 379,
 `timestamp` de 14:25:00Z a 14:25:01Z. Os cinco `sha256` da 0.3 continuam iguais.
+
+### 3.2 — a região nova
+
+`EssayGeometry` ganha as constantes da decisão 1 (marcador de 11,2 mm em módulos de 1,6 mm, zona de
+silêncio do QR de 2 mm, folga da escrita de 2 mm, pauta de 7 mm, e a pauta provisória a 300‰ com
+0,2 mm). `QuestionBlocks` lê `answer_lines`, e não mais a rubrica. `emitEssayRegion` emite o `4k` no
+canto superior esquerdo, o `4k+3` no inferior direito, o QR no canto superior direito, a moldura na
+largura inteira e a pauta como `DrawLine`. O retângulo de referência é o externo dos dois marcadores,
+e a `answer_area` vai da base do QR até a zona de silêncio do `4k+3`.
+
+**A validação entrou junto, só no que o motor novo exige.** A regra "toda região tem os quatro
+marcadores `4k..4k+3`" faria o mapa do motor ser inválido. Por isso a região discursiva passou, neste
+commit, a exigir exatamente `[4k, 4k+3]`, e o gabarito e a folha de teste continuam com os quatro. O
+resto da 3.4 (o marcador declarado existir na página, a linha com tom) e os testes dela vêm no commit
+dela.
+
+**O vermelho previsto, antes de rodar:** cai **só** `GoldenLayoutTest` › "mapa da prova com
+discursiva bate byte a byte com o golden", nos três alvos. A golden é regravada na 5.2, depois de os
+renderizadores desenharem `line`, e até lá fica vermelha. **Real:** esse, e só esse, nos três alvos —
+`jvmTest` 1 de 386, `jsNodeTest` 1 de 377, `testAndroidHostTest` 1 de 377, às 14:31:16Z.
+
+**Um teste por cenário**, em `RegiaoDiscursivaTest`:
+
+| Cenário | Teste |
+|---|---|
+| Dois marcadores na diagonal e o QR no terceiro canto | `dois marcadores na diagonal e o QR no terceiro canto` — os cantos externos dos dois marcadores são os do retângulo de referência; o QR encosta na borda direita com o topo na altura do `4k`; o QR declarado vai até `u = 1` |
+| Identificadores dos marcadores da região discursiva | `cada discursiva tem a sua regiao, com os marcadores 4k e 4k+3` — `[4, 7]` e `[8, 11]`, e os desenhados são esses e só esses |
+| Marcador discursivo dimensionado com folga | `marcador discursivo continua com 10 mm mesmo reduzido 5 por cento` — e o lado desenhado é a constante, com 7 × 7 módulos |
+| Coordenadas dentro da faixa normalizada | `moldura, pauta, QR e area de resposta ficam dentro do retangulo de referencia` |
+| Zona de silêncio preservada | `nenhuma tinta invade a zona de silencio dos marcadores discursivos` — zona de um módulo do próprio marcador; quatro paginações diferentes, com guarda de vacuidade que exige marcador nas **duas** colunas |
+| O professor dimensiona a moldura | `o professor dimensiona a moldura pelo numero de linhas` — 5 contra 8 linhas, mesma rubrica: a moldura cresce 21 mm, e marcador de cima, QR e topo da moldura não se movem em relação ao topo |
+| A rubrica não mexe na moldura | `a rubrica nao mexe na moldura` — `expected_lines` 3+2 contra 6+3, mesmas linhas: JSON canônico idêntico |
+| Moldura maior que a coluna | `moldura maior que a coluna e recusada, nomeando a questao` |
+| Área de resposta com folga fora da moldura | `a area de resposta contem a moldura, com folga acima e abaixo dela` — e começa na base do QR e termina na zona de silêncio do `4k+3` |
+| Pauta abaixo do teto decorativo | `a pauta e linha cinza de 7 mm abaixo do teto decorativo, e a moldura e preta` |
+| Enunciado e moldura não se separam | `enunciado e moldura ficam juntos onde quer que o paginador os ponha` |
+| O enunciado fica fora da moldura | `nenhum texto do enunciado cai dentro da regiao` |
+
+O teste da 5a "a rubrica dimensiona a moldura, e so ela" saiu: o cenário dele foi removido da spec
+(REMOVED), e os dois cenários da moldura acima o substituem.
+
+**O ajudante `discursiva(...)` separa linhas declaradas de `expected_lines`, e por padrão os iguala.**
+Só os dois cenários da moldura os separam. Ao preparar a mutação B, a leitura mostrou que o teste da
+pauta usava 6 linhas com a rubrica padrão (Σ 5): a mutação o derrubaria também, pelo número de traços
+da pauta, e o conjunto real deixaria de ser o previsto por um motivo que não é o da camada. Os quatro
+testes que variam as linhas passaram a declarar rubrica de mesma soma, **antes** de a mutação rodar.
+
+**Visto falhar**, com dois conjuntos disjuntos previstos. Cada mutação com `// MUTACAO` acima, no
+`jvmTest` inteiro; a golden da discursiva já estava vermelha e continua:
+
+| Mutação | Previsto, além da golden | Real |
+|---|---|---|
+| A — QR centrado, como na 5a (`qrX = left + (width - qrSide) / 2`) | só `dois marcadores na diagonal e o QR no terceiro canto` | 2 de 386: a golden e esse. "o QR da regiao 1 nao encosta na borda direita ==> expected: <102000> but was: <65500>" |
+| B — moldura lida de Σ `expected_lines`, como na 5a | só `o professor dimensiona a moldura pelo numero de linhas` e `a rubrica nao mexe na moldura` | 3 de 386: a golden e esses dois. "a altura da moldura nao seguiu o numero de linhas declarado ==> expected: <21000> but was: <0>"; e os dois JSON canônicos diferentes |
+
+A reversão de A foi observada na rodada de B (o teste da diagonal passou nela). Depois de reverter B,
+`grep MUTACAO` em `packages/`, `apps/web/src`, `apps/android/src` e `tools/` deu `0`, e
+`./gradlew :packages:domain:allTests` rodou às 14:33Z: 1 de 386, 1 de 377 e 1 de 377, a golden da
+discursiva em cada alvo, como previsto.

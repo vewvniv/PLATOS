@@ -7,6 +7,7 @@ import com.platos.domain.exam.QuestionKind
 import com.platos.domain.exam.Rubric
 import com.platos.domain.exam.RubricCriterion
 import com.platos.domain.exam.RubricDescriptor
+import com.platos.domain.geometry.Um
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -27,15 +28,23 @@ class RegiaoDiscursivaTest {
         options = listOf("primeira", "segunda", "terceira", "quarta"),
     )
 
-    private fun discursiva(id: String, vararg linhas: Int = intArrayOf(3, 2)) = Question(
+    /**
+     * Discursiva com as duas escolhas do professor (ADR-0017).
+     *
+     * Por padrao, [linhas] e igual a soma de [esperadas]. So os dois cenarios da moldura os separam, e
+     * e isso que faz a mutacao "moldura lida da rubrica" derrubar exatamente esses dois e nenhum
+     * outro (tarefa 3.2): se o padrao os separasse, todo teste de geometria cairia junto, e a queda
+     * nao diria qual camada segurou.
+     */
+    private fun discursiva(id: String, linhas: Int = 5, esperadas: IntArray = intArrayOf(3, 2)) = Question(
         id = id,
         kind = QuestionKind.ESSAY,
         statement = "Explique, com as suas palavras, o raciocinio da questao $id.",
-        points = linhas.size,
-        answerLines = linhas.sum(),
+        points = esperadas.size,
+        answerLines = linhas,
         answerWidth = AnswerWidth.COLUMN,
         rubric = Rubric(
-            linhas.mapIndexed { i, n ->
+            esperadas.mapIndexed { i, n ->
                 RubricCriterion(
                     id = "c${i + 1}",
                     description = "Criterio ${i + 1}",
@@ -81,26 +90,155 @@ class RegiaoDiscursivaTest {
 
     private fun LayoutMap.primitivasDa(pagina: Int) = pages.single { it.index == pagina }.primitives
 
-    /** Cenario "Identificadores dos marcadores da regiao discursiva". */
+    private fun LayoutMap.marcadoresDa(regiao: ScannableRegion) =
+        primitivasDa(regiao.page).filterIsInstance<DrawAruco>().filter { it.id.startsWith("r${regiao.index}-") }
+
+    private fun LayoutMap.molduraDa(regiao: ScannableRegion) =
+        primitivasDa(regiao.page).filterIsInstance<DrawRect>().single { it.id == "r${regiao.index}-moldura" }
+
+    private fun LayoutMap.pautaDa(regiao: ScannableRegion) =
+        primitivasDa(regiao.page).filter { it.id.startsWith("r${regiao.index}-p") }
+
+    /** Cenario "Identificadores dos marcadores da regiao discursiva" (ADR-0018). */
     @Test
-    fun `cada discursiva tem a sua regiao, com os marcadores 4k a 4k+3`() {
+    fun `cada discursiva tem a sua regiao, com os marcadores 4k e 4k+3`() {
         val map = engine.layout(prova(objetiva("q1"), discursiva("q2"), objetiva("q3"), discursiva("q4")))
 
         assertEquals(listOf(0, 1, 2), map.regions.map { it.index })
         val primeira = map.regiaoDa("q2")
         val segunda = map.regiaoDa("q4")
         assertEquals(1, primeira.index)
-        assertEquals(listOf(4, 5, 6, 7), primeira.markerIds)
+        assertEquals(listOf(4, 7), primeira.markerIds)
         assertEquals(2, segunda.index)
-        assertEquals(listOf(8, 9, 10, 11), segunda.markerIds)
+        assertEquals(listOf(8, 11), segunda.markerIds)
 
-        // E os marcadores desenhados sao esses, na pagina da regiao.
+        // E os marcadores desenhados sao esses, e so esses, na pagina da regiao: 4k+1 e 4k+2 nao
+        // sao impressos.
         for (regiao in listOf(primeira, segunda)) {
-            val desenhados = map.primitivasDa(regiao.page).filterIsInstance<DrawAruco>()
-                .filter { it.id.startsWith("r${regiao.index}-") }
-                .map { it.markerId }
-            assertEquals(regiao.markerIds, desenhados)
+            assertEquals(regiao.markerIds, map.marcadoresDa(regiao).map { it.markerId })
         }
+    }
+
+    /** Cenario "Dois marcadores na diagonal e o QR no terceiro canto" (ADR-0018). */
+    @Test
+    fun `dois marcadores na diagonal e o QR no terceiro canto`() {
+        val map = engine.layout(prova(objetiva("q1"), discursiva("q2"), discursiva("q3")))
+        val discursivas = map.regions.filter { it.kind == LayoutEngine.ESSAY_KIND }
+        assertEquals(2, discursivas.size)
+
+        for (regiao in discursivas) {
+            val k = regiao.index
+            val direita = regiao.quadX + regiao.quadWidth
+            val base = regiao.quadY + regiao.quadHeight
+            val marcadores = map.marcadoresDa(regiao)
+
+            // O retangulo de referencia e o externo: vai do canto de fora do 4k ao canto de fora do
+            // 4k+3.
+            val cima = marcadores.single { it.markerId == 4 * k }
+            assertEquals(regiao.quadX to regiao.quadY, cima.x to cima.y, "o ${4 * k} nao esta no canto superior esquerdo")
+            val baixo = marcadores.single { it.markerId == 4 * k + 3 }
+            assertEquals(
+                direita to base,
+                (baixo.x + baixo.side) to (baixo.y + baixo.side),
+                "o ${4 * k + 3} nao esta no canto inferior direito",
+            )
+
+            val qr = map.primitivasDa(regiao.page).filterIsInstance<DrawQr>().single { it.id == regiao.qrId }
+            assertEquals(direita, qr.x + qr.side, "o QR da regiao $k nao encosta na borda direita")
+            assertEquals(cima.y, qr.y, "o topo do QR da regiao $k nao esta na altura do topo do ${4 * k}")
+            // O QR declarado e o desenhado: o canto superior direito do retangulo normalizado.
+            assertEquals(0, regiao.qr.v)
+            assertTrue(
+                kotlin.math.abs(regiao.qr.u + regiao.qr.uSize - 1_000_000) <= 1,
+                "o QR declarado da regiao $k nao chega a borda direita: ${regiao.qr}",
+            )
+        }
+    }
+
+    /** Cenario "Marcador discursivo dimensionado com folga" (ADR-0001, ADR-0018). */
+    @Test
+    fun `marcador discursivo continua com 10 mm mesmo reduzido 5 por cento`() {
+        val minimo = Um.mm(10)
+        val lado = EssayGeometry.MARKER_SIDE
+        assertTrue(Um(lado.raw * 95 / 100) >= minimo, "reduzido 5%, o marcador cai para ${Um(lado.raw * 95 / 100)}")
+        assertEquals(lado, EssayGeometry.MARKER_MODULE * 7, "o lado nao e sete modulos")
+
+        // E e esse o lado desenhado, e nao uma constante que ninguem le.
+        val map = engine.layout(prova(objetiva("q1"), discursiva("q2")))
+        val marcadores = map.marcadoresDa(map.regiaoDa("q2"))
+        assertEquals(2, marcadores.size)
+        for (marcador in marcadores) {
+            assertEquals(lado.raw, marcador.side)
+            assertEquals(EssayGeometry.MARKER_MODULE.raw, marcador.module)
+            assertEquals(7, marcador.modules.size)
+            assertTrue(marcador.modules.all { it.length == 7 })
+        }
+    }
+
+    /** Cenario "Coordenadas dentro da faixa normalizada", na regiao discursiva. */
+    @Test
+    fun `moldura, pauta, QR e area de resposta ficam dentro do retangulo de referencia`() {
+        val map = engine.layout(prova(objetiva("q1"), discursiva("q2"), discursiva("q3", linhas = 9, esperadas = intArrayOf(5, 4))))
+        for (regiao in map.regions.filter { it.kind == LayoutEngine.ESSAY_KIND }) {
+            val dentro = { x: Int, y: Int ->
+                x in regiao.quadX..(regiao.quadX + regiao.quadWidth) &&
+                    y in regiao.quadY..(regiao.quadY + regiao.quadHeight)
+            }
+            val moldura = map.molduraDa(regiao)
+            val meio = moldura.stroke / 2
+            assertTrue(dentro(moldura.x - meio, moldura.y - meio), "moldura da regiao ${regiao.index} fora")
+            assertTrue(
+                dentro(moldura.x + moldura.width + meio, moldura.y + moldura.height + meio),
+                "moldura da regiao ${regiao.index} fora",
+            )
+            for (linha in map.pautaDa(regiao).map { it as DrawLine }) {
+                assertTrue(dentro(linha.x1, linha.y1 - linha.stroke / 2), "linha `${linha.id}` fora")
+                assertTrue(dentro(linha.x2, linha.y2 + linha.stroke / 2), "linha `${linha.id}` fora")
+            }
+            val qr = map.primitivasDa(regiao.page).filterIsInstance<DrawQr>().single { it.id == regiao.qrId }
+            assertTrue(dentro(qr.x, qr.y) && dentro(qr.x + qr.side, qr.y + qr.side), "QR da regiao ${regiao.index} fora")
+
+            val area = requireNotNull(regiao.answerArea)
+            for (rect in listOf(regiao.qr, area)) {
+                for (valor in listOf(rect.u, rect.v, rect.u + rect.uSize, rect.v + rect.vSize)) {
+                    assertTrue(valor in 0..1_000_000, "coordenada fora de [0,1] na regiao ${regiao.index}: $rect")
+                }
+            }
+        }
+    }
+
+    /**
+     * Cenario "Zona de silencio preservada", nos marcadores da regiao discursiva.
+     *
+     * A zona e de um modulo do proprio marcador, 1,6 mm. A discursiva cai em lugares diferentes da
+     * paginacao conforme o numero de objetivas antes dela, e a guarda de vacuidade exige que ao menos
+     * um marcador tenha caido na coluna da direita — e ali que a canaleta entre colunas e o vizinho.
+     */
+    @Test
+    fun `nenhuma tinta invade a zona de silencio dos marcadores discursivos`() {
+        val measurer = com.platos.domain.text.TextMeasurer(com.platos.domain.text.EmbeddedFont.program)
+        val colunas = mutableSetOf<Int>()
+        for (n in listOf(1, 6, 12, 20)) {
+            val objetivas = (1..n).map { objetiva("o$it") }
+            val map = engine.layout(
+                prova(*(objetivas + discursiva("d1") + objetiva("x1") + discursiva("d2", linhas = 8, esperadas = intArrayOf(5, 3))).toTypedArray()),
+            )
+            for (regiao in map.regions.filter { it.kind == LayoutEngine.ESSAY_KIND }) {
+                val primitivas = map.primitivasDa(regiao.page)
+                for (marcador in map.marcadoresDa(regiao)) {
+                    colunas += if (marcador.x > LayoutProfile.DEFAULT.columnLeft(1).raw - 1) 1 else 0
+                    for (primitiva in primitivas) {
+                        assertTrue(
+                            clearsQuietZone(primitiva, marcador, marcador.module, measurer),
+                            "com $n objetivas, `${primitiva.id}` invade a zona de silencio do marcador " +
+                                "${marcador.markerId}: tinta em ${inkBoxOf(primitiva, measurer)}, marcador em " +
+                                "${marcador.x}+${marcador.side} x ${marcador.y}+${marcador.side}",
+                        )
+                    }
+                }
+            }
+        }
+        assertEquals(setOf(0, 1), colunas, "os marcadores discursivos nao cairam nas duas colunas")
     }
 
     /** Cenario "Cada QR declara a sua regiao", do payload. */
@@ -117,11 +255,12 @@ class RegiaoDiscursivaTest {
 
     /** Cenario "Regiao discursiva completa". */
     @Test
-    fun `a regiao discursiva declara a questao, a area de resposta e o QR, e nenhuma bolha`() {
+    fun `a regiao discursiva declara a questao, os marcadores, a area de resposta e o QR, e nenhuma bolha`() {
         val map = engine.layout(prova(objetiva("q1"), discursiva("q2")))
         val regiao = map.regiaoDa("q2")
 
         assertEquals(LayoutEngine.ESSAY_KIND, regiao.kind)
+        assertEquals(listOf(4, 7), regiao.markerIds)
         assertTrue(regiao.bubbles.isEmpty(), "regiao discursiva com bolha")
         val area = requireNotNull(regiao.answerArea)
         for (valor in listOf(area.u, area.v, area.u + area.uSize, area.v + area.vSize)) {
@@ -133,35 +272,127 @@ class RegiaoDiscursivaTest {
         )
     }
 
-    /** Cenario "A rubrica dimensiona a moldura". */
+    /**
+     * Cenario "O professor dimensiona a moldura" (ADR-0016, ADR-0017).
+     *
+     * As duas provas tem a mesma rubrica e diferem so no numero de linhas declarado: a moldura cresce
+     * exatamente 3 x 7 mm, e o que fica em cima dela — o marcador de cima, o QR e o topo da moldura —
+     * nao se move em relacao ao topo da regiao. O marcador de baixo acompanha a base.
+     */
     @Test
-    fun `a rubrica dimensiona a moldura, e so ela`() {
-        val curta = engine.layout(prova(objetiva("q1"), discursiva("q2", 3, 2)))
-        val longa = engine.layout(prova(objetiva("q1"), discursiva("q2", 5, 2)))
+    fun `o professor dimensiona a moldura pelo numero de linhas`() {
+        val cinco = engine.layout(prova(objetiva("q1"), discursiva("q2", linhas = 5)))
+        val oito = engine.layout(prova(objetiva("q1"), discursiva("q2", linhas = 8)))
+        val rc = cinco.regiaoDa("q2")
+        val ro = oito.regiaoDa("q2")
 
-        fun moldura(map: LayoutMap): DrawRect {
-            val regiao = map.regiaoDa("q2")
-            return map.primitivasDa(regiao.page).filterIsInstance<DrawRect>()
-                .single { it.id == "r${regiao.index}-moldura" }
-        }
-
-        // Duas linhas a mais: a moldura cresce exatamente 2 x 8,6 mm.
         assertEquals(
-            (EssayGeometry.PAUTA * 2).raw,
-            moldura(longa).height - moldura(curta).height,
-            "a altura da moldura nao seguiu os expected_lines",
+            (EssayGeometry.PAUTA * 3).raw,
+            oito.molduraDa(ro).height - cinco.molduraDa(rc).height,
+            "a altura da moldura nao seguiu o numero de linhas declarado",
         )
-        // E o resto da regiao nao mexe: mesma largura, mesma distancia do topo do quadrilatero ao QR,
-        // mesmo marcador de cima.
-        val rc = curta.regiaoDa("q2")
-        val rl = longa.regiaoDa("q2")
-        assertEquals(rc.quadWidth, rl.quadWidth)
-        assertEquals(rc.quadX, rl.quadX)
-        assertEquals(moldura(curta).width, moldura(longa).width)
-        assertEquals(moldura(curta).y - rc.quadY, moldura(longa).y - rl.quadY)
+        assertEquals(cinco.molduraDa(rc).width, oito.molduraDa(ro).width)
+        assertEquals(cinco.molduraDa(rc).y - rc.quadY, oito.molduraDa(ro).y - ro.quadY)
+
+        fun qr(map: LayoutMap, regiao: ScannableRegion) =
+            map.primitivasDa(regiao.page).filterIsInstance<DrawQr>().single { it.id == regiao.qrId }
+        assertEquals(qr(cinco, rc).x - rc.quadX to qr(cinco, rc).y - rc.quadY, qr(oito, ro).x - ro.quadX to qr(oito, ro).y - ro.quadY)
+
+        val cimaC = cinco.marcadoresDa(rc).single { it.markerId == 4 }
+        val cimaO = oito.marcadoresDa(ro).single { it.markerId == 4 }
+        assertEquals(cimaC.x - rc.quadX to cimaC.y - rc.quadY, cimaO.x - ro.quadX to cimaO.y - ro.quadY)
+        val baixoC = cinco.marcadoresDa(rc).single { it.markerId == 7 }
+        val baixoO = oito.marcadoresDa(ro).single { it.markerId == 7 }
+        assertEquals(
+            rc.quadY + rc.quadHeight - baixoC.y,
+            ro.quadY + ro.quadHeight - baixoO.y,
+            "o marcador de baixo nao acompanhou a base da regiao",
+        )
         // A pauta tem uma linha a menos que o numero de linhas: as bordas da moldura sao a 0 e a n.
-        val pautaLonga = longa.primitivasDa(rl.page).count { it.id.startsWith("r${rl.index}-p") }
-        assertEquals(5 + 2 - 1, pautaLonga)
+        assertEquals(4, cinco.pautaDa(rc).size)
+        assertEquals(7, oito.pautaDa(ro).size)
+    }
+
+    /** Cenario "A rubrica nao mexe na moldura" (ADR-0017). */
+    @Test
+    fun `a rubrica nao mexe na moldura`() {
+        val curta = prova(objetiva("q1"), discursiva("q2", linhas = 5, esperadas = intArrayOf(3, 2)))
+        val longa = prova(objetiva("q1"), discursiva("q2", linhas = 5, esperadas = intArrayOf(6, 3)))
+        // A entrada difere de fato, e so nos `expected_lines`.
+        assertTrue(curta != longa)
+        assertEquals(curta.questions.map { it.copy(rubric = null) }, longa.questions.map { it.copy(rubric = null) })
+
+        assertEquals(engine.layout(curta).toCanonicalJson(), engine.layout(longa).toCanonicalJson())
+    }
+
+    /**
+     * Cenario "Area de resposta com folga fora da moldura".
+     *
+     * A area vai da base do QR ate a zona de silencio do marcador de baixo, na largura inteira. A
+     * moldura cabe inteira nela, com folga acima e com a folga da escrita abaixo.
+     */
+    @Test
+    fun `a area de resposta contem a moldura, com folga acima e abaixo dela`() {
+        val map = engine.layout(prova(objetiva("q1"), discursiva("q2"), discursiva("q3", linhas = 7, esperadas = intArrayOf(4, 3))))
+        for (regiao in map.regions.filter { it.kind == LayoutEngine.ESSAY_KIND }) {
+            val area = requireNotNull(regiao.answerArea)
+            fun x(u: Int) = regiao.quadX + ((u.toLong() * regiao.quadWidth + 500_000) / 1_000_000).toInt()
+            fun y(v: Int) = regiao.quadY + ((v.toLong() * regiao.quadHeight + 500_000) / 1_000_000).toInt()
+            val (aLeft, aRight) = x(area.u) to x(area.u + area.uSize)
+            val (aTop, aBottom) = y(area.v) to y(area.v + area.vSize)
+
+            val moldura = map.molduraDa(regiao)
+            val meio = moldura.stroke / 2
+            val (mLeft, mRight) = (moldura.x - meio) to (moldura.x + moldura.width + meio)
+            val (mTop, mBottom) = (moldura.y - meio) to (moldura.y + moldura.height + meio)
+            val r = regiao.index
+
+            assertTrue(aLeft <= mLeft && mRight <= aRight, "regiao $r: moldura [$mLeft, $mRight] fora da area [$aLeft, $aRight]")
+            assertTrue(aTop < mTop, "regiao $r: sem folga acima da moldura (area $aTop, moldura $mTop)")
+            assertTrue(
+                aBottom - mBottom >= EssayGeometry.DESCENDER_CLEARANCE.raw,
+                "regiao $r: folga abaixo da moldura de ${aBottom - mBottom} um, menor que a da escrita",
+            )
+
+            val qr = map.primitivasDa(regiao.page).filterIsInstance<DrawQr>().single { it.id == regiao.qrId }
+            assertTrue(kotlin.math.abs(aTop - (qr.y + qr.side)) <= 1, "regiao $r: a area nao comeca na base do QR")
+            val baixo = map.marcadoresDa(regiao).single { it.markerId == 4 * r + 3 }
+            assertTrue(
+                kotlin.math.abs(aBottom - (baixo.y - baixo.module)) <= 1,
+                "regiao $r: a area nao termina na zona de silencio do marcador de baixo " +
+                    "(area $aBottom, zona ${baixo.y - baixo.module})",
+            )
+        }
+    }
+
+    /** Cenario "Pauta abaixo do teto decorativo" (ADR-0010, ADR-0016). */
+    @Test
+    fun `a pauta e linha cinza de 7 mm abaixo do teto decorativo, e a moldura e preta`() {
+        val map = engine.layout(prova(objetiva("q1"), discursiva("q2", linhas = 6, esperadas = intArrayOf(4, 2))))
+        val regiao = map.regiaoDa("q2")
+        val pauta = map.pautaDa(regiao)
+
+        assertEquals(5, pauta.size, "a pauta de 6 linhas tem 5 tracos")
+        assertTrue(pauta.all { it is DrawLine }, "a pauta tem primitiva que nao e linha: ${pauta.map { it.id }}")
+        val linhas = pauta.map { it as DrawLine }.sortedBy { it.y1 }
+        for (linha in linhas) {
+            assertEquals(linha.y1, linha.y2, "a linha `${linha.id}` nao e horizontal")
+            val tom = kotlin.test.assertNotNull(linha.tone, "a linha `${linha.id}` nao declara tom")
+            assertTrue(
+                tom < regiao.inkBudget.decorativeToneMax,
+                "a linha `${linha.id}` tem tom $tom, e o teto decorativo e ${regiao.inkBudget.decorativeToneMax}",
+            )
+        }
+        val moldura = map.molduraDa(regiao)
+        val topo = moldura.y - moldura.stroke / 2
+        assertEquals(
+            List(5) { EssayGeometry.PAUTA.raw },
+            (listOf(topo) + linhas.map { it.y1 }).zipWithNext { a, b -> b - a },
+            "a pauta nao esta espacada de 7 mm a partir do topo da moldura",
+        )
+        // A moldura continua preta: retangulo de traco, sem trama e sem tom.
+        assertEquals(null, moldura.fill)
+        assertTrue(moldura.stroke > 0)
     }
 
     /** Cenario "O enunciado fica fora da moldura". */
@@ -169,10 +400,9 @@ class RegiaoDiscursivaTest {
     fun `nenhum texto do enunciado cai dentro da regiao`() {
         val map = engine.layout(prova(objetiva("q1"), discursiva("q2")))
         val regiao = map.regiaoDa("q2")
-        // O quadrilatero e pelos centros dos marcadores; a regiao desenhada vai meio marcador alem.
-        val meio = com.platos.domain.capture.CaptureGeometry.MARKER_SIDE.divFloor(2).raw
-        val topo = regiao.quadY - meio
-        val base = regiao.quadY + regiao.quadHeight + meio
+        // O retangulo de referencia e o externo dos dois marcadores: e a propria regiao.
+        val topo = regiao.quadY
+        val base = regiao.quadY + regiao.quadHeight
         val enunciado = map.primitivasDa(regiao.page).filterIsInstance<DrawText>()
             .filter { it.id.startsWith("qq2-") }
         assertTrue(enunciado.isNotEmpty(), "o enunciado da q2 nao foi desenhado")
@@ -204,8 +434,8 @@ class RegiaoDiscursivaTest {
                 .single { it.second.id == "qd-n" }
             val texto = numero.second as DrawText
             assertEquals(regiao.page, numero.first, "com $n objetivas o numero e a regiao se separaram")
-            val xDaRegiao = regiao.quadX - com.platos.domain.capture.CaptureGeometry.MARKER_SIDE.divFloor(2).raw
-            assertEquals(xDaRegiao, texto.x, "com $n objetivas a regiao foi para outra coluna")
+            // A regiao comeca na borda da coluna, que e onde o numero da questao fica pendurado.
+            assertEquals(regiao.quadX, texto.x, "com $n objetivas a regiao foi para outra coluna")
             lugares += regiao.page to texto.x
         }
         assertTrue(lugares.size > 1, "a discursiva caiu sempre no mesmo lugar: $lugares")
@@ -214,8 +444,10 @@ class RegiaoDiscursivaTest {
     /** Cenario "Moldura maior que a coluna". */
     @Test
     fun `moldura maior que a coluna e recusada, nomeando a questao`() {
+        // A rubrica pede o mesmo que as linhas: o que se afirma aqui e o teto da coluna, e nao de
+        // onde sai o numero — isso e dos dois cenarios da moldura, acima.
         val falha = kotlin.test.assertFailsWith<LayoutException> {
-            engine.layout(prova(objetiva("q1"), discursiva("q2", 40)))
+            engine.layout(prova(objetiva("q1"), discursiva("q2", linhas = 40, esperadas = intArrayOf(40))))
         }
         assertTrue(falha.message!!.contains("q2"), falha.message!!)
     }

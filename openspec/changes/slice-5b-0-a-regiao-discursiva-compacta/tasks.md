@@ -70,7 +70,7 @@
   paginação em faixas.
 
   **Ver falhar:** sem a checagem de largura, cai **só** "Discursiva sem largura". Reverter e rodar.
-- [ ] 3.2 A região nova (decisões 1 e 2):
+- [x] 3.2 A região nova (decisões 1 e 2):
   - as constantes em `EssayGeometry` (marcador 11,2 mm, módulo 1,6 mm, zona de silêncio do QR de
     2 mm, folga de baixo de 2 mm, pauta de 7 mm);
   - `QuestionBlocks` lê `answerLines`;

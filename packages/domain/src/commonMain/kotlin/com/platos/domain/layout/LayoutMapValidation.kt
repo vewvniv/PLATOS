@@ -109,14 +109,25 @@ fun LayoutMap.validate(): ValidationResult {
         if (region.quadWidth <= 0 || region.quadHeight <= 0) {
             problems += "regiao ${region.index} com quadrilatero degenerado"
         }
-        if (region.markerIds.size != 4 || region.markerIds.toSet().size != 4) {
-            problems += "regiao ${region.index} precisa de quatro marcadores distintos, veio " +
-                "${region.markerIds}"
-        }
-        val expected = (4 * region.index)..(4 * region.index + 3)
-        if (region.markerIds.sorted() != expected.toList()) {
-            problems += "regiao ${region.index} deveria usar os marcadores " +
-                "${expected.toList()}, veio ${region.markerIds}"
+        // A regiao discursiva imprime dois marcadores, `4k` e `4k+3`, na diagonal (ADR-0018); o
+        // gabarito e a folha de teste continuam com os quatro. Uma regra por tipo, e nao "dois ou
+        // quatro": uma discursiva com quatro, ou um gabarito com dois, e o mapa de outra geometria.
+        if (region.kind == LayoutEngine.ESSAY_KIND) {
+            val expected = listOf(4 * region.index, 4 * region.index + 3)
+            if (region.markerIds.sorted() != expected || region.markerIds.size != 2) {
+                problems += "regiao ${region.index} e discursiva e deveria declarar exatamente os " +
+                    "marcadores $expected, veio ${region.markerIds}"
+            }
+        } else {
+            if (region.markerIds.size != 4 || region.markerIds.toSet().size != 4) {
+                problems += "regiao ${region.index} precisa de quatro marcadores distintos, veio " +
+                    "${region.markerIds}"
+            }
+            val expected = (4 * region.index)..(4 * region.index + 3)
+            if (region.markerIds.sorted() != expected.toList()) {
+                problems += "regiao ${region.index} deveria usar os marcadores " +
+                    "${expected.toList()}, veio ${region.markerIds}"
+            }
         }
 
         for (bubble in region.bubbles) {

@@ -56,11 +56,14 @@ data class FormulaContent(
  * impedir entre enunciado e alternativas.
  */
 data class EssayContent(
-    /** Soma dos `expected_lines` dos criterios da rubrica: o numero de linhas da pauta (D35). */
+    /**
+     * O numero de linhas que o professor declarou (ADR-0017). Ate a
+     * `slice-5b-0-a-regiao-discursiva-compacta` era a soma dos `expected_lines` da rubrica (D35).
+     */
     val lines: Int,
     /** Do topo do bloco ate o topo da regiao: o enunciado e o respiro, na grade. */
     val statementHeight: Um,
-    /** Altura da regiao, na grade: faixa do QR, area de resposta e faixa dos marcadores de baixo. */
+    /** Altura da regiao, na grade: faixa do QR, moldura, folga da escrita e marcador de baixo. */
     val regionHeight: Um,
 )
 
@@ -154,8 +157,8 @@ class QuestionBlockBuilder(
     /**
      * A parte discursiva do bloco, ou nulo na objetiva.
      *
-     * A altura da area de resposta e `Σ expected_lines x 8,6 mm` (D35, §7), e as duas partes do
-     * bloco vao para a grade de 3 mm separadamente: o topo da regiao cai na grade, e com ele os
+     * A altura da moldura e o numero de linhas declarado vezes a pauta de 7 mm (ADR-0016, ADR-0017),
+     * e as duas partes do bloco vao para a grade de 3 mm separadamente: o topo da regiao cai na grade, e com ele os
      * marcadores e o QR — posicoes inteiras de grade sao o que mantem o layout uma funcao pura sobre
      * inteiros (D-1.2).
      */
@@ -165,9 +168,9 @@ class QuestionBlockBuilder(
         formula: FormulaContent?,
     ): EssayContent? {
         if (question.kind != QuestionKind.ESSAY) return null
-        // `requireSupported` ja recusou discursiva sem rubrica; aqui ela so e lida.
-        val rubric = requireNotNull(question.rubric) { "discursiva `${question.id}` sem rubrica" }
-        val lines = rubric.criteria.sumOf { it.expectedLines }
+        // `requireSupported` ja recusou discursiva sem linhas; aqui elas so sao lidas. A rubrica nao
+        // entra: os `expected_lines` dela sao informacao de correcao, e nao geometria (ADR-0017).
+        val lines = requireNotNull(question.answerLines) { "discursiva `${question.id}` sem linhas" }
         return EssayContent(
             lines = lines,
             statementHeight = profile.snapToGrid(
