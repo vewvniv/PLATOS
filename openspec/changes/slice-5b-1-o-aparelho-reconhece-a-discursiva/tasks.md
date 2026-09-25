@@ -63,6 +63,27 @@
 
 ## 4. A folha discursiva impressa (decisão 6)
 
+> **Pausada em 2026-09-25, por decisão do mantenedor, antes de a 4.1 imprimir.** O texto das
+> tarefas 4.1 a 4.3 fica como estava (P7).
+>
+> **O que aconteceu:** o mantenedor viu `discursiva-aluno-web.pdf` e reprovou a disposição **antes**
+> do papel. A revisão virou os ADR-0016 a ADR-0019 (PR #69):
+> - a pauta de 7 mm, em cinza claro;
+> - linhas e largura declaradas pelo professor;
+> - a região discursiva com dois ArUcos na diagonal e o QR ancorando o terceiro canto;
+> - a paginação que redistribui as questões.
+>
+> **Por que pausar:** fotografar a geometria de quatro marcadores de 14 mm pagaria a linha `5b` do
+> §16 com uma folha que vai ser descartada. A região de dois ArUcos ficaria, de novo, sem papel.
+>
+> **O que a retomada espera:**
+> 1. a mudança de layout que produz a região discursiva nova na fixture;
+> 2. esta mudança atualizada (`/opsx:update`) para reconhecer a região de dois ArUcos. A decisão 1
+>    ("os quatro `marker_ids`") e os conjuntos de "ver falhar" da 4.2 mudam de texto nesse momento, e
+>    não agora.
+>
+> **O prazo da linha `5b` não muda.** Ela vence quando a 5c abrir, e a 5c não abre antes disto.
+
 - [ ] 4.1 **Tarefa do mantenedor:**
   - imprimir `build/parity/discursiva-aluno-web.pdf`, a folha de `tok-a`, gerada nesta sessão;
   - marcar as quatro objetivas e escrever nas duas molduras;
