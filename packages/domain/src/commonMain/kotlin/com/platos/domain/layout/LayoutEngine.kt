@@ -550,8 +550,8 @@ class LayoutEngine(
      * do `4k+3`, na largura inteira: contem a moldura com folga em cima e embaixo, e a folga de baixo e
      * para a tinta que desce da ultima linha escrita.
      *
-     * A pauta e `line` cinza (ADR-0016), abaixo do teto decorativo da regiao. Tom e traco sao
-     * provisorios ate a impressao (decisao 5).
+     * A pauta e `line` cinza (ADR-0016), abaixo do teto decorativo da regiao. Tom e traco foram
+     * decididos no papel (decisao 5), e moram em [EssayGeometry].
      */
     private fun emitEssayRegion(
         examId: String,

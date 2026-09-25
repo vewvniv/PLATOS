@@ -176,6 +176,10 @@ nova. **Não se passa de 450‰**, porque "abaixo do teto" de 500‰ é o que fa
 **Regra de parada:** se nenhuma tentativa aprovar, a mudança **para**. O gatilho do ADR-0016 diz o
 que fazer, e o teto da região não é afrouxado para a pauta caber (P11).
 
+**Resultado, em 2026-09-25:** aprovado na primeira tentativa, a 300‰ com 0,2 mm, nos quatro critérios,
+na impressora do mantenedor. Nenhum degrau foi usado. O registro por critério e a digitalização estão
+na cobertura, seção 6.1.
+
 ### 6. O contrato: `answer_lines` e `answer_width` na `Question`, e não no pacote
 
 A `Question` ganha:

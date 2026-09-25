@@ -26,14 +26,15 @@ object EssayGeometry {
     val FRAME_STROKE: Um = CaptureGeometry.BUBBLE_STROKE
 
     /**
-     * Traco da linha da pauta. **Provisorio** (decisao 5): e o da previa que o mantenedor aprovou na
-     * tela, e tela nao e papel. O valor que fica sai da impressao, pelo criterio escrito antes dela.
+     * Traco da linha da pauta. Veio da previa que o mantenedor aprovou na tela, e tela nao e papel: foi
+     * **decidido no papel** em 2026-09-25, pelo criterio escrito antes da impressao (decisao 5; tarefa
+     * 6.1 da `slice-5b-0-a-regiao-discursiva-compacta`), aprovado na primeira tentativa.
      */
     val PAUTA_STROKE: Um = Um.mmHundredths(20)
 
     /**
-     * Tom da pauta em permilagem de preto. **Provisorio**, pela mesma razao de [PAUTA_STROKE]. Fica
-     * abaixo do teto decorativo da regiao (ADR-0010), que e o que faz a pauta ser decoracao.
+     * Tom da pauta em permilagem de preto, decidido no papel junto com [PAUTA_STROKE]. Fica abaixo do
+     * teto decorativo da regiao (ADR-0010), que e o que faz a pauta ser decoracao.
      */
     const val PAUTA_TONE: Int = 300
 

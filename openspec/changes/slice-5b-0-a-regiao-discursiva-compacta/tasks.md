@@ -224,7 +224,7 @@
 
 ## 6. O papel (decisão 5)
 
-- [ ] 6.1 **Tarefa do mantenedor.** Imprimir a 100% o `build/parity/discursiva-aluno-web.pdf` novo, a
+- [x] 6.1 **Tarefa do mantenedor.** Imprimir a 100% o `build/parity/discursiva-aluno-web.pdf` novo, a
   folha de `tok-a`, na impressora dele. Aplicar os critérios da decisão 5, **escritos antes desta
   impressão**:
   - pauta contínua, mais clara que a moldura e que o texto, e guiando três linhas escritas à mão;
@@ -248,7 +248,7 @@
   - `./gradlew build --rerun-tasks` e `connectedDebugAndroidTest`, sem filtro;
   - `vitest` e o `build` do web;
   - as guardas Node.
-- [ ] 7.3 `docs/cobertura-slice-5b-0-a-regiao-discursiva-compacta.md`:
+- [x] 7.3 `docs/cobertura-slice-5b-0-a-regiao-discursiva-compacta.md`:
   - como cada verificação foi vista falhar, com o previsto e o real;
   - os `sha256` da decisão 8, antes e depois;
   - a impressão da 6.1;
@@ -260,6 +260,9 @@
   **Aberta em 2026-09-25, 15:2xZ.** A cobertura já tem cada "visto falhar", os `sha256` antes e depois,
   o comando cheio e a seção "o que ainda não foi verificado". **Falta a impressão da 6.1**, que é do
   mantenedor: a folha de `tok-a` está gerada em `build/parity/discursiva-aluno-web.pdf`, 15:15:49Z.
+
+  **Fechada no mesmo dia:** a impressão foi aprovada nos quatro critérios, e o resultado, a
+  digitalização e o `sha256` dela estão na cobertura, seção 6.1.
 - [ ] 7.4 PR contra `main`, e o CI **lido no destino** (P2, P26).
 
   **Aberta:** nada foi publicado. Abrir a PR é ação para fora do repositório local, e espera a

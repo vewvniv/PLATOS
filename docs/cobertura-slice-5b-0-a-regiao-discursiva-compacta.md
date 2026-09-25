@@ -515,6 +515,9 @@ fixtures/` **vazio** — os artefatos voltaram byte a byte aos do `HEAD` —, e 
 
 ## 6. O papel (decisão 5) — pendente, tarefa do mantenedor
 
+> **Superado no mesmo dia:** a impressão foi feita e aprovada; o resultado está em "6.1 — o
+> resultado", logo abaixo. O texto desta seção fica como o estado de quando foi escrito (P7).
+
 A folha de `tok-a` foi gerada nesta sessão, às 15:15:49Z, pelo renderizador web a partir do pacote
 regravado: `build/parity/discursiva-aluno-web.pdf`, 211.852 bytes, 2 páginas. Antes de ser entregue,
 ela passou pela fidelidade e pela tinta contra `prova-discursiva.aluno.layout.json` ("fidelidade OK",
@@ -529,10 +532,48 @@ Uma nota para quem imprime: a página 1 sai com um vão grande, porque o paginad
 questões 4 e 5 inteiras para a página 2. Isso é da paginação, que o ADR-0019 muda numa mudança
 própria, e não é critério desta impressão.
 
+### 6.1 — o resultado
+
+A folha de `tok-a` (`build/parity/discursiva-aluno-web.pdf`, 15:15:49Z) foi impressa a 100% pelo
+mantenedor, na impressora dele (o modelo não foi informado), e ele escreveu três linhas de caneta azul
+sobre a pauta da questão 3 (`d1`). **Resultado por critério da decisão 5, pela palavra do
+mantenedor ("Sim para todos"), em 2026-09-25:**
+
+| Critério | Resultado | O que a imagem mostra |
+|---|---|---|
+| Contínua: cada linha de ponta a ponta, sem falha visível a ~30 cm | **aprovado** | as quatro linhas da região de `d1` aparecem inteiras no recorte em resolução cheia |
+| Clara: mais clara que a moldura e que o texto do enunciado | **aprovado** | a pauta sai em cinza claro; a moldura e o enunciado, em preto |
+| Guiando: três linhas escritas à mão, com a letra apoiada na pauta | **aprovado** | "This is a handwritten text with / a blue ink pen. As requested, / three lines was used.", cada linha apoiada numa linha da pauta |
+| Marcadores completos, com a borda fechada e a zona de silêncio livre | **aprovado** | os marcadores 0 a 3 do gabarito, e 4 e 7 da região de `d1`, na página 1 |
+
+**Com isso, o tom de 300‰ e o traço de 0,2 mm deixam de ser provisórios: foram decididos no papel**, na
+primeira tentativa, sem nenhum degrau da decisão 5.
+
+**O registro.** A digitalização está em `fixtures/prova-discursiva.digitalizacao.jpg`, cópia byte a byte
+(`cmp` igual) de "Scan 2026-09-25 19.16.28.jpg": 149.515 bytes, 1191 × 1677 px, `sha256`
+`2f2de1bbb57d26466f65cb49d633f1a1838f6812762a1b4ac5d39ca3eb26eb62` (`crypto` do Node).
+**Sem coordenada de GPS**, conferido de dois jeitos que não compartilham código: o `System.Drawing` do
+.NET lista só as propriedades 0x5090 e 0x5091, que são as tabelas de quantização do JPEG, e nenhuma
+tag de GPS (0x0000 a 0x001F) nem o ponteiro GPSInfo (0x8825); e a varredura dos segmentos crus acha só
+o APP0 (JFIF), nenhum APP1, e nenhuma ocorrência de "Exif", "GPS" ou "xmpmeta" nos bytes.
+
+**O que a imagem não registra.**
+- **A página 2**, com a região de `d2` e os marcadores 8 e 11. O critério dos marcadores vale para
+  ela pela palavra do mantenedor, e não pela imagem.
+- **Nada de medida.** A imagem tem ~144 px por polegada e serve de registro visual. Ela não mede o
+  lado do marcador de 11,2 mm nem a detecção dele, que são da 4.1 retomada da 5b-1.
+
+No vão da página 1 aparece, em cinza muito fraco, o conteúdo da página 2: a moldura e a pauta de `d2`
+e o texto da questão 5. Como não está espelhado, parece a outra folha atrás durante a digitalização, e
+não impressão frente e verso. Isso é **inferido pela posição, e não medido**. Não é critério desta
+impressão, mas quem usar esta imagem como fixture de captura precisa saber que ela tem esse fantasma.
+
 ## O que ainda não foi verificado
 
 - **A impressão da 6.1**, acima: nem a pauta cinza nem o marcador de 11,2 mm passaram pelo papel. O
-  tom e o traço da pauta continuam provisórios até ela.
+  tom e o traço da pauta continuam provisórios até ela. **Superado no mesmo dia:** impressa e
+  aprovada nos quatro critérios (6.1, acima). O que continua sem verificação é a página 2 na imagem e
+  qualquer medida sobre o papel.
 - **A detecção do marcador de 11,2 mm em foto.** É da 4.1 retomada da `slice-5b-1`, com regra de
   parada: se as fotos não o detectarem, o marcador volta a 14 mm. **Não é mitigado, é conhecido** (P8).
 - **A leitura da região de dois ArUcos no aparelho.** O `RegionDetector` da `main` não foi tocado, e o
