@@ -78,6 +78,28 @@ data class DrawImage(
 ) : Primitive
 
 /**
+ * Linha reta entre dois pontos, sem arremate alem das extremidades.
+ *
+ * Existe para a pauta da area de resposta discursiva (ADR-0016), que e guia para o aluno e fica em
+ * cinza, do lado decorativo do ADR-0010. E primitiva propria, e nao um campo de tom no retangulo: o
+ * JSON canonico escreve ate os nulos, e um `stroke_tone` em [DrawRect] apareceria em todo retangulo de
+ * todo mapa, mudando os bytes de provas que nao tem linha nenhuma (a licao do ADR-0014).
+ */
+@Serializable
+@SerialName("line")
+data class DrawLine(
+    override val id: String,
+    val x1: Int,
+    val y1: Int,
+    val x2: Int,
+    val y2: Int,
+    /** Espessura do traco. */
+    val stroke: Int,
+    /** Tom em permilagem de preto, 0 a 1000. Nulo e preto pleno, como em [DrawText]. */
+    val tone: Int? = null,
+) : Primitive
+
+/**
  * Marcador ArUco com o padrao ja resolvido (D-1.10).
  *
  * [modules] traz uma linha por string, `1` para modulo preto. O renderizador nao consulta

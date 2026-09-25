@@ -31,6 +31,23 @@ enum class AnswerCaptureMode {
     COLOR,
 }
 
+/**
+ * A largura da area de resposta de uma discursiva, escolhida pelo professor (ADR-0017).
+ *
+ * Sem valor padrao, de proposito: um padrao no contrato decidiria pelo professor sem que ele visse, e
+ * ele so descobriria a decisao na folha impressa. [PAGE] entra no contrato agora para que a recusa
+ * dela seja explicita, e nao uma coluna por omissao — a pagina depende da paginacao em faixas, que
+ * ainda nao existe.
+ */
+@Serializable
+enum class AnswerWidth {
+    @SerialName("column")
+    COLUMN,
+
+    @SerialName("page")
+    PAGE,
+}
+
 /** Um nivel de desempenho de um criterio: quanto ele vale e como se reconhece. */
 @Serializable
 data class RubricDescriptor(
@@ -167,6 +184,13 @@ data class Question(
      * declara, porque o gabarito e preto e branco por construcao (§8).
      */
     @SerialName("answer_capture_mode") val answerCaptureMode: AnswerCaptureMode? = null,
+    /**
+     * Numero de linhas da area de resposta da discursiva, escolhido pelo professor (ADR-0017). Nulo
+     * na objetiva. Nao e inferido da rubrica: os `expected_lines` dela sao informacao de correcao.
+     */
+    @SerialName("answer_lines") val answerLines: Int? = null,
+    /** Largura da area de resposta da discursiva (ADR-0017). Nula na objetiva. */
+    @SerialName("answer_width") val answerWidth: AnswerWidth? = null,
 )
 
 /**

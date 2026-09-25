@@ -36,7 +36,7 @@
 
 ## 2. O contrato, sozinho
 
-- [ ] 2.1 Commit só de contrato:
+- [x] 2.1 Commit só de contrato:
   - em `packages/domain`: `Question.answerLines` (`answer_lines`), `Question.answerWidth`
     (`answer_width`) e o enum `AnswerWidth` (`column`, `page`);
   - `DrawLine` (`"line"`: `x1`, `y1`, `x2`, `y2`, `stroke`, `tone`), em `LayoutMap.kt` e no espelho

@@ -47,6 +47,19 @@ export interface DrawImage {
   reference: string;
 }
 
+/** Linha reta entre dois pontos, sem arremate alem das extremidades (ADR-0016). */
+export interface DrawLine {
+  type: 'line';
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  stroke: number;
+  /** Tom em permilagem de preto, 0 a 1000. Nulo e preto pleno. */
+  tone: number | null;
+}
+
 export interface DrawAruco {
   type: 'aruco';
   id: string;
@@ -74,6 +87,7 @@ export type Primitive =
   | DrawCircle
   | DrawText
   | DrawImage
+  | DrawLine
   | DrawAruco
   | DrawQr;
 

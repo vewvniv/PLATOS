@@ -89,3 +89,35 @@ conferidos por `grep` em `apps/android/src/androidTest` nesta sessão.
   As três linhas `5` aparecem em "vence nesta fatia (5c)", e não como vencidas, o que está certo:
   `5` vence na 6.
 - **A cópia foi apagada**, e a guarda sobre a árvore real voltou a sair com `0`.
+
+## 2. O contrato, sozinho (tarefa 2.1)
+
+O commit acrescenta `AnswerWidth` (`column`, `page`), `Question.answerLines` (`answer_lines`) e
+`Question.answerWidth` (`answer_width`), os dois nulos por padrão, e `DrawLine` (`"line"`: `x1`, `y1`,
+`x2`, `y2`, `stroke`, `tone`) no domínio e no espelho `apps/web/src/layoutMap.ts`. O ramo `DrawLine`
+do renderizador Android lança `UnknownPrimitiveException`; o do web cai no `default`, que recusa.
+
+| | Previsto antes de rodar | Real |
+|---|---|---|
+| Testes | nenhum cai | a **compilação** dos testes do domínio caiu antes de qualquer teste rodar, nos três alvos: `InkBoxes.kt:19:79 'when' expression must be exhaustive. Add the 'is DrawLine' branch` |
+| Goldens | nenhum muda | nenhum mudou |
+
+**A previsão errou, e o erro é da lista de consumidores, não do código** (P12). `InkBoxes.kt` é o
+ajudante de teste que calcula a caixa de tinta de cada primitiva para as guardas de zona de silêncio,
+e tem um `when` exaustivo sobre `Primitive`. A tarefa só listava o renderizador Android. Ele ganhou o
+ramo da linha: os extremos crescidos de meio traço nos dois eixos, generosos como a caixa do texto.
+Esse ramo é o que a guarda "Zona de silêncio preservada" vai usar para a pauta, na 3.2.
+
+Depois do ramo, com o previsto valendo:
+
+- `./gradlew :packages:domain:allTests …`, 14:19:11Z–14:19:31Z, `exit 0`: `testAndroidHostTest` 366,
+  `jsNodeTest` 366, `jvmTest` 375, 0 falhas, `timestamp` de 14:19:19Z a 14:19:28Z. As contagens são as
+  da linha de base.
+- A compilação do Android (`compileDebugKotlin`, `compileDebugUnitTestKotlin`,
+  `compileDebugAndroidTestKotlin`) e da API (`compileKotlin`, `compileTestKotlin`) com
+  `--rerun-tasks`: **50 de 50 tasks executadas**, `BUILD SUCCESSFUL`. A primeira rodada as deu como
+  `UP-TO-DATE`, porque tinham compilado na tentativa que caiu nos testes; e `--rerun` só vale para a
+  task imediatamente anterior a ele, então foi preciso `--rerun-tasks` para vê-las executar.
+- `npx tsc --noEmit` em `apps/web`, `exit 0`; `npx vitest run`, 16 de 16, "Start at 16:19:59"
+  (14:19:59Z).
+- Os cinco `sha256` da 0.3, recalculados pelo `crypto` do Node: **iguais** os cinco.

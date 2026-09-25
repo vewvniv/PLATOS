@@ -10,6 +10,7 @@ import android.graphics.pdf.PdfDocument
 import com.platos.domain.layout.DrawAruco
 import com.platos.domain.layout.DrawCircle
 import com.platos.domain.layout.DrawImage
+import com.platos.domain.layout.DrawLine
 import com.platos.domain.layout.DrawQr
 import com.platos.domain.layout.DrawRect
 import com.platos.domain.layout.DrawText
@@ -146,6 +147,11 @@ class LayoutMapRenderer(
                     pt(primitive.y + primitive.height),
                 ),
                 imagePaint,
+            )
+
+            is DrawLine -> throw UnknownPrimitiveException(
+                "primitiva `line` (${primitive.id}) ainda nao e desenhada por este renderizador; " +
+                    "nenhum documento parcial e entregue",
             )
         }
     }
