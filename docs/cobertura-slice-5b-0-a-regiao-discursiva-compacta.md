@@ -121,3 +121,49 @@ Depois do ramo, com o previsto valendo:
 - `npx tsc --noEmit` em `apps/web`, `exit 0`; `npx vitest run`, 16 de 16, "Start at 16:19:59"
   (14:19:59Z).
 - Os cinco `sha256` da 0.3, recalculados pelo `crypto` do Node: **iguais** os cinco.
+
+## 3. O motor
+
+### 3.1 — as recusas novas da entrada
+
+`requireSupported` passa a recusar a discursiva sem número de linhas (ou com menos de 1), sem largura,
+e de largura `page`, e a objetiva que declara qualquer um dos dois. Os quatro testes do domínio que
+montam discursiva passam a declarar `answer_lines` e `answer_width: column`: `ExamDefinitionTest`,
+`PacoteDiscursivoTest`, `LayoutEngineTest` e `RegiaoDiscursivaTest`. Neste último, a definição declara
+a **mesma soma** dos `expected_lines`, porque o motor ainda os lê até a 3.2.
+
+As mensagens e as KDocs que diziam "a moldura é dimensionada pelos `expected_lines` da rubrica (D35)"
+passaram a ser falsas com esta mudança, e foram corrigidas junto: a da discursiva sem rubrica, a do
+critério com `expected_lines` < 1, a de `RubricCriterion` e a de `requireSupported`. Nenhum teste
+conferia esse trecho das mensagens.
+
+**A definição da fixture foi editada aqui, e não na 5.1.** Com a recusa nova, o `GoldenLayoutTest` da
+discursiva e o `ExamPublicationTest` da API, que leem `fixtures/prova-discursiva.json`, cairiam neste
+commit. `d1` ganhou `answer_lines: 5` e `d2`, `answer_lines: 7`, as duas com `answer_width: column`.
+São as somas dos `expected_lines` de hoje, e o motor ainda as calcula da rubrica: nenhum golden mudou,
+e o `GoldenLayoutTest` da discursiva passou byte a byte.
+
+**Um teste por cenário novo, e cada um confere a mensagem**, com a questão e o motivo:
+
+| Cenário | Teste | O que a asserção confere |
+|---|---|---|
+| Discursiva sem número de linhas | `discursiva sem numero de linhas e recusada, mesmo com expected_lines na rubrica` | `q2` e "nao declara o numero de linhas"; e, com `0`, "declara 0 linha(s)". O teste afirma antes que a rubrica tem `expected_lines` positivos |
+| Discursiva sem largura | `discursiva sem largura e recusada` | `q2` e "nao declara a largura" |
+| Largura de página ainda é recusada | `largura de pagina ainda e recusada, e a mensagem diz que depende da paginacao em faixas` | `q2`, "largura \`page\`" e "paginacao em faixas" |
+| Objetiva com escolha da discursiva | `objetiva com numero de linhas ou largura e recusada` | `q1` e "objetiva e declara numero de linhas (3)"; e "objetiva e declara largura (column)" |
+
+`./gradlew :packages:domain:allTests`, 14:23:58Z, `exit 0`: `jvmTest` 379, `jsNodeTest` 370,
+`testAndroidHostTest` 370, 0 falhas, `timestamp` de 14:24:10Z a 14:24:19Z. São quatro a mais por alvo.
+
+`ExamPublicationTest` da API, com a fixture nova: 10 de 10, `timestamp` 14:25:18Z. O `exit 1` daquele
+comando é a guarda do build (`592aa88`) que reprova execução filtrada por `--tests`, e não falha de
+teste; o comando cheio fica para a 7.2.
+
+**Visto falhar.** Previsto: sem a checagem de largura, cai **só** "Discursiva sem largura".
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| `if (false && answerWidth == null)`, com `// MUTACAO` acima | cai só `discursiva sem largura e recusada` | `jvmTest` inteiro: **1 de 379**, esse. A mensagem: "Expected an exception of class …UnsupportedContentException to be thrown, but was completed successfully" — a definição passou |
+
+Revertida, `grep -c MUTACAO` no arquivo deu `0`, e a reversão foi rodada: `jvmTest`, 379 de 379,
+`timestamp` de 14:25:00Z a 14:25:01Z. Os cinco `sha256` da 0.3 continuam iguais.

@@ -1,6 +1,7 @@
 package com.platos.domain.layout
 
 import com.platos.domain.capture.CaptureGeometry
+import com.platos.domain.exam.AnswerWidth
 import com.platos.domain.exam.ExamDefinition
 import com.platos.domain.exam.Question
 import com.platos.domain.exam.QuestionKind
@@ -371,7 +372,12 @@ class LayoutEngineTest {
     fun `discursiva sem rubrica impede a emissao do mapa`() {
         val exam = prova(4).let {
             it.copy(questions = it.questions.mapIndexed { index, q ->
-                if (index == 2) q.copy(kind = QuestionKind.ESSAY) else q
+                // As duas escolhas do professor declaradas, para que o unico defeito seja a rubrica.
+                if (index == 2) {
+                    q.copy(kind = QuestionKind.ESSAY, answerLines = 5, answerWidth = AnswerWidth.COLUMN)
+                } else {
+                    q
+                }
             })
         }
         val falha = assertFailsWith<UnsupportedContentException> { engine.layout(exam) }

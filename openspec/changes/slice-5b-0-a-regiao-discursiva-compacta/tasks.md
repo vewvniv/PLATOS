@@ -56,7 +56,7 @@
 
 ## 3. O motor
 
-- [ ] 3.1 `requireSupported` recusa os casos novos da spec, e os quatro testes de domínio que montam
+- [x] 3.1 `requireSupported` recusa os casos novos da spec, e os quatro testes de domínio que montam
   discursiva passam a declarar os dois campos: `ExamDefinitionTest`, `PacoteDiscursivoTest`,
   `LayoutEngineTest` e `RegiaoDiscursivaTest`. O commit diz isso.
 
@@ -167,6 +167,11 @@
   as mesmas somas de `expected_lines` de hoje, e as duas com `answer_width: column`. A diferença de
   geometria sai só desta mudança. Verificação: a definição passa em `requireSupported`, e o motor
   produz três regiões.
+
+  **A edição da definição foi feita no commit da 3.1, e não aqui.** Com a recusa nova, o
+  `GoldenLayoutTest` da discursiva e o `ExamPublicationTest` da API, que leem esta definição, cairiam
+  no commit da 3.1. Como o motor ainda lia Σ `expected_lines` até a 3.2, declarar 5 e 7 ali não mudou
+  golden nenhum. A verificação desta tarefa continua sendo feita aqui.
 - [ ] 5.2 Rodar o `GoldenWriterTest` com `-Dplatos.golden.write=true`.
 
   **Previsto antes de rodar**, anotado na cobertura: mudam **só** estes três arquivos:

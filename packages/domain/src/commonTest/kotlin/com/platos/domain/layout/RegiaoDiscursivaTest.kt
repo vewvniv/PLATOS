@@ -1,5 +1,6 @@
 package com.platos.domain.layout
 
+import com.platos.domain.exam.AnswerWidth
 import com.platos.domain.exam.ExamDefinition
 import com.platos.domain.exam.Question
 import com.platos.domain.exam.QuestionKind
@@ -31,6 +32,8 @@ class RegiaoDiscursivaTest {
         kind = QuestionKind.ESSAY,
         statement = "Explique, com as suas palavras, o raciocinio da questao $id.",
         points = linhas.size,
+        answerLines = linhas.sum(),
+        answerWidth = AnswerWidth.COLUMN,
         rubric = Rubric(
             linhas.mapIndexed { i, n ->
                 RubricCriterion(
