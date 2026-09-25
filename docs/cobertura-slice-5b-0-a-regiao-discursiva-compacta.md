@@ -357,3 +357,34 @@ falhar), e a guarda de versão de cada renderizador recusa mapa acima da própri
 já existiam, `recusa imprimir quando o mapa exige renderizador mais novo` no web e o de
 `RendererContractTest` no Android). Nenhum renderizador na versão 1 existe fora do repositório para
 ser testado.
+
+### 4.2 — o Android (código; a verificação instrumentada fica para a 5.4)
+
+`LayoutMapRenderer` desenha `DrawLine` com `canvas.drawLine`, `Paint` de traço na espessura do mapa,
+o cinza do tom e `Cap.BUTT`, escrito mesmo sendo o padrão. `RendererContract.RENDERER_VERSION = 2`.
+`./gradlew :apps:android:testDebugUnitTest :apps:android:compileDebugAndroidTestKotlin`, 14:44:38Z,
+`exit 0`: 312 de 312, com `RendererContractTest` 9 de 9 (`timestamp` 14:44:50Z).
+
+**A tarefa fica aberta aqui.** A outra metade da verificação é o `LayoutMapRendererInstrumentedTest`
+gerar `android-discursiva.pdf` sem exceção, e ele lê `fixtures/prova-discursiva.package.json`, que
+só passa a ter `line` depois da regravação da 5.2. Rodá-lo agora provaria o desenho de um pacote sem
+linha nenhuma.
+
+### 4.3 — a guarda da versão do renderizador lê o registro novo
+
+`tools/parity/renderizador.mjs` passa a ler `LayoutMap.LINE_RENDERER_VERSION` como o registro
+`dominio`, com o papel "a versao mais alta que o motor pode exigir num mapa", e a KDoc dela registra
+por que o registro mudou de nome. O comentário do passo do CI acompanha.
+
+**Visto falhar, antes da edição:** sobre a árvore com os três registros em 2 (depois do commit da
+4.2), a guarda ainda lendo `MIN_RENDERER_VERSION` saiu com `2`: "nao consegui ler o registro dominio
+(LayoutMap.MIN_RENDERER_VERSION) em …/LayoutMap.kt: zero declaracoes de \`MIN_RENDERER_VERSION\` — a
+constante mudou de forma ou saiu daqui".
+
+**Depois da edição:**
+- `node tools/parity/renderizador.mjs`: "os tres registros concordam: versao 2", `exit 0`;
+- o passo "A verificacao da versao do renderizador continua capaz de falhar", copiado do `ci.yml` e
+  rodado localmente: `--divergir dominio`, `android` e `web` saem cada um com `1`, e cada um nomeia
+  **só** os dois pares que contêm o registro forçado — por exemplo, `--divergir dominio`: "os
+  registros dominio e android discordam: dominio diz 3, android diz 2" e "os registros dominio e web
+  discordam: dominio diz 3, web diz 2", e nada de "android e web".

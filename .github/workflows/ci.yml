@@ -278,12 +278,13 @@ jobs:
           fi
           echo "a verificacao do fio acusou o contrato sem literal nos dois lados, e o piso, como deve"
 
-      # A versao do renderizador (D24) aparece em tres registros que nao se conhecem: o MIN que a
-      # publicacao escreve no mapa, e a versao de cada renderizador, Android e web. A direcao
-      # silenciosa e a pior: um renderizador que sobe a propria constante sem o mapa subir MIN faz
-      # cliente antigo desenhar mapa novo, e nenhum teste cai — medido, 14 de 14 no web e 308 de 308
-      # no Android (docs/cobertura-versao-do-renderizador-conferida.md). Mesma familia do limiar. A
-      # verificacao prova que os tres numeros concordam, e nao que estao certos.
+      # A versao do renderizador (D24) aparece em tres registros que nao se conhecem: a versao mais
+      # alta que a publicacao pode escrever num mapa (LINE_RENDERER_VERSION desde a slice-5b-0, em que
+      # a versao minima passou a ser calculada por mapa), e a versao de cada renderizador, Android e
+      # web. A direcao silenciosa e a pior: um renderizador que sobe a propria constante sem o mapa
+      # subir faz cliente antigo desenhar mapa novo, e nenhum teste cai — medido, 14 de 14 no web e
+      # 308 de 308 no Android (docs/cobertura-versao-do-renderizador-conferida.md). Mesma familia do
+      # limiar. A verificacao prova que os tres numeros concordam, e nao que estao certos.
       - name: A versao do renderizador concorda nos tres registros
         run: node tools/parity/renderizador.mjs
 

@@ -148,7 +148,7 @@
   - `LayoutMapRendererInstrumentedTest` gera `android-discursiva.pdf` sem exceção.
 
   O oráculo do desenho é a 5.3, e não este teste.
-- [ ] 4.3 **Acrescentada ao aplicar, com o motivo na decisão 4 (atualização de 2026-09-25).** A guarda
+- [x] 4.3 **Acrescentada ao aplicar, com o motivo na decisão 4 (atualização de 2026-09-25).** A guarda
   da versão do renderizador lê o registro novo do domínio:
   - `tools/parity/renderizador.mjs` lê `LayoutMap.LINE_RENDERER_VERSION`, com rótulo e papel que dizem
     "a versão mais alta que o motor pode exigir";
