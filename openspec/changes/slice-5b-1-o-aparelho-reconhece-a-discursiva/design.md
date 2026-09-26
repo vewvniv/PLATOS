@@ -10,7 +10,16 @@ afirmação (P6).
   uma só até a fatia 7, e não é afetada.
 - **Os marcadores esperados são os da página.** `RegionDetector.declaredMarkersOf` devolve todo
   `DrawAruco` da página da região, e `detect` exige exatamente 4. Na página 0 da fixture discursiva são
-  8. *Conferido por leitura.*
+  6 (gabarito, 4, mais `d1`, 2), e não 8: a `slice-5b-0-a-regiao-discursiva-compacta` (arquivada)
+  reduziu a região discursiva de quatro marcadores para dois, na diagonal. *Conferido por leitura,
+  atualizado após o archive da 5b-0.*
+- **A região discursiva agora tem dois marcadores, não quatro, e retângulo de referência pelo canto
+  externo.** `4k` no canto superior esquerdo, `4k+3` no inferior direito; `4k+1` e `4k+2` não são
+  impressos. O retângulo de referência da região vai do canto externo superior esquerdo do `4k` ao
+  inferior direito do `4k+3` — não pelo centro, como no gabarito. A decisão 2 da 5b-0 já antecipa esta
+  mudança: "a posição de cada canto de marcador vem do `DrawAruco` (`x`, `y`, `side`)... a 5b-1
+  atualizada monta a homografia com esses pontos declarados e normaliza pelo retângulo declarado, sem
+  saber se ele passa por centro ou por canto." *Conferido por leitura do design.md arquivado da 5b-0.*
 - **A detecção de marcadores roda dentro de `detect`, uma vez por região pedida.** Hoje só uma região
   é pedida por quadro.
 - **A sessão conhece uma forma de resultado:** `FrameOutcome.Read(InterpretedReading)`, que vai para
@@ -44,12 +53,19 @@ afirmação (P6).
 
 `SheetReader` passa a receber o mapa, e não uma região. Por quadro:
 1. detecta os ArUcos uma vez;
-2. para cada região do mapa cujos quatro `marker_ids` foram todos encontrados, retifica e lê. `detect`
-   recebe os marcadores já encontrados, em vez de detectar de novo;
-3. se nenhuma região tem os quatro, o quadro é "sem folha", com os IDs encontrados e os declarados.
+2. para cada região do mapa cujos `marker_ids` declarados foram **todos** encontrados, retifica e lê.
+   `detect` recebe os marcadores já encontrados, em vez de detectar de novo. A contagem exigida vem da
+   região, e não é uma constante: quatro para o gabarito, dois para a região discursiva (decisão 1 da
+   5b-0);
+3. se nenhuma região tem os seus declarados por completo, o quadro é "sem folha", com os IDs
+   encontrados e os declarados por região.
 
-- **Por que "os quatro", e não "os que casarem melhor":** a homografia precisa dos quatro, e uma
-  região com três marcadores daria medição parcial, que a spec proíbe.
+- **Por que "todos os declarados", e não "os que casarem melhor":** a homografia precisa de todos os
+  pontos que a região declara. Para o gabarito são os centros dos quatro marcadores; para a região
+  discursiva são os cantos externos dos dois (decisão 2 da 5b-0: "a posição de cada canto de marcador
+  vem do `DrawAruco`... a 5b-1 atualizada monta a homografia com esses pontos declarados e normaliza
+  pelo retângulo declarado, sem saber se ele passa por centro ou por canto"). Uma região com menos
+  marcadores do que declara daria medição parcial, que a spec proíbe.
 - **Região pela metade não é erro.** A folha de uma prova com discursiva tem regiões em mais de uma
   página, e um quadro da página 0 tirado de perto pode pegar metade da moldura de `d1`. Tratar isso
   como recusa faria o gabarito, que está inteiro no quadro, não ser lido por causa de outra região.

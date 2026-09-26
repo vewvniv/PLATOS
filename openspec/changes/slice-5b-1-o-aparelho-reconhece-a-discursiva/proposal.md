@@ -17,9 +17,11 @@ guarda do registro de dívida reprova essa linha no dia em que a 5c abrir.
 ## What Changes
 
 - **O aparelho deixa de cair.** A sessão de escaneamento deixa de receber uma região escolhida de
-  antemão. Os marcadores são detectados uma vez por quadro, e **cada região cujos quatro marcadores
-  aparecem é lida** (§8: "detecta ArUcos → identifica região pelos IDs → homografia → QR na ROI").
-  Região vista pela metade não é lida, e não é erro.
+  antemão. Os marcadores são detectados uma vez por quadro, e **cada região cujos marcadores
+  declarados aparecem todos é lida** (§8: "detecta ArUcos → identifica região pelos IDs → homografia
+  → QR na ROI"). O gabarito declara quatro; a região discursiva declara dois, na diagonal
+  (ADR-0018, `slice-5b-0-a-regiao-discursiva-compacta`). Região vista pela metade não é lida, e não é
+  erro.
 - **Os marcadores esperados de uma região são os dela**, e não os da página. Marcadores de outra
   região no mesmo quadro não atrapalham.
 - **O gabarito é lido numa página que tem outras regiões.** A região 0 continua passando por

@@ -13,19 +13,35 @@
 
 ## 1. A captura por região (`capture-omr`)
 
-- [x] 1.1 `declaredMarkersOf` filtra pelos `marker_ids` da região (decisão 2). Verificação: um teste
+- [ ] 1.1 `declaredMarkersOf` filtra pelos `marker_ids` da região (decisão 2). Verificação: um teste
   instrumentado retifica a região 0 da fixture discursiva, que divide a página 0 com a região de `d1`,
-  e a lê. **Ver falhar:** sem o filtro, o teste cai com "declara 8 ArUcos; esperados 4". Reverter e
+  e a lê. **Ver falhar:** sem o filtro, o teste cai com "declara 6 ArUcos; esperados 4". Reverter e
   rodar.
-- [x] 1.2 Os marcadores são detectados uma vez por quadro, e cada região com os quatro `marker_ids`
-  encontrados é lida (decisão 1). O resultado do quadro passa a ser por região (decisão 3). A região
-  discursiva é retificada e tem o QR conferido, sem medição de bolha. Verificação: testes para os
-  cenários da ADDED "A captura identifica as regiões presentes…" (duas regiões, só a discursiva, região
-  pela metade) e da ADDED "A região discursiva é reconhecida…". Os documentos são renderizados da
-  fixture discursiva, sem foto.
-- [x] 1.3 A prova só objetiva não muda de fora. Verificação: `CorpusInstrumentedTest` e os testes
+
+  **Reaberta ao aplicar `/opsx:update`, em 2026-09-25, depois do archive da `slice-5b-0-a-regiao-
+  discursiva-compacta`.** Estava `[x]`, verificada contra a fixture antiga, de região discursiva com
+  quatro marcadores (página 0 declarava 8 ArUcos). A 5b-0 reduziu a região discursiva a dois
+  marcadores, na diagonal: a página 0 da fixture atual declara **6** (gabarito, 4, mais `d1`, 2). O
+  "ver falhar" muda de "declara 8" para "declara 6", e a tarefa precisa ser reexecutada contra a
+  fixture nova antes de voltar a `[x]`.
+- [ ] 1.2 Os marcadores são detectados uma vez por quadro, e cada região com **todos** os seus
+  `marker_ids` declarados encontrados é lida (decisão 1) — quatro para o gabarito, dois para a região
+  discursiva. O resultado do quadro passa a ser por região (decisão 3). A região discursiva é
+  retificada e tem o QR conferido, sem medição de bolha. Verificação: testes para os cenários da ADDED
+  "A captura identifica as regiões presentes…" (duas regiões, só a discursiva, região pela metade) e
+  da ADDED "A região discursiva é reconhecida…". Os documentos são renderizados da fixture discursiva,
+  sem foto.
+
+  **Reaberta ao aplicar `/opsx:update`, em 2026-09-25, pelo mesmo motivo da 1.1.** Os cenários "Duas
+  regiões no mesmo quadro", "Só a região discursiva no quadro" e "Região pela metade" passam a exigir
+  dois marcadores para a região discursiva, não quatro, e a execução anterior foi contra a geometria
+  antiga.
+- [ ] 1.3 A prova só objetiva não muda de fora. Verificação: `CorpusInstrumentedTest` e os testes
   existentes de `RegionDetector` e `SheetReader` passam sem mudar de sentido. Os ajustes de assinatura
   são listados na cobertura.
+
+  **Reaberta ao aplicar `/opsx:update`, em 2026-09-25, pelo mesmo motivo da 1.1 e da 1.2:** é
+  verificação de regressão sobre `RegionDetector` e `SheetReader`, que a 1.1 e a 1.2 vão reexecutar.
 
 ## 2. A sessão (`scan-session`)
 
@@ -83,6 +99,17 @@
 >    não agora.
 >
 > **O prazo da linha `5b` não muda.** Ela vence quando a 5c abrir, e a 5c não abre antes disto.
+>
+> **Item 1 pago em 2026-09-25:** a `slice-5b-0-a-regiao-discursiva-compacta` foi arquivada, com a
+> região discursiva de dois ArUcos na diagonal, marcador nominal 11,2 mm, retângulo de referência pelo
+> canto externo e pauta cinza. **Item 2, esta atualização (`/opsx:update`):** a decisão 1 e a spec de
+> `capture-omr` passam a exigir todos os `marker_ids` que a região declara — quatro para o gabarito,
+> dois para a discursiva —, e não mais quatro fixo. As tarefas 1.1 a 1.3, que tinham sido verificadas
+> contra a geometria de quatro marcadores por região discursiva, voltam a `[ ]`: a página 0 da fixture
+> agora declara 6 ArUcos (gabarito + `d1`), não 8. Os conjuntos de "ver falhar" da 4.2 são sobre
+> topologia de página (uma região por página vs. duas), não sobre contagem de marcador, e por isso não
+> mudam de texto. A 4.1 continua sendo a tarefa do mantenedor, e mede a detecção do marcador de
+> 11,2 mm, como já prevista.
 
 - [ ] 4.1 **Tarefa do mantenedor:**
   - imprimir `build/parity/discursiva-aluno-web.pdf`, a folha de `tok-a`, gerada nesta sessão;

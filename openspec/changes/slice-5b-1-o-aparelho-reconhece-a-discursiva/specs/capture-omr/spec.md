@@ -2,11 +2,11 @@
 
 ### Requirement: A geometria da leitura vem do `LayoutMap`, nunca da imagem
 
-A leitura SHALL derivar a posição de cada bolha das coordenadas normalizadas que o `LayoutMap` declara para a região, projetadas pelos quatro marcadores encontrados na captura. A leitura SHALL NOT inferir posição de bolha por detecção de círculo, por espaçamento regular presumido, nem por qualquer propriedade medida na própria imagem.
+A leitura SHALL derivar a posição de cada bolha das coordenadas normalizadas que o `LayoutMap` declara para a região, projetadas pelos marcadores da região encontrados na captura. A leitura SHALL NOT inferir posição de bolha por detecção de círculo, por espaçamento regular presumido, nem por qualquer propriedade medida na própria imagem.
 
-Os marcadores esperados de uma região SHALL ser os quatro `marker_ids` que o `LayoutMap` declara **para aquela região**, e SHALL NOT ser todos os marcadores da página dela. Uma página pode trazer marcadores de mais de uma região, e os de outra região no mesmo quadro SHALL NOT impedir a leitura desta.
+Os marcadores esperados de uma região SHALL ser exatamente os `marker_ids` que o `LayoutMap` declara **para aquela região** — quatro para a região de gabarito, dois para a região discursiva — e SHALL NOT ser todos os marcadores da página dela. Uma página pode trazer marcadores de mais de uma região, e os de outra região no mesmo quadro SHALL NOT impedir a leitura desta.
 
-Uma captura em que nenhuma região do `LayoutMap` tenha os seus quatro `marker_ids` encontrados SHALL ser recusada, identificando os identificadores encontrados e os que o mapa declara.
+Uma captura em que nenhuma região do `LayoutMap` tenha **todos** os seus `marker_ids` declarados encontrados SHALL ser recusada, identificando os identificadores encontrados e os que o mapa declara.
 
 #### Scenario: Bolhas vêm do mapa
 
@@ -20,7 +20,7 @@ Uma captura em que nenhuma região do `LayoutMap` tenha os seus quatro `marker_i
 
 #### Scenario: Marcador faltando
 
-- **WHEN** uma captura apresenta menos de quatro marcadores de toda região do mapa
+- **WHEN** uma captura apresenta, para toda região do mapa, menos marcadores do que a região declara
 - **THEN** a leitura é recusada por geometria insuficiente, e nenhuma medição parcial é entregue
 
 #### Scenario: Marcadores de outra região na mesma página
@@ -32,23 +32,23 @@ Uma captura em que nenhuma região do `LayoutMap` tenha os seus quatro `marker_i
 
 ### Requirement: A captura identifica as regiões presentes pelos marcadores encontrados
 
-A captura SHALL detectar os marcadores do quadro uma vez e SHALL identificar, a partir deles, **quais regiões do `LayoutMap` estão presentes**: uma região está presente quando os seus quatro `marker_ids` foram encontrados. Cada região presente SHALL ser lida por conta própria, e um quadro pode conter mais de uma. Região com parte dos marcadores no quadro SHALL NOT ser lida, e SHALL NOT, sozinha, tornar o quadro recusado.
+A captura SHALL detectar os marcadores do quadro uma vez e SHALL identificar, a partir deles, **quais regiões do `LayoutMap` estão presentes**: uma região está presente quando **todos** os `marker_ids` que ela declara foram encontrados — quatro para o gabarito, dois para uma região discursiva. Cada região presente SHALL ser lida por conta própria, e um quadro pode conter mais de uma. Região com parte dos seus marcadores no quadro SHALL NOT ser lida, e SHALL NOT, sozinha, tornar o quadro recusado.
 
 A região a ler SHALL sair dos marcadores encontrados, e SHALL NOT ser escolhida de antemão por quem abre a sessão.
 
 #### Scenario: Duas regiões no mesmo quadro
 
-- **WHEN** um quadro traz os quatro marcadores do gabarito e os quatro de uma região discursiva
+- **WHEN** um quadro traz os quatro marcadores do gabarito e os dois de uma região discursiva
 - **THEN** as duas regiões são identificadas e lidas, cada uma com os seus marcadores
 
 #### Scenario: Só a região discursiva no quadro
 
-- **WHEN** um quadro traz apenas os quatro marcadores de uma região discursiva
+- **WHEN** um quadro traz apenas os dois marcadores de uma região discursiva
 - **THEN** a região identificada é essa, e o gabarito não é procurado nem exigido naquele quadro
 
 #### Scenario: Região pela metade
 
-- **WHEN** um quadro traz os quatro marcadores do gabarito e dois de uma região discursiva
+- **WHEN** um quadro traz os quatro marcadores do gabarito e só um dos dois marcadores de uma região discursiva
 - **THEN** o gabarito é lido, a região discursiva não é lida, e o quadro não é recusado por causa dela
 
 ### Requirement: A região discursiva é reconhecida, e não medida
