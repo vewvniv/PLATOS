@@ -84,6 +84,6 @@
   - como cada verificação foi vista falhar, com o previsto e o real;
   - o erro do compilador da 1.5;
   - a seção "o que ainda não foi verificado", com a tela e a leitura da parcial pelo professor.
-- [ ] 3.4 PR contra `main`, e o CI **lido no destino**: o run, o `headSha` e os passos (P2, P26).
+- [x] 3.4 PR contra `main`, e o CI **lido no destino**: o run, o `headSha` e os passos (P2, P26).
 - [x] 3.5 Preparar a reconciliação do archive (P27): as três linhas `5` em dia, as duas linhas `6`
   não alcançadas, e os eventos `migration-da-5-em-producao` e `implantar-api-da-5a` não alcançados.

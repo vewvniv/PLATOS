@@ -288,3 +288,17 @@ de 2026-09-26). A proposta desta mudança pôs o recorte e o segundo ajuste do A
 ("O que NÃO será alterado"), e esta mudança não os fez. A lacuna continua, com o destino 5b-3. Ela não
 é linha do §16, e esta mudança não abre linha nova. Se o mantenedor quiser prazo reprovável, o veículo
 é uma linha nova no archive (P27).
+
+## 3.4 — o CI lido no destino
+
+A PR é a #74. O run `36239935523` (`pull_request`) rodou sobre `headSha` `4d29f86`, igual ao `HEAD`
+local na hora do push. Os três jobs deram `success`:
+- `build` (11:47:53Z–11:52:42Z): o teste do `buildSrc`, o build com os testes e o alvo Android do
+  domínio;
+- `web` (11:47:53Z–11:48:33Z): os testes e o build do web, as fidelidades (a da prova com discursiva
+  incluída), a versão do renderizador e a guarda de dívida, cada uma com a verificação de que continua
+  capaz de falhar;
+- `paridade` (11:48:36Z–11:52:56Z): "Renderizador e captura no emulador", que roda o instrumentado sem
+  filtro, seguido das fidelidades e paridades no Android, a da prova com discursiva incluída.
+
+Este registro entra num commit posterior ao run, e só toca `docs/` e `tasks.md`.
