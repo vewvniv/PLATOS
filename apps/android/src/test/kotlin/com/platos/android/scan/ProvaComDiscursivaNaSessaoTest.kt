@@ -385,4 +385,71 @@ class ProvaComDiscursivaNaSessaoTest {
         assertEquals(1, estado.caderno.capturadas)
         assertNull(estado.parcial, "a parcial de tok-a nao passa para tok-b")
     }
+
+    // --- Guardar e retomar (`slice-5b-3-guardar-a-parcial-e-o-caderno`) ---
+
+    /**
+     * Cenarios "O aplicativo fecha no meio da leitura de um aluno" e "O caderno guardado sobrevive
+     * ao fechamento do aplicativo".
+     *
+     * O caderno da primeira sessao (`cadernoAtual`) e o que uma implementacao real guardaria no
+     * `onStop`; a segunda sessao, construida so com ele — nenhum quadro entregue —, e o que a
+     * `Activity` teria na reabertura. `onPermission(granted = true)` depois disso e o que `onCreate`
+     * chama de verdade, e e ele que confere a guarda nova de [ScanSession.onPermission]: sem
+     * respeitar `holdsResult`, o caderno retomado sumiria nesta mesma chamada.
+     */
+    @Test
+    fun `a sessao nova retoma o caderno guardado, aluno, regioes e parcial, antes de qualquer quadro`() {
+        val original = sessaoAberta()
+        original.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        val guardado = requireNotNull(original.cadernoAtual) { "a sessao original nao capturou nada" }
+
+        val retomada = ScanSession(pacote, cadernoInicial = guardado)
+
+        val antesDaPermissao = reconhecida(retomada.state)
+        assertEquals("tok-a", antesDaPermissao.aluno)
+        assertEquals(listOf(0 to capturada, 1 to capturada, 2 to naoVista), estados(antesDaPermissao))
+        assertTresDeQuatro(apurada(antesDaPermissao))
+
+        retomada.onPermission(granted = true)
+
+        assertEquals(antesDaPermissao, reconhecida(retomada.state), "a permissao concedida nao apaga o retomado")
+    }
+
+    /** Prova so objetiva: um `cadernoInicial` (de outra prova) e ignorado, e a sessao abre normal. */
+    @Test
+    fun `prova so objetiva ignora um caderno inicial, e abre procurando como sempre`() {
+        val soObjetiva = Json.decodeFromString<ExamPackage>(
+            File(fixtures, "prova-referencia.package.json").readText(),
+        )
+        val cadernoDeOutraProva = requireNotNull(sessaoAberta().apply {
+            onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        }.cadernoAtual)
+
+        val sessao = ScanSession(soObjetiva, cadernoInicial = cadernoDeOutraProva)
+        sessao.onPermission(granted = true)
+
+        assertEquals(ScanState.Searching, sessao.state)
+    }
+
+    /** Cenario "Trocar de aluno antes de fechar continua substituindo o caderno". */
+    @Test
+    fun `cadernoAtual e do ultimo aluno, mesmo depois de trocar de aluno antes de fechar`() {
+        val sessao = sessaoAberta()
+        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+
+        sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2(token = "tok-b"))))
+
+        val guardaria = requireNotNull(sessao.cadernoAtual)
+        assertEquals("tok-b", guardaria.aluno)
+        assertEquals(listOf(0 to naoVista, 1 to naoVista, 2 to capturada), guardaria.regioes.map { it.regionIndex to it.estado })
+    }
+
+    /** Prova sem discursiva alguma reconhecida ainda: `cadernoAtual` continua nulo. */
+    @Test
+    fun `cadernoAtual e nulo antes de qualquer regiao ser reconhecida`() {
+        val sessao = sessaoAberta()
+
+        assertNull(sessao.cadernoAtual)
+    }
 }

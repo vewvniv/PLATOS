@@ -36,19 +36,24 @@
 
 ## 2. `ScanSession` retoma e guarda o caderno em andamento
 
-- [ ] 2.1 Ao abrir o escaneamento de uma prova com discursiva, a sessão consulta o caderno guardado
+- [x] 2.1 Ao abrir o escaneamento de uma prova com discursiva, a sessão consulta o caderno guardado
   para este `examId`, e nasce dele quando existir, em vez de vazio. Verificação: um teste por
   cenário da MODIFIED de `scan-session` — "O aplicativo fecha no meio da leitura de um aluno" e "O
   caderno guardado sobrevive ao fechamento do aplicativo" —, guardando um caderno, criando uma
   `ScanSession` nova para o mesmo pacote e conferindo que o primeiro estado já reflete o aluno, as
-  regiões e a parcial guardados.
+  regiões e a parcial guardados. **Achado ao implementar:** `onPermission(granted = true)`
+  sobrescrevia `state` incondicionalmente, o que apagaria o caderno retomado na mesma chamada que
+  `onCreate` já faz — corrigido para respeitar `holdsResult`, e o teste que prova isso chama
+  `onPermission` depois de retomar.
 - [ ] 2.2 A tela de escaneamento escreve o caderno corrente no `onStop`, e não a cada quadro (design,
   decisão 1). Verificação: a decisão de o quê escrever é testável isolada do ciclo de vida do
   Android — um teste chama a função de persistência diretamente, sem `Activity` real —, e o build
   compila com a chamada real ligada ao `onStop`.
-- [ ] 2.3 Trocar de aluno antes do `onStop` guarda o caderno do novo aluno, substituindo a linha
+- [x] 2.3 Trocar de aluno antes do `onStop` guarda o caderno do novo aluno, substituindo a linha
   anterior, sem misturar os dois. Verificação: teste do cenário "Trocar de aluno antes de fechar
-  continua substituindo o caderno".
+  continua substituindo o caderno" — `cadernoAtual` já reflete só o último aluno, porque
+  `ScanSession.caderno` continua sendo a variável única de sempre (decisão 4 da 5b-2); quem escreve
+  no `onStop` (2.2) nunca vê o caderno do aluno anterior.
 
 ## 3. Sair não apaga o caderno guardado
 
