@@ -1,6 +1,6 @@
 ## 0. Antes do primeiro commit
 
-- [ ] 0.1 Medir a linha de base na árvore de `main`:
+- [x] 0.1 Medir a linha de base na árvore de `main`:
   - `./gradlew build --rerun-tasks` e `./gradlew -p buildSrc test --rerun-tasks`;
   - `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro, no `platos-atd34`;
   - `npx vitest run` em `apps/web`.
@@ -8,7 +8,7 @@
   Anotar em `docs/cobertura-slice-5b-2-a-nota-objetiva-parcial.md` a contagem de testes por task, o
   `timestamp` de cada relatório e o número de tasks **executadas** (P2, P3). Verificação: os relatórios
   são desta sessão, com o `timestamp` dentro da janela da execução.
-- [ ] 0.2 Registrar a saída de `node tools/divida/divida.mjs`. Deve dizer "fatia corrente: 5b", as
+- [x] 0.2 Registrar a saída de `node tools/divida/divida.mjs`. Deve dizer "fatia corrente: 5b", as
   três linhas `5` sob "vence nesta fatia", e as duas linhas `6` em dia. Verificação: a saída na
   cobertura, com `exit 0`.
 
@@ -48,7 +48,8 @@
 - [ ] 2.2 A parcial na sessão (decisão 6): com `FrameOutcome.Read`, a sessão chama `scorePartial` e o
   estado ganha a parcial, ou o motivo da recusa. O `AVISO` passa a ser a frase de "não definitiva"
   (decisão 4). Verificação: um teste em `ProvaComDiscursivaNaSessaoTest` por cenário da ADDED "Prova
-  com discursiva mostra a parcial…". Cada teste confere a **frase**, o **aluno** e os **números** da
+  com discursiva mostra a parcial…", incluído "A outra página do mesmo aluno mantém a parcial", que
+  entrou ao aplicar (design, decisão 6, atualização de 2026-09-26). Cada teste confere a **frase**, o **aluno** e os **números** da
   parcial, e não só o tipo do estado.
 - [ ] 2.3 O caderno do aluno (decisões 4 e 6). Verificação: um teste por cenário da ADDED "A
   completude da folha do aluno…", com os `FrameOutcome` montados a partir da fixture discursiva.

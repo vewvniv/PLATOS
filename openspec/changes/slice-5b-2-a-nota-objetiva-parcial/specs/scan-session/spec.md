@@ -9,7 +9,7 @@ Quando o pacote da sessão declara que a prova não é corrigível só no aparel
 - que a nota **não é definitiva**, porque a parte discursiva ainda não foi corrigida;
 - que **nada foi guardado**.
 
-A parcial SHALL vir da apuração parcial do pacote da sessão, e SHALL NOT ser calculada pela sessão por conta própria. Quando o gabarito não foi lido no quadro, a sessão SHALL NOT apresentar parcial. Quando a apuração parcial recusa a folha, a sessão SHALL apresentar o motivo da recusa, e não uma parcial.
+A parcial SHALL vir da apuração parcial do pacote da sessão, e SHALL NOT ser calculada pela sessão por conta própria. Enquanto o gabarito desse aluno não foi lido em nenhum quadro, a sessão SHALL NOT apresentar parcial. Quando ele já foi lido e o quadro corrente não o traz, a sessão SHALL apresentar a última parcial desse aluno. Quando a apuração parcial recusa a folha, a sessão SHALL apresentar o motivo da recusa, e não uma parcial.
 
 Para essa prova, a sessão SHALL NOT produzir resultado: nada SHALL ser gravado nem entrar na fila de envio, nem a parcial. A folha de outra prova continua recusada com o motivo de sempre.
 
@@ -22,8 +22,13 @@ A prova só objetiva SHALL continuar sendo apurada e gravada exatamente como ant
 
 #### Scenario: Só as discursivas no quadro
 
-- **WHEN** a sessão de uma prova com discursiva reconhece uma região discursiva e o gabarito não está no quadro
+- **WHEN** a sessão de uma prova com discursiva reconhece uma região discursiva de um aluno cujo gabarito ainda não foi lido, e o gabarito não está no quadro
 - **THEN** a sessão apresenta o aluno e a região reconhecida, e não apresenta parcial
+
+#### Scenario: A outra página do mesmo aluno mantém a parcial
+
+- **WHEN** o gabarito de um aluno já foi lido num quadro anterior, e o quadro corrente traz só uma região discursiva desse mesmo aluno
+- **THEN** a sessão apresenta a última parcial desse aluno
 
 #### Scenario: A parcial recusada mostra o motivo
 

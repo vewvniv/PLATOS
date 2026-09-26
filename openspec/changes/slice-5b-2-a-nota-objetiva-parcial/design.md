@@ -133,6 +133,14 @@ gabarito diz "Gabarito".
 - A recusa da parcial vira "com problema" no chip do gabarito, com o motivo, e a tela mostra o motivo
   no lugar da parcial.
 
+**Atualizado ao aplicar, em 2026-09-26.** A spec de `scan-session` dizia "Quando o gabarito não foi
+lido no quadro, a sessão SHALL NOT apresentar parcial", e isso contradizia o segundo item acima quando
+o gabarito do aluno já tinha sido lido e o quadro seguinte trazia só a outra página. O mantenedor
+decidiu pelo desenho: a parcial do mesmo aluno se mantém. A frase da spec passou a ser "Enquanto o
+gabarito desse aluno não foi lido em nenhum quadro…", e ganhou o cenário "A outra página do mesmo
+aluno mantém a parcial". O cenário "Só as discursivas no quadro" continua o mesmo caso, agora dito
+como aluno cujo gabarito ainda não foi lido.
+
 ### 7. Ver falhar, com as camadas separadas
 
 O "nada é gravado" continua com as duas proteções da 5b-1 (a sessão e o domínio), mais uma: **o tipo**.
