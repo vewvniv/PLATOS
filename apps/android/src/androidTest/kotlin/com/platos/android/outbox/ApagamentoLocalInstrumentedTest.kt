@@ -7,6 +7,12 @@ import com.platos.android.pacote.PacotesEmArquivo
 import com.platos.android.roster.AlunoDoRoster
 import com.platos.android.roster.RosterDaProva
 import com.platos.android.roster.RostersEmArquivo
+import com.platos.android.scan.BaseDoCaderno
+import com.platos.android.scan.Caderno
+import com.platos.android.scan.CadernosEmRoom
+import com.platos.android.scan.CadernosGuardados
+import com.platos.android.scan.EstadoDaRegiao
+import com.platos.android.scan.RegiaoDoCaderno
 import com.platos.android.session.DeviceSession
 import com.platos.android.session.Organizacao
 import com.platos.android.session.ProvaPublicada
@@ -52,6 +58,7 @@ class ApagamentoLocalInstrumentedTest {
     private val raizVisoes = File(context.filesDir, "visoes-apagamento-de-teste")
     private val raizRosters = File(context.filesDir, "rosters-apagamento-de-teste")
     private val nomeDaBase = "outbox-apagamento-de-teste.db"
+    private val nomeDaBaseDeCadernos = "caderno-apagamento-de-teste.db"
 
     private val escola = Organizacao("01a06ba4-cb43-7d97-842d-165352d010b5", "Escola Municipal")
     private val pessoal = Organizacao("01a06ba4-0000-7d97-842d-165352d010b5", "Leon")
@@ -59,6 +66,8 @@ class ApagamentoLocalInstrumentedTest {
 
     private lateinit var base: BaseDoOutbox
     private lateinit var pendentes: ResultadosPendentes
+    private lateinit var baseDeCadernos: BaseDoCaderno
+    private lateinit var cadernos: CadernosGuardados
     private lateinit var sessao: DeviceSession
 
     /** A sessao guardada, em memoria: o que esta sob teste e o apagamento de **arquivo**. */
@@ -87,7 +96,15 @@ class ApagamentoLocalInstrumentedTest {
         ),
     )
 
-    /** Deixa no disco as quatro coisas que a organizacao guarda, para haver o que apagar. */
+    private fun umCaderno() = Caderno(
+        aluno = "tok-a",
+        regioes = listOf(
+            RegiaoDoCaderno(0, gabarito = true, rotulo = Caderno.ROTULO_GABARITO, estado = EstadoDaRegiao.Capturada),
+        ),
+        parcial = null,
+    )
+
+    /** Deixa no disco as cinco coisas que a organizacao guarda, para haver o que apagar. */
     private fun montarOEstadoLocal(organizacao: String) {
         PacotesEmArquivo(raizPacotes).guardar(organizacao, "b".repeat(64), "{}".toByteArray())
         VisoesEmArquivo(raizVisoes).guardar(
@@ -103,6 +120,7 @@ class ApagamentoLocalInstrumentedTest {
             RosterDaProva(listOf(AlunoDoRoster("tok-a", "Ana Ribeiro")), puxadoEm = 1_757_000_000_000),
         )
         pendentes.guardar(umPendente("cap-1", organizacao))
+        cadernos.guardar(organizacao, prova.shortId, umCaderno())
     }
 
     private fun arquivosDe(raiz: File): List<String> =
@@ -122,6 +140,9 @@ class ApagamentoLocalInstrumentedTest {
         context.deleteDatabase(nomeDaBase)
         base = Room.databaseBuilder(context, BaseDoOutbox::class.java, nomeDaBase).build()
         pendentes = ResultadosEmRoom(base.pendentes())
+        context.deleteDatabase(nomeDaBaseDeCadernos)
+        baseDeCadernos = Room.databaseBuilder(context, BaseDoCaderno::class.java, nomeDaBaseDeCadernos).build()
+        cadernos = CadernosEmRoom(baseDeCadernos.cadernos())
         listOf(raizPacotes, raizVisoes, raizRosters).forEach { it.deleteRecursively() }
     }
 
@@ -129,22 +150,25 @@ class ApagamentoLocalInstrumentedTest {
     fun limpar() {
         base.close()
         context.deleteDatabase(nomeDaBase)
+        baseDeCadernos.close()
+        context.deleteDatabase(nomeDaBaseDeCadernos)
         listOf(raizPacotes, raizVisoes, raizRosters).forEach { it.deleteRecursively() }
     }
 
     // ------------------------------------------------------------------ 7.1
 
     @Test
-    fun sair_apaga_referencia_do_disco_e_preserva_o_pendente() {
+    fun sair_apaga_referencia_do_disco_e_preserva_o_pendente_e_o_caderno() {
         montarOEstadoLocal(escola.id)
         montarSessao(escola.id)
 
-        // O canario (P13): sem as quatro presentes antes, "sumiu" nao distingue apagamento de nunca
+        // O canario (P13): sem as cinco presentes antes, "sumiu" nao distingue apagamento de nunca
         // ter existido, e "ficou" nao distingue preservacao de gravacao que falhou.
         assertEquals(1, arquivosDe(raizPacotes).size)
         assertEquals(1, arquivosDe(raizVisoes).size)
         assertEquals(1, arquivosDe(raizRosters).size)
         assertEquals(1, pendentes.quantosPendentes(escola.id))
+        assertEquals(umCaderno(), cadernos.ler(escola.id, prova.shortId))
 
         sessao.sair(pendentes.quantosPendentes(escola.id))
 
@@ -155,6 +179,11 @@ class ApagamentoLocalInstrumentedTest {
             "sair apagou correcao que ainda nao subiu",
             1,
             pendentes.quantosPendentes(escola.id),
+        )
+        assertEquals(
+            "sair apagou o caderno em andamento",
+            umCaderno(),
+            cadernos.ler(escola.id, prova.shortId),
         )
     }
 
@@ -200,7 +229,7 @@ class ApagamentoLocalInstrumentedTest {
      * o chamasse passaria mesmo com o apagamento existindo so no outro caminho.
      */
     @Test
-    fun revogacao_apaga_referencia_do_disco_e_preserva_o_pendente() {
+    fun revogacao_apaga_referencia_do_disco_e_preserva_o_pendente_e_o_caderno() {
         montarOEstadoLocal(escola.id)
         montarSessao(escola.id)
         sessao.abrir(temSessaoGuardada = true)
@@ -216,6 +245,11 @@ class ApagamentoLocalInstrumentedTest {
             "a revogacao apagou correcao que ainda nao subiu",
             1,
             pendentes.quantosPendentes(escola.id),
+        )
+        assertEquals(
+            "a revogacao apagou o caderno em andamento",
+            umCaderno(),
+            cadernos.ler(escola.id, prova.shortId),
         )
     }
 

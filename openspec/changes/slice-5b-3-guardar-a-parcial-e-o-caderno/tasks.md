@@ -69,15 +69,25 @@
 
 ## 3. Sair não apaga o caderno guardado
 
-- [ ] 3.1 Teste que guarda um caderno, executa `DeviceSession.sair`, e confere que o caderno
-  continua lido depois — o cenário "Sair não apaga o caderno em andamento".
-- [ ] 3.2 **Ver falhar** (M-sair, `rigorous.md` §3 decisão 7). Acrescentar, com `// MUTACAO`, uma
-  chamada que apaga a base do caderno dentro de `DeviceSession.sair`.
-  - **Previsto:** cai só o teste da 3.1, e nenhum outro cenário de `sair` (visão, pacote, roster)
-    muda.
-  - **Real:** anotado ao lado do previsto.
+- [x] 3.1 Teste que guarda um caderno, executa `DeviceSession.sair`, e confere que o caderno
+  continua lido depois — o cenário "Sair não apaga o caderno em andamento". Estendido
+  `ApagamentoLocalInstrumentedTest` (`sair_apaga_referencia_do_disco_e_preserva_o_pendente_e_o_caderno`
+  e o par de revogação), no mesmo lugar que já confere pacote/visão/roster/pendente lado a lado —
+  "uma asserção que só olhasse o pendente não distinguiria preservação de nunca ter apagado nada"
+  vale igual para o caderno.
+- [x] 3.2 **Ver falhar** (M-sair, `rigorous.md` §3, "introduza um erro de propósito"). Acrescentado,
+  com `// MUTACAO`, um parâmetro opcional `mutacaoApagarCaderno: (() -> Unit)? = null` em
+  `DeviceSession.sair` (default nulo — nenhum dos ~40 outros chamadores em `DeviceSessionTest`
+  precisou mudar), exercitado só no teste, apagando a linha via SQL direto na base de teste.
+  - **Previsto:** cai só `sair_apaga_referencia_do_disco_e_preserva_o_pendente_e_o_caderno`, e
+    nenhum outro cenário de `sair` (visão, pacote, roster, pendente) muda.
+  - **Real:** exatamente isso — 1 falha em 94, `AssertionError: sair apagou o caderno em andamento
+    expected:<Caderno(...)> but was:<null>`, na asserção do caderno; as anteriores, na mesma
+    execução do mesmo teste, já tinham passado.
 
-  Reverter, `grep MUTACAO` e rodar de novo.
+  Revertido (`DeviceSession.kt` para `git checkout --`, a linha da chamada removida do teste),
+  `git grep MUTACAO` deu vazio, e `connectedDebugAndroidTest` sem filtro voltou a 96 testes, 0
+  falhas.
 
 ## 4. Fechamento
 
