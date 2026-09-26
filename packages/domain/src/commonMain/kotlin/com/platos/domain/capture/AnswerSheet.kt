@@ -1,5 +1,7 @@
 package com.platos.domain.capture
 
+import kotlinx.serialization.Serializable
+
 /**
  * O que a folha respondeu numa questao.
  *
@@ -7,14 +9,17 @@ package com.platos.domain.capture
  * branco" pelo proximo passo, e "em branco" e uma afirmacao sobre o que o aluno fez — nao sobre o
  * que a leitura conseguiu apurar. As duas coisas so parecem iguais ate a nota.
  */
+@Serializable
 sealed interface QuestionAnswer {
 
     val questionId: String
 
     /** Exatamente uma bolha marcada. E a unica forma que vira acerto ou erro. */
+    @Serializable
     data class Marcada(override val questionId: String, val option: String) : QuestionAnswer
 
     /** Nenhuma bolha marcada e nenhuma indecisa. O aluno nao respondeu, e disso a leitura tem certeza. */
+    @Serializable
     data class EmBranco(override val questionId: String) : QuestionAnswer
 
     /**
@@ -23,12 +28,14 @@ sealed interface QuestionAnswer {
      * [options] nomeia todas, e nao a "vencedora": desempatar por cobertura transformaria rasura
      * em resposta, e a rasura e justamente o caso em que a folha nao diz o que o aluno quis.
      */
+    @Serializable
     data class MultiplaMarcacao(
         override val questionId: String,
         val options: List<String>,
     ) : QuestionAnswer
 
     /** Nenhuma marcada, e ao menos uma na faixa de indecisao. [options] nomeia as duvidosas. */
+    @Serializable
     data class Indecisa(
         override val questionId: String,
         val options: List<String>,

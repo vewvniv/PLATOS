@@ -13,7 +13,7 @@
 
 ## 1. Contrato de persistência
 
-- [ ] 1.1 `@Serializable` em `PartialScoringOutcome`, `PartialScore`, `AwaitingEssay`,
+- [x] 1.1 `@Serializable` em `PartialScoringOutcome`, `PartialScore`, `AwaitingEssay`,
   `PendingQuestion`, `PendingReason`, `QuestionOutcome` e `QuestionAnswer` (`packages/domain`), e em
   `Caderno`, `RegiaoDoCaderno` e `EstadoDaRegiao` (Android) — num commit de contrato próprio, antes
   do consumidor (regra 1 do `CLAUDE.md`; design, decisão 2, sub-decisão sobre DTO). Verificação:
