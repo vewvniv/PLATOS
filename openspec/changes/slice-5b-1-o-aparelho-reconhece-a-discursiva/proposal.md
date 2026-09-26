@@ -49,6 +49,16 @@ A guarda passa a dizer "fatia corrente: 5b", e quatro linhas vencem nesta fatia:
   apurado sobre um aparelho e uma impressora` (`5`) são alcançadas e **não pagas**. Elas seguem em
   dia até a 6 abrir, e cada uma tem veículo na fatia 5.
 
+**Acrescentado em 2026-09-26, depois do merge da `main` com a 5b-0:** a guarda passa a listar uma
+**quinta** linha que vence nesta fatia. É `A folha de teste de impressão não aprova a região
+discursiva que a prova imprime` (`5b`), acrescentada pela 5b-0 (decisão 9 dela).
+- **Esta mudança a alcança, e não a paga.** O veículo que a linha nomeia é "a mudança que vem depois
+  do filtro de marcadores por região (tarefa 1.1 da `slice-5b-1-…`)".
+- **O que esta mudança faz por ela:** o filtro está feito aqui, e o veículo fica destravado quando esta
+  mudança entrar na `main`.
+- **O archive diz, para ela,** se foi paga por outro veículo até lá ou se é reagendada, com
+  fatia-limite nova e motivo (P27).
+
 Os eventos `migration-da-5-em-producao` e `implantar-api-da-5a` **não** são alcançados: esta mudança
 não tem migration nem implanta nada.
 

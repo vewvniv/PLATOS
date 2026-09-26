@@ -121,6 +121,13 @@
 > topologia de página (uma região por página vs. duas), não sobre contagem de marcador, e por isso não
 > mudam de texto. A 4.1 continua sendo a tarefa do mantenedor, e mede a detecção do marcador de
 > 11,2 mm, como já prevista.
+>
+> **Correção, em 2026-09-26 (P7):** "foi arquivada", acima e na reabertura da 1.1, está errado. A 5b-0
+> está completa e mergeada na `main` (PR #70), e **não arquivada**: continua em `openspec/changes/`
+> (`openspec list`). O item 1 está pago do mesmo jeito, porque a geometria nova está na `main`.
+>
+> **Em 2026-09-26, a impressão da 4.1 não coube**, por decisão do mantenedor. As tarefas 4.1 a 4.3
+> seguem abertas, e o fechamento (seção 5) espera por elas.
 
 - [ ] 4.1 **Tarefa do mantenedor:**
   - imprimir `build/parity/discursiva-aluno-web.pdf`, a folha de `tok-a`, gerada nesta sessão;
@@ -159,6 +166,9 @@
   - as guardas Node.
 
   Contagens e `timestamp` comparados com a 0.1 (P2, P3, P5).
+
+  *Ponto de controle rodado em 2026-09-26, antes da 4.x, tudo verde (cobertura, "Ponto de controle de
+  2026-09-26"). Ele não fecha a 5.1 nem a 5.2, porque a 4.2 ainda acrescenta teste e mutação.*
 - [ ] 5.3 `docs/cobertura-slice-5b-1-o-aparelho-reconhece-a-discursiva.md`:
   - como cada verificação foi vista falhar, com o previsto e o real;
   - as fotos, com `sha256` e EXIF;
@@ -168,4 +178,7 @@
   - a linha `5b` do §16 **paga**, com a evidência (a queda consertada, o motivo certo, as fotos lidas
     e, se houve, a 4.3). O token ganha `paga`, e a prosa da linha fica (P7);
   - as três linhas `5` seguem em dia;
+  - a linha `A folha de teste de impressão não aprova a região discursiva…` (`5b`), acrescentada pela
+    5b-0, é alcançada e não paga por esta mudança. Ela é paga por outro veículo ou reagendada, com
+    fatia-limite nova e motivo (acrescentado em 2026-09-26; proposta, "Linhas do §16");
   - os eventos `migration-da-5-em-producao` e `implantar-api-da-5a` não foram alcançados.

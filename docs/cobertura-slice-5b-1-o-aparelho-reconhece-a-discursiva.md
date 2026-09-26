@@ -244,3 +244,81 @@ uma guarda de vacuidade que exige 3 regiões.
 
 A tela que abre a câmera numa prova com discursiva não foi aberta por teste nenhum: a base não tem
 teste instrumentado de `Activity` (decisão 5). Ela é conferida no aparelho na 4.3, ou fica como lacuna.
+
+## 4. A folha impressa — pendente, tarefa do mantenedor
+
+**4.1 a 4.3 não foram feitas.** Em 2026-09-26 a impressão não coube, por decisão do mantenedor.
+
+A folha de `tok-a` foi gerada nesta sessão, às 09:14:32Z, pelo renderizador web a partir da árvore
+mesclada: `build/parity/discursiva-aluno-web.pdf`, 211.851 bytes, 2 páginas, `sha256`
+`3e1cce42…a69b`. Ela passou por:
+- `fidelidade.mjs` contra `prova-discursiva.aluno.layout.json`: 47 verificações, maior desvio de
+  0,047 mm, "fidelidade OK". Isso cobre só a página 0, como a 5a registrou;
+- `tinta.mjs`: "tinta OK".
+
+A de 25/09 (15:15:49Z, 211.852 bytes, `sha256` `12df0e2a…c843`) difere em 1 byte e no hash. A causa é
+*suposta*, e não conferida: metadado de data do PDF.
+
+**Uma questão de ordem está aberta com o mantenedor.** A ordem de 2026-09-25 punha a mudança de
+cabeçalho e gabarito compacto antes da impressão da 4.1. O `tasks.md` espera só a 5b-0 e o
+`/opsx:update`. Se o gabarito ainda muda de geometria, as fotos testariam um gabarito que vai ser
+descartado. A detecção do marcador de 11,2 mm não depende disso.
+
+**O formato de `fixtures/corpus-5b-marcacoes.json` não está definido** em arquivo nenhum. A proposta
+entregue ao mantenedor usa os nomes das questões da fixture e a opção como `QuestionAnswer.Marcada.option`
+a expressa: `{ "aluno": "tok-a", "q1": "…", "q2": "…", "q4": "…", "q5": "…" | "em branco" }`.
+
+## Ponto de controle de 2026-09-26, sobre o branch mesclado (não é o fechamento)
+
+É o comando cheio da 5.2, rodado antes da 4.x sobre `d92583c` e as edições de registro que vieram
+depois dele, que não tocam código. **Ele não fecha a 5.1 nem a 5.2:** a 4.2 acrescenta teste e
+mutação, e o fechamento roda de novo depois dela.
+
+| Comando | Resultado |
+|---|---|
+| `./gradlew build --rerun-tasks` | `BUILD SUCCESSFUL in 3m`, **183 de 183 tasks executadas**, de 09:22:19Z a 09:25:20Z |
+| `./gradlew -p buildSrc test --rerun-tasks` | 1 de 1, 09:25:58Z |
+| `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro, no `platos-atd34` | 89 testes, 0 falhas, 2 pulados, `timestamp` 09:26:55Z |
+| `npx vitest run` em `apps/web` | 18 de 18, 09:22:29Z |
+| `npm run build` em `apps/web` | `exit 0` |
+| `limiar.mjs`, `answer-kind.mjs`, `fio.mjs`, `renderizador.mjs`, `divida.mjs` | todas com `exit 0`; o renderizador sai com "versao 2", e a dívida com "nenhuma linha vencida: 21 linhas lidas" |
+| `git grep MUTACAO`, fora de `build/`, `node_modules/`, `docs/`, `openspec/` e `rigorous.md` | nenhuma ocorrência |
+
+Relatórios do `build`, com cada `timestamp` dentro da janela dele:
+
+| Task | Testes | Linha de base (0.1) | `timestamp` |
+|---|---|---|---|
+| `apps/android` `testDebugUnitTest` | 320 | 312 | 09:23:37Z .. 09:23:42Z |
+| `apps/android` `testReleaseUnitTest` | 320 | 312 | 09:24:15Z .. 09:24:23Z |
+| `apps/api` `test` | 168 | 168 | 09:24:48Z .. 09:25:03Z |
+| `packages/domain` `jvmTest` | 393 | 375 | 09:25:06Z .. 09:25:07Z |
+| `packages/domain` `jsNodeTest` | 384 | 366 | 09:25:12Z .. 09:25:14Z |
+| `packages/domain` `testAndroidHostTest` | 384 | 366 | 09:25:16Z .. 09:25:17Z |
+
+**De onde vêm as diferenças:**
+- **Android, +8:** os 7 de `ProvaComDiscursivaNaSessaoTest` e o de `MontagemDoAnalisadorTest`, desta
+  mudança.
+- **Domínio, +18 e web, +2:** vieram da 5b-0, pelo merge. O `jvmTest` de 393 é o que a cobertura dela
+  registra; os outros números *não* foram conferidos contra a cobertura dela.
+
+**Os passos de paridade e fidelidade do CI não foram rodados aqui.** Eles comparam os dois
+renderizadores, e esta mudança não toca renderizador nem fixture (a 5b-0 os fechou na PR #70). O CI da
+PR desta mudança os roda.
+
+## O que ainda não foi verificado
+
+- **Nenhuma foto da folha discursiva impressa foi lida** (4.1 e 4.2). A linha `5b` do §16 ("a região
+  discursiva ainda não passou pelo aparelho nem pelo papel") **não está paga**. Até lá, estes itens
+  também não foram medidos:
+  - a detecção do marcador de 11,2 mm, que tem regra de parada na 5b-0 (volta a 14 mm);
+  - o QR lido depois de uma retificação só por dois ArUcos, que é o risco do passo (a) do ADR-0018 e
+    um gatilho de reabertura dele.
+- **Os testes de captura usam documento renderizado, que é plano.** Neles, uma homografia tirada de um
+  marcador só também passaria.
+- **A geometria da região discursiva não tem conferência além do QR**, até o segundo ajuste da 5b-2
+  (decisão 1, atualização de 2026-09-26). Não é mitigado, é conhecido (P8).
+- **A tela do estado novo** (`ScanScreen`) não tem teste automático, e a 4.3 não foi feita.
+- **A abertura da câmera numa prova com discursiva** só foi provada pela montagem do analisador (3.1),
+  e não por uma `Activity` aberta.
+- **A linha `A folha de teste de impressão não aprova a região discursiva…`** (`5b`, da 5b-0) é
+  alcançada por esta mudança e não é paga por ela (proposta, "Linhas do §16").

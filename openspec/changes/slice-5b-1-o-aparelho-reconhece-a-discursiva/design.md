@@ -20,6 +20,12 @@ afirmação (P6).
   mudança: "a posição de cada canto de marcador vem do `DrawAruco` (`x`, `y`, `side`)... a 5b-1
   atualizada monta a homografia com esses pontos declarados e normaliza pelo retângulo declarado, sem
   saber se ele passa por centro ou por canto." *Conferido por leitura do design.md arquivado da 5b-0.*
+- **Correção, em 2026-09-26 (P7): a 5b-0 não está arquivada.** Os dois itens acima dizem "arquivada" e
+  "após o archive", e isso está errado. A `slice-5b-0-a-regiao-discursiva-compacta` está completa e
+  mergeada na `main` (PR #70), e continua em `openspec/changes/`, e não em `archive/`. *Conferido por
+  `openspec list`, que a mostra "✓ Complete", e por `divida.mjs`, que a lê como ativa.* O que os dois
+  itens afirmam sobre a geometria continua certo: foi lido na fixture e no `design.md` dela, que estão
+  na `main`.
 - **A detecção de marcadores roda dentro de `detect`, uma vez por região pedida.** Hoje só uma região
   é pedida por quadro.
 - **A sessão conhece uma forma de resultado:** `FrameOutcome.Read(InterpretedReading)`, que vai para
