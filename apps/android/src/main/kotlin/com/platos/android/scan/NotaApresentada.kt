@@ -1,6 +1,8 @@
 package com.platos.android.scan
 
 import com.platos.domain.scoring.ObjectiveScore
+import com.platos.domain.scoring.PartialScore
+import com.platos.domain.scoring.PendingQuestion
 import com.platos.domain.scoring.PendingReason
 
 /**
@@ -35,10 +37,35 @@ internal fun apresentar(score: ObjectiveScore): NotaApresentada = NotaApresentad
         "Nota parcial: ${score.pending.size} questao(oes) dependem de revisao, " +
             "${score.pointsAtStake} ponto(s) em disputa."
     },
-    pendencias = score.pending.map {
-        "· ${it.questionId}: ${motivo(it.reason)} (${it.points} ponto(s))"
-    },
+    pendencias = score.pending.map(::linhaDePendencia),
 )
+
+/**
+ * A parcial objetiva de uma prova com discursiva, ja na forma em que a tela a mostra
+ * (`slice-5b-2-a-nota-objetiva-parcial`).
+ *
+ * **Tres numeros, e nao um.** O risco e o professor ler a parcial como nota: "3 de 4" sozinho parece
+ * uma nota de 75%. Por isso o maximo objetivo vem junto da pontuacao, e o quanto as discursivas valem
+ * e o maximo da prova vem logo abaixo. Que a nota nao e definitiva, quem diz e o aviso do estado.
+ */
+internal data class ParcialApresentada(
+    /** "3 de 4 na objetiva". */
+    val pontuacao: String,
+    /** "Discursivas: 7 ponto(s) aguardam correcao · a prova vale 11". */
+    val resumo: String,
+    /** Uma linha por questao objetiva pendente, com o motivo e quanto vale. */
+    val pendencias: List<String>,
+)
+
+internal fun apresentar(parcial: PartialScore): ParcialApresentada = ParcialApresentada(
+    pontuacao = "${parcial.objectivePoints} de ${parcial.objectiveMaxScore} na objetiva",
+    resumo = "Discursivas: ${parcial.awaitingPoints} ponto(s) aguardam correcao · " +
+        "a prova vale ${parcial.maxScore}",
+    pendencias = parcial.pending.map(::linhaDePendencia),
+)
+
+private fun linhaDePendencia(pendencia: PendingQuestion): String =
+    "· ${pendencia.questionId}: ${motivo(pendencia.reason)} (${pendencia.points} ponto(s))"
 
 private fun motivo(reason: PendingReason): String = when (reason) {
     PendingReason.MULTIPLA_MARCACAO -> "mais de uma alternativa marcada"
