@@ -245,9 +245,16 @@ uma guarda de vacuidade que exige 3 regiões.
 A tela que abre a câmera numa prova com discursiva não foi aberta por teste nenhum: a base não tem
 teste instrumentado de `Activity` (decisão 5). Ela é conferida no aparelho na 4.3, ou fica como lacuna.
 
-## 4. A folha impressa — pendente, tarefa do mantenedor
+## 4. A folha impressa — movida para a sessão única de papel
 
 **4.1 a 4.3 não foram feitas.** Em 2026-09-26 a impressão não coube, por decisão do mantenedor.
+
+**Movidas no mesmo dia** (`/opsx:update`, `c403f61`) para uma **sessão única de papel antes da fatia
+6**. O mantenedor não tem impressora, e cada impressão custa um deslocamento. O texto de 4.1 a 4.3
+fica no `tasks.md` como rascunho do protocolo daquela sessão. A linha `5b` do §16 é reagendada para
+`6` no archive, e não paga. A questão de ordem abaixo foi encerrada pelo mantenedor: o gabarito fica
+com 4 ArUcos, e o gabarito compacto fica fora por ora. O resto desta seção é o estado de antes da
+decisão (P7).
 
 A folha de `tok-a` foi gerada nesta sessão, às 09:14:32Z, pelo renderizador web a partir da árvore
 mesclada: `build/parity/discursiva-aluno-web.pdf`, 211.851 bytes, 2 páginas, `sha256`
@@ -305,8 +312,40 @@ Relatórios do `build`, com cada `timestamp` dentro da janela dele:
 renderizadores, e esta mudança não toca renderizador nem fixture (a 5b-0 os fechou na PR #70). O CI da
 PR desta mudança os roda.
 
+## 5. Fechamento
+
+Sobre `c403f61`, que só acrescenta registro ao ponto de controle: o código é o mesmo de `d92583c`.
+
+**5.1:** `git grep MUTACAO`, fora de `build/`, `node_modules/`, `docs/`, `openspec/` e `rigorous.md`,
+não achou nada (`rc=1`). As seis mutações desta mudança foram revertidas e rodadas: três de 2026-09-24
+(seções 1 a 3) e três de 2026-09-26 (seção "1.1 a 1.3 reexecutadas").
+
+**5.2, o comando cheio:**
+
+| Comando | Resultado |
+|---|---|
+| `./gradlew build --rerun-tasks` | `BUILD SUCCESSFUL in 2m 28s`, **183 de 183 tasks executadas**, de 09:38:17Z a 09:40:46Z |
+| `./gradlew -p buildSrc test --rerun-tasks` | 1 de 1, 09:41:15Z |
+| `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro, no `platos-atd34` | 89 testes, 0 falhas, 2 pulados, `timestamp` 09:42:16Z |
+| `npx vitest run` e `npm run build` em `apps/web` | 18 de 18, às 09:42:34Z; o build com `exit 0` |
+| `limiar.mjs`, `answer-kind.mjs`, `fio.mjs`, `renderizador.mjs` e `divida.mjs` | todas com `exit 0`; a dívida diz "nenhuma linha vencida: 21 linhas lidas" |
+
+| Task | Testes | 0.1 | `timestamp` |
+|---|---|---|---|
+| `apps/android` `testDebugUnitTest` | 320 | 312 | 09:39:35Z .. 09:39:39Z |
+| `apps/android` `testReleaseUnitTest` | 320 | 312 | 09:39:26Z .. 09:39:31Z |
+| `apps/api` `test` | 168 | 168 | 09:40:13Z .. 09:40:33Z |
+| `packages/domain` `jvmTest` | 393 | 375 | 09:40:40Z .. 09:40:42Z |
+| `packages/domain` `jsNodeTest` | 384 | 366 | 09:40:37Z .. 09:40:39Z |
+| `packages/domain` `testAndroidHostTest` | 384 | 366 | 09:40:08Z .. 09:40:09Z |
+
+As diferenças para a 0.1 são as do ponto de controle: +8 no Android, desta mudança; +18 no domínio e
++2 no web, que vieram da 5b-0 pelo merge. Os passos de paridade e fidelidade ficam com o CI da PR.
+
 ## O que ainda não foi verificado
 
+- **Atualizado em 2026-09-26:** o papel foi movido para a sessão única antes da 6, e a linha `5b` é
+  **reagendada para `6`** no archive. O item abaixo continua verdadeiro, com esse destino.
 - **Nenhuma foto da folha discursiva impressa foi lida** (4.1 e 4.2). A linha `5b` do §16 ("a região
   discursiva ainda não passou pelo aparelho nem pelo papel") **não está paga**. Até lá, estes itens
   também não foram medidos:

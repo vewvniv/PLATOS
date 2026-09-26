@@ -171,9 +171,9 @@
 
 ## 5. Fechamento
 
-- [ ] 5.1 `grep -rn "MUTACAO"` fora de `build/` e de `node_modules/` dá `0`, e toda reversão foi
+- [x] 5.1 `grep -rn "MUTACAO"` fora de `build/` e de `node_modules/` dá `0`, e toda reversão foi
   rodada (P10).
-- [ ] 5.2 Comando cheio local:
+- [x] 5.2 Comando cheio local:
   - `./gradlew build --rerun-tasks` e `connectedDebugAndroidTest`, sem filtro;
   - `vitest` e o `build` do web;
   - as guardas Node.
@@ -184,13 +184,13 @@
   2026-09-26"). Ele não fecha a 5.1 nem a 5.2, porque a 4.2 ainda acrescenta teste e mutação.*
   *Atualizado em 2026-09-26: a 4.2 saiu desta mudança. A 5.1 e a 5.2 são rodadas de novo, depois do
   commit desta atualização, e fecham sobre a árvore final.*
-- [ ] 5.3 `docs/cobertura-slice-5b-1-o-aparelho-reconhece-a-discursiva.md`:
+- [x] 5.3 `docs/cobertura-slice-5b-1-o-aparelho-reconhece-a-discursiva.md`:
   - como cada verificação foi vista falhar, com o previsto e o real;
   - as fotos, com `sha256` e EXIF *(movido em 2026-09-26 para a sessão única de papel; aqui, a
     cobertura diz que nenhuma foto foi lida)*;
   - a seção "o que ainda não foi verificado".
 - [ ] 5.4 PR contra `main`, e o CI **lido no destino** (P2, P26).
-- [ ] 5.5 Preparar a reconciliação do archive (P27):
+- [x] 5.5 Preparar a reconciliação do archive (P27):
   - a linha `5b` do §16 **paga**, com a evidência (a queda consertada, o motivo certo, as fotos lidas
     e, se houve, a 4.3). O token ganha `paga`, e a prosa da linha fica (P7);
   - as três linhas `5` seguem em dia;
