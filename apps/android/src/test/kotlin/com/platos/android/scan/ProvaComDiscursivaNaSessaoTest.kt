@@ -6,6 +6,9 @@ import com.platos.domain.capture.CapturePayload
 import com.platos.domain.capture.InterpretedReading
 import com.platos.domain.capture.QuestionAnswer
 import com.platos.domain.exam.ExamPackage
+import com.platos.domain.exam.folhaDaAtribuicao
+import com.platos.domain.layout.DrawText
+import com.platos.domain.layout.LayoutEngine
 import com.platos.domain.scoring.AwaitingEssay
 import com.platos.domain.scoring.ObjectiveScoring
 import com.platos.domain.scoring.PartialScore
@@ -250,6 +253,62 @@ class ProvaComDiscursivaNaSessaoTest {
         assertEquals(listOf(0 to capturada, 1 to capturada, 2 to naoVista), estados(estado))
         assertEquals(2, estado.caderno.capturadas)
         assertEquals(3, estado.caderno.esperadas)
+    }
+
+    /**
+     * Cenario "O indicador tem o numero impresso" (decisao 5).
+     *
+     * O oraculo e fixado: na folha da fixture, `d1` e impressa como questao 3 e `d2` como questao 6.
+     * O teste abaixo deste e quem prende esses numeros ao texto da folha.
+     */
+    @Test
+    fun `o indicador de cada discursiva traz o numero que a questao tem na folha impressa`() {
+        val sessao = sessaoAberta()
+
+        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+
+        val rotulos = reconhecida(sessao.state).caderno.regioes.map { it.regionIndex to it.rotulo }
+        assertEquals(listOf(0 to "Gabarito", 1 to "3", 2 to "6"), rotulos)
+    }
+
+    /**
+     * A conferencia que a P28 exige do numero do indicador (decisao 5): a chave de `positions` de cada
+     * discursiva e o numero impresso antes do enunciado dela, na folha de `tok-a`.
+     *
+     * **A folha e a do pacote, e nao um PDF**: o `LayoutMap` da atribuicao e a fonte geometrica que os
+     * dois renderizadores desenham, e o texto de cada `DrawText` e o que sai no papel (a paridade e a
+     * fidelidade do CI prendem os renderizadores a ele). O numero e achado **pela geometria**, e nao
+     * pelo `id` da primitiva: e o texto na mesma linha de base da primeira linha do enunciado, logo a
+     * esquerda dela.
+     *
+     * Hoje os dois coincidem por construcao, porque o motor numera pela ordem de `positions`. Quando a
+     * paginacao (ADR-0019) passar a declarar o numero no mapa, e este teste que cai e obriga a trocar a
+     * fonte do indicador.
+     */
+    @Test
+    fun `a chave de positions de cada discursiva e o numero impresso antes do enunciado dela`() {
+        val folha = requireNotNull(pacote.folhaDaAtribuicao("tok-a")) { "a fixture nao tem a atribuicao tok-a" }
+        val posicaoDe = pacote.variants.single().positions.entries.associate { (posicao, item) -> item to posicao }
+        val discursivas = folha.regions.filter { it.kind == LayoutEngine.ESSAY_KIND }
+        assertEquals(listOf("d1", "d2"), discursivas.map { it.questionId }, "guarda de vacuidade")
+
+        for (regiao in discursivas) {
+            val item = pacote.items.single { it.id == regiao.questionId }
+            val textos = folha.pages.single { it.index == regiao.page }.primitives.filterIsInstance<DrawText>()
+            val primeiraLinha = textos.filter { it.text.length > 10 && item.statement.startsWith(it.text) }
+            assertEquals(1, primeiraLinha.size, "a primeira linha do enunciado de ${item.id}: $primeiraLinha")
+            val linha = primeiraLinha.single()
+            val numero = textos
+                .filter { it.baseline == linha.baseline && it.x < linha.x }
+                .maxByOrNull { it.x }
+                ?: throw AssertionError("nada impresso antes do enunciado de ${item.id}")
+
+            assertEquals(
+                "${posicaoDe.getValue(item.id)}.",
+                numero.text,
+                "o numero impresso antes de ${item.id} tem de ser a chave de positions dele",
+            )
+        }
     }
 
     /** Cenario "A segunda pagina completa o caderno". */
