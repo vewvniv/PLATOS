@@ -258,9 +258,37 @@ Consequência: cada folha é única por aluno (já era, por causa de token e var
 | ArUco: lado gabarito / lado discursiva / zona de silêncio | ≥ 12 mm / ≥ 10 mm / ≥ 1 módulo |
 | Pauta discursiva | 8,6 mm (generosa: manuscrito espremido é o pior inimigo da leitura) |
 
+> **Emenda de 2026-09-25 — ADR-0016.** A pauta discursiva passa a ser de **7 mm, em cinza claro**,
+> do lado decorativo do ADR-0010, como a letra dentro da bolha: ela é guia para o aluno, e não
+> geometria para a câmera. O valor anterior e a razão dele ficam escritos acima (P7). A razão é uma
+> hipótese sobre leitura que nunca foi medida, e a medição continua sendo a da linha "Acurácia em
+> manuscrito" do §16, agora sobre a pauta nova.
+
 **Paginação.** Medir → agrupar em super-blocos indivisíveis (enunciado+alternativas; enunciado+moldura; texto-base+dependentes com penalidade) → **DP minimizando `Σ(sobra)² + penalidades`** → posicionar regiões → emitir. O quadrado da sobra distribui o vazio em vez de empurrá-lo para o fim. Com N ≤ 60 blocos é O(N²), milissegundos. Colunas: **adaptativo** — 2 por padrão, blocos largos atravessam, 1 quando houver muito conteúdo largo.
 
+> **Emenda de 2026-09-25 — ADR-0019.** A DP acima distribui uma sequência **fixa**: ela nunca muda
+> a ordem das questões (`Pagination.kt`). A paginação passa a **redistribuir as questões**: não sobra,
+> no meio da prova, espaço onde uma questão caberia de maneira **ideal**, que é inteira, com o
+> espaçamento normal e sem nada comprimido.
+> - Encaixe forçado é proibido.
+> - A ordem do professor desempata. A ordem impressa já era por variante (§5, "mapa posição física
+>   → `item_id`").
+> - A **numeração impressa é a da folha**, e o gabarito, os chips de completude e os relatórios
+>   usam esse número.
+> - Os super-blocos se movem inteiros, e a ordem sai determinística.
+> - "Com N ≤ 60 blocos é O(N²)" deixa de valer como está escrito: escolher a ordem é empacotamento,
+>   e a busca é heurística.
+
 **Área discursiva dimensionada pela rubrica:** `expected_lines` da rubrica define a altura da moldura. A IA gera a questão e a rubrica; a rubrica define o espaço; o espaço condiciona a resposta; a resposta é avaliada contra a mesma rubrica. Uma cadeia só, sem decisão manual. Nunca maior que uma página — se a rubrica pede mais, a questão vira itens (a), (b), (c).
+
+> **Emenda de 2026-09-25 — ADR-0017.** A cadeia acima perde um elo: **a rubrica deixa de definir o
+> espaço**, e "sem decisão manual" deixa de valer. O professor declara, questão por questão, o
+> número de linhas e a largura, que é uma coluna ou a página, **sem valor padrão**.
+> - `expected_lines` continua na rubrica, como o que cada critério espera, e a resposta continua
+>   avaliada contra ela.
+> - A questão de largura de página ocupa uma faixa própria. O fluxo das colunas continua antes e
+>   depois dela. É o "blocos largos atravessam" do parágrafo de paginação, acima.
+> - O teto "nunca maior que uma página" fica.
 
 **Economia de papel:** densidade em três níveis (espaçado/normal/compacto) dentro de faixas seguras para o CV, contador de páginas ao vivo, e sugestão automática quando a última página tem menos de 25% de ocupação.
 
@@ -269,6 +297,18 @@ Consequência: cada folha é única por aluno (já era, por causa de token e var
 ## 8. Regiões escaneáveis e pipeline de captura
 
 **Modelo.** Sempre uma região `ANSWER_BLOCK` (gabarito + QR ao lado, dentro de 4 ArUcos). Apenas se houver discursivas, uma região `ESSAY_REGION` por questão, cada uma com 4 ArUcos e um QR compacto.
+
+> **Emenda de 2026-09-25 — ADR-0018.** A região discursiva passa a ter **dois ArUcos na diagonal**:
+> `4k` no canto superior esquerdo e `4k+3` no inferior direito. O **QR fica no canto superior
+> direito**, na faixa do marcador, e **ancora o terceiro canto**.
+> - A alocação `{4k…4k+3}` do parágrafo "IDs de ArUco", abaixo, fica como está.
+> - A ordem do pipeline também fica. A primeira homografia sai dos dois ArUcos, o QR é lido na ROI
+>   já retificada, e só depois os padrões de posição dele entram num segundo ajuste, que dá o
+>   recorte.
+> - O canto inferior esquerdo é extrapolado, e a folga do recorte o cobre até a medição em papel.
+> - As coordenadas da região discursiva deixam de ser as do "quadrilátero dos 4 ArUcos" do §6, e
+>   passam a ser as do retângulo entre os dois marcadores.
+> - **O gabarito não muda:** continua com 4 ArUcos.
 
 **A moldura discursiva contém apenas a área de resposta.** O enunciado fica fora. Três razões, em ordem de peso: você já tem o enunciado em texto exato no pacote (fotografá-lo é pagar tokens de visão para reconstruir com erro um dado que você possui); a geometria da região precisa ser previsível; e o recorte limpo evita que o modelo "responda o enunciado" em vez de avaliar a resposta.
 
@@ -538,6 +578,7 @@ substituição de decisão. Não abre ADR, pelo mesmo critério das atualizaçõ
 | **O APK de release sai sem assinatura e sem R8, com `versionCode = 1`** | `antes-de:lancamento` · **fatia comercial** (plano de correção, §9) | **Acrescentado em 2026-09-24, na `registro-de-divida-executavel`, por decisão do mantenedor, a partir do §9 do `docs/plano-de-correcao-antes-da-fatia-5.md`**, que o trazia só em prosa, como "trabalho de lançamento". A ETAPA 7 do plano proibiu os três de propósito. Assinar e mexer em `versionCode` "é trabalho de lançamento, não de correção de auditoria". Ligar `minifyEnabled` "muda o artefato e abre uma frente de verificação inteira". **Conferido por leitura em 2026-09-24:** `apps/android/build.gradle.kts` não tem `buildTypes`, `signingConfig` nem `isMinifyEnabled`, e declara `versionCode = 1`. **O token é o evento, e não um número.** "Fatia comercial" não é linha do §15, e o que o item bloqueia é a entrega do APK ao professor, que o §2 do plano, sobre a 7.2, já chama de "o **lançamento**". **O que encarece:** a frente de verificação que o R8 abre (plano, ETAPA 7). Antes do lançamento, ela se faz sobre um APK que ninguém recebeu. Depois, se faz sobre o que o professor já tem instalado | mantenedor |
 | **A região discursiva ainda não passou pelo aparelho nem pelo papel** | `5b` · **a mudança da captura discursiva e da completude** — ainda não proposta, e por isso sem nome de mudança aqui | **Acrescentado em 2026-09-24, na `slice-5a-regiao-discursiva`, por decisão do mantenedor** (decisão 12 do `design.md` dela). A 5a publica prova com discursiva e a leva ao documento nos dois renderizadores. Duas coisas ficam sem veículo nela, e as duas têm o mesmo: a mudança que fotografa folha discursiva impressa. **O aparelho recusa pelo motivo errado.** Uma prova com discursiva chega ao aparelho e é recusada na apuração com "itens lidos divergem da variante", porque a discursiva está em `positions` e o gabarito não a lê. Não sai nota errada, mas o motivo engana o professor, e o caminho do `RegionDetector` diante de marcadores `4…7` no quadro **não foi exercitado** — é suposto. **Correção de 2026-09-25 (P7): as duas frases anteriores estão erradas, e ficam.** A recusa "na apuração" nunca seria alcançada. Lido no código da `main`, e **não medido**: o aplicativo **cai** ao abrir a câmera, porque `ScanActivity.kt:218` escolhe a região com `map.regions.single()`, que lança exceção com as três regiões da prova com discursiva. E, se não caísse, toda captura falharia, porque `RegionDetector.declaredMarkersOf` conta os ArUcos da **página** inteira, e não os da região: na página 0 da fixture discursiva são 8, contra os 4 esperados. A primeira afirmação veio da leitura do domínio, e o caminho da câmera não tinha sido olhado. Achado na exploração da 5b, que foi dividida em duas por decisão do mantenedor. A **5b-1** reconhece a folha com discursiva, e é ela que conserta isto. O prazo e o dono desta linha não mudam: muda a gravidade descrita, que passa de mensagem enganosa a queda do aplicativo. **A folha discursiva não foi medida em papel.** A 5a mede o documento, com fidelidade e paridade nos dois renderizadores, e não a impressão: a geometria da região discursiva usa as mesmas primitivas e o mesmo tamanho de marcador que a do gabarito, e isso é **herdado** da 2b e da 3b, não verificado. O que encarece depois: a 5c põe a correção manual sobre essa captura, e corrigir a identificação da região depois de haver nota discursiva gravada é retrofit sobre fato append-only. **Não é mitigado, é conhecido** (P8) | mantenedor |
 | **Implantar a API da 5a faz o servidor responder HTTP 500 a resultado das provas antigas** | `antes-de:implantar-api-da-5a` · **antes de implantar no Render uma imagem que contenha a `slice-5a-regiao-discursiva`** (a primeira é `sha-a8ccf1a`, publicada em 2026-09-24 e não implantada) | **Acrescentado em 2026-09-24, depois do archive da `slice-5a-regiao-discursiva`, por decisão do mantenedor.** Achado ao olhar o que o servidor faz com os pacotes que já estão em produção, que a 5a não conferiu. A rota de resultados lê o `content` do pacote gravado com o tipo do domínio (`conferirProveniencia`, `ProvenienciaDoResultado.kt:64`), e a 5a tornou `qr_id` obrigatório na região. Os dois pacotes em produção, `prova-referencia-slice-1` e `prova-referencia-slice-2` (lidos no banco em 2026-09-24, `docs/cobertura-slice-5a-regiao-discursiva.md`), não o têm. **A falha de leitura é medida:** é o mesmo `ExamPackage.JSON` com que o pacote congelado de antes da 5a cai no parse (tarefa 4.4). **O 500 é por leitura, e não medido:** a rota não trata a exceção, e a KDoc dela decide que "a exceção sobe" porque "um `content` que não parseia é pacote corrompido no banco" — premissa que a 5a desfez, porque agora há pacote íntegro de contrato antigo. Quem é atingido: só um aparelho com build anterior à 5a que ainda tenha resultado pendente dessas provas; o aplicativo atualizado nem as abre. E o aparelho trata 500 como falha transitória, então o pendente ficaria reenviando sem fim. **Como se paga:** antes do deploy, conferir que nenhum aparelho tem resultado pendente das duas provas, ou decidir por escrito que esses resultados de conferência são descartáveis; e declarar o evento aqui quando o deploy acontecer. Corrigir o servidor para recusar com motivo, e não 500, fica como alternativa se aparecer pendente real. O que encarece depois: um resultado de verdade parado num aparelho, reenviando contra um 500, sem ninguém ver | mantenedor |
+| **A folha de teste de impressão não aprova a região discursiva que a prova imprime** | `5b` · **a mudança que vem depois do filtro de marcadores por região** (tarefa 1.1 da `slice-5b-1-o-aparelho-reconhece-a-discursiva`) — ainda não proposta, e por isso sem nome de mudança aqui | **Acrescentado em 2026-09-25, na `slice-5b-0-a-regiao-discursiva-compacta`, por decisão do mantenedor** (decisão 9 do `design.md` dela). A folha de teste existe para reprovar uma impressora antes de ela imprimir uma turma (D-2b.7), e a 5b-0 a faz deixar de aprovar o que a prova imprime, por duas razões. **Ela aprova marcador de 14 mm**, e o marcador da região discursiva passa a ter 11,2 mm (ADR-0018). **Ela não tem pauta cinza**, e a pauta passa a ser linha cinza abaixo do teto decorativo (ADR-0016), justamente o que uma impressora fraca apaga. **Por que ela não muda na 5b-0:** na `main`, o `RegionDetector` conta os ArUcos da página inteira, e não os da região; o filtro por região é a tarefa 1.1 da 5b-1, que não está na `main`. Um marcador a mais na página da folha de teste derrubaria os três testes instrumentados que a leem (`CorpusInstrumentedTest`, `RegionDetectorInstrumentedTest` e `SheetReaderInstrumentedTest`, *conferido por `grep` em `apps/android/src/androidTest` em 2026-09-25*). O veículo é uma mudança posterior ao filtro. O que encarece depois: uma escola aprova a impressora pela folha de teste, e a discursiva sai com marcador ou pauta que aquela folha nunca conferiu — a turma impressa com uma região que a câmera pode não ler, ou com uma pauta que o aluno não vê | mantenedor |
 | Um mantenedor, quatro módulos | `continuo` · contínuo | — | mantenedor |
 
 ---
@@ -545,6 +586,15 @@ substituição de decisão. Não abre ADR, pelo mesmo critério das atualizaçõ
 ## 17. Registro de decisões
 
 **Aceitas (viram ADR):** D1 offline redefinido · D3 OMR template-driven · D4 nota no servidor, offline definitivo sem discursivas · D5 banco de itens com tiers de visibilidade · D6 QR com identidade e CRC · D7 multimodal-first · D8 pull de referência + push append-only · D9 gate de pré-voo e modo degradado · D10 revisão humana obrigatória · D11 UUIDv7 · D12 Bloom versionado · D13 maior resto estratificado · D14 override do professor vence · D15 provedor único atrás do `AiGateway` · D16 Storage separado com retenção · D17 BNCC obrigatória na geração · D18 sessão por regiões · D19 idempotência por revisão · D20 versionamento de prompt e modelo · D21 Room · D22 remover `OpenScanVision` · D23 QR repetido por região · D24 guarda de versão de renderizador · D25 ledger unificado · D26 `exam_assignment` fixado na publicação · D27 op-log de rascunho · D28 pipeline de imagem · D29 `DICT_5X5_100` com quad único · D30 sem compressão explícita · D31 gabarito no topo, cartão destacável como opção · D32 colunas adaptativas · D33 matemática via SVG · D34 atomicidade e agrupamento · D35 área dimensionada pela rubrica · D36 fonte embarcada · D37 densidade em três níveis · D38 detector de deriva.
+
+> **Emendas de 2026-09-25:**
+> - **D35, pela ADR-0017:** o espaço da discursiva, com linhas e largura, é declarado pelo
+>   professor, e não pela rubrica.
+> - **Pauta do §7, pela ADR-0016:** 7 mm, em cinza claro.
+> - **Modelo de região do §8, pela ADR-0018:** a região discursiva tem dois ArUcos, e o QR ancora o
+>   terceiro canto.
+> - **Paginação do §7, pela ADR-0019:** as questões são redistribuídas para não deixar branco, e a
+>   numeração impressa é a da folha.
 
 **Rejeitada:** D2 render server-side — substituído por Layout Engine compartilhado + renderizadores client-side.
 

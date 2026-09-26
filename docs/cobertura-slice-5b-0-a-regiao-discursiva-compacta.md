@@ -1,0 +1,672 @@
+# Cobertura — `slice-5b-0-a-regiao-discursiva-compacta`
+
+Leva ao motor de layout os ADR-0016, ADR-0017 e ADR-0018: a região discursiva de dois ArUcos, com o QR
+no terceiro canto e a pauta cinza de 7 mm. Proposta, specs, design e tarefas em
+`openspec/changes/slice-5b-0-a-regiao-discursiva-compacta/`. Este documento registra **como** cada
+verificação foi vista falhar, e não que ela passa (`rigorous.md` §8). As datas são UTC.
+
+## 0. Linha de base, antes do primeiro commit de código
+
+**0.1 — os comandos cheios sobre `main` (`8084cb5`) mais o commit da proposta (`7478e82`), que só
+acrescenta arquivos em `openspec/changes/`.** O emulador `platos-atd34` já estava de pé
+(`emulator-5554`, `adb emu avd name` → `platos-atd34`); nada no ambiente foi mudado.
+
+| Comando | Resultado | Âncora |
+|---|---|---|
+| `npx vitest run` em `apps/web` | 16 de 16, 2 arquivos, `exit 0` | "Start at 16:10:55" no relógio local (UTC+2), 14:10:55Z |
+| `./gradlew build --rerun-tasks` | `BUILD SUCCESSFUL in 3m 49s`, **183 de 183 tasks executadas**; 14:10:11Z–14:14:01Z | relatórios de 14:13:09Z a 14:13:58Z, abaixo |
+| `./gradlew -p buildSrc test --rerun-tasks` | `BUILD SUCCESSFUL in 27s`, 6 de 6 executadas | relatório de 14:14:23Z |
+| `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro, no `platos-atd34` | `BUILD SUCCESSFUL in 1m 1s`; 84 testes em 17 suítes, 0 falhas, 2 pulados; 7 tasks executadas e 81 `UP-TO-DATE`, porque a compilação acabara de rodar no `build` | `timestamp` 2026-09-25T14:15:28 no relatório; o comando terminou às 14:15:30Z |
+
+Os relatórios, somados por diretório de task por um script no scratchpad (`relatorios.mjs`), que lê o
+`timestamp` de cada XML e marca como **VELHO** o anterior ao início desta sessão (14:10:11Z). Nenhum
+saiu marcado:
+
+| Task | Testes | Falhas | `timestamp` |
+|---|---|---|---|
+| `apps/android` `testDebugUnitTest` | 312 | 0 | 14:13:16Z .. 14:13:20Z |
+| `apps/android` `testReleaseUnitTest` | 312 | 0 | 14:13:09Z .. 14:13:12Z |
+| `apps/android` `connectedDebugAndroidTest` | 84 (2 pulados) | 0 | 14:15:28Z |
+| `apps/api` `test` | 168 | 0 | 14:13:22Z .. 14:13:41Z |
+| `packages/domain` `jsNodeTest` | 366 | 0 | 14:13:50Z .. 14:13:51Z |
+| `packages/domain` `jvmTest` | 375 | 0 | 14:13:53Z .. 14:13:55Z |
+| `packages/domain` `testAndroidHostTest` | 366 | 0 | 14:13:56Z .. 14:13:58Z |
+| `buildSrc` `test` | 1 | 0 | 14:14:23Z |
+
+A soma dos oito é 1984.
+
+**0.2 — a guarda do registro de dívida, antes de qualquer edição.** `node tools/divida/divida.mjs`,
+`exit 0`:
+
+```
+fatia corrente: 5b, de slice-5b-0-a-regiao-discursiva-compacta (ativa)
+eventos declarados: nenhum
+...
+vence nesta fatia (5b):
+  Acurácia em manuscrito (`5`)
+  Modo degradado (§10) não existe (`5`)
+  O limiar do OMR foi apurado sobre um aparelho e uma impressora (`5`)
+  A região discursiva ainda não passou pelo aparelho nem pelo papel (`5b`)
+
+nenhuma linha vencida: 20 linhas lidas
+```
+
+**0.3 — a âncora da guarda da decisão 8.** O `sha256` dos bytes, calculado pelo `crypto` do Node (P4),
+e não por serialização em Kotlin, lidos sobre `7478e82` com `git status --short fixtures/` vazio:
+
+| Arquivo | Bytes | `sha256` |
+|---|---|---|
+| `prova-referencia.layout.json` | 91.960 | `8c9756a9db45c1d08a97fd0d99f6edcb353338f78894ff5b26438d1e00078451` |
+| `prova-referencia.package.json` | 104.091 | `ff2b94ef600101e2c20d5b6b298f7d0612ee0a66beb4d74d7dcd954cfbde40da` |
+| `prova-referencia.turma.package.json` | 107.282 | `7282a186d3b644dac6108e7ea39931517c5a0614e8fa570b15ad09324cb14df7` |
+| `prova-2.package.json` | 104.108 | `c2098e10e6c70f93a469ce56ff5f0e5796b44792da0b661e01465904a48cb717` |
+| `folha-de-teste.layout.json` | 6.743 | `d9f7b08c17a706b02ba21355e2286b71d09792605b1c22adc8b7b95ce566c221` |
+
+## A lacuna do plano achada ao aplicar: a guarda da versão do renderizador
+
+Antes da primeira linha de código, a leitura de `tools/parity/renderizador.mjs` mostrou que ele lê
+`LayoutMap.MIN_RENDERER_VERSION` e exige igualdade com os dois renderizadores. A decisão 4 tira essa
+constante e sobe os renderizadores a 2, e nenhuma tarefa cobria a guarda: o CI da 7.4 sairia
+vermelho. O mantenedor decidiu ajustá-la nesta mudança. A decisão 4 ganhou um parágrafo de
+atualização, e a tarefa 4.3 foi acrescentada, com o motivo escrito nela.
+
+## 1. A linha nova no §16 (tarefa 1.1)
+
+A linha "A folha de teste de impressão não aprova a região discursiva que a prova imprime" entrou com
+token `5b`, antes de qualquer código (P27). Os três testes instrumentados que ela nomeia foram
+conferidos por `grep` em `apps/android/src/androidTest` nesta sessão.
+
+- **Na árvore real:** a guarda a lista `em dia`, lê 21 linhas e sai com `0`. Ela aparece em "vence
+  nesta fatia (5b)", ao lado das quatro de antes.
+- **Vista falhar:** com `--mudancas` apontando para uma cópia de `openspec/changes/` no scratchpad,
+  acrescida de um diretório vazio `slice-5c-sonda`, a guarda deriva "fatia corrente: 5c" e sai com
+  `1`. As linhas nomeadas são **as duas** `5b`, e só elas:
+  - `::error::linha vencida sem reconciliacao: A região discursiva ainda não passou pelo aparelho nem
+    pelo papel (\`5b\`): a fatia 5b ja passou, e a corrente e 5c`;
+  - `::error::linha vencida sem reconciliacao: A folha de teste de impressão não aprova a região
+    discursiva que a prova imprime (\`5b\`): a fatia 5b ja passou, e a corrente e 5c`.
+
+  As três linhas `5` aparecem em "vence nesta fatia (5c)", e não como vencidas, o que está certo:
+  `5` vence na 6.
+- **A cópia foi apagada**, e a guarda sobre a árvore real voltou a sair com `0`.
+
+## 2. O contrato, sozinho (tarefa 2.1)
+
+O commit acrescenta `AnswerWidth` (`column`, `page`), `Question.answerLines` (`answer_lines`) e
+`Question.answerWidth` (`answer_width`), os dois nulos por padrão, e `DrawLine` (`"line"`: `x1`, `y1`,
+`x2`, `y2`, `stroke`, `tone`) no domínio e no espelho `apps/web/src/layoutMap.ts`. O ramo `DrawLine`
+do renderizador Android lança `UnknownPrimitiveException`; o do web cai no `default`, que recusa.
+
+| | Previsto antes de rodar | Real |
+|---|---|---|
+| Testes | nenhum cai | a **compilação** dos testes do domínio caiu antes de qualquer teste rodar, nos três alvos: `InkBoxes.kt:19:79 'when' expression must be exhaustive. Add the 'is DrawLine' branch` |
+| Goldens | nenhum muda | nenhum mudou |
+
+**A previsão errou, e o erro é da lista de consumidores, não do código** (P12). `InkBoxes.kt` é o
+ajudante de teste que calcula a caixa de tinta de cada primitiva para as guardas de zona de silêncio,
+e tem um `when` exaustivo sobre `Primitive`. A tarefa só listava o renderizador Android. Ele ganhou o
+ramo da linha: os extremos crescidos de meio traço nos dois eixos, generosos como a caixa do texto.
+Esse ramo é o que a guarda "Zona de silêncio preservada" vai usar para a pauta, na 3.2.
+
+Depois do ramo, com o previsto valendo:
+
+- `./gradlew :packages:domain:allTests …`, 14:19:11Z–14:19:31Z, `exit 0`: `testAndroidHostTest` 366,
+  `jsNodeTest` 366, `jvmTest` 375, 0 falhas, `timestamp` de 14:19:19Z a 14:19:28Z. As contagens são as
+  da linha de base.
+- A compilação do Android (`compileDebugKotlin`, `compileDebugUnitTestKotlin`,
+  `compileDebugAndroidTestKotlin`) e da API (`compileKotlin`, `compileTestKotlin`) com
+  `--rerun-tasks`: **50 de 50 tasks executadas**, `BUILD SUCCESSFUL`. A primeira rodada as deu como
+  `UP-TO-DATE`, porque tinham compilado na tentativa que caiu nos testes; e `--rerun` só vale para a
+  task imediatamente anterior a ele, então foi preciso `--rerun-tasks` para vê-las executar.
+- `npx tsc --noEmit` em `apps/web`, `exit 0`; `npx vitest run`, 16 de 16, "Start at 16:19:59"
+  (14:19:59Z).
+- Os cinco `sha256` da 0.3, recalculados pelo `crypto` do Node: **iguais** os cinco.
+
+## 3. O motor
+
+### 3.1 — as recusas novas da entrada
+
+`requireSupported` passa a recusar a discursiva sem número de linhas (ou com menos de 1), sem largura,
+e de largura `page`, e a objetiva que declara qualquer um dos dois. Os quatro testes do domínio que
+montam discursiva passam a declarar `answer_lines` e `answer_width: column`: `ExamDefinitionTest`,
+`PacoteDiscursivoTest`, `LayoutEngineTest` e `RegiaoDiscursivaTest`. Neste último, a definição declara
+a **mesma soma** dos `expected_lines`, porque o motor ainda os lê até a 3.2.
+
+As mensagens e as KDocs que diziam "a moldura é dimensionada pelos `expected_lines` da rubrica (D35)"
+passaram a ser falsas com esta mudança, e foram corrigidas junto: a da discursiva sem rubrica, a do
+critério com `expected_lines` < 1, a de `RubricCriterion` e a de `requireSupported`. Nenhum teste
+conferia esse trecho das mensagens.
+
+**A definição da fixture foi editada aqui, e não na 5.1.** Com a recusa nova, o `GoldenLayoutTest` da
+discursiva e o `ExamPublicationTest` da API, que leem `fixtures/prova-discursiva.json`, cairiam neste
+commit. `d1` ganhou `answer_lines: 5` e `d2`, `answer_lines: 7`, as duas com `answer_width: column`.
+São as somas dos `expected_lines` de hoje, e o motor ainda as calcula da rubrica: nenhum golden mudou,
+e o `GoldenLayoutTest` da discursiva passou byte a byte.
+
+**Um teste por cenário novo, e cada um confere a mensagem**, com a questão e o motivo:
+
+| Cenário | Teste | O que a asserção confere |
+|---|---|---|
+| Discursiva sem número de linhas | `discursiva sem numero de linhas e recusada, mesmo com expected_lines na rubrica` | `q2` e "nao declara o numero de linhas"; e, com `0`, "declara 0 linha(s)". O teste afirma antes que a rubrica tem `expected_lines` positivos |
+| Discursiva sem largura | `discursiva sem largura e recusada` | `q2` e "nao declara a largura" |
+| Largura de página ainda é recusada | `largura de pagina ainda e recusada, e a mensagem diz que depende da paginacao em faixas` | `q2`, "largura \`page\`" e "paginacao em faixas" |
+| Objetiva com escolha da discursiva | `objetiva com numero de linhas ou largura e recusada` | `q1` e "objetiva e declara numero de linhas (3)"; e "objetiva e declara largura (column)" |
+
+`./gradlew :packages:domain:allTests`, 14:23:58Z, `exit 0`: `jvmTest` 379, `jsNodeTest` 370,
+`testAndroidHostTest` 370, 0 falhas, `timestamp` de 14:24:10Z a 14:24:19Z. São quatro a mais por alvo.
+
+`ExamPublicationTest` da API, com a fixture nova: 10 de 10, `timestamp` 14:25:18Z. O `exit 1` daquele
+comando é a guarda do build (`592aa88`) que reprova execução filtrada por `--tests`, e não falha de
+teste; o comando cheio fica para a 7.2.
+
+**Visto falhar.** Previsto: sem a checagem de largura, cai **só** "Discursiva sem largura".
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| `if (false && answerWidth == null)`, com `// MUTACAO` acima | cai só `discursiva sem largura e recusada` | `jvmTest` inteiro: **1 de 379**, esse. A mensagem: "Expected an exception of class …UnsupportedContentException to be thrown, but was completed successfully" — a definição passou |
+
+Revertida, `grep -c MUTACAO` no arquivo deu `0`, e a reversão foi rodada: `jvmTest`, 379 de 379,
+`timestamp` de 14:25:00Z a 14:25:01Z. Os cinco `sha256` da 0.3 continuam iguais.
+
+### 3.2 — a região nova
+
+`EssayGeometry` ganha as constantes da decisão 1 (marcador de 11,2 mm em módulos de 1,6 mm, zona de
+silêncio do QR de 2 mm, folga da escrita de 2 mm, pauta de 7 mm, e a pauta provisória a 300‰ com
+0,2 mm). `QuestionBlocks` lê `answer_lines`, e não mais a rubrica. `emitEssayRegion` emite o `4k` no
+canto superior esquerdo, o `4k+3` no inferior direito, o QR no canto superior direito, a moldura na
+largura inteira e a pauta como `DrawLine`. O retângulo de referência é o externo dos dois marcadores,
+e a `answer_area` vai da base do QR até a zona de silêncio do `4k+3`.
+
+**A validação entrou junto, só no que o motor novo exige.** A regra "toda região tem os quatro
+marcadores `4k..4k+3`" faria o mapa do motor ser inválido. Por isso a região discursiva passou, neste
+commit, a exigir exatamente `[4k, 4k+3]`, e o gabarito e a folha de teste continuam com os quatro. O
+resto da 3.4 (o marcador declarado existir na página, a linha com tom) e os testes dela vêm no commit
+dela.
+
+**O vermelho previsto, antes de rodar:** cai **só** `GoldenLayoutTest` › "mapa da prova com
+discursiva bate byte a byte com o golden", nos três alvos. A golden é regravada na 5.2, depois de os
+renderizadores desenharem `line`, e até lá fica vermelha. **Real:** esse, e só esse, nos três alvos —
+`jvmTest` 1 de 386, `jsNodeTest` 1 de 377, `testAndroidHostTest` 1 de 377, às 14:31:16Z.
+
+**Um teste por cenário**, em `RegiaoDiscursivaTest`:
+
+| Cenário | Teste |
+|---|---|
+| Dois marcadores na diagonal e o QR no terceiro canto | `dois marcadores na diagonal e o QR no terceiro canto` — os cantos externos dos dois marcadores são os do retângulo de referência; o QR encosta na borda direita com o topo na altura do `4k`; o QR declarado vai até `u = 1` |
+| Identificadores dos marcadores da região discursiva | `cada discursiva tem a sua regiao, com os marcadores 4k e 4k+3` — `[4, 7]` e `[8, 11]`, e os desenhados são esses e só esses |
+| Marcador discursivo dimensionado com folga | `marcador discursivo continua com 10 mm mesmo reduzido 5 por cento` — e o lado desenhado é a constante, com 7 × 7 módulos |
+| Coordenadas dentro da faixa normalizada | `moldura, pauta, QR e area de resposta ficam dentro do retangulo de referencia` |
+| Zona de silêncio preservada | `nenhuma tinta invade a zona de silencio dos marcadores discursivos` — zona de um módulo do próprio marcador; quatro paginações diferentes, com guarda de vacuidade que exige marcador nas **duas** colunas |
+| O professor dimensiona a moldura | `o professor dimensiona a moldura pelo numero de linhas` — 5 contra 8 linhas, mesma rubrica: a moldura cresce 21 mm, e marcador de cima, QR e topo da moldura não se movem em relação ao topo |
+| A rubrica não mexe na moldura | `a rubrica nao mexe na moldura` — `expected_lines` 3+2 contra 6+3, mesmas linhas: JSON canônico idêntico |
+| Moldura maior que a coluna | `moldura maior que a coluna e recusada, nomeando a questao` |
+| Área de resposta com folga fora da moldura | `a area de resposta contem a moldura, com folga acima e abaixo dela` — e começa na base do QR e termina na zona de silêncio do `4k+3` |
+| Pauta abaixo do teto decorativo | `a pauta e linha cinza de 7 mm abaixo do teto decorativo, e a moldura e preta` |
+| Enunciado e moldura não se separam | `enunciado e moldura ficam juntos onde quer que o paginador os ponha` |
+| O enunciado fica fora da moldura | `nenhum texto do enunciado cai dentro da regiao` |
+
+O teste da 5a "a rubrica dimensiona a moldura, e so ela" saiu: o cenário dele foi removido da spec
+(REMOVED), e os dois cenários da moldura acima o substituem.
+
+**O ajudante `discursiva(...)` separa linhas declaradas de `expected_lines`, e por padrão os iguala.**
+Só os dois cenários da moldura os separam. Ao preparar a mutação B, a leitura mostrou que o teste da
+pauta usava 6 linhas com a rubrica padrão (Σ 5): a mutação o derrubaria também, pelo número de traços
+da pauta, e o conjunto real deixaria de ser o previsto por um motivo que não é o da camada. Os quatro
+testes que variam as linhas passaram a declarar rubrica de mesma soma, **antes** de a mutação rodar.
+
+**Visto falhar**, com dois conjuntos disjuntos previstos. Cada mutação com `// MUTACAO` acima, no
+`jvmTest` inteiro; a golden da discursiva já estava vermelha e continua:
+
+| Mutação | Previsto, além da golden | Real |
+|---|---|---|
+| A — QR centrado, como na 5a (`qrX = left + (width - qrSide) / 2`) | só `dois marcadores na diagonal e o QR no terceiro canto` | 2 de 386: a golden e esse. "o QR da regiao 1 nao encosta na borda direita ==> expected: <102000> but was: <65500>" |
+| B — moldura lida de Σ `expected_lines`, como na 5a | só `o professor dimensiona a moldura pelo numero de linhas` e `a rubrica nao mexe na moldura` | 3 de 386: a golden e esses dois. "a altura da moldura nao seguiu o numero de linhas declarado ==> expected: <21000> but was: <0>"; e os dois JSON canônicos diferentes |
+
+A reversão de A foi observada na rodada de B (o teste da diagonal passou nela). Depois de reverter B,
+`grep MUTACAO` em `packages/`, `apps/web/src`, `apps/android/src` e `tools/` deu `0`, e
+`./gradlew :packages:domain:allTests` rodou às 14:33Z: 1 de 386, 1 de 377 e 1 de 377, a golden da
+discursiva em cada alvo, como previsto.
+
+### 3.3 — a versão mínima de renderizador, por mapa
+
+`LayoutMap.MIN_RENDERER_VERSION` saiu. No lugar, ao lado das primitivas: `BASE_RENDERER_VERSION = 1`,
+`LINE_RENDERER_VERSION = 2` e `minRendererVersionOf(pages)`, a única função da regra, chamada pelo
+motor e pela folha de teste (decisão 4 e a atualização dela). Dois testes, em `RegiaoDiscursivaTest`:
+`mapa com pauta exige o renderizador que desenha linha` (a prova tem `line` e declara 2) e `mapa sem
+linha continua exigindo a versao 1` (a prova objetiva não tem `line` e declara 1).
+
+`./gradlew :packages:domain:allTests`, 14:35:01Z: só a golden da discursiva, vermelha desde a 3.2.
+
+**Visto falhar: a função devolvendo sempre 2.**
+
+- **Previsto na tarefa:** "cai só o segundo" dos dois cenários novos.
+- **Previsto corrigido, antes de rodar,** pela leitura dos testes que fixam a versão 1 na prova
+  objetiva. Caem também os pinos que já existiam: `LayoutEngineTest` › `mapa declara as duas versoes`,
+  `GoldenLayoutTest` › `mapa da fixture bate byte a byte com o golden`, `LayoutProfileTest` › `perfil
+  padrao produz exatamente o mapa de antes de o perfil existir`, `PacoteVersionadoTest` › `o pacote
+  versionado e o que a publicacao produz hoje` e `o pacote da turma e o que a publicacao produz hoje`,
+  `ExamPackageTest` › `o hash da fixture e o mesmo nos tres alvos` e `PrintTestSheetTest` › `folha de
+  teste bate byte a byte com a versionada`.
+- **Real:** 9 de 388 no `jvmTest`: a golden da discursiva, que já estava vermelha, e exatamente os
+  oito previstos. `mapa com pauta exige o renderizador que desenha linha` ficou verde.
+
+**O que isso significa.** A previsão da tarefa só olhava os dois cenários novos, e entre eles ela
+vale: só o segundo cai. Os outros sete são guardas independentes da mesma propriedade, e é a decisão 8
+vista pelo lado dos testes: a versão global em 2 muda os bytes da prova objetiva, e tudo o que fixa
+esses bytes reage.
+
+**A guarda da decisão 8 também pega.** Com a mutação na árvore, o `GoldenWriterTest` regravou os
+artefatos, e `prova-referencia.layout.json` foi copiado para o scratchpad: `sha256`
+`e1582b603452fa97154656fc364a640fc267b6600f7922b73ae1c19395205115`, 91.960 bytes, com
+`"min_renderer_version":2`, contra o `8c9756a9…` da 0.3. Os arquivos que o writer sobrescreveu em
+`fixtures/` voltaram ao `HEAD` com `git checkout -- fixtures/`, e os cinco `sha256` da 0.3 foram
+conferidos **iguais** logo depois.
+
+A mutação foi revertida, `grep MUTACAO` deu `0`, e a reversão foi rodada: `allTests` às 14:36Z, só a
+golden da discursiva em cada alvo (1 de 388, 1 de 379, 1 de 379).
+
+**A guarda da versão do renderizador, sobre esta árvore**, ainda lendo o registro antigo: `node
+tools/parity/renderizador.mjs` sai com `2` e nomeia o registro `dominio` — "zero declaracoes de
+\`MIN_RENDERER_VERSION\` — a constante mudou de forma ou saiu daqui". É o "ver falhar" da 4.3,
+observado aqui porque a constante saiu neste commit; a 4.3 a faz ler o registro novo.
+
+### 3.4 — a validação
+
+*(Previsão da mutação M2, escrita aqui antes de ela rodar; o resultado vem abaixo.)*
+
+**M2 — o teto de 80‰ aplicado também à linha.** A tarefa previa "cai **só** 'Linha cinza não é
+trama'". A leitura dos testes, antes de rodar, diz que não: o mapa válido do motor tem a pauta a
+300‰, e sob M2 as linhas **não tocadas** de cada teste passam a gerar o problema de 80‰. Então cai
+todo teste que valida um mapa discursivo do motor e espera `Valid` ou uma lista exata de problemas.
+Previsto corrigido: em `RegiaoDiscursivaTest`, os onze — `o mapa com discursivas que o motor produz e
+valido, e a validacao nao o altera`, `area de resposta sobre o QR e recusada`, `area de resposta fora
+do quadrilatero e recusada`, `duas regioes para a mesma questao e recusado`, `QR declarado que nao
+existe na pagina e recusado`, `regiao discursiva sem questao e recusada`, e os cinco da 3.4. Além da
+golden da discursiva, já vermelha. E, lida a mensagem, `pauta sem tom` deve cair **com** o problema
+de tom ausente ainda na lista: é isso que mostra a camada de M1 intacta sob M2.
+
+**O que a validação passou a conferir.** A regra de marcadores por tipo (`[4k, 4k+3]` na discursiva,
+os quatro no gabarito e na folha de teste) entrou no commit da 3.2. Neste, a região discursiva passa
+a exigir que cada marcador declarado exista como `DrawAruco` na página dela, e a linha que alcança a
+área de resposta passa a exigir tom declarado e **abaixo** do teto decorativo da região. O tom de
+`DrawLine` ganha a conferência de faixa 0 a 1000, como o do texto; o teto de 80‰ continua só para
+preenchimento.
+
+**Um teste por cenário**, cada um partindo do mapa válido do motor e mudando uma coisa, e cada
+asserção conferindo a lista exata de problemas:
+
+| Cenário | Teste | O que muda | Problema conferido |
+|---|---|---|---|
+| Região discursiva com os marcadores errados | `regiao discursiva com os quatro marcadores, ou com outro par, e recusada` | a região 1 declara `[4, 5, 6, 7]`; e, à parte, `[8, 11]` | com os quatro, três problemas: a regra por tipo e os marcadores 5 e 6, que não são impressos; com `[8, 11]`, desenhados na mesma página, só a regra por tipo |
+| Marcador declarado que não existe | `marcador discursivo declarado que nao esta desenhado e recusado` | o `r1-m7` sai das primitivas | "regiao 1 declara o marcador 7, que nao esta entre as primitivas da pagina 0" |
+| Pauta preta é recusada | `pauta sem tom e recusada, nomeando a regiao e a linha` | `r1-p2` sem tom | a região, a linha e "nao declara tom" |
+| Pauta acima do teto é recusada | `pauta acima do teto decorativo e recusada, com o valor` | `r1-p2` a 600‰ | a região, a linha, o tom 600 e o teto 500 |
+| Linha cinza não é trama | `linha cinza acima de 8 por cento e abaixo do teto decorativo e aceita` | `r1-p2` a 450‰ | `Valid` |
+
+`./gradlew :packages:domain:allTests`, 14:39:45Z: +5 por alvo, e só a golden da discursiva vermelha.
+
+**Visto falhar**, no `jvmTest` inteiro, com `// MUTACAO` acima de cada mutação:
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| M1 — sem a checagem de tom da linha (`if (false) checkPauta(…)`) | caem só `pauta sem tom` e `pauta acima do teto` | 3 de 393: a golden e esses dois, os dois com "esperava mapa invalido" |
+| M2 — o teto de 80‰ aplicado também à linha | na tarefa: só `linha cinza`; **corrigido antes de rodar** (acima): os onze de `RegiaoDiscursivaTest` | 12 de 393: a golden e exatamente os onze |
+
+**O que M2 significa.** Os conjuntos **não** são disjuntos como a tarefa previa: M1 ⊂ M2. A razão é
+a composição da fixture, e não uma camada vazando para outra. O mapa válido do motor tem oito linhas de
+pauta a 300‰, e sob M2 as linhas que o teste **não** tocou passam a gerar o problema de 80‰; toda
+asserção de lista exata reage. A independência das duas camadas se lê pela mensagem, e não pela
+contagem:
+
+- sob M1, `linha cinza` continua verde;
+- sob M2, `pauta sem tom` cai com a lista contendo, além dos sete problemas de 80‰ das outras linhas,
+  **o problema de tom ausente** do `r1-p2`. A camada que M1 removeria continua funcionando sob M2;
+- sob M2, `linha cinza` cai com oito problemas "trama de `r…-p…` acima do teto de 80 por mil",
+  inclusive "`r1-p2` … 450".
+
+M2 revertida, `grep MUTACAO` deu `0`, e a reversão foi rodada: `allTests` às 14:41Z, só a golden da
+discursiva em cada alvo (1 de 393, 1 de 384, 1 de 384).
+
+## 4. Os renderizadores
+
+### 4.1 — o web
+
+`renderer.ts` desenha `line` com `drawLine` do `pdf-lib`, entre os dois pontos, com a espessura e o
+cinza do tom, e `RENDERER_VERSION = 2`. **O arremate reto não é um operador escrito:**
+`LineCapStyle.Butt` vale `0`, o `pdf-lib` só emite o operador de arremate quando ele é verdadeiro, e
+o estado inicial do PDF já é o reto. Conferido lendo `operations.js` do `pdf-lib` e o fluxo gerado,
+que é `q / 0.7 0.7 0.7 RG / 0.5669… w / [] 0 d / … m / … l / S / Q`, sem `J`.
+
+Dois testes novos no Vitest, e o ajudante `contentOps` passou a recolher também os fluxos que só têm
+cor de traço (`RG`), que é o caso de uma página só com linhas:
+- `desenha a linha entre os dois pontos, com o traco e o tom declarados, sem arremate`: uma linha a
+  300‰ e uma sem tom; o fluxo tem `0.7 0.7 0.7 RG` e `0 0 0 RG`, as duas larguras iguais a
+  `umToPt(200)`, os pontos declarados com o eixo invertido, dois `S`, e nenhum `1 J` nem `2 J`;
+- `recusa o mapa que exige a versao seguinte a esta, e desenha o que exige esta`: um mapa que exige 3
+  é recusado com `RendererVersionError`, e um que exige 2 é desenhado.
+
+`npx tsc --noEmit` limpo; `npx vitest run`, 18 de 18, "Start at 16:43:26" (14:43:26Z).
+
+**Visto falhar**, mesmo sem a tarefa pedir (P9): com o ramo `line` desenhando sempre em preto, cai
+**só** o teste do desenho da linha, 1 de 18: "expected 'q\n0 0 0 RG\n0.5669291338582677 w\n[]…' to
+match /0\.7 0\.7 0\.7 RG/". Revertido, `grep -c MUTACAO` `0`, e rodado: 18 de 18, 14:43:42Z.
+
+**O cenário "Renderizador anterior recusa mapa com linha" fica coberto por composição, e não por um
+teste próprio** (P16). Ele se apoia em duas coisas: o motor declara 2 para mapa com linha (3.3, visto
+falhar), e a guarda de versão de cada renderizador recusa mapa acima da própria versão (os testes que
+já existiam, `recusa imprimir quando o mapa exige renderizador mais novo` no web e o de
+`RendererContractTest` no Android). Nenhum renderizador na versão 1 existe fora do repositório para
+ser testado.
+
+### 4.2 — o Android (código; a verificação instrumentada fica para a 5.4)
+
+`LayoutMapRenderer` desenha `DrawLine` com `canvas.drawLine`, `Paint` de traço na espessura do mapa,
+o cinza do tom e `Cap.BUTT`, escrito mesmo sendo o padrão. `RendererContract.RENDERER_VERSION = 2`.
+`./gradlew :apps:android:testDebugUnitTest :apps:android:compileDebugAndroidTestKotlin`, 14:44:38Z,
+`exit 0`: 312 de 312, com `RendererContractTest` 9 de 9 (`timestamp` 14:44:50Z).
+
+**A tarefa fica aberta aqui.** A outra metade da verificação é o `LayoutMapRendererInstrumentedTest`
+gerar `android-discursiva.pdf` sem exceção, e ele lê `fixtures/prova-discursiva.package.json`, que
+só passa a ter `line` depois da regravação da 5.2. Rodá-lo agora provaria o desenho de um pacote sem
+linha nenhuma.
+
+### 4.3 — a guarda da versão do renderizador lê o registro novo
+
+`tools/parity/renderizador.mjs` passa a ler `LayoutMap.LINE_RENDERER_VERSION` como o registro
+`dominio`, com o papel "a versao mais alta que o motor pode exigir num mapa", e a KDoc dela registra
+por que o registro mudou de nome. O comentário do passo do CI acompanha.
+
+**Visto falhar, antes da edição:** sobre a árvore com os três registros em 2 (depois do commit da
+4.2), a guarda ainda lendo `MIN_RENDERER_VERSION` saiu com `2`: "nao consegui ler o registro dominio
+(LayoutMap.MIN_RENDERER_VERSION) em …/LayoutMap.kt: zero declaracoes de \`MIN_RENDERER_VERSION\` — a
+constante mudou de forma ou saiu daqui".
+
+**Depois da edição:**
+- `node tools/parity/renderizador.mjs`: "os tres registros concordam: versao 2", `exit 0`;
+- o passo "A verificacao da versao do renderizador continua capaz de falhar", copiado do `ci.yml` e
+  rodado localmente: `--divergir dominio`, `android` e `web` saem cada um com `1`, e cada um nomeia
+  **só** os dois pares que contêm o registro forçado — por exemplo, `--divergir dominio`: "os
+  registros dominio e android discordam: dominio diz 3, android diz 2" e "os registros dominio e web
+  discordam: dominio diz 3, web diz 2", e nada de "android e web".
+
+## 5. Fixtures, goldens, paridade e fidelidade — uma sessão só (P23)
+
+*(Previsão da 5.2, escrita aqui antes de o writer rodar.)* O `GoldenWriterTest` com
+`-Dplatos.golden.write=true` regrava todos os artefatos, e mudam **só** três arquivos:
+`prova-discursiva.layout.json`, `prova-discursiva.package.json` e `prova-discursiva.aluno.layout.json`.
+Os cinco `sha256` da 0.3 continuam iguais. A fixture nova tem regiões com marcadores `[0,1,2,3]`,
+`[4,7]` e `[8,11]`, `min_renderer_version` 2, e a região de `d1` com 66 mm e a de `d2` com 81 mm
+(`snap(30,8 + 7n)`, com n = 5 e 7). Na mesma rodada, o `GoldenLayoutTest` da discursiva continua
+vermelho, porque compara contra a golden **embutida na compilação**, que ainda é a velha; ele só
+passa a comparar com a nova na rodada seguinte.
+
+**5.2, primeira regravação (14:46:17Z), com `d1` a 5 linhas e `d2` a 7.** Real ao lado do previsto:
+
+| Previsto | Real |
+|---|---|
+| mudam só os três arquivos da discursiva | `git status --short fixtures/`: exatamente esses três |
+| os cinco `sha256` da 0.3 iguais | iguais os cinco |
+| marcadores `[0,1,2,3]`, `[4,7]` e `[8,11]` | esses |
+| `min_renderer_version` 2 | 2, no mapa, no pacote (`meta`) e na folha de `tok-a` |
+| região de `d1` com 66 mm e de `d2` com 81 mm | 66.000 e 81.000 µm de `quad_height` |
+| (5.5) a região de `d2` fora da página 0 | **não: o mapa tem uma página só.** A região de `d2` está na página 0, coluna 2 (`m8` em 108.000, 191.000) |
+
+**A divergência parou a seção 5 (decisão 10).** Não é defeito do motor: é o ganho da região compacta.
+O bloco de `d2` começa a 174 mm na coluna 2 e mede 17 + 81 + 6 = 104 mm, e sobram 108 até a margem;
+na 5a a região tinha 4 marcadores de 14 mm e não cabia. O que se perdia com isso:
+- a guarda de vacuidade do `GoldenLayoutTest` ("nenhuma regiao discursiva fora da pagina 0"), que
+  cairia;
+- a única testemunha da fidelidade dos marcadores depois da página 0, que a 5a pôs no CI ("a regiao
+  de `d2` cai na pagina 1, e e ela que exige a fidelidade de todas as paginas"). A prova de referência
+  só tem marcadores na página 0.
+
+**O mantenedor decidiu: `d2` passa a 9 linhas**, e a rubrica dela continua somando 7. O bloco passa a
+17 + 96 + 6 = 119 mm, não cabe nos 108, e volta à página 1, com 11 mm de folga. O custo, aceito: a
+diferença de geometria de `d2` deixa de vir só do motor. O ganho: o golden passa a provar também que
+a rubrica não dimensiona a moldura. A 5.1 e a 5.2 foram atualizadas com isso, sem apagar o plano de
+antes.
+
+**5.2, segunda regravação (15:04:41Z), com `d2` a 9 linhas.**
+- `git status --short fixtures/`: os três da discursiva e a definição (`prova-discursiva.json`, a
+  linha de `d2`), e nada mais;
+- os cinco `sha256` da 0.3: iguais;
+- a fixture nova, lida: duas páginas; regiões com marcadores `[0,1,2,3]`, `[4,7]` e `[8,11]`; a de
+  `d1` na página 0 com 66 mm, a de `d2` na **página 1** com 96 mm; `min_renderer_version` 2 no mapa,
+  no `meta` do pacote e na folha de `tok-a`; doze linhas de pauta, todas a 300‰ com 0,2 mm, quatro na
+  página 0 e oito na 1, e nenhum `rect` de pauta.
+
+`./gradlew :packages:domain:allTests`, 15:05:02Z, `exit 0`, **agora sem vermelho**: `jvmTest` 393,
+`jsNodeTest` 384, `testAndroidHostTest` 384, 0 falhas, `timestamp` de 15:05:09Z a 15:05:17Z. A golden
+da discursiva bate byte a byte nos três alvos, e a guarda de vacuidade dele volta a achar a região de
+`d2` fora da página 0. `npx vitest run` no web, 18 de 18, 15:05:51Z: o espelho TypeScript da folha do
+aluno bate com a de `tok-a` regravada.
+
+### 5.3 — a paridade mede a linha pela tinta esperada
+
+`compare.mjs` ganha `lineTargetsOf`, `expectedLineInkUm2` e `lineInkIn`. A faixa de medição vai
+`stroke/2 + STROKE_SLACK_UM` para cada lado da linha e a mesma folga além de cada ponta; a tinta
+esperada é `comprimento × stroke × tom/1000`, com tom nulo contando 1000. Presença e concordância usam
+`STROKE_PRESENCE_MIN` (0,5), `STROKE_PRESENCE_MAX` (1,5) e `STROKE_TOLERANCE` (0,10), os três da 5a:
+**nenhum número novo foi escolhido** (P11). A linha inclinada é recusada **antes** de rasterizar, com
+saída `2` e a linha nomeada. `strokeTargetsOf` ficou como estava, para a moldura.
+
+**Medido, sobre os PDFs desta sessão** (web às 15:07Z, Android às 15:07:27Z):
+`linhas comparadas: 12 | razao web 1.010 a 1.013, android 0.996 a 0.999 | maior divergencia 0.017 em
+r2-p5 | tolerancia 0.1`. A moldura continua medida como traço: `razao web 0.999 a 1.001, android 0.999
+a 1.002`.
+
+**Visto falhar, cada mutação sozinha:**
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| (a) o web não desenha `line` (`return` no ramo, `// MUTACAO`), PDF em `discursiva-web-sem-linha.pdf` | a paridade da discursiva reprova e nomeia as linhas da pauta | `exit 1`, 24 problemas e **só de linha**: para cada uma das 12, "linha r…-p… no web: tinta 0.000 da esperada (presenca exige 0.5 a 1.5)" e a divergência contra o Android (0,996 a 0,999). Marcadores, bolhas e moldura sem problema |
+| (b) o Android desenha `line` em preto (`color = grayOf(null)`), suíte instrumentada inteira às 15:10:45Z, PDF em `android-discursiva-preta.pdf` | reprova com razão perto de 3,3 | `exit 1`, só linhas: "linha r1-p1 no android: tinta 3.345 da esperada", faixa 3,340 a 3,345; a aritmética dava 1/0,3 ≈ 3,33 |
+| (c) um mapa de teste, no scratchpad, com `r1-p2` inclinada 1 mm | a ferramenta sai com erro que a nomeia, e não com verde | `exit 2`: "::error::linha inclinada r1-p2 (pagina 0): de 109000,146000 a 194000,147000: a paridade so mede linha alinhada aos eixos, e nao a ignora" |
+
+**As reversões foram rodadas.** (a): o `renderer.ts` voltou ao `HEAD` (`git diff` vazio), o
+`discursiva-web.pdf` foi regerado e a paridade saiu "paridade OK". (b): o `LayoutMapRenderer.kt`
+voltou ao `HEAD`, a suíte instrumentada inteira rodou de novo às 15:11:53Z (84 testes, 0 falhas, 2
+pulados, `timestamp` 15:12:43Z), os três PDFs do Android foram recolhidos de novo —
+`android-discursiva.pdf` com os mesmos 126.922 bytes da primeira execução boa, contra 126.898 do
+mutado — e o job de paridade inteiro saiu verde de novo.
+
+### 5.4 — os PDFs e os passos do CI, na mesma sessão da 5.2
+
+- **Web**, gerados às 15:07:05Z pelos scripts do CI: `web.pdf`, `teste-web.pdf`,
+  `discursiva-web.pdf` (2 páginas), os de tinta (`render-inked.ts`) e `shifted.pdf`.
+- **Android**, `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro, no `platos-atd34`,
+  15:07:05Z–15:08:04Z, `exit 0`: 84 testes, 0 falhas, 2 pulados, `timestamp` 15:08:02Z. Os três PDFs
+  foram recolhidos de `connected_android_test_additional_output`, com data de 15:07:27Z. Os
+  `android*.pdf` que estavam em `build/parity/` eram de 24/09, e **não** foram usados (P3).
+- **Os passos do job `web`**, num roteiro local que copia os do `ci.yml` (`ci-web.sh`, no scratchpad),
+  15:08:08Z–15:08:54Z: os **20 passos verdes**, inclusive fidelidade e tinta da discursiva, e cada
+  "continua capaz de falhar" (tinta, limiar, `answer_kind`, fio, versão do renderizador, dívida) e as
+  fixtures da digitalização.
+- **Os passos do job `paridade`** (`ci-paridade.sh`), 15:09:22Z–15:09:28Z: os **9 verdes**. Fidelidade
+  da discursiva no Android, 47 verificações, maior desvio 0,018 mm; paridade da discursiva com 24
+  elementos, maior divergência 0,047 mm, e as 12 linhas medidas; a trama ausente e o deslocamento da
+  prova de referência acusados como devem. Depois da reversão de (b), o job inteiro rodou de novo, e
+  saiu verde de novo.
+
+**Deslocamento deliberado:** o marcador 8 (`r2-m8`, região de `d2`, **página 1**) deslocado 0,5 mm
+para baixo no PDF web da discursiva, por um script no scratchpad que desenha pelo mesmo renderizador e
+pelo mesmo pacote. A fidelidade reprovou com **um** problema: "marcador 8 (pagina 1): borda superior:
+observado 104.542 mm, declarado 104.000 mm (desvio 0.542)". A paridade contra o Android também: "aruco
+r2-m8 divergiu 0.533 mm (tolerancia 0.3 mm)".
+
+**Isto também fecha a parte instrumentada da 4.2**: o `LayoutMapRendererInstrumentedTest` gerou o
+`android-discursiva.pdf` a partir do pacote regravado, com as doze linhas, sem exceção, e a paridade
+o julgou.
+
+### 5.5 — determinismo nos três alvos
+
+A guarda de vacuidade do `GoldenLayoutTest` foi apertada: passa a exigir a região **de `d2`** fora da
+página 0, e não qualquer discursiva. `./gradlew :packages:domain:allTests --rerun-tasks`, 15:13:14Z,
+**37 de 37 tasks executadas**, `exit 0`: `jsNodeTest` 384, `jvmTest` 393, `testAndroidHostTest` 384, 0
+falhas, `timestamp` de 15:13:31Z a 15:13:41Z. O teste "mapa da prova com discursiva bate byte a byte com
+o golden" passou nos três.
+
+**A guarda apertada, vista falhar.** Ela só é alcançada se o byte a byte passar, então a mutação foi a
+condição inteira: `d2` de volta a 7 linhas na definição, goldens regravadas, e o `jvmTest` caiu **1 de
+393**, com "a regiao de d2 caiu na pagina 0". Revertido: `d2` a 9, regravado, `git status --short
+fixtures/` **vazio** — os artefatos voltaram byte a byte aos do `HEAD` —, e o `jvmTest` passou, 393 de
+393, às 15:14:49Z. Os outros dois alvos saíram `UP-TO-DATE` nessa última rodada, com entradas idênticas
+às da execução `--rerun-tasks` das 15:13:14Z, que é a que vale como evidência.
+
+## 6. O papel (decisão 5) — pendente, tarefa do mantenedor
+
+> **Superado no mesmo dia:** a impressão foi feita e aprovada; o resultado está em "6.1 — o
+> resultado", logo abaixo. O texto desta seção fica como o estado de quando foi escrito (P7).
+
+A folha de `tok-a` foi gerada nesta sessão, às 15:15:49Z, pelo renderizador web a partir do pacote
+regravado: `build/parity/discursiva-aluno-web.pdf`, 211.852 bytes, 2 páginas. Antes de ser entregue,
+ela passou pela fidelidade e pela tinta contra `prova-discursiva.aluno.layout.json` ("fidelidade OK",
+"tinta OK"). A que estava no lugar era de 25/09, 01:04, da geometria velha.
+
+**A impressão não foi feita, e a tarefa 6.1 está desmarcada.** Os critérios são os da decisão 5,
+escritos antes da impressão: pauta contínua, mais clara que a moldura e que o texto, e guiando três
+linhas escritas à mão; marcadores completos, com a borda fechada e a zona de silêncio livre. Até o
+resultado entrar aqui, o tom de 300‰ e o traço de 0,2 mm são **provisórios**, como a decisão 5 diz.
+
+Uma nota para quem imprime: a página 1 sai com um vão grande, porque o paginador de hoje leva as
+questões 4 e 5 inteiras para a página 2. Isso é da paginação, que o ADR-0019 muda numa mudança
+própria, e não é critério desta impressão.
+
+### 6.1 — o resultado
+
+A folha de `tok-a` (`build/parity/discursiva-aluno-web.pdf`, 15:15:49Z) foi impressa a 100% pelo
+mantenedor, na impressora dele (o modelo não foi informado), e ele escreveu três linhas de caneta azul
+sobre a pauta da questão 3 (`d1`). **Resultado por critério da decisão 5, pela palavra do
+mantenedor ("Sim para todos"), em 2026-09-25:**
+
+| Critério | Resultado | O que a imagem mostra |
+|---|---|---|
+| Contínua: cada linha de ponta a ponta, sem falha visível a ~30 cm | **aprovado** | as quatro linhas da região de `d1` aparecem inteiras no recorte em resolução cheia |
+| Clara: mais clara que a moldura e que o texto do enunciado | **aprovado** | a pauta sai em cinza claro; a moldura e o enunciado, em preto |
+| Guiando: três linhas escritas à mão, com a letra apoiada na pauta | **aprovado** | "This is a handwritten text with / a blue ink pen. As requested, / three lines was used.", cada linha apoiada numa linha da pauta |
+| Marcadores completos, com a borda fechada e a zona de silêncio livre | **aprovado** | os marcadores 0 a 3 do gabarito, e 4 e 7 da região de `d1`, na página 1 |
+
+**Com isso, o tom de 300‰ e o traço de 0,2 mm deixam de ser provisórios: foram decididos no papel**, na
+primeira tentativa, sem nenhum degrau da decisão 5.
+
+**O registro.** A digitalização está em `fixtures/prova-discursiva.digitalizacao.jpg`, cópia byte a byte
+(`cmp` igual) de "Scan 2026-09-25 19.16.28.jpg": 149.515 bytes, 1191 × 1677 px, `sha256`
+`2f2de1bbb57d26466f65cb49d633f1a1838f6812762a1b4ac5d39ca3eb26eb62` (`crypto` do Node).
+**Sem coordenada de GPS**, conferido de dois jeitos que não compartilham código: o `System.Drawing` do
+.NET lista só as propriedades 0x5090 e 0x5091, que são as tabelas de quantização do JPEG, e nenhuma
+tag de GPS (0x0000 a 0x001F) nem o ponteiro GPSInfo (0x8825); e a varredura dos segmentos crus acha só
+o APP0 (JFIF), nenhum APP1, e nenhuma ocorrência de "Exif", "GPS" ou "xmpmeta" nos bytes.
+
+**O que a imagem não registra.**
+- **A página 2**, com a região de `d2` e os marcadores 8 e 11. O critério dos marcadores vale para
+  ela pela palavra do mantenedor, e não pela imagem.
+- **Nada de medida.** A imagem tem ~144 px por polegada e serve de registro visual. Ela não mede o
+  lado do marcador de 11,2 mm nem a detecção dele, que são da 4.1 retomada da 5b-1.
+
+No vão da página 1 aparece, em cinza muito fraco, o conteúdo da página 2: a moldura e a pauta de `d2`
+e o texto da questão 5. Como não está espelhado, parece a outra folha atrás durante a digitalização, e
+não impressão frente e verso. Isso é **inferido pela posição, e não medido**. Não é critério desta
+impressão, mas quem usar esta imagem como fixture de captura precisa saber que ela tem esse fantasma.
+
+## O que ainda não foi verificado
+
+- **A impressão da 6.1**, acima: nem a pauta cinza nem o marcador de 11,2 mm passaram pelo papel. O
+  tom e o traço da pauta continuam provisórios até ela. **Superado no mesmo dia:** impressa e
+  aprovada nos quatro critérios (6.1, acima). O que continua sem verificação é a página 2 na imagem e
+  qualquer medida sobre o papel.
+- **A detecção do marcador de 11,2 mm em foto.** É da 4.1 retomada da `slice-5b-1`, com regra de
+  parada: se as fotos não o detectarem, o marcador volta a 14 mm. **Não é mitigado, é conhecido** (P8).
+- **A leitura da região de dois ArUcos no aparelho.** O `RegionDetector` da `main` não foi tocado, e o
+  da 5b-1 exige quatro marcadores. Na `main`, o aparelho continua caindo diante de prova com
+  discursiva — a linha `5b` do §16, que esta mudança não paga.
+- **O canto inferior esquerdo sem âncora** (ADR-0018, decisão 4) e a folga do recorte que o cobre:
+  geometria declarada aqui, e medida só com fotos em ângulo, na 5b-1.
+- **A pauta numa impressora que não seja a do mantenedor.** O instrumento para isso é a folha de
+  teste, e ela ainda não tem pauta nem marcador de 11,2 mm: é a linha nova do §16 (1.1).
+- **O cenário "Renderizador anterior recusa mapa com linha"** está coberto por composição, e não por
+  um teste próprio (4.1).
+- **O CI** ainda não rodou sobre estes commits: o comando cheio desta sessão é local (7.2), e o CI é
+  lido no destino na 7.4.
+
+## 7. Fechamento local
+
+**7.1 — nenhuma mutação na árvore.** `grep -rn "MUTACAO"` fora de `build/` e de `node_modules/`,
+restrito a arquivos de código e configuração (`.kt`, `.kts`, `.ts`, `.tsx`, `.mjs`, `.js`,
+`.yml`, `.sql`, `.json`), deu **0**. Sem o recorte, a busca acha 160 linhas, **todas** em `.md` de
+`docs/` e `openspec/` — os documentos que descrevem mutações, este inclusive. Toda reversão desta
+mudança foi rodada, e cada uma está anotada na seção dela.
+
+**7.2 — o comando cheio, depois de todas as reversões**, comparado com a 0.1:
+
+| Comando | 0.1 | 7.2 |
+|---|---|---|
+| `./gradlew build --rerun-tasks` | 183 de 183 executadas, 14:10:11Z–14:14:01Z | **183 de 183 executadas**, 15:16:52Z–15:19:44Z, `exit 0` |
+| `./gradlew -p buildSrc test --rerun-tasks` | 1 teste, 14:14:23Z | 6 de 6 executadas, 1 teste, `timestamp` 15:20:09Z |
+| `connectedDebugAndroidTest`, sem filtro, `platos-atd34` | 84 (2 pulados), 14:15:28Z | **84** (2 pulados), 0 falhas, `timestamp` 15:21:14Z; 2 tasks executadas e 86 `UP-TO-DATE`, porque a compilação acabara de rodar no `build` |
+| `npx vitest run` em `apps/web` | 16 | **18**, 15:17:01Z |
+| `npm run build` em `apps/web` | — | `exit 0` |
+| as guardas Node do job `web` (`ci-web.sh`) | — | os 20 passos verdes, até 15:19:04Z |
+
+Os relatórios do `build`, pelo `timestamp` de cada XML, todos depois de 15:16:52Z:
+
+| Task | 0.1 | 7.2 | Diferença |
+|---|---|---|---|
+| `apps/android` `testDebugUnitTest` | 312 | 312 | 0 |
+| `apps/android` `testReleaseUnitTest` | 312 | 312 | 0 |
+| `apps/api` `test` | 168 | 168 | 0 |
+| `packages/domain` `jsNodeTest` | 366 | 384 | +18 |
+| `packages/domain` `jvmTest` | 375 | 393 | +18 |
+| `packages/domain` `testAndroidHostTest` | 366 | 384 | +18 |
+| `buildSrc` `test` | 1 | 1 | 0 |
+| `connectedDebugAndroidTest` | 84 | 84 | 0 |
+
+A soma passa de 1984 a 2038. **Os +18 por alvo do domínio batem com o que foi escrito:** 4 da 3.1, 7
+líquidos da 3.2 (8 novos, e o da 5a que saiu com o cenário removido), 2 da 3.3 e 5 da 3.4. Os +2 do
+Vitest são os dois da 4.1. Nenhum teste de outro módulo foi acrescentado, e nenhum caiu.
+
+**Os `sha256` da decisão 8, antes e depois:**
+
+| Arquivo | 0.3 (`7478e82`) | Depois da regravação (`d755c96`) |
+|---|---|---|
+| `prova-referencia.layout.json` | `8c9756a9…` | `8c9756a9…`, igual |
+| `prova-referencia.package.json` | `ff2b94ef…` | `ff2b94ef…`, igual |
+| `prova-referencia.turma.package.json` | `7282a186…` | `7282a186…`, igual |
+| `prova-2.package.json` | `c2098e10…` | `c2098e10…`, igual |
+| `folha-de-teste.layout.json` | `d9f7b08c…` | `d9f7b08c…`, igual |
+
+Recalculados pelo `crypto` do Node depois de cada regravação; os valores inteiros estão na 0.3.
+
+## 7.4 — o CI da PR #70, lido no destino
+
+A branch foi enviada com `125c67a` (o `git ls-remote` devolve o mesmo SHA do local), e a PR #70 foi
+aberta contra `main`. A execução `36166986577`, de `pull_request`, tem `headSha`
+`125c67a0d54943f102c9a8a5e5c6e71cd3b6be8c`, e foi lida pelo log baixado com `gh run view --log`:
+
+| Job | Janela | Passos | O que o log diz |
+|---|---|---|---|
+| `build` | 17:25:07Z–17:29:16Z | 13, nenhum vermelho, nenhum pulado | `buildSrc` com 6 de 6 executadas; o `build` com 179 de 183 executadas, e `jvmTest`, `jsNodeTest` e `testAndroidHostTest` do domínio entre elas |
+| `web` | 17:25:07Z–17:25:52Z | 35, nenhum vermelho, nenhum pulado | fidelidade da discursiva com 47 verificações; "os tres registros concordam: versao 2"; "a verificacao da versao do renderizador acusou cada registro forcado, e so os pares dele, como deve"; a dívida com "fatia corrente: 5b" e "nenhuma linha vencida: 21 linhas lidas"; e cada "continua capaz de falhar" acusando, como deve |
+| `paridade` | 17:25:55Z–17:30:21Z | 27, nenhum vermelho, nenhum pulado | `connectedDebugAndroidTest` com 88 de 88 tasks executadas e "Starting 84 tests"; paridade da discursiva com 24 elementos e `linhas comparadas: 12 | razao web 1.010 a 1.013, android 0.996 a 0.999 | maior divergencia 0.017 em r2-p5` — os mesmos números da medição local; "a paridade acusou a faixa ausente, como deve"; "as duas ferramentas acusaram o deslocamento, como devem" |
+
+**"Finished 87 tests" não é contagem de testes:** "Finished" soma os pulados, como a
+`cobertura-o-apk-de-release-e-verificado.md` já registrou. São 84 que começaram mais 3 pulados; no CI
+o probe do Supabase também é pulado, e aqui ele roda. O "Starting 84 tests" bate com os 84 locais.
+
+Os "PARIDADE FALHOU" e "FIDELIDADE FALHOU" que aparecem no fim do log da `paridade` são as falhas
+**esperadas** dos dois passos que provam que as ferramentas continuam capazes de falhar; os dois passos
+saíram verdes.
+
+## A reconciliação do §16 para o archive (tarefa 7.5, preparada)
+
+`node tools/divida/divida.mjs`, `exit 0`, 21 linhas lidas, "fatia corrente: 5b". Para cada linha cujo
+prazo ou gatilho esta mudança alcançou:
+
+| Linha | Situação no archive |
+|---|---|
+| A região discursiva ainda não passou pelo aparelho nem pelo papel (`5b`) | **não paga**, e continua devida pela 5b-1 retomada. Esta mudança produz a geometria que a 4.1 dela fotografa |
+| A folha de teste de impressão não aprova a região discursiva que a prova imprime (`5b`) | **nova**, entrou pela 1.1, `em dia`. O veículo é uma mudança posterior ao filtro de marcadores por região |
+| Acurácia em manuscrito; Modo degradado (§10) não existe; O limiar do OMR foi apurado sobre um aparelho e uma impressora (`5`) | **não pagas**, e em dia até a 6 abrir |
+| `antes-de:migration-da-5-em-producao` e `antes-de:implantar-api-da-5a` | **não alcançados**: nenhuma migration, e nenhuma imagem implantada |
+
+Nenhuma linha do §16 é paga por esta mudança. Depois do archive, a próxima ação é o `/opsx:update` da
+5b-1, para a região de dois ArUcos, e ela não é tarefa desta mudança.

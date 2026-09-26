@@ -52,9 +52,10 @@ class PrintTestSheet(
             text = footer,
         )
 
+        val pages = listOf(Page(index = 0, primitives = primitives.toList()))
         return LayoutMap(
             layoutEngineVersion = LayoutMap.ENGINE_VERSION,
-            minRendererVersion = LayoutMap.MIN_RENDERER_VERSION,
+            minRendererVersion = LayoutMap.minRendererVersionOf(pages),
             examId = SHEET_ID,
             pageWidth = profile.pageWidth.raw,
             pageHeight = profile.pageHeight.raw,
@@ -65,7 +66,7 @@ class PrintTestSheet(
                 lineHeight = style.lineHeight.raw,
                 grid = profile.grid.raw,
             ),
-            pages = listOf(Page(index = 0, primitives = primitives.toList())),
+            pages = pages,
             regions = listOf(region),
         )
     }

@@ -92,6 +92,14 @@ fun LayoutMap.validate(): ValidationResult {
                     }
                 }
 
+                // O tom de uma linha e o do traco, e nao trama: o teto de 80 por mil e de tinta
+                // chapada, que e area. A pauta a 300 por mil e o caso (ADR-0016).
+                is DrawLine -> primitive.tone?.let { tone ->
+                    if (tone !in 0..LayoutMap.TONE_FULL) {
+                        problems += "tom de `${primitive.id}` fora da faixa de permilagem: $tone"
+                    }
+                }
+
                 else -> Unit
             }
         }
@@ -109,14 +117,25 @@ fun LayoutMap.validate(): ValidationResult {
         if (region.quadWidth <= 0 || region.quadHeight <= 0) {
             problems += "regiao ${region.index} com quadrilatero degenerado"
         }
-        if (region.markerIds.size != 4 || region.markerIds.toSet().size != 4) {
-            problems += "regiao ${region.index} precisa de quatro marcadores distintos, veio " +
-                "${region.markerIds}"
-        }
-        val expected = (4 * region.index)..(4 * region.index + 3)
-        if (region.markerIds.sorted() != expected.toList()) {
-            problems += "regiao ${region.index} deveria usar os marcadores " +
-                "${expected.toList()}, veio ${region.markerIds}"
+        // A regiao discursiva imprime dois marcadores, `4k` e `4k+3`, na diagonal (ADR-0018); o
+        // gabarito e a folha de teste continuam com os quatro. Uma regra por tipo, e nao "dois ou
+        // quatro": uma discursiva com quatro, ou um gabarito com dois, e o mapa de outra geometria.
+        if (region.kind == LayoutEngine.ESSAY_KIND) {
+            val expected = listOf(4 * region.index, 4 * region.index + 3)
+            if (region.markerIds.sorted() != expected || region.markerIds.size != 2) {
+                problems += "regiao ${region.index} e discursiva e deveria declarar exatamente os " +
+                    "marcadores $expected, veio ${region.markerIds}"
+            }
+        } else {
+            if (region.markerIds.size != 4 || region.markerIds.toSet().size != 4) {
+                problems += "regiao ${region.index} precisa de quatro marcadores distintos, veio " +
+                    "${region.markerIds}"
+            }
+            val expected = (4 * region.index)..(4 * region.index + 3)
+            if (region.markerIds.sorted() != expected.toList()) {
+                problems += "regiao ${region.index} deveria usar os marcadores " +
+                    "${expected.toList()}, veio ${region.markerIds}"
+            }
         }
 
         for (bubble in region.bubbles) {
@@ -148,7 +167,10 @@ fun LayoutMap.validate(): ValidationResult {
                 "as primitivas da pagina ${region.page}"
         }
 
-        if (region.kind == LayoutEngine.ESSAY_KIND) checkEssayRegion(region, problems)
+        if (region.kind == LayoutEngine.ESSAY_KIND) {
+            val primitivas = pages.firstOrNull { it.index == region.page }?.primitives.orEmpty()
+            checkEssayRegion(region, primitivas, problems)
+        }
     }
 
     // Duas regioes para a mesma questao sao duas molduras para uma resposta: a captura recortaria
@@ -175,13 +197,25 @@ fun LayoutMap.validate(): ValidationResult {
 }
 
 /**
- * A regiao discursiva declara a questao e a area de resposta, e a area nao cobre o QR.
+ * A regiao discursiva declara a questao, marcadores que existem na pagina e a area de resposta, a
+ * area nao cobre o QR, e a pauta dentro dela e decoracao.
  *
  * A area e o que a captura vai recortar (§8). Fora de `[0,1]` ela recortaria alem dos marcadores, e
  * sobre o QR ela entregaria o codigo como se fosse escrita do aluno. Bolha numa regiao discursiva e
  * questao lida por OMR onde a spec diz que nao ha OMR.
  */
-private fun checkEssayRegion(region: ScannableRegion, problems: MutableList<String>) {
+private fun checkEssayRegion(
+    region: ScannableRegion,
+    primitivas: List<Primitive>,
+    problems: MutableList<String>,
+) {
+    // O marcador declarado e o que a captura procura na foto; um que nao foi desenhado e uma regiao
+    // que nunca fecha, e a folha so seria descoberta assim na sala de aula.
+    val desenhados = primitivas.filterIsInstance<DrawAruco>().map { it.markerId }.toSet()
+    for (marcador in region.markerIds.filterNot { it in desenhados }) {
+        problems += "regiao ${region.index} declara o marcador $marcador, que nao esta entre as " +
+            "primitivas da pagina ${region.page}"
+    }
     if (region.questionId == null) {
         problems += "regiao ${region.index} e discursiva e nao declara questao"
     }
@@ -204,6 +238,42 @@ private fun checkEssayRegion(region: ScannableRegion, problems: MutableList<Stri
         area.v < qr.v + qr.vSize && qr.v < area.v + area.vSize
     if (cruza) {
         problems += "a area de resposta da regiao ${region.index} sobrepoe o QR da regiao"
+    }
+    checkPauta(region, area, primitivas, problems)
+}
+
+/**
+ * A linha dentro da area de resposta e pauta, e a pauta e decoracao (ADR-0016): tom declarado, e
+ * abaixo do teto decorativo da regiao (ADR-0010).
+ *
+ * Sem tom ela e preta, e preta ela disputa a leitura com a letra do aluno e entra na medicao de
+ * geometria da paridade, que poe o piso de escuridao no teto decorativo. No teto ou acima dele, pelo
+ * mesmo motivo: "tinta que a paridade enxerga nao e decoracao, e geometria".
+ */
+private fun checkPauta(
+    region: ScannableRegion,
+    area: NormalizedRect,
+    primitivas: List<Primitive>,
+    problems: MutableList<String>,
+) {
+    val esquerda = region.quadX + scale(area.u, region.quadWidth)
+    val direita = region.quadX + scale(area.u + area.uSize, region.quadWidth)
+    val topo = region.quadY + scale(area.v, region.quadHeight)
+    val base = region.quadY + scale(area.v + area.vSize, region.quadHeight)
+    val teto = region.inkBudget.decorativeToneMax
+
+    for (linha in primitivas.filterIsInstance<DrawLine>()) {
+        val alcanca = minOf(linha.x1, linha.x2) <= direita && maxOf(linha.x1, linha.x2) >= esquerda &&
+            minOf(linha.y1, linha.y2) <= base && maxOf(linha.y1, linha.y2) >= topo
+        if (!alcanca) continue
+        val tom = linha.tone
+        if (tom == null) {
+            problems += "regiao ${region.index}: a linha `${linha.id}` dentro da area de resposta nao " +
+                "declara tom, e sai preta; a pauta e decoracao, abaixo do teto de $teto por mil"
+        } else if (tom >= teto) {
+            problems += "regiao ${region.index}: a linha `${linha.id}` dentro da area de resposta tem " +
+                "tom $tom, e a pauta precisa ficar abaixo do teto decorativo de $teto por mil"
+        }
     }
 }
 

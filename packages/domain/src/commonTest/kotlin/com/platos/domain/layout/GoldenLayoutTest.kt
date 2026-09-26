@@ -58,11 +58,13 @@ class GoldenLayoutTest {
         val at = produced.zip(golden).indexOfFirst { (a, b) -> a != b }
         assertEquals(golden, produced, "o mapa com discursiva divergiu do golden a partir do caractere $at")
         assertEquals(ValidationResult.Valid, LayoutEngine().layout(discursiva).validate())
-        // Guarda de vacuidade: o golden tem de ter as duas regioes discursivas, uma delas fora da
-        // pagina 0 — senao "byte a byte" estaria comparando uma prova que nao exercita a regiao.
+        // Guarda de vacuidade: o golden tem de ter as duas regioes discursivas, e a de `d2` fora da
+        // pagina 0 — senao "byte a byte" estaria comparando uma prova que nao exercita a regiao, e a
+        // fidelidade dos marcadores depois da pagina 0 ficaria sem testemunha. Com a regiao compacta
+        // da `slice-5b-0`, `d2` com 7 linhas cabia na pagina 0; ela declara 9 para nao caber.
         val map = LayoutEngine().layout(discursiva)
         assertEquals(listOf(0, 1, 2), map.regions.map { it.index })
-        assertTrue(map.regions.any { it.questionId != null && it.page > 0 }, "nenhuma regiao discursiva fora da pagina 0")
+        assertTrue(map.regions.single { it.questionId == "d2" }.page > 0, "a regiao de d2 caiu na pagina 0")
     }
 
     @Test

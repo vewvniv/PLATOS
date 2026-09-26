@@ -31,6 +31,23 @@ enum class AnswerCaptureMode {
     COLOR,
 }
 
+/**
+ * A largura da area de resposta de uma discursiva, escolhida pelo professor (ADR-0017).
+ *
+ * Sem valor padrao, de proposito: um padrao no contrato decidiria pelo professor sem que ele visse, e
+ * ele so descobriria a decisao na folha impressa. [PAGE] entra no contrato agora para que a recusa
+ * dela seja explicita, e nao uma coluna por omissao — a pagina depende da paginacao em faixas, que
+ * ainda nao existe.
+ */
+@Serializable
+enum class AnswerWidth {
+    @SerialName("column")
+    COLUMN,
+
+    @SerialName("page")
+    PAGE,
+}
+
 /** Um nivel de desempenho de um criterio: quanto ele vale e como se reconhece. */
 @Serializable
 data class RubricDescriptor(
@@ -41,9 +58,11 @@ data class RubricDescriptor(
 /**
  * Um criterio da rubrica analitica (§5, §11 `item_rubric_criterion`).
  *
- * [expectedLines] e **por criterio**, e a moldura da questao mede a soma deles (D35, §7): a IA — ou o
- * professor — escreve a rubrica, a rubrica define o espaco, e o espaco condiciona a resposta. O §11 e
- * quem diz em que nivel o campo mora; o §5 so o lista.
+ * [expectedLines] e **por criterio**, e a moldura da questao media a soma deles (D35, §7) ate a
+ * `slice-5b-0-a-regiao-discursiva-compacta`. O ADR-0017 tirou isso: a moldura e o numero de linhas
+ * que o professor declara em [Question.answerLines], e [expectedLines] fica como o que ele e —
+ * informacao de correcao, quanto o criterio espera de resposta. O §11 e quem diz em que nivel o campo
+ * mora; o §5 so o lista.
  */
 @Serializable
 data class RubricCriterion(
@@ -167,6 +186,13 @@ data class Question(
      * declara, porque o gabarito e preto e branco por construcao (§8).
      */
     @SerialName("answer_capture_mode") val answerCaptureMode: AnswerCaptureMode? = null,
+    /**
+     * Numero de linhas da area de resposta da discursiva, escolhido pelo professor (ADR-0017). Nulo
+     * na objetiva. Nao e inferido da rubrica: os `expected_lines` dela sao informacao de correcao.
+     */
+    @SerialName("answer_lines") val answerLines: Int? = null,
+    /** Largura da area de resposta da discursiva (ADR-0017). Nula na objetiva. */
+    @SerialName("answer_width") val answerWidth: AnswerWidth? = null,
 )
 
 /**
@@ -200,6 +226,10 @@ class UnsupportedContentException(message: String) : IllegalArgumentException(me
  * passa, porque agora ela tem moldura, e a moldura sai da rubrica (D35). A discursiva sem rubrica
  * continua recusada — e pelo mesmo motivo que a recusava antes: ela seria uma questao sem onde
  * escrever.
+ *
+ * A `slice-5b-0-a-regiao-discursiva-compacta` acrescenta as duas escolhas do professor (ADR-0017): a
+ * discursiva declara o numero de linhas e a largura, sem valor padrao, e a largura de pagina e
+ * recusada ate a paginacao em faixas existir — em vez de virar coluna em silencio.
  */
 fun ExamDefinition.requireSupported() {
     if (questions.isEmpty()) {
@@ -286,12 +316,24 @@ fun ExamDefinition.requireSupported() {
     }
 }
 
-/** A objetiva tem alternativas, e nao tem rubrica nem modo de captura. */
+/** A objetiva tem alternativas, e nao tem rubrica, modo de captura nem area de resposta. */
 private fun Question.requireObjectiveShape() {
     if (rubric != null) {
         throw UnsupportedContentException(
             "questao `$id` e objetiva e declara rubrica; rubrica e da discursiva, e a objetiva e " +
                 "corrigida pelo gabarito",
+        )
+    }
+    // Ignorar o campo seria desenhar outra coisa que o professor pediu, sem ele saber.
+    if (answerLines != null || answerWidth != null) {
+        val declarados = listOfNotNull(
+            answerLines?.let { "numero de linhas ($it)" },
+            answerWidth?.let { "largura (${it.name.lowercase()})" },
+        )
+        throw UnsupportedContentException(
+            "questao `$id` e objetiva e declara ${declarados.joinToString(" e ")} da area de " +
+                "resposta; linhas e largura sao da discursiva (ADR-0017), e a objetiva e respondida " +
+                "no gabarito",
         )
     }
     // Nao ha requisito que nomeie este caso, e ele cai na clausula geral da spec: conteudo que a
@@ -317,14 +359,15 @@ private fun Question.requireObjectiveShape() {
 /**
  * A discursiva tem rubrica que fecha com a pontuacao dela, e nao tem alternativas nem gabarito.
  *
- * Cada recusa aqui e uma folha que sairia errada sem ninguem notar: sem rubrica nao ha moldura; com
+ * Cada recusa aqui e uma folha que sairia errada sem ninguem notar: sem rubrica a resposta nao teria
+ * contra o que ser avaliada; sem linhas ou sem largura o motor teria de escolher pelo professor; com
  * alternativas o aluno veria opcoes que nenhuma bolha le; e uma rubrica que nao soma a pontuacao
  * faria a nota maxima da prova depender de qual dos dois numeros alguem lesse.
  */
 private fun Question.requireEssayShape() {
     val rubrica = rubric ?: throw UnsupportedContentException(
-        "questao `$id` e discursiva e nao declara rubrica; a moldura e dimensionada pelos " +
-            "`expected_lines` da rubrica (D35), e sem ela a folha nao teria onde o aluno escrever",
+        "questao `$id` e discursiva e nao declara rubrica; a discursiva e corrigida pela rubrica, e " +
+            "sem ela a resposta nao teria contra o que ser avaliada",
     )
     if (options.isNotEmpty()) {
         throw UnsupportedContentException(
@@ -336,6 +379,32 @@ private fun Question.requireEssayShape() {
         throw UnsupportedContentException(
             "questao `$id` e discursiva e declara resposta de gabarito; discursiva e corrigida pela " +
                 "rubrica, e nao pelo gabarito",
+        )
+    }
+    // As duas escolhas do professor (ADR-0017), sem valor padrao. Nenhuma das duas sai da rubrica:
+    // a soma dos `expected_lines` seria um padrao silencioso com outro nome.
+    val linhas = answerLines ?: throw UnsupportedContentException(
+        "questao `$id` e discursiva e nao declara o numero de linhas da area de resposta " +
+            "(`answer_lines`); o numero e escolha do professor, sem valor padrao, e nao e tirado " +
+            "dos `expected_lines` da rubrica (ADR-0017)",
+    )
+    if (linhas < 1) {
+        throw UnsupportedContentException(
+            "questao `$id` e discursiva e declara $linhas linha(s) de area de resposta; o minimo e 1",
+        )
+    }
+    if (answerWidth == null) {
+        throw UnsupportedContentException(
+            "questao `$id` e discursiva e nao declara a largura da area de resposta " +
+                "(`answer_width`: `column` ou `page`); a largura e escolha do professor, sem valor " +
+                "padrao (ADR-0017)",
+        )
+    }
+    if (answerWidth == AnswerWidth.PAGE) {
+        throw UnsupportedContentException(
+            "questao `$id` declara largura `page`, que ainda nao e desenhada: a largura de pagina " +
+                "depende da paginacao em faixas (ADR-0017, ADR-0019), e a questao nao e posta na " +
+                "coluna em silencio",
         )
     }
     if (rubrica.criteria.isEmpty()) {
@@ -358,7 +427,7 @@ private fun Question.requireEssayShape() {
         if (criterio.expectedLines < 1) {
             throw UnsupportedContentException(
                 "o criterio `${criterio.id}` da questao `$id` pede ${criterio.expectedLines} " +
-                    "linha(s); o minimo e 1, porque e dele que sai a altura da moldura",
+                    "linha(s); o minimo e 1, porque e quanto o criterio espera de resposta",
             )
         }
         if (criterio.descriptors.isEmpty()) {

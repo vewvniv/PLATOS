@@ -64,6 +64,15 @@ internal fun inkBoxOf(primitive: Primitive, measurer: TextMeasurer): InkBox = wh
         right = primitive.x + primitive.side,
         bottom = primitive.y + primitive.side,
     )
+
+    // Meio traco para os dois eixos, e nao so para o perpendicular: numa linha inclinada o traco
+    // alcanca os dois, e a caixa so precisa ser generosa, como a do texto.
+    is DrawLine -> InkBox(
+        left = minOf(primitive.x1, primitive.x2) - primitive.stroke / 2,
+        top = minOf(primitive.y1, primitive.y2) - primitive.stroke / 2,
+        right = maxOf(primitive.x1, primitive.x2) + primitive.stroke / 2,
+        bottom = maxOf(primitive.y1, primitive.y2) + primitive.stroke / 2,
+    )
 }
 
 /** Verdadeiro quando a tinta de [primitive] respeita a zona de silencio de [aruco]. */

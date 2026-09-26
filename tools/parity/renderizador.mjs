@@ -7,10 +7,19 @@ import { fileURLToPath } from 'node:url';
  *
  * O numero aparece em tres lugares, e nenhum deles verifica os outros:
  *
- * - `LayoutMap.MIN_RENDERER_VERSION`, no dominio KMP — o que a publicacao **escreve** no mapa;
+ * - `LayoutMap.LINE_RENDERER_VERSION`, no dominio KMP — a versao **mais alta** que a publicacao pode
+ *   escrever num mapa;
  * - `RendererContract.RENDERER_VERSION`, no Android — o que o renderizador e o **gate de captura**
  *   leem (`PreparoDaProva.kt`);
  * - `RENDERER_VERSION`, em `apps/web/src/layoutMap.ts` — o que o renderizador web le.
+ *
+ * **Ate a `slice-5b-0-a-regiao-discursiva-compacta`, o registro do dominio era
+ * `MIN_RENDERER_VERSION`,** uma constante aplicada a todo mapa. A versao minima passou a ser calculada
+ * por mapa (decisao 4 do `design.md` dela): um mapa com `line` exige 2, e um sem, 1. O que se compara
+ * com os renderizadores passou a ser a versao mais alta que o motor pode exigir, porque e ela que tem
+ * de ser igual ao que cada renderizador sabe desenhar. Quem acrescentar a proxima capacidade sobe os
+ * renderizadores, e esta verificacao reprova ate ler o registro novo — em voz alta, e nao em silencio.
+ * Abaixo, `MIN` quer dizer esse registro.
  *
  * **A direcao silenciosa e a pior, e e a que nenhum teste pega.** Um renderizador que ganha
  * capacidade e sobe a propria constante sem o mapa subir `MIN` faz clientes antigos desenharem
@@ -23,7 +32,7 @@ import { fileURLToPath } from 'node:url';
  * nao tem ordem nenhuma: sao duas implementacoes do mesmo conjunto de capacidades.
  *
  * **O valor tem de ser literal inteiro, e um registro que referencia outro reprova.** Escrever
- * `RENDERER_VERSION = LayoutMap.MIN_RENDERER_VERSION` no Android compila e faz os dois nunca mais
+ * `RENDERER_VERSION = LayoutMap.LINE_RENDERER_VERSION` no Android compila e faz os dois nunca mais
  * divergirem — e e o erro: `MIN` e o que o mapa **exige**, `RENDERER_VERSION` e o que o renderizador
  * **sabe fazer**, e amarrar o segundo ao primeiro faria toda subida de `MIN` declarar, sozinha, uma
  * capacidade que ninguem implementou. Aceitar a referencia faria esta verificacao comparar um valor
@@ -55,11 +64,11 @@ const RAIZ = fileURLToPath(new URL('../../', import.meta.url));
 const REGISTROS = [
   {
     chave: 'dominio',
-    rotulo: 'LayoutMap.MIN_RENDERER_VERSION',
-    papel: 'o que a publicacao escreve no mapa',
+    rotulo: 'LayoutMap.LINE_RENDERER_VERSION',
+    papel: 'a versao mais alta que o motor pode exigir num mapa',
     arquivo: 'packages/domain/src/commonMain/kotlin/com/platos/domain/layout/LayoutMap.kt',
-    nome: 'MIN_RENDERER_VERSION',
-    declaracao: /^[ \t]*const val MIN_RENDERER_VERSION(?:[ \t]*:[ \t]*Int)?[ \t]*=(.*)$/gm,
+    nome: 'LINE_RENDERER_VERSION',
+    declaracao: /^[ \t]*const val LINE_RENDERER_VERSION(?:[ \t]*:[ \t]*Int)?[ \t]*=(.*)$/gm,
   },
   {
     chave: 'android',
