@@ -91,9 +91,11 @@ antes desta tarefa, registrada aqui e corrigida em `proposal.md` (Impact): a pro
   porque todas as subclasses estão no mesmo módulo e ganham `@Serializable` junto — o compilador
   gera o discriminador sem `SerializersModule` manual.
 
-Escrever SHALL substituir a linha inteira (`OnConflictStrategy.REPLACE`), porque um caderno novo
-para a mesma prova (outro aluno, ou o mesmo com mais regiões) não emenda o anterior — ele o
-substitui, do mesmo jeito que a variável em memória já faz.
+Escrever SHALL substituir a linha inteira, porque um caderno novo para a mesma prova (outro aluno, ou
+o mesmo com mais regiões) não emenda o anterior — ele o substitui, do mesmo jeito que a variável em
+memória já faz. **Implementado com `@Upsert`**, e não `@Insert(onConflict = REPLACE)`: o `REPLACE` do
+SQLite apaga e reinsere a linha por baixo, e `@Upsert` faz um `UPDATE` quando a chave já existe —
+mesmo efeito observável (a linha inteira vira a nova), sem o apaga-e-reinsere.
 
 - **Por que não o `outbox.db`:** o outbox é percorrido por organização, em ordem, e apagado linha a
   linha após confirmação — é fila. O caderno é um registro só, lido inteiro e substituído inteiro —

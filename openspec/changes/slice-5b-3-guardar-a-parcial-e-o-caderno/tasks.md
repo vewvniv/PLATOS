@@ -21,16 +21,18 @@
   `testAndroidHostTest`) passam sem nenhuma asserção alterada, com a mesma contagem da 0.1; e um
   teste novo que serializa e desserializa uma `PartialScore` e um `Caderno` (com todos os estados de
   região e todos os quatro casos de `QuestionAnswer`) e confere igualdade com o original.
-- [ ] 1.2 `CadernoEntity`, `CadernoDao` e a `RoomDatabase` nova (`caderno.db`), num commit próprio,
+- [x] 1.2 `CadernoEntity`, `CadernoDao` e a `RoomDatabase` nova (`caderno.db`), num commit próprio,
   antes de qualquer consumidor (regra 1 do `CLAUDE.md`). Uma linha por `exam_id`, coluna `corpo` com
-  o `Caderno` serializado (`kotlinx.serialization`), inserção com `OnConflictStrategy.REPLACE`
-  (design, decisão 2). Verificação: teste de Room isolado — inserir duas vezes para o mesmo
-  `examId` deixa exatamente uma linha, com o `corpo` da segunda.
-- [ ] 1.3 Uma interface própria (`CadernosGuardados` ou nome equivalente), com `guardar(examId,
-  caderno)` e `ler(examId): Caderno?`, implementada em Room recebendo o `Dao` — não o `Context` —,
-  no mesmo padrão de `ResultadosEmRoom` (design, decisão 2). Verificação: o contrato é exercitado por
-  uma implementação em memória nos testes de `ScanSession`, e pela implementação em Room num teste
-  de instrumentação próprio.
+  o `Caderno` serializado (`kotlinx.serialization`), gravação com `@Upsert` (design, decisão 2, e a
+  guarda substitui a linha inteira do mesmo jeito que `ScanSession.caderno` substitui em memória).
+  Verificação: teste de instrumentação — guardar duas vezes para o mesmo `examId` deixa exatamente
+  uma linha, com o `corpo` da segunda (`guardar_duas_vezes_para_a_mesma_prova_deixa_uma_linha_so`).
+- [x] 1.3 A interface `CadernosGuardados`, com `guardar(examId, caderno)` e `ler(examId): Caderno?`,
+  implementada em Room (`CadernosEmRoom`) recebendo o `Dao` — não o `Context` —, no mesmo padrão de
+  `ResultadosEmRoom` (design, decisão 2). Verificação: teste de instrumentação sobre base em arquivo,
+  fechada e reaberta — `o_caderno_volta_do_disco_identico_ao_que_entrou` — e o caso de nenhum caderno
+  guardado ainda. O uso por uma implementação em memória nos testes de `ScanSession` é a 2.1, que
+  consome a interface.
 
 ## 2. `ScanSession` retoma e guarda o caderno em andamento
 
