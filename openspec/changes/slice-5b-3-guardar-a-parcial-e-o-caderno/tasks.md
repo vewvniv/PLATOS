@@ -103,4 +103,6 @@
     (design, riscos) e a leitura em aparelho real.
 - [x] 4.4 `node tools/divida/divida.mjs` de novo, comparado com a 0.2 (P27): nenhuma linha nova
   vence nesta fatia.
-- [ ] 4.5 PR contra `main`, e o CI **lido no destino**: o run, o `headSha` e os passos (P2, P26).
+- [x] 4.5 PR contra `main`, e o CI **lido no destino**: o run, o `headSha` e os passos (P2, P26).
+  PR #76, run `36277162051` sobre `headSha` `04f90be`, os três jobs (`build`, `paridade`, `web`) em
+  `success`.

@@ -149,4 +149,11 @@ dívida desta mudança (ver nota da 0.2).
 
 ### 4.5 — PR e CI
 
-Preenchido depois de abrir o PR contra `main` e ler o CI no destino (P2, P26).
+A PR é a #76. O run `36277162051` (`pull_request`) rodou sobre `headSha` `04f90be`, igual ao `HEAD`
+local no momento do push (`gh pr view 76 --json headRefOid` bate com `git rev-parse HEAD`). Os três
+jobs deram `success`:
+- `build` (5m14s): o teste do `buildSrc`, o build com os testes e o alvo Android do domínio;
+- `paridade` (4m6s): a guarda de paridade entre renderizadores;
+- `web` (38s): os testes e o build do web.
+
+Nenhum job falhou, e nenhum foi pulado.
