@@ -1,7 +1,9 @@
 package com.platos.android.scan
 
 import com.platos.domain.capture.QuestionAnswer
+import com.platos.domain.scoring.AwaitingEssay
 import com.platos.domain.scoring.ObjectiveScore
+import com.platos.domain.scoring.PartialScore
 import com.platos.domain.scoring.PendingQuestion
 import com.platos.domain.scoring.PendingReason
 import com.platos.domain.scoring.QuestionOutcome
@@ -101,5 +103,35 @@ class NotaApresentadaTest {
         )
 
         assertEquals("38 de 40", apresentada.pontuacao)
+    }
+
+    /**
+     * A parcial objetiva de prova com discursiva (`slice-5b-2-a-nota-objetiva-parcial`): a pontuacao
+     * vem com o maximo **objetivo**, e o resumo diz o que as discursivas valem e o maximo da prova.
+     * Sem esses dois, "3 de 4" seria lido como 75% da prova.
+     */
+    @Test
+    fun `a parcial diz o maximo objetivo, o que aguarda correcao e o maximo da prova`() {
+        val parcial = PartialScore(
+            packageHash = "hash",
+            variantId = "v1",
+            objectivePoints = 2,
+            objectiveMaxScore = 4,
+            maxScore = 11,
+            awaiting = listOf(AwaitingEssay("d1", 3), AwaitingEssay("d2", 4)),
+            pending = listOf(PendingQuestion("q5", PendingReason.MULTIPLA_MARCACAO, points = 1)),
+            outcomes = listOf(
+                QuestionOutcome("q1", QuestionAnswer.Marcada("q1", "A"), worth = 1, earned = 1),
+                QuestionOutcome("q2", QuestionAnswer.Marcada("q2", "C"), worth = 1, earned = 1),
+                QuestionOutcome("q4", QuestionAnswer.EmBranco("q4"), worth = 1, earned = 0),
+                QuestionOutcome("q5", QuestionAnswer.MultiplaMarcacao("q5", listOf("A", "B")), worth = 1, earned = 0),
+            ),
+        )
+
+        val apresentada = apresentar(parcial)
+
+        assertEquals("2 de 4 na objetiva", apresentada.pontuacao)
+        assertEquals("Discursivas: 7 ponto(s) aguardam correcao · a prova vale 11", apresentada.resumo)
+        assertEquals(listOf("· q5: mais de uma alternativa marcada (1 ponto(s))"), apresentada.pendencias)
     }
 }
