@@ -2,7 +2,8 @@
 
 Leva ao motor de layout os ADR-0016, ADR-0017 e ADR-0018: a região discursiva de dois ArUcos, com o QR
 no terceiro canto e a pauta cinza de 7 mm. Proposta, specs, design e tarefas em
-`openspec/changes/slice-5b-0-a-regiao-discursiva-compacta/`. Este documento registra **como** cada
+`openspec/changes/archive/2026-09-26-slice-5b-0-a-regiao-discursiva-compacta/` (arquivada em
+2026-09-26). Este documento registra **como** cada
 verificação foi vista falhar, e não que ela passa (`rigorous.md` §8). As datas são UTC.
 
 ## 0. Linha de base, antes do primeiro commit de código
@@ -670,3 +671,23 @@ prazo ou gatilho esta mudança alcançou:
 
 Nenhuma linha do §16 é paga por esta mudança. Depois do archive, a próxima ação é o `/opsx:update` da
 5b-1, para a região de dois ArUcos, e ela não é tarefa desta mudança.
+
+**No archive, em 2026-09-26:** a reconciliação acima foi aplicada como estava escrita.
+- **As duas linhas `5b` seguem em dia:** a fatia 5b não terminou, e a guarda as reprova quando a 5c
+  abrir. Elas não foram pagas nem reagendadas aqui.
+- **As três linhas `5` seguem em dia** até a 6 abrir.
+- **Os dois eventos não foram alcançados.**
+
+O `/opsx:update` da 5b-1 já foi feito no branch dela, e a tarefa 1.1 da 5b-1, que destrava o veículo
+da linha da folha de teste, está implementada lá, ainda fora da `main`.
+
+**As specs principais foram sincronizadas:**
+- `layout-engine`: 4 requisitos substituídos, 2 novos e 1 removido, "A questão discursiva é um bloco
+  indivisível com a sua moldura";
+- `print`: 1 requisito substituído e 1 novo.
+
+Cada bloco da delta foi conferido, por script, como presente literalmente na principal, e o removido
+como ausente. Os requisitos fora da delta (18 de `layout-engine`, 8 de `print`) ficaram iguais a
+`HEAD`, e as contagens fecham: 23 − 1 + 2 = 24 e 9 + 1 = 10. `openspec validate --specs --strict`
+passou nas 11. A guarda depois do archive lê "slice-5b-0-a-regiao-discursiva-compacta (arquivada)", com
+21 linhas lidas e nenhuma vencida.
