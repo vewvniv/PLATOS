@@ -203,3 +203,88 @@ estado também em texto, os motivos, o contador e o aviso. O texto da parcial sa
 objetiva" e "Discursivas: 7 ponto(s) aguardam correcao · a prova vale 11". 332 testes às 11:38:28Z, e
 `assembleDebug` compila. **A tela desenhada não tem teste automático** (decisão 5 da 5b-1), e é
 lacuna. Não é mitigado, é conhecido (P8).
+
+## 3. Fechamento
+
+Sobre `51e978f`.
+
+**3.1:** `git grep MUTACAO`, fora de `build/`, `node_modules/`, `docs/`, `openspec/` e `rigorous.md`,
+não achou nada (`rc=1`), e `git status` estava limpo. As mutações desta mudança foram nove, e cada
+reversão foi rodada, com a execução registrada ao lado dela:
+- 1.3, 1.4 e 1.5, no domínio. A M-tipo foi revertida por compilação, e as outras duas por teste;
+- 2.3, duas;
+- 2.4, duas;
+- 2.5, a M-a e a M-a com a M-c.
+
+**3.2, o comando cheio:**
+
+| Comando | Resultado |
+|---|---|
+| `./gradlew build --rerun-tasks` | `BUILD SUCCESSFUL in 2m 10s`, **183 de 183 tasks executadas**, de 11:39:38Z a 11:41:49Z |
+| `./gradlew -p buildSrc test --rerun-tasks` | 1 de 1, 11:42:09Z |
+| `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro, no `platos-atd34` | 89 testes, 0 falhas, 2 pulados, `timestamp` 11:43:05Z. O console diz "Finished 91 tests", como na 0.1 |
+| `npx vitest run` e `npm run build` em `apps/web` | 18 de 18, às 11:43:23Z; o build com `exit 0` |
+| `limiar.mjs`, `answer-kind.mjs`, `fio.mjs`, `renderizador.mjs` e `divida.mjs` | todas com `exit 0`; o renderizador diz "versao 2", e a dívida, "nenhuma linha vencida: 21 linhas lidas" |
+
+| Task | Testes | 0.1 | `timestamp` |
+|---|---|---|---|
+| `apps/android` `testDebugUnitTest` | 332 | 320 | 11:40:37Z .. 11:40:42Z |
+| `apps/android` `testReleaseUnitTest` | 332 | 320 | 11:40:46Z .. 11:40:52Z |
+| `apps/api` `test` | 168 | 168 | 11:41:23Z .. 11:41:38Z |
+| `packages/domain` `jvmTest` | 408 | 393 | 11:41:41Z .. 11:41:43Z |
+| `packages/domain` `jsNodeTest` | 399 | 384 | 11:41:17Z .. 11:41:20Z |
+| `packages/domain` `testAndroidHostTest` | 399 | 384 | 11:41:44Z .. 11:41:46Z |
+
+**De onde vêm as diferenças, e todas são desta mudança:**
+- **Domínio, +15 em cada alvo:** `PartialScoreTest` (8) e `ParcialObjetivaTest` (7).
+- **Android, +12:** `ProvaComDiscursivaNaSessaoTest` de 7 para 17, `ScanSessionTest` de 19 para 20, e
+  `NotaApresentadaTest` de 3 para 4.
+- API, `buildSrc`, instrumentado e web não mudaram, e esta mudança não os toca.
+
+**Os passos de paridade e fidelidade do CI não foram rodados aqui.** Esta mudança não toca
+renderizador, `LayoutMap` nem fixture. O CI da PR os roda.
+
+## O que ainda não foi verificado
+
+- **A tela desenhada** (`ScanScreen`): os indicadores, as cores, o contador e a parcial não têm teste
+  automático (decisão 5 da 5b-1). O que decide o texto da parcial tem teste (`apresentar`), e o que
+  decide o estado de cada indicador também (o caderno). O desenho, não. **Não é mitigado, é
+  conhecido** (P8), e é conferido na sessão única de papel antes da fatia 6.
+- **A leitura da parcial pelo professor.** O risco de "3 de 4" ser lido como nota está no `design.md`.
+  A tela mostra o máximo objetivo, o que as discursivas valem, o máximo da prova e "a nota nao e
+  definitiva", mas **nenhum professor leu esta tela**. Não é mitigado, é conhecido.
+- **A proteção de tipo** (a parcial não entra em `ResultadoPendente` nem em `ApuracaoNova`) **não tem
+  teste automático**: quem a guarda é o compilador. Ela foi vista reagir fora da árvore (1.5). Se
+  `scorePartial` passar a devolver `ObjectiveScore`, ou se `ResultadoPendente.nota` for alargado,
+  nenhum teste cai.
+- **O número do indicador é conferido contra o `LayoutMap` da folha, e não contra o papel.** O passo do
+  mapa ao pixel é da paridade e da fidelidade do CI (*herdado*).
+- **Nada foi medido com câmera.** Os quadros da sessão são montados a partir da fixture. O caminho da
+  câmera até `FrameOutcome` é o da 5b-1, e o papel continua na sessão única antes da 6.
+- **O caderno se perde ao sair da tela**, e isso é aceito: guardar é a 5b-3 (`design.md`, riscos).
+  "Finalizar incompleto com confirmação, registrando o que faltou" (§8) não foi feito, porque registrar
+  exige guardar.
+- **A guarda nova do máximo lança exceção**, como as da nota, e não recusa. O pacote chega ao aparelho
+  pela publicação, que confere a mesma soma (`Publish.kt:118`, `requireCoherent`), e o aparelho confere
+  o hash (*herdado*). Um pacote cuja rubrica não fecha e que chegasse assim ao aparelho derrubaria a
+  sessão, em vez de mostrar recusa.
+
+## Reconciliação do §16, preparada para o archive (3.5)
+
+`divida.mjs` diz "fatia corrente: 5b", e nenhuma linha vencida (0.2 e 3.2).
+
+| Linha do §16 | No archive |
+|---|---|
+| `Acurácia em manuscrito` (`5`) | **alcançada e não paga.** Em dia até a 6 abrir. Esta mudança não mede manuscrito |
+| `Modo degradado (§10) não existe` (`5`) | **alcançada e não paga.** Em dia até a 6 abrir |
+| `O limiar do OMR foi apurado sobre um aparelho e uma impressora` (`5`) | **alcançada e não paga.** Em dia até a 6 abrir. Não houve papel nem aparelho novo |
+| `A região discursiva ainda não passou pelo aparelho nem pelo papel` (`6`) | **não alcançada.** Nada foi impresso. O "custo aceito ao adiar" da linha diz que a 5b-2 vem antes do papel, e o retrofit sobre fato append-only só se materializa com nota discursiva gravada: **esta mudança não grava nada**, então não o materializa. A frase "a tela do estado novo não foi conferida no aparelho" continua verdadeira, agora com a parcial e os indicadores |
+| `A folha de teste de impressão não aprova a região discursiva que a prova imprime` (`6`) | **não alcançada**: nenhuma impressão |
+| `antes-de:migration-da-5-em-producao` e `antes-de:implantar-api-da-5a` | **não alcançados**: nenhuma migration, e nada no servidor |
+
+**Fora do §16, e registrado aqui para não flutuar.** A cobertura da 5b-1 diz que a geometria da região
+discursiva não tem conferência além do QR "até o segundo ajuste da 5b-2" (decisão 1 dela, atualização
+de 2026-09-26). A proposta desta mudança pôs o recorte e o segundo ajuste do ADR-0018 na **5b-3**
+("O que NÃO será alterado"), e esta mudança não os fez. A lacuna continua, com o destino 5b-3. Ela não
+é linha do §16, e esta mudança não abre linha nova. Se o mantenedor quiser prazo reprovável, o veículo
+é uma linha nova no archive (P27).
