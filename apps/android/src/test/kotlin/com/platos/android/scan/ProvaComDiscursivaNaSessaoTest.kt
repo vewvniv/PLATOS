@@ -178,10 +178,17 @@ class ProvaComDiscursivaNaSessaoTest {
             FrameOutcome.SoDiscursivas(listOf(d2())),
         )
 
+        // O canario (P13): a leitura do gabarito rende parcial no dominio. Sem isso, "nada e gravado"
+        // nao diria nada sobre uma folha que tem o que apurar. Ele consulta o dominio, e nao a sessao,
+        // de proposito: a 2.5 desliga a camada da sessao, e um canario que dependesse dela derrubaria
+        // este teste pelo motivo errado (`rigorous.md` §3).
+        assertTresDeQuatro(
+            (ObjectiveScoring.scorePartial(pacote, gabarito().payload, gabarito().answers) as PartialScoringOutcome.Scored)
+                .partial,
+        )
+
         for (quadro in quadros) {
             assertNull(sessao.onFrame(quadro), "a sessao entregou apuracao de prova com discursiva")
-            // O canario (P13): sem parcial apresentada, "nada e gravado" nao diria nada sobre ela.
-            assertTresDeQuatro(apurada(reconhecida(sessao.state)))
             sessao.resume()
             assertNull(sessao.onFrame(quadro), "a sessao entregou apuracao depois de retomar")
         }
