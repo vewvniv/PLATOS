@@ -45,10 +45,14 @@
   sobrescrevia `state` incondicionalmente, o que apagaria o caderno retomado na mesma chamada que
   `onCreate` já faz — corrigido para respeitar `holdsResult`, e o teste que prova isso chama
   `onPermission` depois de retomar.
-- [ ] 2.2 A tela de escaneamento escreve o caderno corrente no `onStop`, e não a cada quadro (design,
-  decisão 1). Verificação: a decisão de o quê escrever é testável isolada do ciclo de vida do
-  Android — um teste chama a função de persistência diretamente, sem `Activity` real —, e o build
-  compila com a chamada real ligada ao `onStop`.
+- [x] 2.2 A tela de escaneamento escreve o caderno corrente no `onStop`, e não a cada quadro (design,
+  decisão 1). `ScanActivity` lê o caderno guardado no `onCreate`, antes do primeiro quadro, e passa
+  como `cadernoInicial`. A escrita mora em `guardarCadernoEmAndamento` (`Dispatchers.IO` +
+  `NonCancellable`, mesmo padrão de `gravarEAgendar`), fora da `Activity`, para ser chamável do fio
+  principal sem uma `Activity` real. Verificação:
+  `GuardarCadernoNoFioPrincipalInstrumentedTest.guardar_a_partir_do_fio_principal_nao_estoura_e_o_caderno_chega_ao_disco`
+  (`runOnMainSync`, base aberta como a produção abre); `connectedDebugAndroidTest` sem filtro:
+  94 → 95 testes, 0 falhas.
 - [x] 2.3 Trocar de aluno antes do `onStop` guarda o caderno do novo aluno, substituindo a linha
   anterior, sem misturar os dois. Verificação: teste do cenário "Trocar de aluno antes de fechar
   continua substituindo o caderno" — `cadernoAtual` já reflete só o último aluno, porque
