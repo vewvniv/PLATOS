@@ -366,8 +366,12 @@ object ObjectiveScoring {
      * uma variante so no pacote isso e inequivoco. Com mais de uma nao e, e escolher a primeira
      * atribuiria a folha ao gabarito errado — em silencio, porque toda folha continuaria recebendo
      * uma nota plausivel.
+     *
+     * **Publica desde a `slice-5b-2-a-nota-objetiva-parcial`**, porque o caderno do aluno, na sessao,
+     * precisa do mapa da mesma variante contra a qual a parcial e apurada. Uma segunda regra no
+     * aplicativo divergiria desta na fatia 7.
      */
-    private fun resolveVariant(examPackage: ExamPackage, payload: CapturePayload): PackageVariant? =
+    fun resolveVariant(examPackage: ExamPackage, payload: CapturePayload): PackageVariant? =
         if (payload.variant.isNotEmpty()) {
             examPackage.variants.firstOrNull { it.variantId == payload.variant }
         } else {
