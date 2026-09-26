@@ -73,6 +73,37 @@ afirmação (P6).
   pelos IDs, depois homografia, e só então o QR na ROI retificada. Ler o QR antes seria ler sobre a
   foto em perspectiva, que é o que a ordem existe para evitar.
 
+**Atualizado ao aplicar, em 2026-09-26, por decisão do mantenedor.** O texto acima tem dois
+problemas:
+- **"Os cantos externos dos dois" são dois pontos**, e uma homografia precisa de quatro. O ADR-0018
+  §3(a) diz o que se queria dizer: a primeira homografia "sai dos cantos dos dois ArUcos".
+- **Ele não diz se o passo (c) do ADR-0018 entra aqui.** O passo (c) é o segundo ajuste, com os
+  padrões de posição do QR, de onde sai o recorte. O §4 do ADR faz do resíduo desse ajuste a
+  conferência da geometria da região discursiva.
+
+A decisão:
+- **A região de dois marcadores é retificada pelos oito cantos deles.** A homografia é ajustada por
+  mínimos quadrados, com a posição declarada de cada canto (`DrawAruco`: `x`, `y`, `side`)
+  normalizada pelo retângulo declarado da região. O caminho escolhe pela **contagem** de marcadores
+  declarada, e não pelo tipo (decisão 2 da 5b-0: "a captura não precisa de regra por tipo"). Quatro
+  marcadores seguem o caminho de hoje, dos centros exatos com conferência nos cantos, que não muda
+  (ADR-0018 §5).
+- **A 5b-1 faz os passos (a) e (b) do ADR-0018, e não o (c).** Não há teto de resíduo novo. O que
+  guarda o reconhecimento é o QR: a decodificação, o CRC e o `region_idx` conferido contra os
+  marcadores. Uma geometria ruim o bastante para enganar o reconhecimento não deixa o QR ler, e a
+  região sai não lida.
+  - Um teto de 6 px sobre o resíduo desse ajuste foi **descartado**. No gabarito, o `MAX_REPROJECTION_PX`
+    mede cantos que ficam fora do ajuste; aqui os cantos entram nele. O mesmo número passaria a
+    significar outra coisa, sem medição que o sustente (P11, P18).
+  - **O passo (c) e o resíduo dele vão para a 5b-2**, junto com o recorte, que é quem os consome.
+    Até lá, a geometria da região discursiva **não tem conferência além do QR**. Não é mitigado, é
+    conhecido (P8). O resíduo do ajuste por mínimos quadrados sai em `reprojectionErrorPx` como
+    informação, e nada decide por ele.
+- **O `region_idx` do QR é conferido contra os `marker_ids` que o mapa declara para aquela região**,
+  e não contra `CaptureGeometry.markerIdsOf`, que dá os quatro IDs da alocação `{4k…4k+3}`. Sem isso,
+  a região discursiva, que declara `[4k, 4k+3]`, seria recusada sempre (`RegionQrReader.kt`, fora
+  da lista do Impact da proposta).
+
 ### 2. Os marcadores esperados de uma região são os dela
 
 `declaredMarkersOf` passa a filtrar pelos `marker_ids` da região. É a correção mínima: a posição
@@ -181,6 +212,8 @@ escreva o real ao lado do previsto e diga o que significa, lendo a mensagem, e n
   retê-lo.
 - **[A tela nova sem teste automático]** → decisão 5. **Não é mitigado, é conhecido** (P8), até a
   conferência no aparelho.
+- **[A geometria da região discursiva sem conferência além do QR]** → decisão 1, atualização de
+  2026-09-26. O segundo ajuste do ADR-0018 é da 5b-2. **Não é mitigado, é conhecido** (P8).
 - **[`FrameOutcome` por região mexe no contrato entre `vision/` e `scan/`]** → os dois lados são do
   mesmo módulo, e os cenários antigos de `ScanSessionTest` são a guarda de que a prova objetiva não
   mudou de fora.

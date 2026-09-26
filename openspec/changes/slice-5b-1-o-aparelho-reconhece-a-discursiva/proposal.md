@@ -75,6 +75,8 @@ Nenhuma.
   - `vision/RegionDetector.kt`: marcadores por região, e a detecção de marcadores feita uma vez por
     quadro;
   - `vision/SheetReader.kt` e `vision/FrameOutcome.kt`: o resultado passa a ser por região;
+  - `vision/RegionQrReader.kt`: o `region_idx` do QR conferido contra os `marker_ids` que o mapa
+    declara para a região (acrescentado ao aplicar, em 2026-09-26, decisão 1 do `design.md`);
   - `scan/CameraFrameAnalyzer.kt` e `scan/ScanActivity.kt`: sem região pré-escolhida, e sem o
     `.single()`;
   - `scan/ScanSession.kt`, `scan/ScanState.kt` e `scan/ScanScreen.kt`: o estado novo e a mensagem.
