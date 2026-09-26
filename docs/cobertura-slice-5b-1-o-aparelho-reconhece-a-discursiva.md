@@ -1,7 +1,8 @@
 # Cobertura — `slice-5b-1-o-aparelho-reconhece-a-discursiva`
 
 Primeira das duas mudanças da 5b. Os artefatos estão em
-`openspec/changes/slice-5b-1-o-aparelho-reconhece-a-discursiva/`. Este documento registra **como**
+`openspec/changes/archive/2026-09-26-slice-5b-1-o-aparelho-reconhece-a-discursiva/` (arquivada em
+2026-09-26). Este documento registra **como**
 cada verificação foi vista falhar, e não que ela passa (`rigorous.md` §8). As datas são UTC.
 
 ## 0. Linha de base
@@ -372,3 +373,26 @@ A PR #71, o archive da 5b-0, também saiu verde nos três jobs (run `36233663491
   e não por uma `Activity` aberta.
 - **A linha `A folha de teste de impressão não aprova a região discursiva…`** (`5b`, da 5b-0) é
   alcançada por esta mudança e não é paga por ela (proposta, "Linhas do §16").
+
+## Archive (2026-09-26)
+
+Depois do merge das PRs #71 e #72. A reconciliação é a da tarefa 5.5, com a atualização de 2026-09-26.
+
+| Linha do §16 | No archive |
+|---|---|
+| A região discursiva ainda não passou pelo aparelho nem pelo papel | **reagendada de `5b` para `6`**, e não paga. O motivo, o que a 5b-1 pagou sem papel, o que continua aberto e o custo aceito ao adiar estão na própria linha |
+| A folha de teste de impressão não aprova a região discursiva que a prova imprime | **reagendada de `5b` para `6`**. O filtro que travava o veículo dela está na `main`; só a aprovação espera o papel |
+| Acurácia em manuscrito; Modo degradado (§10) não existe; O limiar do OMR foi apurado sobre um aparelho e uma impressora (`5`) | em dia até a 6 abrir |
+| `antes-de:migration-da-5-em-producao` e `antes-de:implantar-api-da-5a` | não alcançados |
+
+**O custo aceito ao adiar, escrito na linha:** a 5b-2 e a 5c passam a vir antes do papel. É o
+"retrofit sobre fato append-only" que a própria linha já descrevia, e ele só se materializa se uma
+prova com discursiva for a produção antes da sessão.
+
+**As specs principais foram sincronizadas:**
+- `capture-omr`: 1 requisito substituído e 2 novos, de 7 para 9;
+- `scan-session`: 1 novo, de 7 para 8.
+
+Cada bloco foi conferido, por script, como presente literalmente na principal, e os requisitos fora
+da delta ficaram iguais a `HEAD`. `openspec validate --specs --strict` passou nas 11. A guarda depois
+do archive lê as duas linhas com `6`, e diz "nenhuma linha vencida: 21 linhas lidas", `exit 0`.
