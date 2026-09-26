@@ -64,12 +64,16 @@ sealed interface ScanState {
         val discursivas: List<String>,
         /** As regioes discursivas presentes e nao lidas, cada uma com o motivo. */
         val discursivasNaoLidas: List<String>,
+        /** O caderno deste aluno: as regioes esperadas com o estado de cada uma, e a parcial. */
+        val caderno: Caderno,
+    ) : ScanState {
+
         /**
          * A ultima apuracao parcial do gabarito **deste aluno**: a parcial, ou o motivo da recusa.
-         * Nula enquanto o gabarito dele nao foi lido em nenhum quadro.
+         * Nula enquanto o gabarito dele nao foi lido em nenhum quadro. Mora no caderno.
          */
-        val parcial: PartialScoringOutcome?,
-    ) : ScanState {
+        val parcial: PartialScoringOutcome? get() = caderno.parcial
+
         companion object {
             const val AVISO =
                 "A nota nao e definitiva: a correcao das discursivas ainda nao esta disponivel neste " +

@@ -7,6 +7,7 @@ import com.platos.domain.capture.InterpretedReading
 import com.platos.domain.capture.QuestionAnswer
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.scoring.AwaitingEssay
+import com.platos.domain.scoring.ObjectiveScoring
 import com.platos.domain.scoring.PartialScore
 import com.platos.domain.scoring.PartialScoringOutcome
 import java.io.File
@@ -146,13 +147,21 @@ class ProvaComDiscursivaNaSessaoTest {
             QuestionAnswer.Marcada("q4", "A"),
         )
 
+        // O motivo sai do dominio, e nao e escrito aqui: a comparacao por igualdade e o que prova que
+        // a sessao nao inventa texto proprio (a mesma regra de `ScanSessionTest`).
+        val doDominio = ObjectiveScoring.scorePartial(pacote, payload(0), semQ5)
+        assertTrue(doDominio is PartialScoringOutcome.Rejected, "o dominio precisa recusar, ou o cenario nao mede")
+
         sessao.onFrame(FrameOutcome.Read(gabarito(respostas = semQ5)))
 
         val estado = reconhecida(sessao.state)
         assertEquals("tok-a", estado.aluno)
+        assertEquals(doDominio, estado.parcial)
+        val motivo = (doDominio as PartialScoringOutcome.Rejected).reason
         assertEquals(
-            PartialScoringOutcome.Rejected("itens objetivos lidos divergem da variante 'v1'; faltando: q5"),
-            estado.parcial,
+            EstadoDaRegiao.ComProblema(motivo),
+            estado.caderno.regioes.single { it.gabarito }.estado,
+            "a recusa da parcial e o problema do gabarito no caderno (decisao 6)",
         )
     }
 
@@ -207,5 +216,107 @@ class ProvaComDiscursivaNaSessaoTest {
         val estado = reconhecida(sessao.state)
         assertEquals(listOf("d1"), estado.discursivas)
         assertEquals(listOf("d2: nenhum QR decodificado na ROI que o mapa declara"), estado.discursivasNaoLidas)
+    }
+
+    // --- O caderno do aluno (requisito "A completude da folha do aluno e mostrada por regiao") ---
+    //
+    // Os testes abaixo conferem o caderno por **indice de regiao e estado**, e nao pelo rotulo: o
+    // rotulo e so do cenario "O indicador tem o numero impresso", e e isso que deixa a mutacao da 2.4
+    // derrubar aquele cenario e so ele. Na fixture, a regiao 0 e o gabarito, a 1 e `d1`, a 2 e `d2`.
+
+    private val naoVista = EstadoDaRegiao.NaoVista
+    private val capturada = EstadoDaRegiao.Capturada
+
+    private fun estados(estado: ScanState.ProvaComDiscursiva) =
+        estado.caderno.regioes.map { it.regionIndex to it.estado }
+
+    /** Guarda de vacuidade: o caderno so diz algo se a fixture tem o gabarito e duas discursivas. */
+    @Test
+    fun `a fixture tem gabarito e duas discursivas, nas regioes 0, 1 e 2`() {
+        val regioes = pacote.layout.getValue("v1").regions
+        assertEquals(listOf(0, 1, 2), regioes.map { it.index })
+        assertEquals(listOf(null, "d1", "d2"), regioes.map { it.questionId })
+    }
+
+    /** Cenario "Caderno comeca com tudo nao visto". */
+    @Test
+    fun `o primeiro quadro do aluno captura o gabarito e d1, e d2 fica nao vista`() {
+        val sessao = sessaoAberta()
+
+        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+
+        val estado = reconhecida(sessao.state)
+        assertEquals("tok-a", estado.caderno.aluno)
+        assertEquals(listOf(0 to capturada, 1 to capturada, 2 to naoVista), estados(estado))
+        assertEquals(2, estado.caderno.capturadas)
+        assertEquals(3, estado.caderno.esperadas)
+    }
+
+    /** Cenario "A segunda pagina completa o caderno". */
+    @Test
+    fun `a pagina de d2 do mesmo aluno completa o caderno`() {
+        val sessao = sessaoAberta()
+        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+
+        sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2())))
+
+        val estado = reconhecida(sessao.state)
+        assertEquals(listOf(0 to capturada, 1 to capturada, 2 to capturada), estados(estado))
+        assertEquals(3, estado.caderno.capturadas)
+        assertEquals(3, estado.caderno.esperadas)
+    }
+
+    /** Cenario "Regiao com problema", e a regra "com problema passa a capturada". */
+    @Test
+    fun `a regiao presente e nao lida fica com problema, com o motivo, ate ser lida`() {
+        val sessao = sessaoAberta()
+        val motivo = "nenhum QR decodificado na ROI que o mapa declara"
+
+        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(RegiaoDiscursivaNoQuadro.NaoLida(1, "d1", motivo))))
+
+        val comProblema = reconhecida(sessao.state)
+        assertEquals(
+            listOf(0 to capturada, 1 to EstadoDaRegiao.ComProblema(motivo), 2 to naoVista),
+            estados(comProblema),
+        )
+        assertEquals(1, comProblema.caderno.capturadas, "regiao com problema nao conta como capturada")
+
+        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+
+        assertEquals(listOf(0 to capturada, 1 to capturada, 2 to naoVista), estados(reconhecida(sessao.state)))
+    }
+
+    /** Cenario "Capturada nao volta atras": nem a discursiva, nem o gabarito. */
+    @Test
+    fun `a regiao capturada continua capturada quando um quadro seguinte nao a le`() {
+        val sessao = sessaoAberta()
+        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+
+        sessao.onFrame(
+            FrameOutcome.NotRead(
+                "a medicao foi recusada",
+                listOf(RegiaoDiscursivaNoQuadro.NaoLida(1, "d1", "nenhum QR decodificado na ROI que o mapa declara"), d2()),
+            ),
+        )
+
+        val estado = reconhecida(sessao.state)
+        assertEquals("nao lido: a medicao foi recusada", estado.gabarito, "o quadro de fato nao leu o gabarito")
+        assertEquals(listOf(0 to capturada, 1 to capturada, 2 to capturada), estados(estado))
+    }
+
+    /** Cenario "Outro aluno comeca outro caderno". */
+    @Test
+    fun `a folha de outro aluno comeca outro caderno, sem nada do anterior`() {
+        val sessao = sessaoAberta()
+        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+
+        sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2(token = "tok-b"))))
+
+        val estado = reconhecida(sessao.state)
+        assertEquals("tok-b", estado.aluno)
+        assertEquals("tok-b", estado.caderno.aluno)
+        assertEquals(listOf(0 to naoVista, 1 to naoVista, 2 to capturada), estados(estado))
+        assertEquals(1, estado.caderno.capturadas)
+        assertNull(estado.parcial, "a parcial de tok-a nao passa para tok-b")
     }
 }

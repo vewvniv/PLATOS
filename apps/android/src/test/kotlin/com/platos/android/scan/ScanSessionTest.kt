@@ -150,6 +150,21 @@ class ScanSessionTest {
         assertTrue(lida.score.closed, "folha sem rasura tem de fechar a nota")
     }
 
+    /**
+     * Cenario "Prova so objetiva nao tem caderno" (`slice-5b-2-a-nota-objetiva-parcial`): a tela e a
+     * de antes, a nota apurada, e nao a da prova com discursiva, que e a unica que carrega caderno.
+     */
+    @Test
+    fun `prova so objetiva nao tem caderno, e a folha continua virando nota`() {
+        assertTrue(pacote.meta.fullyOfflineGradable, "a fixture precisa ser so objetiva, ou o cenario nao mede")
+        val sessao = sessaoAberta()
+
+        val apuracao = sessao.onFrame(FrameOutcome.Read(leitura(acertos = 40)))
+
+        assertTrue(sessao.state is ScanState.Scored, "esperava a nota, veio ${sessao.state}")
+        assertEquals(40, apuracao?.score?.points, "a nota continua sendo entregue para gravar")
+    }
+
     @Test
     fun `troca de folha substitui o resultado por inteiro`() {
         val sessao = sessaoAberta()

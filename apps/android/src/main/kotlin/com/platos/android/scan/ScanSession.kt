@@ -18,7 +18,9 @@ import com.platos.domain.scoring.ScoringOutcome
  * desenhou entre `vision/` e `omr/`, pela mesma razao: o que decide precisa ser testavel sem
  * aparelho.
  *
- * Nesta fatia a sessao e de **uma folha**. Lote, completude e avanco automatico sao a 3d.
+ * Nesta fatia a sessao e de **uma folha**. Lote, completude e avanco automatico sao a 3d. *Desde a
+ * `slice-5b-2-a-nota-objetiva-parcial`, a completude da folha do aluno de uma prova com discursiva e
+ * o [Caderno]; lote e avanco automatico continuam fora.*
  *
  * **A conferencia do `exam_short_id` nao e opcional.** Sem ela, uma folha de outra prova seria
  * apurada contra este gabarito e produziria nota plausivel e errada. `ObjectiveScoring` ja recusa
@@ -165,14 +167,21 @@ class ScanSession(private val examPackage: ExamPackage) {
         }
         val aluno = alunos.single()
 
+        // O caderno e do aluno: a folha de outro comeca um novo, e nao herda nada dele (decisao 4).
+        val anterior = caderno?.takeIf { it.aluno == aluno } ?: run {
+            val variante = ObjectiveScoring.resolveVariant(examPackage, payloads.first())
+            Caderno.novo(aluno, variante, variante?.let { examPackage.layout[it.variantId] })
+        }
+
         // A parcial vem do dominio, e so do gabarito lido. Sem ele no quadro, vale a ultima do mesmo
-        // aluno; a folha de outro aluno nao herda nada (decisao 6).
-        val parcial = if (outcome is FrameOutcome.Read) {
+        // aluno, que o caderno guarda (decisao 6).
+        val parcialNova = if (outcome is FrameOutcome.Read) {
             ObjectiveScoring.scorePartial(examPackage, outcome.reading.payload, outcome.reading.answers)
         } else {
-            ultimaParcial?.takeIf { it.first == aluno }?.second
+            null
         }
-        ultimaParcial = parcial?.let { aluno to it }
+        val atual = anterior.depoisDe(vistasNoQuadro(anterior, outcome, parcialNova), parcialNova)
+        caderno = atual
 
         return ScanState.ProvaComDiscursiva(
             aluno = aluno,
@@ -184,19 +193,57 @@ class ScanSession(private val examPackage: ExamPackage) {
             },
             discursivas = reconhecidas.map { it.questionId },
             discursivasNaoLidas = naoLidas.map { "${it.questionId}: ${it.reason}" },
-            parcial = parcial,
+            caderno = atual,
         )
     }
 
     /**
-     * A ultima apuracao parcial, com o aluno de quem ela e.
+     * O que um quadro diz de cada regiao presente nele, por indice de regiao.
+     *
+     * O gabarito e a regiao do mapa que nao e discursiva, pela mesma regra de `SheetReader.analyze`.
+     * Lido e com a parcial apurada, ele e capturado; lido e com a parcial recusada, ou presente e nao
+     * lido, e "com problema", com o motivo (decisao 6). Fora do quadro, nao entra.
+     */
+    private fun vistasNoQuadro(
+        caderno: Caderno,
+        outcome: FrameOutcome,
+        parcialNova: PartialScoringOutcome?,
+    ): Map<Int, EstadoDaRegiao> {
+        val gabarito = caderno.regioes.firstOrNull { it.gabarito }?.regionIndex
+        return buildMap {
+            if (gabarito != null) {
+                when (outcome) {
+                    is FrameOutcome.Read -> put(
+                        gabarito,
+                        when (parcialNova) {
+                            is PartialScoringOutcome.Rejected -> EstadoDaRegiao.ComProblema(parcialNova.reason)
+                            else -> EstadoDaRegiao.Capturada
+                        },
+                    )
+                    is FrameOutcome.NotRead -> put(gabarito, EstadoDaRegiao.ComProblema(outcome.reason))
+                    is FrameOutcome.Unreadable -> put(gabarito, EstadoDaRegiao.ComProblema(outcome.reason))
+                    is FrameOutcome.SoDiscursivas, is FrameOutcome.NoSheet -> Unit
+                }
+            }
+            for (regiao in outcome.discursivas) {
+                when (regiao) {
+                    is RegiaoDiscursivaNoQuadro.Reconhecida -> put(regiao.regionIndex, EstadoDaRegiao.Capturada)
+                    is RegiaoDiscursivaNoQuadro.NaoLida ->
+                        put(regiao.regionIndex, EstadoDaRegiao.ComProblema(regiao.reason))
+                }
+            }
+        }
+    }
+
+    /**
+     * O caderno do aluno corrente (§8), em memoria e nunca gravado.
      *
      * **Memoria entre quadros, e de proposito**: a outra pagina do mesmo aluno nao traz o gabarito, e
-     * a parcial dele nao pode sumir por isso. E a unica excecao a "um resultado novo substitui o
-     * anterior por inteiro", e ela e por aluno: a folha de outro aluno a descarta. A parcial em si
-     * segue a regra — a ultima apuracao do gabarito substitui a anterior por inteiro.
+     * nem o que ja foi capturado nem a parcial dele podem sumir por isso. E a excecao declarada a "um
+     * resultado novo substitui o anterior por inteiro", e ela e por aluno: a folha de outro aluno
+     * comeca outro caderno. [resume] nao o limpa: voltar a procurar nao muda de quem e a folha.
      */
-    private var ultimaParcial: Pair<String, PartialScoringOutcome>? = null
+    private var caderno: Caderno? = null
 
     private fun resultOf(reading: InterpretedReading): ScanState {
         val carregado = examPackage.meta.examId
