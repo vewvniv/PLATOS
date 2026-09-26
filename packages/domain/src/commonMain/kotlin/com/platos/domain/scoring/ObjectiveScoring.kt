@@ -4,6 +4,7 @@ import com.platos.domain.capture.CapturePayload
 import com.platos.domain.capture.QuestionAnswer
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.exam.PackageVariant
+import com.platos.domain.exam.QuestionKind
 
 /** Por que uma questao ficou pendente de revisao humana. */
 enum class PendingReason {
@@ -170,7 +171,10 @@ object ObjectiveScoring {
             ?: return ScoringOutcome.Rejected(variantRejection(examPackage, payload))
 
         val declared = variant.positions.values.toSet()
-        return when (val julgamento = julgar(examPackage, variant.variantId, declared, answers)) {
+        val julgamento = julgar(examPackage, declared, answers) { lidos ->
+            divergence("itens lidos divergem da variante", variant.variantId, declared, lidos, "nao declarados")
+        }
+        return when (julgamento) {
             is Julgamento.Recusado -> ScoringOutcome.Rejected(julgamento.reason)
             is Julgamento.Feito -> ScoringOutcome.Scored(
                 ObjectiveScore(
@@ -178,6 +182,83 @@ object ObjectiveScoring {
                     variantId = variant.variantId,
                     points = julgamento.points,
                     maxScore = examPackage.scoring.maxScore,
+                    pending = julgamento.pending,
+                    outcomes = julgamento.outcomes,
+                ),
+            )
+        }
+    }
+
+    /**
+     * A parte objetiva de uma prova com discursiva, apurada como parcial
+     * (`slice-5b-2-a-nota-objetiva-parcial`, decisoes 2 e 3).
+     *
+     * **As mesmas regras de [score], restritas aos itens objetivos da variante:** a variante sai do
+     * payload, o gabarito vem do pacote, e o julgamento de cada resposta e o mesmo, porque e a mesma
+     * funcao. Quais itens sao objetivos, o pacote ja diz em `PackageItem.kind`, e nada aqui cria um
+     * segundo registro disso. As discursivas saem como aguardando correcao, com a soma da rubrica de
+     * cada uma.
+     *
+     * **Recusa a prova corrigivel so no aparelho.** Para ela, [score] ja da a nota, e uma parcial
+     * seria um segundo caminho de nota para a mesma prova. E o que impede a sessao de uma prova so
+     * objetiva de mostrar, por engano, "parcial" de uma nota que e final.
+     *
+     * O resultado nunca e a nota: e [PartialScore], que nao tem `closed` e que nenhum consumidor de
+     * [ObjectiveScore] aceita.
+     */
+    fun scorePartial(
+        examPackage: ExamPackage,
+        payload: CapturePayload,
+        answers: List<QuestionAnswer>,
+    ): PartialScoringOutcome {
+        if (examPackage.meta.fullyOfflineGradable) {
+            return PartialScoringOutcome.Rejected(
+                "a prova '${examPackage.meta.examId}' e corrigivel so no aparelho e tem nota completa; " +
+                    "a apuracao parcial e so de prova com discursiva",
+            )
+        }
+
+        val variant = resolveVariant(examPackage, payload)
+            ?: return PartialScoringOutcome.Rejected(variantRejection(examPackage, payload))
+
+        val itens = examPackage.items.associateBy { it.id }
+        val objetivos = mutableSetOf<String>()
+        val aguardando = mutableListOf<AwaitingEssay>()
+        for (itemId in variant.positions.values) {
+            val item = itens[itemId] ?: return PartialScoringOutcome.Rejected(
+                "item '$itemId' da variante '${variant.variantId}' nao existe no pacote",
+            )
+            when (item.kind) {
+                QuestionKind.OBJECTIVE -> objetivos += itemId
+                QuestionKind.ESSAY -> {
+                    val rubrica = item.rubric ?: return PartialScoringOutcome.Rejected(
+                        "discursiva '$itemId' nao tem rubrica no pacote, e nao ha quanto ela vale",
+                    )
+                    aguardando += AwaitingEssay(itemId, rubrica.criteria.sumOf { it.points })                }
+            }
+        }
+
+        val julgamento = julgar(examPackage, objetivos, answers) { lidos ->
+            divergence(
+                "itens objetivos lidos divergem da variante",
+                variant.variantId,
+                objetivos,
+                lidos,
+                "nao objetivos na variante",
+            )
+        }
+        return when (julgamento) {
+            is Julgamento.Recusado -> PartialScoringOutcome.Rejected(julgamento.reason)
+            is Julgamento.Feito -> PartialScoringOutcome.Scored(
+                PartialScore(
+                    packageHash = examPackage.contentHash(),
+                    variantId = variant.variantId,
+                    objectivePoints = julgamento.points,
+                    // O julgamento ja recusou item objetivo sem entrada no gabarito, entao a soma
+                    // cobre todos eles.
+                    objectiveMaxScore = examPackage.answerKey.filter { it.itemId in objetivos }.sumOf { it.points },
+                    maxScore = examPackage.scoring.maxScore,
+                    awaiting = aguardando,
                     pending = julgamento.pending,
                     outcomes = julgamento.outcomes,
                 ),
@@ -198,7 +279,7 @@ object ObjectiveScoring {
 
     /**
      * Julga cada resposta contra o gabarito, depois de conferir que as respostas sao exatamente o
-     * conjunto [declared].
+     * conjunto [declared]. Quando nao sao, [divergencia] recebe os itens lidos e da a frase.
      *
      * **Um so julgamento para toda apuracao** (`slice-5b-2-a-nota-objetiva-parcial`, decisao 2): quem
      * chama diz qual conjunto de itens a folha tem de ter, e nada mais muda. Um segundo laco seria uma
@@ -206,9 +287,9 @@ object ObjectiveScoring {
      */
     private fun julgar(
         examPackage: ExamPackage,
-        variantId: String,
         declared: Set<String>,
         answers: List<QuestionAnswer>,
+        divergencia: (lidos: Set<String>) -> String,
     ): Julgamento {
         // Repeticao antes de conjunto: `Set` nao ve resposta duplicada, e o conjunto continuaria
         // batendo com a variante enquanto o laco somaria o item duas vezes. A nota passaria de
@@ -222,7 +303,7 @@ object ObjectiveScoring {
 
         val read = answers.map { it.questionId }.toSet()
         if (read != declared) {
-            return Julgamento.Recusado(divergence(variantId, declared, read))
+            return Julgamento.Recusado(divergencia(read))
         }
 
         val key = examPackage.answerKey.associateBy { it.itemId }
@@ -302,11 +383,17 @@ object ObjectiveScoring {
         }
     }
 
-    private fun divergence(variantId: String, declared: Set<String>, read: Set<String>): String {
+    private fun divergence(
+        oQue: String,
+        variantId: String,
+        declared: Set<String>,
+        read: Set<String>,
+        rotuloSobrando: String,
+    ): String {
         val faltando = (declared - read).sorted()
         val sobrando = (read - declared).sorted()
-        return "itens lidos divergem da variante '$variantId'" +
+        return "$oQue '$variantId'" +
             (if (faltando.isNotEmpty()) "; faltando: ${faltando.joinToString(", ")}" else "") +
-            (if (sobrando.isNotEmpty()) "; nao declarados: ${sobrando.joinToString(", ")}" else "")
+            (if (sobrando.isNotEmpty()) "; $rotuloSobrando: ${sobrando.joinToString(", ")}" else "")
     }
 }
