@@ -74,6 +74,7 @@ class ScanActivity : ComponentActivity() {
     private lateinit var map: LayoutMap
     private lateinit var session: ScanSession
     private lateinit var pendentes: ResultadosPendentes
+    private lateinit var cadernos: CadernosGuardados
     // **Nao nulaveis, e a ausencia do `?` e o requisito.** Eram `String?`, e `gravar` tinha um
     // `?: return` para cada: folha medida, nota desenhada na tela, nada gravado, nada agendado, sem
     // mensagem (achado 3.3). Quem decide que ha tudo o que precisa e [decidirAbertura], antes de a
@@ -128,7 +129,13 @@ class ScanActivity : ComponentActivity() {
         // folha poria disco no caminho da camera sem nada a ganhar.
         roster = RostersEmArquivo(File(filesDir, "rosters")).ler(organizacao, shortId)
         map = examPackage.layout.values.single()
-        session = ScanSession(examPackage)
+        // O caderno em andamento, guardado antes do fechamento anterior do aplicativo (se houver).
+        // Lido antes do primeiro quadro, e nao a cada quadro (design, decisao 1).
+        cadernos = CadernosEmRoom(CadernosEmRoom.abrir(applicationContext).cadernos())
+        session = ScanSession(
+            examPackage,
+            cadernoInicial = cadernos.ler(organizacao, examPackage.meta.examId),
+        )
         // A fila do outbox. Aberta aqui e nao no `Application` porque e aqui que ela e usada, e a
         // organizacao e a prova ja estao resolvidas neste ponto.
         pendentes = ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes())
@@ -158,6 +165,23 @@ class ScanActivity : ComponentActivity() {
         } else {
             // A permissao e pedida antes de o preview abrir, e nao depois de ele falhar.
             pedidoDePermissao.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    /**
+     * Guarda o caderno em andamento, e nao a cada quadro (design, decisao 1): `onStop` e o que o
+     * Android garante antes de a `Activity` poder ser encerrada em segundo plano, e e exatamente o
+     * caminho de "trocar de app" e "a tela apaga" que a proposta descreve.
+     *
+     * **`isInitialized` pela mesma razao de `onDestroy`**: a recusa por falta de pacote retorna
+     * antes de `session` e `cadernos` existirem.
+     */
+    override fun onStop() {
+        super.onStop()
+        if (::session.isInitialized) {
+            session.cadernoAtual?.let { caderno ->
+                lifecycleScope.guardarCadernoEmAndamento(cadernos, organizacao, examPackage.meta.examId, caderno)
+            }
         }
     }
 

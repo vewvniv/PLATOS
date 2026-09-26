@@ -4,17 +4,22 @@ import com.platos.domain.exam.PackageVariant
 import com.platos.domain.layout.LayoutEngine
 import com.platos.domain.layout.LayoutMap
 import com.platos.domain.scoring.PartialScoringOutcome
+import kotlinx.serialization.Serializable
 
 /** O estado de uma regiao no caderno do aluno (§8). */
+@Serializable
 sealed interface EstadoDaRegiao {
 
     /** Lida, no gabarito, ou reconhecida, na discursiva, em algum quadro deste aluno. */
+    @Serializable
     data object Capturada : EstadoDaRegiao
 
     /** Presente num quadro e nao lida, com o motivo, e ainda nao capturada. */
+    @Serializable
     data class ComProblema(val motivo: String) : EstadoDaRegiao
 
     /** Ainda nao apareceu inteira em nenhum quadro deste aluno. */
+    @Serializable
     data object NaoVista : EstadoDaRegiao
 }
 
@@ -28,6 +33,7 @@ sealed interface EstadoDaRegiao {
  * `ProvaComDiscursivaNaSessaoTest`, e e ele que cai quando a paginacao (ADR-0019) passar a declarar o
  * numero no mapa.
  */
+@Serializable
 data class RegiaoDoCaderno(
     val regionIndex: Int,
     /** Se esta e a regiao de gabarito: a que o mapa declara e nao e discursiva. */
@@ -47,6 +53,7 @@ data class RegiaoDoCaderno(
  * lido. A parcial continua seguindo a regra — a ultima apuracao do gabarito substitui a anterior por
  * inteiro. A folha de outro aluno comeca outro caderno.
  */
+@Serializable
 data class Caderno(
     /** O token do aluno, pelo QR: vazio na folha avulsa. */
     val aluno: String,

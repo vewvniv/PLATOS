@@ -26,8 +26,12 @@ import com.platos.domain.scoring.ScoringOutcome
  * apurada contra este gabarito e produziria nota plausivel e errada. `ObjectiveScoring` ja recusa
  * por conjunto de itens divergente, mas a recusa por identificador e anterior e diz a coisa certa
  * a quem segura o aparelho.
+ *
+ * [cadernoInicial] retoma o caderno em andamento guardado antes do fechamento do aplicativo
+ * (`slice-5b-3-guardar-a-parcial-e-o-caderno`). A sessao nasce com ele exatamente como estaria se
+ * nenhum quadro tivesse sido perdido — nao um caderno "revisitado" por um quadro novo.
  */
-class ScanSession(private val examPackage: ExamPackage) {
+class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno? = null) {
 
     var state: ScanState = ScanState.NoPermission
         private set
@@ -54,8 +58,18 @@ class ScanSession(private val examPackage: ExamPackage) {
      */
     private val comDiscursiva: Boolean = !examPackage.meta.fullyOfflineGradable
 
+    /**
+     * `granted` respeita [holdsResult] (`slice-5b-3-guardar-a-parcial-e-o-caderno`): sem isto, o
+     * caderno retomado por [cadernoInicial] seria apagado no mesmo `onCreate` que o concede, antes
+     * de qualquer quadro novo. Negada continua incondicional — sem camera, so a tela de permissao
+     * faz sentido, held ou nao.
+     */
     fun onPermission(granted: Boolean) {
-        state = if (granted) ScanState.Searching else ScanState.NoPermission
+        state = when {
+            !granted -> ScanState.NoPermission
+            holdsResult -> state
+            else -> ScanState.Searching
+        }
     }
 
     /**
@@ -244,6 +258,32 @@ class ScanSession(private val examPackage: ExamPackage) {
      * comeca outro caderno. [resume] nao o limpa: voltar a procurar nao muda de quem e a folha.
      */
     private var caderno: Caderno? = null
+
+    /**
+     * O caderno em andamento, para quem guarda o estado ao sair de primeiro plano
+     * (`slice-5b-3-guardar-a-parcial-e-o-caderno`, design decisao 1). Nulo antes do primeiro quadro
+     * reconhecido, ou numa prova so objetiva.
+     */
+    val cadernoAtual: Caderno? get() = caderno
+
+    init {
+        // So retoma numa prova com discursiva: o caderno e conceito dela, e um cadernoInicial
+        // recebido para uma prova so objetiva seria dado de outra prova, ou obsoleto.
+        if (comDiscursiva && cadernoInicial != null) {
+            caderno = cadernoInicial
+            // Nenhum quadro foi analisado ainda nesta instancia: os campos "deste quadro" comecam
+            // vazios, e o caderno guardado e quem carrega o que ja foi visto (ScanScreen so desenha
+            // aluno, parcial e caderno; gabarito/discursivas/discursivasNaoLidas nao aparecem na
+            // tela).
+            state = ScanState.ProvaComDiscursiva(
+                aluno = cadernoInicial.aluno,
+                gabarito = null,
+                discursivas = emptyList(),
+                discursivasNaoLidas = emptyList(),
+                caderno = cadernoInicial,
+            )
+        }
+    }
 
     private fun resultOf(reading: InterpretedReading): ScanState {
         val carregado = examPackage.meta.examId

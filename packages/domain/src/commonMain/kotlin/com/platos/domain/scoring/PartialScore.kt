@@ -1,11 +1,14 @@
 package com.platos.domain.scoring
 
+import kotlinx.serialization.Serializable
+
 /**
  * Uma questao discursiva que aguarda correcao, com o que ela vale.
  *
  * [points] e a soma dos criterios da rubrica dela, que e onde o pacote declara quanto a discursiva
  * vale: o gabarito so cobre as objetivas.
  */
+@Serializable
 data class AwaitingEssay(
     val questionId: String,
     val points: Int,
@@ -23,6 +26,7 @@ data class AwaitingEssay(
  * **Nao tem `closed`, em nenhuma hipotese.** A parte discursiva ainda nao foi corrigida, e a nota da
  * prova nao e esta (D4): o offline so e definitivo sem discursiva.
  */
+@Serializable
 data class PartialScore(
     val packageHash: String,
     val variantId: String,
@@ -90,10 +94,13 @@ data class PartialScore(
 }
 
 /** O que saiu de uma tentativa de apurar a parcial: ou a parcial, ou o motivo da recusa. */
+@Serializable
 sealed interface PartialScoringOutcome {
 
+    @Serializable
     data class Scored(val partial: PartialScore) : PartialScoringOutcome
 
     /** A folha nao pode ser apurada, e [reason] diz por que numa frase que serve para a tela. */
+    @Serializable
     data class Rejected(val reason: String) : PartialScoringOutcome
 }

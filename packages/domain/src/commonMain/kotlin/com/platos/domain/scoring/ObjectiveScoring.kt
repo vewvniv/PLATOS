@@ -5,8 +5,10 @@ import com.platos.domain.capture.QuestionAnswer
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.exam.PackageVariant
 import com.platos.domain.exam.QuestionKind
+import kotlinx.serialization.Serializable
 
 /** Por que uma questao ficou pendente de revisao humana. */
+@Serializable
 enum class PendingReason {
     /** Mais de uma bolha marcada. A folha nao diz o que o aluno quis. */
     MULTIPLA_MARCACAO,
@@ -22,6 +24,7 @@ enum class PendingReason {
  * pendencia seria uma lista de nomes, e nao daria para dizer se a nota apurada ja decide a
  * aprovacao do aluno ou se a revisao ainda pode virar tudo.
  */
+@Serializable
 data class PendingQuestion(
     val questionId: String,
     val reason: PendingReason,
@@ -43,6 +46,7 @@ data class PendingQuestion(
  * [answer] e a propria leitura, e nao uma traducao dela: um segundo vocabulario para dizer "marcou A"
  * seria uma copia que envelhece sozinha.
  */
+@Serializable
 data class QuestionOutcome(
     val questionId: String,
     /** O que a folha respondeu, na forma em que a leitura a entregou. */
