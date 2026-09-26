@@ -6,7 +6,6 @@ import com.platos.android.vision.FrameOutcome
 import com.platos.android.vision.SheetReader
 import com.platos.domain.capture.OmrThreshold
 import com.platos.domain.layout.LayoutMap
-import com.platos.domain.layout.ScannableRegion
 
 /**
  * A ponte entre o CameraX e o pipeline: converte o quadro, chama a analise, entrega o resultado.
@@ -25,7 +24,6 @@ import com.platos.domain.layout.ScannableRegion
  */
 class CameraFrameAnalyzer(
     private val map: LayoutMap,
-    private val region: ScannableRegion,
     private val threshold: OmrThreshold,
     private val deveAnalisar: () -> Boolean,
     private val entrega: (FrameOutcome) -> Unit,
@@ -37,10 +35,34 @@ class CameraFrameAnalyzer(
 
             val gray = FrameGray.of(it)
             try {
-                entrega(SheetReader.analyze(gray, map, region, threshold))
+                entrega(SheetReader.analyze(gray, map, threshold))
             } finally {
                 gray.release()
             }
         }
+    }
+
+    companion object {
+        /**
+         * O analisador **como a `ScanActivity` o monta**, e so por aqui.
+         *
+         * Existe para a montagem poder ser exercitada sem abrir a tela. Foi na montagem que o
+         * aplicativo caia diante de uma prova com discursiva: a `ScanActivity` escolhia a regiao com
+         * `map.regions.single()`, e a prova tem uma regiao por discursiva alem do gabarito
+         * (`slice-5b-1-o-aparelho-reconhece-a-discursiva`). A regiao agora sai de cada quadro, e o
+         * mapa entra inteiro; um teste chama esta funcao com o mapa da prova com discursiva.
+         *
+         * O limiar e o apurado na 3b (ADR-0011), e mora aqui porque e parte de como a sessao le.
+         */
+        fun daSessao(
+            map: LayoutMap,
+            deveAnalisar: () -> Boolean,
+            entrega: (FrameOutcome) -> Unit,
+        ): CameraFrameAnalyzer = CameraFrameAnalyzer(
+            map = map,
+            threshold = OmrThreshold.MEDIDO_NA_FATIA_3B,
+            deveAnalisar = deveAnalisar,
+            entrega = entrega,
+        )
     }
 }

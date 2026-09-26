@@ -1,5 +1,6 @@
 package com.platos.android.vision
 
+import com.platos.domain.capture.CapturePayload
 import com.platos.domain.capture.InterpretedReading
 
 /**
@@ -18,15 +19,27 @@ import com.platos.domain.capture.InterpretedReading
  * O que este tipo existe para impedir e a alternativa: classificar procurando "marcador" no texto
  * da recusa. Funciona hoje, e no dia em que a frase mudar a tela passa a mentir sem que teste
  * nenhum acuse. Ver `design.md`, decisao 3.
+ *
+ * **Desde a `slice-5b-1-o-aparelho-reconhece-a-discursiva`, um quadro pode ter mais de uma regiao.**
+ * As quatro variantes de antes continuam falando **do gabarito**, com o mesmo sentido, e passam a
+ * carregar tambem o que aconteceu com cada regiao discursiva presente no quadro ([discursivas],
+ * vazia na prova so objetiva). [SoDiscursivas] e o quadro que tem regiao discursiva e nao tem o
+ * gabarito — a pagina de uma prova com discursiva que so tem molduras.
  */
 sealed interface FrameOutcome {
 
+    /** As regioes discursivas que estavam inteiras no quadro, cada uma com o que aconteceu com ela. */
+    val discursivas: List<RegiaoDiscursivaNoQuadro>
+
     /**
-     * Os marcadores nao foram achados. Nao ha folha no quadro, ou ela nao esta visivel inteira.
+     * Nenhuma regiao do mapa tem todos os seus marcadores no quadro. Nao ha folha, ou ela nao esta
+     * visivel inteira.
      *
      * E o estado normal de quem ainda esta enquadrando, e nao uma falha a ser mostrada.
      */
-    data class NoSheet(val reason: String) : FrameOutcome
+    data class NoSheet(val reason: String) : FrameOutcome {
+        override val discursivas: List<RegiaoDiscursivaNoQuadro> get() = emptyList()
+    }
 
     /**
      * A folha foi achada e o pipeline parou depois disso: QR ilegivel, medicao recusada.
@@ -34,7 +47,10 @@ sealed interface FrameOutcome {
      * Transitorio de proposito — o quadro seguinte pode fechar, com a mesma folha na frente. Quem
      * chama continua analisando.
      */
-    data class NotRead(val reason: String) : FrameOutcome
+    data class NotRead(
+        val reason: String,
+        override val discursivas: List<RegiaoDiscursivaNoQuadro> = emptyList(),
+    ) : FrameOutcome
 
     /**
      * A folha foi lida e a interpretacao a recusou: corredor que exclui o limiar (ADR-0010),
@@ -44,8 +60,48 @@ sealed interface FrameOutcome {
      * folha-leitor e nao sobre o quadro. Insistir com a camera nao resolve, e a tela precisa dizer
      * isso em vez de deixar a pessoa tentando.
      */
-    data class Unreadable(val reason: String) : FrameOutcome
+    data class Unreadable(
+        val reason: String,
+        override val discursivas: List<RegiaoDiscursivaNoQuadro> = emptyList(),
+    ) : FrameOutcome
 
     /** A folha fechou: identidade, medicao e interpretacao. */
-    data class Read(val reading: InterpretedReading) : FrameOutcome
+    data class Read(
+        val reading: InterpretedReading,
+        override val discursivas: List<RegiaoDiscursivaNoQuadro> = emptyList(),
+    ) : FrameOutcome
+
+    /** O quadro tem regiao discursiva inteira e nao tem o gabarito. Nunca vazio. */
+    data class SoDiscursivas(
+        override val discursivas: List<RegiaoDiscursivaNoQuadro>,
+    ) : FrameOutcome {
+        init {
+            require(discursivas.isNotEmpty()) { "quadro so de discursivas sem discursiva nenhuma" }
+        }
+    }
+}
+
+/**
+ * Uma regiao discursiva que estava inteira no quadro (§8).
+ *
+ * **Reconhecida, e nao medida:** ela nao declara bolha. O que se sabe dela e de qual folha e de qual
+ * questao ela e — pelo QR, conferido contra os marcadores, e pela questao que o mapa declara.
+ */
+sealed interface RegiaoDiscursivaNoQuadro {
+    val regionIndex: Int
+    val questionId: String
+
+    /** Retificada e com o QR lido e conferido contra os marcadores encontrados. */
+    data class Reconhecida(
+        override val regionIndex: Int,
+        override val questionId: String,
+        val payload: CapturePayload,
+    ) : RegiaoDiscursivaNoQuadro
+
+    /** Os marcadores dela estavam la, e o pipeline parou depois: geometria, QR, divergencia. */
+    data class NaoLida(
+        override val regionIndex: Int,
+        override val questionId: String,
+        val reason: String,
+    ) : RegiaoDiscursivaNoQuadro
 }

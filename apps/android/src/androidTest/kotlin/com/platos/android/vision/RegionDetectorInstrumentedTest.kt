@@ -176,7 +176,7 @@ class RegionDetectorInstrumentedTest {
         val centros = RegionDetector.markerCentersFor(capture(PROVA), map, region)
         assertTrue("nao achei os marcadores", centros != null)
 
-        val outcome = RegionQrReader.read(resultado.qrCanvas, region.markerIds)
+        val outcome = RegionQrReader.read(resultado.qrCanvas, region.markerIds, map)
         val lido = outcome as? QrOutcome.Read
             ?: throw AssertionError("esperava payload, veio $outcome")
 
@@ -193,7 +193,7 @@ class RegionDetectorInstrumentedTest {
         // regiao 0 usa os marcadores 0..3; fingir que a captura trouxe 4..7 tem de reprovar, e e
         // exatamente o caso da folha de outra regiao na pilha.
         val resultado = rectified(PROVA)
-        val outcome = RegionQrReader.read(resultado.qrCanvas, listOf(4, 5, 6, 7))
+        val outcome = RegionQrReader.read(resultado.qrCanvas, listOf(4, 5, 6, 7), map)
 
         val falha = outcome as? QrOutcome.Failed
             ?: throw AssertionError("esperava recusa, veio $outcome")
@@ -213,6 +213,7 @@ class RegionDetectorInstrumentedTest {
         val outcome = RegionQrReader.read(
             com.platos.android.omr.RectifiedRegion(original.width, original.height, apagado),
             region.markerIds,
+            map,
         )
         assertTrue("esperava recusa, veio $outcome", outcome is QrOutcome.Failed)
     }
