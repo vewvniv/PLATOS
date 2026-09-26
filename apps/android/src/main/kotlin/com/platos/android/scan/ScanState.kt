@@ -3,6 +3,7 @@ package com.platos.android.scan
 import com.platos.domain.capture.CapturePayload
 import com.platos.domain.capture.InterpretedReading
 import com.platos.domain.scoring.ObjectiveScore
+import com.platos.domain.scoring.PartialScoringOutcome
 
 /**
  * O que a tela desenha. Cinco estados, e nenhum deles e ausencia de estado.
@@ -42,13 +43,17 @@ sealed interface ScanState {
      * uma pendencia precisa do numero que a produziu, e nao da palavra "indecisa".
      */
     /**
-     * Folha de uma prova com discursiva: reconhecida, e nao apurada
-     * (`slice-5b-1-o-aparelho-reconhece-a-discursiva`).
+     * Folha de uma prova com discursiva: reconhecida, com a **parcial objetiva**, e nao gravada
+     * (`slice-5b-2-a-nota-objetiva-parcial`).
      *
-     * A correcao de prova com discursiva ainda nao existe no aparelho, e este estado diz isso em vez
-     * de o aplicativo cair, que era o que acontecia antes. Ele diz de quem e a folha e o que foi
-     * reconhecido nela, e **nao tem nota**: nem parcial, porque uma nota objetiva de prova com parte
-     * discursiva nao e a nota da prova (§10, D4). Nada e gravado a partir dele.
+     * Diz de quem e a folha, o que foi reconhecido nela e, quando o gabarito desse aluno ja foi lido,
+     * a parte objetiva apurada como parcial. A parcial **nao e a nota**: a parte discursiva ainda nao
+     * foi corrigida, e o offline so e definitivo sem discursiva (§10, D4). Nada e gravado a partir
+     * deste estado.
+     *
+     * *Na `slice-5b-1-o-aparelho-reconhece-a-discursiva`, este estado se chamava
+     * `DiscursivaNaoCorrigivel` e nao tinha nota, "nem parcial". A decisao 1a do mantenedor, de
+     * 2026-09-26, e mostrar a parcial.*
      */
     data class ProvaComDiscursiva(
         /** O token do aluno, pelo QR: vazio na folha avulsa. */
@@ -59,11 +64,16 @@ sealed interface ScanState {
         val discursivas: List<String>,
         /** As regioes discursivas presentes e nao lidas, cada uma com o motivo. */
         val discursivasNaoLidas: List<String>,
+        /**
+         * A ultima apuracao parcial do gabarito **deste aluno**: a parcial, ou o motivo da recusa.
+         * Nula enquanto o gabarito dele nao foi lido em nenhum quadro.
+         */
+        val parcial: PartialScoringOutcome?,
     ) : ScanState {
         companion object {
             const val AVISO =
-                "A correcao de prova com discursiva ainda nao esta disponivel neste aparelho. " +
-                    "Nada foi guardado."
+                "A nota nao e definitiva: a correcao das discursivas ainda nao esta disponivel neste " +
+                    "aparelho. Nada foi guardado."
         }
     }
 

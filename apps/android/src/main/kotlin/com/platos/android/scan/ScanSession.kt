@@ -7,6 +7,7 @@ import com.platos.domain.capture.InterpretedReading
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.ObjectiveScoring
+import com.platos.domain.scoring.PartialScoringOutcome
 import com.platos.domain.scoring.ScoringOutcome
 
 /**
@@ -96,7 +97,8 @@ class ScanSession(private val examPackage: ExamPackage) {
     fun onFrame(outcome: FrameOutcome): ApuracaoNova? {
         if (state is ScanState.NoPermission) return null
         if (comDiscursiva) {
-            // Reconhece e explica, e nunca apura: nada desta prova vira resultado neste aparelho.
+            // Reconhece e mostra a parcial, e nunca entrega apuracao: nada desta prova vira resultado
+            // neste aparelho. A parcial e `PartialScore`, e `ApuracaoNova` nem a aceitaria.
             state = estadoDaDiscursiva(outcome)
             return null
         }
@@ -161,9 +163,19 @@ class ScanSession(private val examPackage: ExamPackage) {
         if (alunos.size > 1) {
             return ScanState.Rejected("o quadro tem regioes de folhas diferentes: ${alunos.joinToString()}")
         }
+        val aluno = alunos.single()
+
+        // A parcial vem do dominio, e so do gabarito lido. Sem ele no quadro, vale a ultima do mesmo
+        // aluno; a folha de outro aluno nao herda nada (decisao 6).
+        val parcial = if (outcome is FrameOutcome.Read) {
+            ObjectiveScoring.scorePartial(examPackage, outcome.reading.payload, outcome.reading.answers)
+        } else {
+            ultimaParcial?.takeIf { it.first == aluno }?.second
+        }
+        ultimaParcial = parcial?.let { aluno to it }
 
         return ScanState.ProvaComDiscursiva(
-            aluno = alunos.single(),
+            aluno = aluno,
             gabarito = when (outcome) {
                 is FrameOutcome.Read -> "lido"
                 is FrameOutcome.NotRead -> "nao lido: ${outcome.reason}"
@@ -172,8 +184,19 @@ class ScanSession(private val examPackage: ExamPackage) {
             },
             discursivas = reconhecidas.map { it.questionId },
             discursivasNaoLidas = naoLidas.map { "${it.questionId}: ${it.reason}" },
+            parcial = parcial,
         )
     }
+
+    /**
+     * A ultima apuracao parcial, com o aluno de quem ela e.
+     *
+     * **Memoria entre quadros, e de proposito**: a outra pagina do mesmo aluno nao traz o gabarito, e
+     * a parcial dele nao pode sumir por isso. E a unica excecao a "um resultado novo substitui o
+     * anterior por inteiro", e ela e por aluno: a folha de outro aluno a descarta. A parcial em si
+     * segue a regra — a ultima apuracao do gabarito substitui a anterior por inteiro.
+     */
+    private var ultimaParcial: Pair<String, PartialScoringOutcome>? = null
 
     private fun resultOf(reading: InterpretedReading): ScanState {
         val carregado = examPackage.meta.examId
