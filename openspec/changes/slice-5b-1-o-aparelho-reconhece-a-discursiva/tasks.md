@@ -189,7 +189,7 @@
   - as fotos, com `sha256` e EXIF *(movido em 2026-09-26 para a sessão única de papel; aqui, a
     cobertura diz que nenhuma foto foi lida)*;
   - a seção "o que ainda não foi verificado".
-- [ ] 5.4 PR contra `main`, e o CI **lido no destino** (P2, P26).
+- [x] 5.4 PR contra `main`, e o CI **lido no destino** (P2, P26).
 - [x] 5.5 Preparar a reconciliação do archive (P27):
   - a linha `5b` do §16 **paga**, com a evidência (a queda consertada, o motivo certo, as fotos lidas
     e, se houve, a 4.3). O token ganha `paga`, e a prosa da linha fica (P7);

@@ -342,6 +342,17 @@ não achou nada (`rc=1`). As seis mutações desta mudança foram revertidas e r
 As diferenças para a 0.1 são as do ponto de controle: +8 no Android, desta mudança; +18 no domínio e
 +2 no web, que vieram da 5b-0 pelo merge. Os passos de paridade e fidelidade ficam com o CI da PR.
 
+**5.4 — o CI lido no destino.** A PR é a #72. O run `36233666853` rodou sobre `headSha` `25f27f9`,
+igual ao `HEAD` local na hora da leitura. Os três jobs deram `success`:
+- `build` (4m27s): o teste do `buildSrc`, o build com os testes, e o alvo Android do domínio;
+- `web` (41s): o build e as fidelidades, a da prova com discursiva incluída, e a guarda de dívida com
+  a verificação de que ela continua capaz de falhar;
+- `paridade` (5m14s): "Renderizador e captura no emulador". O passo roda
+  `./gradlew :apps:android:connectedDebugAndroidTest` **sem filtro**, num `aosp_atd` API 34
+  (`ci.yml:477-488`), seguido da paridade e da fidelidade da prova com discursiva.
+
+A PR #71, o archive da 5b-0, também saiu verde nos três jobs (run `36233663491`).
+
 ## O que ainda não foi verificado
 
 - **Atualizado em 2026-09-26:** o papel foi movido para a sessão única antes da 6, e a linha `5b` é
