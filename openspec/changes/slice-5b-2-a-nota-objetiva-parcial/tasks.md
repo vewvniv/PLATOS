@@ -14,26 +14,26 @@
 
 ## 1. A parcial no domínio (`scoring`)
 
-- [ ] 1.1 Extrair o julgamento por questão de `ObjectiveScoring.score` para uma função privada, sem
+- [x] 1.1 Extrair o julgamento por questão de `ObjectiveScoring.score` para uma função privada, sem
   mudar comportamento (decisão 2), num commit só de refatoração (P25). Verificação: os testes de
   `scoring` passam nos três alvos (`jvmTest`, `jsNodeTest` e `testAndroidHostTest`), sem nenhuma
   asserção alterada, e com a mesma contagem da 0.1.
-- [ ] 1.2 Commit de contrato: o tipo da parcial, com as guardas de construção (decisão 1), incluída a
+- [x] 1.2 Commit de contrato: o tipo da parcial, com as guardas de construção (decisão 1), incluída a
   nova, que exige o máximo objetivo somado às discursivas igual ao máximo da prova. Ele entra antes
   de qualquer consumidor. Verificação: testes do tipo na JVM, um por guarda, cada um construído para
   violar **só** aquela guarda e conferindo o **motivo** na mensagem.
-- [ ] 1.3 `ObjectiveScoring.scorePartial` (decisões 2 e 3). Verificação: um teste de domínio por
+- [x] 1.3 `ObjectiveScoring.scorePartial` (decisões 2 e 3). Verificação: um teste de domínio por
   cenário da ADDED de `scoring`, sobre a fixture `prova-discursiva.package.json`, com o oráculo
   **fixado** no teste (P4): 4 objetivas de 1 ponto, discursivas somando 7 e máximo 11. O cenário "A
   parcial não substitui a nota" é a 1.5. O cenário "A apuração completa de prova com discursiva
   continua recusada" é o teste da 8.1 da 5a, que passa sem mudar.
-- [ ] 1.4 **Ver falhar** a guarda nova (M-guarda, decisão 7). A mutação desliga a guarda do máximo.
+- [x] 1.4 **Ver falhar** a guarda nova (M-guarda, decisão 7). A mutação desliga a guarda do máximo.
   - **Previsto:** cai só o teste da guarda do máximo. O pacote dele tem rubrica que não fecha e passa
     em todas as outras conferências.
   - **Real:** anotado ao lado do previsto.
 
   Reverter, `grep MUTACAO` e rodar de novo.
-- [ ] 1.5 **Ver falhar** a proteção de tipo (M-tipo, decisão 7), fora da árvore. Um arquivo temporário
+- [x] 1.5 **Ver falhar** a proteção de tipo (M-tipo, decisão 7), fora da árvore. Um arquivo temporário
   tenta montar um `ResultadoPendente` com a parcial.
   - **Sem mutação:** anotar o erro do compilador.
   - **Com `scorePartial` devolvendo `ObjectiveScore`:** o mesmo arquivo compila.
