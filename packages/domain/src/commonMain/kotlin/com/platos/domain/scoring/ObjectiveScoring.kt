@@ -169,20 +169,60 @@ object ObjectiveScoring {
         val variant = resolveVariant(examPackage, payload)
             ?: return ScoringOutcome.Rejected(variantRejection(examPackage, payload))
 
+        val declared = variant.positions.values.toSet()
+        return when (val julgamento = julgar(examPackage, variant.variantId, declared, answers)) {
+            is Julgamento.Recusado -> ScoringOutcome.Rejected(julgamento.reason)
+            is Julgamento.Feito -> ScoringOutcome.Scored(
+                ObjectiveScore(
+                    packageHash = examPackage.contentHash(),
+                    variantId = variant.variantId,
+                    points = julgamento.points,
+                    maxScore = examPackage.scoring.maxScore,
+                    pending = julgamento.pending,
+                    outcomes = julgamento.outcomes,
+                ),
+            )
+        }
+    }
+
+    /** O que saiu de julgar as respostas contra o gabarito: os tres numeros, ou o motivo da recusa. */
+    private sealed interface Julgamento {
+        data class Feito(
+            val points: Int,
+            val pending: List<PendingQuestion>,
+            val outcomes: List<QuestionOutcome>,
+        ) : Julgamento
+
+        data class Recusado(val reason: String) : Julgamento
+    }
+
+    /**
+     * Julga cada resposta contra o gabarito, depois de conferir que as respostas sao exatamente o
+     * conjunto [declared].
+     *
+     * **Um so julgamento para toda apuracao** (`slice-5b-2-a-nota-objetiva-parcial`, decisao 2): quem
+     * chama diz qual conjunto de itens a folha tem de ter, e nada mais muda. Um segundo laco seria uma
+     * segunda regra de "em branco e erro, ambigua e pendencia", e as duas divergiriam em silencio.
+     */
+    private fun julgar(
+        examPackage: ExamPackage,
+        variantId: String,
+        declared: Set<String>,
+        answers: List<QuestionAnswer>,
+    ): Julgamento {
         // Repeticao antes de conjunto: `Set` nao ve resposta duplicada, e o conjunto continuaria
         // batendo com a variante enquanto o laco somaria o item duas vezes. A nota passaria de
         // `max_score` sem nada acusar.
         val repetidos = answers.groupingBy { it.questionId }.eachCount().filterValues { it > 1 }.keys
         if (repetidos.isNotEmpty()) {
-            return ScoringOutcome.Rejected(
+            return Julgamento.Recusado(
                 "item com resposta repetida: " + repetidos.sorted().joinToString(", "),
             )
         }
 
-        val declared = variant.positions.values.toSet()
         val read = answers.map { it.questionId }.toSet()
         if (read != declared) {
-            return ScoringOutcome.Rejected(divergence(variant.variantId, declared, read))
+            return Julgamento.Recusado(divergence(variantId, declared, read))
         }
 
         val key = examPackage.answerKey.associateBy { it.itemId }
@@ -192,7 +232,7 @@ object ObjectiveScoring {
 
         for (answer in answers) {
             val entry = key[answer.questionId]
-                ?: return ScoringOutcome.Rejected(
+                ?: return Julgamento.Recusado(
                     "item '${answer.questionId}' nao tem entrada no gabarito do pacote",
                 )
 
@@ -235,16 +275,7 @@ object ObjectiveScoring {
             )
         }
 
-        return ScoringOutcome.Scored(
-            ObjectiveScore(
-                packageHash = examPackage.contentHash(),
-                variantId = variant.variantId,
-                points = points,
-                maxScore = examPackage.scoring.maxScore,
-                pending = pending,
-                outcomes = outcomes,
-            ),
-        )
+        return Julgamento.Feito(points, pending, outcomes)
     }
 
     /**
