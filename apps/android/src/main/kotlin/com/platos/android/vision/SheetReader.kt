@@ -49,7 +49,7 @@ object SheetReader {
         map: LayoutMap,
         region: ScannableRegion,
     ): OmrReading {
-        val qr = RegionQrReader.read(rectified.qrCanvas, rectified.detectedMarkerIds)
+        val qr = RegionQrReader.read(rectified.qrCanvas, rectified.detectedMarkerIds, map)
         val payload = when (qr) {
             is QrOutcome.Failed -> return OmrReading.Rejected(qr.reason)
             is QrOutcome.Read -> qr.payload
@@ -72,9 +72,10 @@ object SheetReader {
      * **A regiao sai do quadro, e nao de quem chama** (`slice-5b-1-o-aparelho-reconhece-a-discursiva`).
      * Ate aqui esta funcao recebia a regiao, e a `ScanActivity` a escolhia com `map.regions.single()`
      * — que derrubava o aplicativo diante de uma prova com discursiva, de tres regioes. Agora os
-     * marcadores sao detectados uma vez, e cada regiao cujos quatro marcadores aparecem e lida (§8:
-     * "detecta ArUcos → identifica regiao pelos IDs"). Regiao pela metade nao e lida, e nao e erro:
-     * um quadro de perto da pagina 0 pode pegar metade da moldura de uma discursiva, e o gabarito,
+     * marcadores sao detectados uma vez, e cada regiao cujos marcadores declarados aparecem todos e
+     * lida (§8: "detecta ArUcos → identifica regiao pelos IDs") — quatro no gabarito, dois na
+     * discursiva, desde a `slice-5b-0-a-regiao-discursiva-compacta`. Regiao pela metade nao e lida, e
+     * nao e erro: um quadro de perto da pagina 0 pode pegar metade da moldura de uma discursiva, e o gabarito,
      * inteiro no quadro, nao pode deixar de ser lido por causa dela.
      *
      * A decomposicao nao duplica nada: [read] e esta funcao chamam o mesmo [readFrom].
@@ -86,7 +87,7 @@ object SheetReader {
         val presentes = map.regions.filter { regiao -> regiao.markerIds.all { it in found } }
         if (presentes.isEmpty()) {
             return FrameOutcome.NoSheet(
-                "achei os marcadores ${found.keys.sorted()}, e nenhuma regiao do mapa tem os quatro " +
+                "achei os marcadores ${found.keys.sorted()}, e nenhuma regiao do mapa tem todos os " +
                     "dela: " + map.regions.joinToString { "regiao ${it.index} ${it.markerIds}" },
             )
         }
@@ -140,7 +141,7 @@ object SheetReader {
                 return RegiaoDiscursivaNoQuadro.NaoLida(regiao.index, questao, detection.reason)
             is DetectionOutcome.Rectified -> detection
         }
-        return when (val qr = RegionQrReader.read(rectified.qrCanvas, rectified.detectedMarkerIds)) {
+        return when (val qr = RegionQrReader.read(rectified.qrCanvas, rectified.detectedMarkerIds, map)) {
             is QrOutcome.Failed -> RegiaoDiscursivaNoQuadro.NaoLida(regiao.index, questao, qr.reason)
             is QrOutcome.Read -> RegiaoDiscursivaNoQuadro.Reconhecida(regiao.index, questao, qr.payload)
         }

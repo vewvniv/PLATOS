@@ -32,7 +32,7 @@ sealed interface FrameOutcome {
     val discursivas: List<RegiaoDiscursivaNoQuadro>
 
     /**
-     * Nenhuma regiao do mapa tem os quatro marcadores no quadro. Nao ha folha, ou ela nao esta
+     * Nenhuma regiao do mapa tem todos os seus marcadores no quadro. Nao ha folha, ou ela nao esta
      * visivel inteira.
      *
      * E o estado normal de quem ainda esta enquadrando, e nao uma falha a ser mostrada.
@@ -98,7 +98,7 @@ sealed interface RegiaoDiscursivaNoQuadro {
         val payload: CapturePayload,
     ) : RegiaoDiscursivaNoQuadro
 
-    /** Os quatro marcadores estavam la, e o pipeline parou depois: geometria, QR, divergencia. */
+    /** Os marcadores dela estavam la, e o pipeline parou depois: geometria, QR, divergencia. */
     data class NaoLida(
         override val regionIndex: Int,
         override val questionId: String,

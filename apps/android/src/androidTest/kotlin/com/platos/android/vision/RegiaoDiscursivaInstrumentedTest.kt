@@ -3,6 +3,7 @@ package com.platos.android.vision
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.platos.domain.capture.OmrThreshold
+import com.platos.domain.layout.DrawAruco
 import com.platos.domain.layout.DrawQr
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -16,7 +17,9 @@ import org.opencv.android.OpenCVLoader
  *
  * Os quadros são o documento da folha de `tok-a` da prova com discursiva, desenhado pelo
  * renderizador de produção e rasterizado ([FolhaDiscursivaRenderizada]). A página 0 traz o gabarito
- * (marcadores 0–3) e a região de `d1` (4–7); a página 1 traz só a região de `d2` (8–11).
+ * (marcadores 0–3) e a região de `d1` (4 e 7); a página 1 traz só a região de `d2` (8 e 11). A
+ * região discursiva tem dois marcadores, na diagonal, desde a
+ * `slice-5b-0-a-regiao-discursiva-compacta` (ADR-0018); até ela eram quatro, 4–7 e 8–11.
  */
 @RunWith(AndroidJUnit4::class)
 class RegiaoDiscursivaInstrumentedTest {
@@ -33,7 +36,8 @@ class RegiaoDiscursivaInstrumentedTest {
      * Tarefa 1.1: os marcadores esperados são os da região, e não os da página.
      *
      * Antes da mudança, `declaredMarkersOf` devolvia os 8 ArUcos da página 0, e `detect` recusava com
-     * "declara 8 ArUcos; esperados 4" — sem nunca chegar à homografia.
+     * "declara 8 ArUcos; esperados 4" — sem nunca chegar à homografia. Com a região discursiva de dois
+     * marcadores, a página 0 tem 6, e a recusa sem o filtro passa a ser "declara 6 ArUcos".
      */
     @Test
     fun o_gabarito_e_retificado_numa_pagina_que_tem_outra_regiao() {
@@ -88,8 +92,8 @@ class RegiaoDiscursivaInstrumentedTest {
     /**
      * Cenario "Regiao pela metade".
      *
-     * A pagina 0 cortada na altura do meio da regiao de `d1`: os marcadores de cima dela (4 e 5)
-     * ficam no quadro e os de baixo (6 e 7) saem. O gabarito, inteiro acima, continua lido.
+     * A pagina 0 cortada na altura do meio da regiao de `d1`: o marcador de cima dela (4) fica no
+     * quadro e o de baixo (7) sai. O gabarito, inteiro acima, continua lido.
      */
     @Test
     fun regiao_pela_metade_nao_e_lida_e_nao_derruba_o_gabarito() {
@@ -98,6 +102,13 @@ class RegiaoDiscursivaInstrumentedTest {
         // Guarda de vacuidade: o corte so prova algo se o gabarito inteiro ficar acima dele.
         val meioDeD1 = d1.quadY + d1.quadHeight / 2
         assertTrue("o gabarito nao esta acima de d1", gabarito.quadY + gabarito.quadHeight < d1.quadY)
+        // E so prova "metade" se um dos dois marcadores de d1 ficar inteiro dentro e o outro fora.
+        val (deCima, deBaixo) = d1.markerIds.map { id ->
+            prova.folha.pages.single { it.index == d1.page }.primitives
+                .filterIsInstance<DrawAruco>().single { it.markerId == id }
+        }.sortedBy { it.y }
+        assertTrue("o marcador de cima de d1 nao cabe no corte", deCima.y + deCima.side < meioDeD1)
+        assertTrue("o marcador de baixo de d1 nao sai no corte", deBaixo.y > meioDeD1)
 
         val pagina0 = prova.pagina(0)
         val cortePx = meioDeD1 / 100 // 10 px/mm = 100 um por pixel

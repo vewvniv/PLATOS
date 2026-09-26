@@ -13,7 +13,7 @@
 
 ## 1. A captura por região (`capture-omr`)
 
-- [ ] 1.1 `declaredMarkersOf` filtra pelos `marker_ids` da região (decisão 2). Verificação: um teste
+- [x] 1.1 `declaredMarkersOf` filtra pelos `marker_ids` da região (decisão 2). Verificação: um teste
   instrumentado retifica a região 0 da fixture discursiva, que divide a página 0 com a região de `d1`,
   e a lê. **Ver falhar:** sem o filtro, o teste cai com "declara 6 ArUcos; esperados 4". Reverter e
   rodar.
@@ -24,7 +24,11 @@
   marcadores, na diagonal: a página 0 da fixture atual declara **6** (gabarito, 4, mais `d1`, 2). O
   "ver falhar" muda de "declara 8" para "declara 6", e a tarefa precisa ser reexecutada contra a
   fixture nova antes de voltar a `[x]`.
-- [ ] 1.2 Os marcadores são detectados uma vez por quadro, e cada região com **todos** os seus
+
+  **Reexecutada em 2026-09-26**, sobre a `main` com a 5b-0 (merge `728f832`): vista falhar com
+  "declara 6 ArUcos; esperados 4", e a reversão rodada. Registro na cobertura, seção "1.1 a 1.3
+  reexecutadas".
+- [x] 1.2 Os marcadores são detectados uma vez por quadro, e cada região com **todos** os seus
   `marker_ids` declarados encontrados é lida (decisão 1) — quatro para o gabarito, dois para a região
   discursiva. O resultado do quadro passa a ser por região (decisão 3). A região discursiva é
   retificada e tem o QR conferido, sem medição de bolha. Verificação: testes para os cenários da ADDED
@@ -36,12 +40,19 @@
   regiões no mesmo quadro", "Só a região discursiva no quadro" e "Região pela metade" passam a exigir
   dois marcadores para a região discursiva, não quatro, e a execução anterior foi contra a geometria
   antiga.
-- [ ] 1.3 A prova só objetiva não muda de fora. Verificação: `CorpusInstrumentedTest` e os testes
+
+  **Reexecutada em 2026-09-26**, com a homografia da região de dois marcadores decidida pelo
+  mantenedor antes do código (decisão 1 do `design.md`, atualização de 2026-09-26). Duas mutações
+  vistas falhar, com o previsto igual ao real, e as duas revertidas e rodadas.
+- [x] 1.3 A prova só objetiva não muda de fora. Verificação: `CorpusInstrumentedTest` e os testes
   existentes de `RegionDetector` e `SheetReader` passam sem mudar de sentido. Os ajustes de assinatura
   são listados na cobertura.
 
   **Reaberta ao aplicar `/opsx:update`, em 2026-09-25, pelo mesmo motivo da 1.1 e da 1.2:** é
   verificação de regressão sobre `RegionDetector` e `SheetReader`, que a 1.1 e a 1.2 vão reexecutar.
+
+  **Reexecutada em 2026-09-26:** `testDebugUnitTest --rerun` com 320 testes e 0 falhas, e
+  `connectedDebugAndroidTest` sem filtro com 89 testes, 0 falhas e 2 pulados, `timestamp` 09:12:25Z.
 
 ## 2. A sessão (`scan-session`)
 

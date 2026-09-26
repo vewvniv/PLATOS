@@ -6,7 +6,7 @@ import com.platos.android.omr.RectifiedRegion
 import com.platos.domain.capture.CapturePayload
 import com.platos.domain.capture.PayloadReading
 import com.platos.domain.capture.QrPayload
-import com.platos.domain.capture.CaptureGeometry
+import com.platos.domain.layout.LayoutMap
 import com.platos.domain.layout.ScannableRegion
 import zxingcpp.BarcodeReader
 
@@ -54,10 +54,15 @@ object RegionQrReader {
      * existem aqui por causa da redundancia que §8 pede: o `region_idx` do QR e conferido contra
      * eles, para que a atribuicao da folha nao dependa de **um** canal so. Um QR borrado que
      * decodifique errado, ou uma folha de outra regiao na pilha, e pego por essa divergencia.
+     *
+     * Os marcadores esperados para o `region_idx` do QR sao os que [map] declara para aquela regiao,
+     * e nao a alocacao `{4k..4k+3}` do §8: a regiao discursiva imprime so `4k` e `4k+3` (ADR-0018), e
+     * contra a alocacao inteira ela seria recusada sempre.
      */
     fun read(
         canvas: RectifiedRegion,
         detectedMarkerIds: List<Int>,
+        map: LayoutMap,
     ): QrOutcome {
         // O canvas **e** a vizinhanca do QR: `RegionDetector` ja o recortou do mapa e lhe deu a
         // sangria que a zona de silencio exige. Nao ha ROI a calcular aqui, e e essa a mudanca —
@@ -78,7 +83,12 @@ object RegionQrReader {
         return when (val reading = QrPayload.read(text)) {
             is PayloadReading.Rejected -> QrOutcome.Failed(reading.reason)
             is PayloadReading.Read -> {
-                val expected = CaptureGeometry.markerIdsOf(reading.payload.regionIndex)
+                val expected = map.regions
+                    .firstOrNull { it.index == reading.payload.regionIndex }
+                    ?.markerIds
+                    ?: return QrOutcome.Failed(
+                        "o QR diz regiao ${reading.payload.regionIndex}, que o mapa nao declara",
+                    )
                 if (expected.sorted() != detectedMarkerIds.sorted()) {
                     QrOutcome.Failed(
                         "o QR diz regiao ${reading.payload.regionIndex}, que usa os marcadores " +

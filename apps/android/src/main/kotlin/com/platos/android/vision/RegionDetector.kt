@@ -6,6 +6,7 @@ import com.platos.domain.layout.LayoutMap
 import com.platos.domain.layout.ScannableRegion
 import kotlin.math.hypot
 import kotlin.math.roundToInt
+import org.opencv.calib3d.Calib3d
 import org.opencv.core.CvType
 import org.opencv.core.Mat
 import org.opencv.core.MatOfPoint2f
@@ -21,8 +22,9 @@ sealed interface DetectionOutcome {
     /**
      * A regiao foi achada e retificada.
      *
-     * [reprojectionErrorPx] e medido sobre os **cantos** dos marcadores, que nao entraram no ajuste
-     * da homografia — ver [RegionDetector].
+     * [reprojectionErrorPx] e medido sobre os **cantos** dos marcadores. Na regiao de quatro, eles nao
+     * entraram no ajuste da homografia, e o erro e conferencia; na de dois, entraram, e o erro e so o
+     * residuo do ajuste, que nada decide — ver [RegionDetector].
      */
     data class Rectified(
         val region: RectifiedRegion,
@@ -48,7 +50,7 @@ sealed interface DetectionOutcome {
 }
 
 /**
- * Acha os quatro ArUcos, monta a homografia e devolve a regiao desempenada (§8, §13).
+ * Acha os ArUcos da regiao, monta a homografia e devolve a regiao desempenada (§8, §13).
  *
  * Este e o unico ponto do OMR que fala com o OpenCV, e e o unico que so pode ser verificado no
  * emulador. Tudo que produz **numero** fica em `omr/`, em Kotlin puro, testavel na JVM.
@@ -56,12 +58,20 @@ sealed interface DetectionOutcome {
  * Duas decisoes de implementacao que o plano nao previa, ambas registradas aqui porque mudam o que
  * se consegue afirmar:
  *
- * **A homografia sai dos centros; o erro e medido nos cantos.** Com exatamente quatro pares de
- * pontos a homografia fecha exata por construcao — um "erro de reprojecao" calculado sobre os
+ * **No gabarito, a homografia sai dos centros; o erro e medido nos cantos.** Com exatamente quatro
+ * pares de pontos a homografia fecha exata por construcao — um "erro de reprojecao" calculado sobre os
  * mesmos quatro pontos daria zero sempre, e seria uma verificacao que nunca falha. Os quatro
  * marcadores tem sedecim cantos, e eles **nao** entram no ajuste: mapeados pela homografia, eles
  * dizem se a geometria realmente fecha. Se um marcador foi confundido com outra coisa, ou se a
  * folha esta amassada, e ali que aparece.
+ *
+ * **A regiao discursiva tem dois marcadores, e sai dos oito cantos deles** (ADR-0018, passo (a);
+ * decisao 1 do `design.md` da `slice-5b-1-o-aparelho-reconhece-a-discursiva`). Dois centros nao
+ * fazem homografia; os oito cantos, com a posicao que o `DrawAruco` declara, fazem, por minimos
+ * quadrados. O caminho sai da **contagem** de marcadores que a regiao declara, e nao do tipo dela. Nao
+ * ha teto de erro nesse caminho: os cantos entraram no ajuste, e o 6 px do gabarito, que mede cantos
+ * fora dele, passaria a significar outra coisa. O que guarda o reconhecimento e o QR; o segundo
+ * ajuste do ADR-0018, com os padroes do QR, e a conferencia que vem com ele, sao da 5b-2.
  *
  * **A retificacao e feita com folga e depois reduzida por media de area.** `warpPerspective` nao
  * aceita `INTER_AREA`: ele amostra pontos, e reduzir uma foto de celular direto para 10 px/mm
@@ -103,11 +113,12 @@ object RegionDetector {
      */
     private const val MAX_REPROJECTION_PX = 6.0
 
-    /** Os quatro ArUcos declarados pela pagina da regiao, por identificador. */
+    /** Os ArUcos que a regiao declara, desenhados na pagina dela, por identificador. */
     // Os marcadores DA REGIAO, e nao os da pagina. Ate a `slice-5b-1-o-aparelho-reconhece-a-discursiva`
     // eram todos os `DrawAruco` da pagina, o que so dava certo porque cada pagina tinha uma regiao; a
     // pagina 0 de uma prova com discursiva tem o gabarito e a regiao de uma discursiva, 8 marcadores,
-    // e `detect` recusava com "declara 8 ArUcos; esperados 4" (medido em 2026-09-24).
+    // e `detect` recusava com "declara 8 ArUcos; esperados 4" (medido em 2026-09-24). Desde a
+    // `slice-5b-0-a-regiao-discursiva-compacta` a regiao discursiva tem dois, e a pagina 0 tem 6.
     private fun declaredMarkersOf(map: LayoutMap, region: ScannableRegion): Map<Int, DrawAruco> =
         map.pages
             .firstOrNull { it.index == region.page }
@@ -174,9 +185,9 @@ object RegionDetector {
         found: Map<Int, List<Point>>,
     ): DetectionOutcome {
         val declared = declaredMarkersOf(map, region)
-        if (declared.size != 4) {
+        if (declared.size != region.markerIds.size) {
             return DetectionOutcome.Failed(
-                "a pagina ${region.page} declara ${declared.size} ArUcos; esperados 4",
+                "a pagina ${region.page} declara ${declared.size} ArUcos; esperados ${region.markerIds.size}",
             )
         }
 
@@ -193,24 +204,21 @@ object RegionDetector {
         }
 
         val ordered = orderOf(declared, region)
-        val centers = ordered.map { id -> centerOf(found.getValue(id)) }
-
-        val target = listOf(
-            Point(0.0, 0.0),
-            Point(1.0, 0.0),
-            Point(0.0, 1.0),
-            Point(1.0, 1.0),
-        )
-        val homography = Imgproc.getPerspectiveTransform(
-            MatOfPoint2f(*centers.toTypedArray()),
-            MatOfPoint2f(*target.toTypedArray()),
-        )
+        val pelosCentros = ordered.size == 4
+        val homography = if (pelosCentros) {
+            homographyByCenters(ordered, found)
+        } else {
+            homographyByCorners(ordered, found, declared, region)
+                ?: return DetectionOutcome.Failed(
+                    "a homografia pelos cantos dos marcadores $ordered nao fecha",
+                )
+        }
 
         val error = reprojectionErrorOf(homography, ordered, found, declared, region)
         if (!error.isFinite()) {
             return DetectionOutcome.Failed("o erro de reprojecao nao e finito: $error")
         }
-        if (error > MAX_REPROJECTION_PX) {
+        if (pelosCentros && error > MAX_REPROJECTION_PX) {
             return DetectionOutcome.Failed(
                 "a geometria nao fecha: erro de reprojecao de ${format(error)} px nos cantos dos " +
                     "marcadores, teto ${format(MAX_REPROJECTION_PX)} px",
@@ -298,6 +306,64 @@ object RegionDetector {
         return RectifiedRegion(canvasW, canvasH, buffer)
     }
 
+    /** Quatro centros para os quatro cantos do quadrado unitario: exata por construcao. */
+    private fun homographyByCenters(ordered: List<Int>, found: Map<Int, List<Point>>): Mat {
+        val centers = ordered.map { id -> centerOf(found.getValue(id)) }
+        val target = listOf(
+            Point(0.0, 0.0),
+            Point(1.0, 0.0),
+            Point(0.0, 1.0),
+            Point(1.0, 1.0),
+        )
+        return Imgproc.getPerspectiveTransform(
+            MatOfPoint2f(*centers.toTypedArray()),
+            MatOfPoint2f(*target.toTypedArray()),
+        )
+    }
+
+    /**
+     * Os cantos de cada marcador para onde o mapa os declara, normalizados ao retangulo da regiao, por
+     * minimos quadrados sobre todos eles (metodo 0: sem RANSAC, nenhum ponto descartado).
+     *
+     * Nao sabe se o retangulo passa pelos centros ou pelos cantos externos: a posicao de cada canto
+     * vem do `DrawAruco`, e a normalizacao, do retangulo declarado (decisao 2 da
+     * `slice-5b-0-a-regiao-discursiva-compacta`). Nulo quando o OpenCV nao acha homografia.
+     */
+    private fun homographyByCorners(
+        ordered: List<Int>,
+        found: Map<Int, List<Point>>,
+        declared: Map<Int, DrawAruco>,
+        region: ScannableRegion,
+    ): Mat? {
+        val observed = ordered.flatMap { found.getValue(it) }
+        val target = ordered.flatMap { cornersUvOf(declared.getValue(it), region) }
+        val homography = Calib3d.findHomography(
+            MatOfPoint2f(*observed.toTypedArray()),
+            MatOfPoint2f(*target.toTypedArray()),
+            0,
+        )
+        return homography.takeUnless { it.empty() }
+    }
+
+    /**
+     * Cantos do marcador no espaco do mapa, normalizados ao quadrilatero da regiao.
+     *
+     * Em sentido horario a partir do superior esquerdo, que e a ordem em que o OpenCV devolve os
+     * cantos detectados.
+     */
+    private fun cornersUvOf(aruco: DrawAruco, region: ScannableRegion): List<Point> =
+        listOf(
+            aruco.x to aruco.y,
+            aruco.x + aruco.side to aruco.y,
+            aruco.x + aruco.side to aruco.y + aruco.side,
+            aruco.x to aruco.y + aruco.side,
+        ).map { (x, y) ->
+            Point(
+                (x - region.quadX).toDouble() / region.quadWidth,
+                (y - region.quadY).toDouble() / region.quadHeight,
+            )
+        }
+
     private fun centerOf(quad: List<Point>): Point =
         Point(quad.sumOf { it.x } / quad.size, quad.sumOf { it.y } / quad.size)
 
@@ -305,7 +371,8 @@ object RegionDetector {
      * Erro medio, em pixels, entre onde os cantos dos marcadores estao e onde o mapa diz que eles
      * deviam estar depois da homografia.
      *
-     * Sedecim pontos que **nao** entraram no ajuste. E o que da sentido a palavra "erro" aqui.
+     * No gabarito, sedecim pontos que **nao** entraram no ajuste. E o que da sentido a palavra "erro"
+     * aqui. Na regiao de dois marcadores, os oito cantos entraram, e o numero e residuo.
      */
     private fun reprojectionErrorOf(
         homography: Mat,
@@ -318,22 +385,7 @@ object RegionDetector {
         var sum = 0.0
         var count = 0
         for (id in ordered) {
-            val aruco = declared.getValue(id)
-            // Cantos do marcador no espaco do mapa, normalizados ao quadrilatero da regiao.
-            val cornersUv = listOf(
-                aruco.x to aruco.y,
-                aruco.x + aruco.side to aruco.y,
-                aruco.x + aruco.side to aruco.y + aruco.side,
-                aruco.x to aruco.y + aruco.side,
-            ).map { (x, y) ->
-                Point(
-                    (x - region.quadX).toDouble() / region.quadWidth,
-                    (y - region.quadY).toDouble() / region.quadHeight,
-                )
-            }
-
-            // O OpenCV devolve os cantos em sentido horario a partir do superior esquerdo, que e a
-            // mesma ordem construida acima.
+            val cornersUv = cornersUvOf(declared.getValue(id), region)
             val observed = found.getValue(id)
             for (index in cornersUv.indices) {
                 val expected = mapPoint(inverse, cornersUv[index])

@@ -103,6 +103,84 @@ Nenhuma asserção mudou.
   base e os 5 novos), 0 falhas, 2 pulados, `timestamp` 22:58:43Z. Os 10 cenários de
   `CorpusInstrumentedTest` estão entre eles, verdes.
 
+### 1.1 a 1.3 reexecutadas sobre a região de dois ArUcos (2026-09-26)
+
+**Tudo acima, em 1.1 a 1.3, foi medido contra a geometria antiga**, com a região discursiva de quatro
+marcadores, e a página 0 declarando 8. A `slice-5b-0-a-regiao-discursiva-compacta` (PR #70) reduziu a
+região a dois marcadores na diagonal, e o `/opsx:update` de 2026-09-25 reabriu as três tarefas. O
+registro de antes fica, porque é o que foi medido naquele dia (P7).
+
+**O branch não tinha a 5b-0.** `origin/main` estava 22 commits à frente. O `/opsx:update` foi
+commitado sozinho (`9ca3d8d`), e a `main` entrou por merge (`728f832`), sem reescrever o histórico.
+
+**O desenho tinha uma lacuna, e o mantenedor a decidiu antes do código.** A decisão 1 dizia que a
+homografia da região discursiva sai dos "cantos externos dos dois", que são dois pontos, e não dizia
+se o passo (c) do ADR-0018 entra aqui. A decisão está no `design.md`, decisão 1, "Atualizado ao
+aplicar, em 2026-09-26":
+- a homografia é ajustada por mínimos quadrados sobre os oito cantos, com a posição declarada no
+  `DrawAruco` normalizada pelo retângulo declarado. O caminho sai da contagem de marcadores, e não do
+  tipo;
+- não há teto de resíduo novo;
+- o passo (c) e o resíduo dele vão para a 5b-2;
+- o `region_idx` do QR é conferido contra os `marker_ids` que o mapa declara.
+
+**Linha de base da reabertura, sobre o código de antes e a fixture nova.** Previsto: caem os três
+cenários que precisam retificar uma região de dois marcadores, e ficam verdes o da 1.1 e o da região
+pela metade. Real: exatamente esses, com 5 testes e 3 falhas, às 09:04:57Z. Nas duas páginas, o motivo
+foi "a pagina N declara 2 ArUcos; esperados 4". É o vermelho, **sobre o código real**, da regra "a
+contagem vem da região".
+
+**O código** (`RegionDetector`, `RegionQrReader`, `SheetReader`):
+- `detect` exige `region.markerIds.size` marcadores declarados, e não 4;
+- quatro marcadores seguem a homografia exata pelos centros, com o teto de 6 px nos cantos, como
+  antes. Dois seguem `Calib3d.findHomography`, com o método 0 e sem RANSAC, sobre os oito cantos. O
+  resíduo sai em `reprojectionErrorPx`, e nada decide por ele. `Calib3d` é do mesmo AAR
+  `org.opencv:opencv` 4.11, e não é dependência nova;
+- `RegionQrReader.read` recebe o mapa, e o QR de uma região que o mapa não declara é recusado.
+
+Depois do código: 5 de 5, às 09:07:59Z.
+
+**1.1, vista falhar.** O filtro de `declaredMarkersOf` foi trocado por `true || …` (`// MUTACAO`).
+- **Previsto:** caem 4, com "declara 6 ArUcos; esperados 4" no gabarito. A página 1 fica verde,
+  porque só tem os dois marcadores de `d2`.
+- **Real:** exatamente esses 4, às 09:08:28Z. O motivo foi "a pagina 0 declara 6 ArUcos; esperados 4"
+  no gabarito, e "…; esperados 2" em `d1`.
+- **Reversão:** `grep MUTACAO` deu 0, e rodado de novo, 5 de 5, às 09:09:22Z.
+
+**1.2, vista falhar.** Duas mutações.
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| **Só a região 0 é identificada**, a mesma da execução anterior | caem página 0, página 1 e QR trocado; ficam verdes o da 1.1 e o da metade | exatamente esses 3, às 09:09:47Z. A página 1 caiu com "achei os marcadores [8, 11], e nenhuma regiao do mapa tem todos os dela"; as outras duas, com a lista de discursivas vazia ("List is empty") |
+| **O QR conferido contra a alocação `{4k…4k+3}`**, que é o código de antes | caem página 0 e página 1; **sobrevive** o do QR trocado, porque a divergência continua e a mensagem continua começando com "o QR diz regiao 2" | exatamente esses 2, às 09:10:53Z. A mensagem saiu "o QR diz regiao 1, que usa os marcadores [4, 7], mas a captura tem [4, 7]": ela imprime o valor do mapa, e a comparação mutada era contra `[4, 5, 6, 7]`. A previsão escrita antes de rodar já dizia isso |
+
+As duas foram revertidas. Depois da primeira, `grep MUTACAO` deu 0 e a classe rodou 5 de 5 às
+09:10:20Z. A segunda foi rodada na 1.3, abaixo.
+
+**Guarda nova, na região pela metade:** o teste passou a afirmar, pelo `DrawAruco` do mapa, que o
+marcador de cima de `d1` cabe no corte e o de baixo sai. Antes, só o gabarito acima do corte era
+conferido, e a "metade" dependia da posição dos marcadores sem que nada a afirmasse (P13).
+
+**1.3, a prova só objetiva não muda de fora.** Os ajustes de assinatura desta reexecução foram só as
+três chamadas de `RegionQrReader.read` em `RegionDetectorInstrumentedTest`, que ganharam o `map`.
+Nenhuma asserção mudou.
+- `./gradlew :apps:android:testDebugUnitTest --rerun`: 320 testes, 0 falhas, de 09:11:19Z a
+  09:11:22Z. São os 312 da linha de base, mais os 7 de `ProvaComDiscursivaNaSessaoTest` e o de
+  `MontagemDoAnalisadorTest`.
+- `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro: **89** testes, 0 falhas, 2 pulados
+  (os dois do `AcumuloDeInstanciasProbe`), `timestamp` 09:12:25Z. Por classe:
+  `CorpusInstrumentedTest` 10, `RegionDetectorInstrumentedTest` 9, `SheetReaderInstrumentedTest` 13,
+  `RegiaoDiscursivaInstrumentedTest` 5. É também a reversão rodada da segunda mutação da 1.2. O
+  console disse "Finished 91 tests", e o XML diz 89. A âncora é o XML (P3), e a divergência não foi
+  investigada.
+
+**O que esta reexecução não verifica:**
+- **O documento renderizado é plano.** Uma homografia tirada de um marcador só passaria nestes
+  cenários, porque não há perspectiva nem dobra. O que o segundo marcador acrescenta só aparece em
+  foto, e esse é o trabalho da 4.2.
+- **A geometria da região discursiva não tem conferência além do QR**, até o segundo ajuste da 5b-2.
+  Não é mitigado, é conhecido (P8).
+
 ## 2. A sessão
 
 **2.1 — a prova com discursiva é reconhecida e explicada, e não apurada.** `ScanSession` decide "prova
