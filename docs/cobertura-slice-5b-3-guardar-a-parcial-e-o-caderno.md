@@ -29,14 +29,12 @@ nenhuma linha vencida: 21 linhas lidas
 exit 0
 ```
 
-**Nota sobre as três linhas `5`.** Esta árvore é `origin/main` no commit `9be6356` (merge do PR #74), que
-**não** inclui a reconciliação do §16 feita ao arquivar a `5b-2` — essa reconciliação está no PR #75
-(`vewvniv/archive-slice-5b-2-a-nota-objetiva-parcial`), aberto e ainda não mergeado no momento desta
-medição. Nele, as três linhas `5` (`Acurácia em manuscrito`, `Modo degradado`, `O limiar do OMR`) já
-foram reagendadas para a fatia `6`. A reaparição delas aqui é um artefato de ter separado o archive em
-sua própria branch/PR, e não dívida nova desta mudança: `exit 0` e "nenhuma linha vencida" (vencida ≠
-vence nesta fatia) satisfazem a verificação da 0.2. Elas devem sair da lista de "vence nesta fatia"
-depois que o PR #75 for mergeado e esta branch atualizada a partir de `main`.
-
-`slice-5b-2-a-nota-objetiva-parcial` aparece como "ativa" pela mesma razão: o `mv` para
-`openspec/changes/archive/` também está no PR #75.
+**Nota sobre as três linhas `5` (resolvida).** Na medição original, esta árvore era `origin/main` no
+commit `9be6356` (merge do PR #74), que ainda não incluía a reconciliação do §16 feita ao arquivar a
+`5b-2` — essa reconciliação estava no PR #75, aberto e não mergeado no momento da medição. As três
+linhas `5` (`Acurácia em manuscrito`, `Modo degradado`, `O limiar do OMR`) apareciam de novo em
+"vence nesta fatia" por isso, e não por dívida nova desta mudança (`exit 0`, "nenhuma linha vencida").
+O PR #75 foi mergeado em `30c729d`, e esta branch foi rebaseada sobre o `main` atualizado antes da
+task 1.1: `node tools/divida/divida.mjs` volta a dizer "vence nesta fatia (5b): nenhuma", e
+`openspec validate --strict` não reporta mais o `MODIFIED` sem cabeçalho correspondente na spec
+principal.
