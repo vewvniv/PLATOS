@@ -42,31 +42,31 @@
 
 ## 2. A sessão (`scan-session`)
 
-- [ ] 2.1 Renomear `ScanState.DiscursivaNaoCorrigivel` para `ProvaComDiscursiva`, sem mudança funcional,
+- [x] 2.1 Renomear `ScanState.DiscursivaNaoCorrigivel` para `ProvaComDiscursiva`, sem mudança funcional,
   num commit próprio (P25). Verificação: o build compila, e `ProvaComDiscursivaNaSessaoTest` e
   `ScanSessionTest` passam sem nenhuma asserção alterada.
-- [ ] 2.2 A parcial na sessão (decisão 6): com `FrameOutcome.Read`, a sessão chama `scorePartial` e o
+- [x] 2.2 A parcial na sessão (decisão 6): com `FrameOutcome.Read`, a sessão chama `scorePartial` e o
   estado ganha a parcial, ou o motivo da recusa. O `AVISO` passa a ser a frase de "não definitiva"
   (decisão 4). Verificação: um teste em `ProvaComDiscursivaNaSessaoTest` por cenário da ADDED "Prova
   com discursiva mostra a parcial…", incluído "A outra página do mesmo aluno mantém a parcial", que
   entrou ao aplicar (design, decisão 6, atualização de 2026-09-26). Cada teste confere a **frase**, o **aluno** e os **números** da
   parcial, e não só o tipo do estado.
-- [ ] 2.3 O caderno do aluno (decisões 4 e 6). Verificação: um teste por cenário da ADDED "A
+- [x] 2.3 O caderno do aluno (decisões 4 e 6). Verificação: um teste por cenário da ADDED "A
   completude da folha do aluno…", com os `FrameOutcome` montados a partir da fixture discursiva.
-- [ ] 2.4 O número do chip e a conferência que o prende ao impresso (decisão 5).
+- [x] 2.4 O número do chip e a conferência que o prende ao impresso (decisão 5).
   - O chip usa a chave de `positions`.
   - Um teste renderiza a folha de `tok-a` e confere que o número impresso antes do enunciado de cada
     discursiva é a chave de `positions` do item.
 
   **Ver falhar:** com o chip derivado da ordem das regiões (`regionIndex`, `// MUTACAO`), cai o
   cenário "O indicador tem o número impresso", e só ele. Reverter e rodar.
-- [ ] 2.5 **Ver falhar** "nada é gravado" com a parcial presente. É a M-a da 5b-1 refeita: a sessão
+- [x] 2.5 **Ver falhar** "nada é gravado" com a parcial presente. É a M-a da 5b-1 refeita: a sessão
   apura a prova com discursiva como objetiva.
   - **Previsto:** caem os cenários da parcial.
   - **Nada é gravado:** continua verde, porque o domínio recusa a apuração completa.
 
   Reverter e rodar.
-- [ ] 2.6 A tela (`ScanScreen`): os chips em três estados, o contador e a parcial, com o máximo da
+- [x] 2.6 A tela (`ScanScreen`): os chips em três estados, o contador e a parcial, com o máximo da
   prova ao lado e a frase de "não definitiva". Verificação: o build compila. A tela desenhada **não
   tem teste automático** (decisão 5 da 5b-1), e fica como lacuna na cobertura (P8). Ela é conferida
   na sessão única de papel.

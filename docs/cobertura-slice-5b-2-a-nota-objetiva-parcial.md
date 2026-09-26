@@ -109,3 +109,97 @@ declarado pela variante e não é objetivo. A de `score` continua byte a byte a 
 não compila não pode morar na suíte, e a prova de que ela reage é a execução acima. Se alguém fizer
 `scorePartial` devolver `ObjectiveScore`, como a mutação, ou alargar `ResultadoPendente.nota` para um
 tipo que aceite as duas, nenhum teste cai.
+
+## 2. A sessão
+
+**Antes da 2.2, a spec foi alinhada ao desenho** (`3ca74e3`). A spec de `scan-session` dizia "Quando o
+gabarito não foi lido no quadro, a sessão SHALL NOT apresentar parcial", e a decisão 6 dizia que o
+caderno do mesmo aluno mantém a última parcial. O mantenedor decidiu pelo desenho, e entrou o cenário
+"A outra página do mesmo aluno mantém a parcial".
+
+**2.1 — o renome** (`18d6b15`). `DiscursivaNaoCorrigivel` passou a `ProvaComDiscursiva`, e cada linha
+alterada difere só no nome. `testDebugUnitTest --rerun`: 320, a contagem da 0.1, às 11:26:17Z–11:26:21Z;
+`ProvaComDiscursivaNaSessaoTest` 7 de 7 e `ScanSessionTest` 19 de 19, sem asserção alterada.
+
+**2.2 — a parcial na sessão** (`7f9af78`). Com `FrameOutcome.Read`, a sessão chama `scorePartial`, e o
+estado ganha a parcial ou o motivo. Sem gabarito no quadro, vale a última parcial do mesmo aluno. O
+`AVISO` é "A nota nao e definitiva: a correcao das discursivas ainda nao esta disponivel neste
+aparelho. Nada foi guardado.", conferido por igualdade. Um teste por cenário, conferindo a frase, o
+aluno e os números **fixados** (3 de 4, `d1` 3, `d2` 4, máximo 11):
+- "Folha de prova com discursiva no quadro". O teste da 5b-1, "a folha e reconhecida … sem nota", era
+  do requisito removido, e passou a conferir a parcial;
+- "Só as discursivas no quadro", sem parcial;
+- "A outra página do mesmo aluno mantém a parcial";
+- "A parcial recusada mostra o motivo". O motivo é produzido pelo domínio e comparado por igualdade,
+  como `ScanSessionTest` faz, e o gabarito aparece com problema no caderno (decisão 6);
+- "Nada é gravado" e "Abrir a câmera", que já existiam.
+
+"Prova só objetiva não muda" é `ScanSessionTest`, 19 de 19 sem mudar. O helper `gabarito()` ganhou
+respostas, e a KDoc que dizia que elas não importavam ficou como histórico.
+
+**2.3 — o caderno do aluno** (`e5a7a9b` e `9524328`). `ObjectiveScoring.resolveVariant` passou a
+pública, num commit só de visibilidade, para que o caderno use o mapa da mesma variante da parcial
+sem uma segunda regra no aplicativo. O caderno (`Caderno.kt`) é estado da sessão, em memória: as
+regiões do `LayoutMap` da variante, cada uma capturada, com problema (com o motivo) ou não vista, e a
+última parcial. O gabarito é a região que não é discursiva, pela regra de `SheetReader.analyze`.
+`resume()` não limpa o caderno: voltar a procurar não muda de quem é a folha.
+
+Um teste por cenário, com os quadros montados a partir da fixture discursiva, e uma guarda de
+vacuidade (regiões 0, 1 e 2; `null`, `d1`, `d2`). Os testes conferem **índice e estado**, e nunca o
+rótulo, para que a mutação da 2.4 derrube só o cenário dele. "Prova só objetiva não tem caderno" é um
+teste novo em `ScanSessionTest`. 329 testes às 11:32:55Z.
+
+**Vistas falhar**, com o `testDebugUnitTest` inteiro. A tarefa não pedia mutação aqui; os testes foram
+escritos depois do código, e por isso foram vistos falhar (P9):
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| "capturada não volta atrás" desligada | cai só "a regiao capturada continua capturada…" | **329 testes, 1 falha**, essa, com as regiões 0 e 1 voltando a `ComProblema`, às 11:32:20Z |
+| o caderno sem troca de aluno | cai só "a folha de outro aluno comeca outro caderno…" | 1 falha, essa, com "expected: <tok-b> but was: <tok-a>", às 11:32:38Z |
+
+Revertidas, `git grep MUTACAO` vazio, e 329 de 329 às 11:32:55Z.
+
+**2.4 — o número do indicador** (`19201d4`). O rótulo é a chave de `positions` do item da região, e
+"Gabarito" no gabarito. Dois testes:
+- o cenário "O indicador tem o número impresso", com o oráculo fixado: `Gabarito`, `3`, `6`;
+- a conferência da P28. Na folha de `tok-a`, o texto na linha de base da primeira linha do enunciado
+  de cada discursiva, logo à esquerda dela, é a chave de `positions` seguida de ponto ("3." e "6."). O
+  número é achado **pela geometria**, e não pelo `id` da primitiva.
+
+**A "folha renderizada" desta conferência é o `LayoutMap` da atribuição** (`folhaDaAtribuicao`), e não
+um PDF. Ele é a fonte geométrica que os dois renderizadores desenham, e o `text` de cada `DrawText` é o
+que vai ao papel. O passo do mapa ao pixel é da paridade e da fidelidade do CI (*herdado*), e não
+desta conferência.
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| rótulo tirado de `regiao.index` | cai só o cenário do indicador; a conferência fica verde, porque não lê o indicador | 331 testes, **1 falha**, essa, com "(1, 1), (2, 2)" no lugar de "(1, 3), (2, 6)", às 11:34:08Z |
+| a chave de `d1` trocada por "7" na entrada da conferência | cai só a conferência | 1 falha, essa, com "expected: <7.> but was: <3.>", às 11:34:31Z |
+
+**A primeira reexecução depois da segunda reversão não rodou.** A reversão comeu uma quebra de linha,
+e o teste não compilou (`rc=1`). O leitor de relatórios mostrou "1 falha", e era o relatório da
+execução mutada: só o `timestamp`, 11:34:31Z, igual ao da mutação, denunciou (P3). Com a linha
+consertada, `git grep MUTACAO` vazio e 331 de 331 às 11:35:05Z.
+
+**2.5 — "nada é gravado" com a parcial presente.** Antes da mutação, uma correção (`17bce08`): o
+canário que a 2.2 pôs neste teste lia a parcial **do estado da sessão**. A M-a desliga justamente a
+camada da sessão, e o teste cairia pelo canário, e não por ter entregue algo para gravar. Era a
+fixture sombreando a camada que ele mede (`rigorous.md` §3). O canário passou a conferir que a leitura
+do gabarito rende parcial **no domínio**.
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| **M-a** — `comDiscursiva = false`: a sessão apura como objetiva | caem 11 dos 17 de `ProvaComDiscursivaNaSessaoTest` (os da parcial, o da região não lida, e os seis do caderno que passam pela sessão); ficam verdes os 6 que não dependem dela: as duas guardas, **"nada é gravado"** (o domínio recusa a apuração completa), "abre e procura", "outra prova" e a conferência do número impresso | **exatamente esses**: 331 testes, 11 falhas, às 11:36:19Z. As que caíram disseram "esperava a prova com discursiva reconhecida, veio Rejected(reason=itens lidos divergem da variante 'v1'; faltando: …)" ou "…veio Searching". `ScanSessionTest` sem falha |
+| **M-a e M-c juntas** — e o domínio aceita leitura que é subconjunto do declarado | cai também "nada é gravado" | 12 falhas, às 11:36:42Z. A nova é "a sessao entregou apuracao de prova com discursiva ==> expected: <null> but was: <ApuracaoNova(…" |
+
+A segunda linha não era pedida pela tarefa. Ela é a prova de que "nada é gravado", que mudou nesta
+mudança, ainda consegue falhar. As duas camadas, cada uma sozinha, seguram o cenário, como na 5b-1.
+Revertidas, `git grep MUTACAO` vazio, `git status` limpo, e de novo: Android 331 de 331 às
+11:37:07Z e domínio `jvmTest` 408 de 408 às 11:37:03Z.
+
+**2.6 — a tela** (`28607df`). `ScanScreen` desenha a parcial, os indicadores em três estados, com o
+estado também em texto, os motivos, o contador e o aviso. O texto da parcial sai de
+`apresentar(PartialScore)`, fora da composição, com um teste em `NotaApresentadaTest`: "2 de 4 na
+objetiva" e "Discursivas: 7 ponto(s) aguardam correcao · a prova vale 11". 332 testes às 11:38:28Z, e
+`assembleDebug` compila. **A tela desenhada não tem teste automático** (decisão 5 da 5b-1), e é
+lacuna. Não é mitigado, é conhecido (P8).
