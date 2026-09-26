@@ -91,16 +91,16 @@
 
 ## 4. Fechamento
 
-- [ ] 4.1 `git grep MUTACAO`, fora de `build/`, `node_modules/`, `docs/`, `openspec/` e
+- [x] 4.1 `git grep MUTACAO`, fora de `build/`, `node_modules/`, `docs/`, `openspec/` e
   `rigorous.md`, dá `0`, e toda reversão foi rodada (P10).
-- [ ] 4.2 Comando cheio local, com contagens e `timestamp` comparados com a 0.1 (P2, P3, P5):
+- [x] 4.2 Comando cheio local, com contagens e `timestamp` comparados com a 0.1 (P2, P3, P5):
   - `./gradlew build --rerun-tasks` e `buildSrc`;
   - `connectedDebugAndroidTest`, sem filtro;
   - `vitest` e o build do web.
-- [ ] 4.3 `docs/cobertura-slice-5b-3-guardar-a-parcial-e-o-caderno.md`:
+- [x] 4.3 `docs/cobertura-slice-5b-3-guardar-a-parcial-e-o-caderno.md`:
   - como a 3.2 foi vista falhar, com o previsto e o real;
   - a seção "o que ainda não foi verificado", com o encerramento anômalo do processo sem `onStop`
     (design, riscos) e a leitura em aparelho real.
-- [ ] 4.4 `node tools/divida/divida.mjs` de novo, comparado com a 0.2 (P27): nenhuma linha nova
+- [x] 4.4 `node tools/divida/divida.mjs` de novo, comparado com a 0.2 (P27): nenhuma linha nova
   vence nesta fatia.
 - [ ] 4.5 PR contra `main`, e o CI **lido no destino**: o run, o `headSha` e os passos (P2, P26).
