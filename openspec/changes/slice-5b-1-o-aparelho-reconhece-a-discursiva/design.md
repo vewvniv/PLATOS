@@ -48,6 +48,11 @@ afirmação (P6).
   o gabarito numa página que tem outra região.
 - A prova só objetiva não muda de comportamento.
 
+*Atualizado em 2026-09-26, por decisão do mantenedor:* o segundo Goal, a folha "impressa e
+fotografada", sai desta mudança para a **sessão única de papel antes da fatia 6** (decisões 6 e 7).
+Aqui, o caminho `RegionDetector` → QR → OMR passa pela folha **renderizada** do documento, com o
+gabarito numa página que tem outra região.
+
 **Non-Goals:**
 - Guardar qualquer coisa de uma prova com discursiva: nota, leitura ou imagem. É a 5b-2.
 - Caderno do aluno, completude e recorte (5b-2). Deviant (5e).
@@ -193,6 +198,19 @@ foto pelo caminho de produção e afirma:
   abertura da fatia 5, e nenhuma pode ter coordenada de GPS. Se tiver, a coordenada é removida antes de
   entrar, e o registro diz isso.
 
+**Movida em 2026-09-26, por decisão do mantenedor, para a sessão única de papel antes da fatia 6.** O
+mantenedor não tem impressora. Cada impressão custa um deslocamento, e impressões picadas atrasaram o
+desenvolvimento em dias. A conferência em papel passa a ser a **etapa final**, numa ida só, com o
+protocolo escrito antes. O texto acima fica como rascunho desse protocolo: o oráculo, a regra de
+parada e o EXIF.
+
+A sessão acrescenta uma regra que o texto acima não tinha: **toda regra de parada que possa mandar
+trocar algo já imprime a alternativa na mesma ida.** O exemplo é o marcador discursivo de 11,2 mm, que
+volta a 14 mm se não for detectado (decisão 1 da 5b-0). A folha com 14 mm vai junto, para a queda não
+exigir outra viagem. Nesta mudança, a linha `5b` do §16 é **reagendada para `6`**, e não paga (P27).
+Adia-se a conferência, e não a proteção: o código que reconhece a região está aqui, verificado sobre
+o documento renderizado.
+
 ### 7. O aparelho do mantenedor, de ponta a ponta, se couber
 
 A prova de ponta a ponta tem dois passos:
@@ -204,6 +222,11 @@ entrega os bytes gravados, e nada é enviado. Por isso ela não dispara o evento
 `implantar-api-da-5a`. A tarefa é do mantenedor. Se não couber na sessão, a tela fica escrita como não
 conferida, e a linha `5b` se paga pelas decisões 5 e 6.
 
+**Movida em 2026-09-26 com a decisão 6, para a sessão única de papel.** Lá a folha impressa já existe,
+e o ponta a ponta no celular é feito na mesma ida. A frase "a linha `5b` se paga pelas decisões 5 e
+6" deixa de valer: a decisão 6 saiu desta mudança, e a linha é reagendada para `6`. Até a sessão, a
+tela fica como lacuna (P8).
+
 ### 8. A regra de parada vale sobre toda mutação
 
 É a mesma da 5a (decisão 13): se o conjunto de cenários que caem divergir do previsto, **pare**,
@@ -212,7 +235,11 @@ escreva o real ao lado do previsto e diga o que significa, lendo a mensagem, e n
 ## Risks / Trade-offs
 
 - **[A foto real pode não ser reconhecida]** → a regra de parada da decisão 6. É o risco que a linha
-  `5b` existe para expor, e expô-lo é resultado, e não falha da mudança.
+  `5b` existe para expor, e expô-lo é resultado, e não falha da mudança. *Movido em 2026-09-26 para a
+  sessão única de papel, com a decisão 6.*
+- **[Nenhuma foto da folha discursiva lida antes da fatia 6]** → a linha `5b` do §16 é reagendada para
+  `6`, com o motivo, e a guarda a reprova quando a 6 abrir sem a sessão. **Não é mitigado, é
+  conhecido** (P8): o marcador de 11,2 mm e o QR lido com dois ArUcos continuam sem medição em papel.
 - **[A leitura do gabarito de prova com discursiva é descartada]** → é trabalho perdido para quem
   escaneia agora. É aceito porque nenhuma prova com discursiva está em produção, e a 5b-2 passa a
   retê-lo.

@@ -128,8 +128,20 @@
 >
 > **Em 2026-09-26, a impressão da 4.1 não coube**, por decisão do mantenedor. As tarefas 4.1 a 4.3
 > seguem abertas, e o fechamento (seção 5) espera por elas.
+>
+> **Movidas em 2026-09-26, por decisão do mantenedor (`/opsx:update`), para a sessão única de papel
+> antes da fatia 6.** Isto substitui o parágrafo anterior.
+> - **Por quê:** o mantenedor não tem impressora, e cada impressão custa um deslocamento. Toda
+>   conferência em papel passa a ser a etapa final, numa ida só (decisão 6 do `design.md`,
+>   atualização).
+> - **O que muda nas tarefas:** 4.1 a 4.3 deixam de ser tarefas desta mudança, e **não** foram feitas.
+>   O texto delas fica abaixo, sem caixa de seleção, como rascunho do protocolo daquela sessão.
+> - **O §16:** a linha `5b` é reagendada para `6` no archive (5.5).
+>
+> Duas decisões do mantenedor, encerradas: o gabarito fica com 4 ArUcos, e a discursiva com 2 e o QR.
+> O gabarito compacto fica fora por ora.
 
-- [ ] 4.1 **Tarefa do mantenedor:**
+- **4.1 (movida para a sessão única de papel)** **Tarefa do mantenedor:**
   - imprimir `build/parity/discursiva-aluno-web.pdf`, a folha de `tok-a`, gerada nesta sessão;
   - marcar as quatro objetivas e escrever nas duas molduras;
   - **antes de fotografar**, anotar as marcações em `fixtures/corpus-5b-marcacoes.json`;
@@ -138,7 +150,7 @@
   Verificação: as quatro fotos em `fixtures/corpus-5b-*.jpg`, e o EXIF delas sem coordenada de GPS,
   conferido pelo leitor de EXIF da abertura da fatia 5. Se houver GPS, a coordenada é removida antes
   do commit, e a cobertura diz isso.
-- [ ] 4.2 Teste instrumentado que lê as quatro fotos pelo caminho de produção. Ele afirma as regiões
+- **4.2 (movida para a sessão única de papel)** Teste instrumentado que lê as quatro fotos pelo caminho de produção. Ele afirma as regiões
   reconhecidas por foto, as respostas do gabarito iguais às marcações anotadas, e o `tok-a` com o
   índice certo no QR de cada região discursiva. **Regra de parada:** foto não reconhecida fica no
   conjunto, com o motivo registrado, e a mudança para. Não se troca foto. **Ver falhar**, com dois
@@ -148,7 +160,8 @@
   - com a região escolhida sempre como a 0: caem as fotos da segunda folha, e as da primeira não.
 
   Reverter e rodar.
-- [ ] 4.3 **De ponta a ponta no celular do mantenedor, se couber** (decisão 7):
+- **4.3 (movida para a sessão única de papel)** **De ponta a ponta no celular do mantenedor, se
+  couber** (decisão 7):
   - publicar a fixture discursiva na organização de conferência;
   - instalar o build desta mudança no celular e puxar a prova;
   - escanear a folha impressa: a câmera abre, e a tela diz o aluno, as regiões e a frase.
@@ -169,9 +182,12 @@
 
   *Ponto de controle rodado em 2026-09-26, antes da 4.x, tudo verde (cobertura, "Ponto de controle de
   2026-09-26"). Ele não fecha a 5.1 nem a 5.2, porque a 4.2 ainda acrescenta teste e mutação.*
+  *Atualizado em 2026-09-26: a 4.2 saiu desta mudança. A 5.1 e a 5.2 são rodadas de novo, depois do
+  commit desta atualização, e fecham sobre a árvore final.*
 - [ ] 5.3 `docs/cobertura-slice-5b-1-o-aparelho-reconhece-a-discursiva.md`:
   - como cada verificação foi vista falhar, com o previsto e o real;
-  - as fotos, com `sha256` e EXIF;
+  - as fotos, com `sha256` e EXIF *(movido em 2026-09-26 para a sessão única de papel; aqui, a
+    cobertura diz que nenhuma foto foi lida)*;
   - a seção "o que ainda não foi verificado".
 - [ ] 5.4 PR contra `main`, e o CI **lido no destino** (P2, P26).
 - [ ] 5.5 Preparar a reconciliação do archive (P27):
@@ -182,3 +198,16 @@
     5b-0, é alcançada e não paga por esta mudança. Ela é paga por outro veículo ou reagendada, com
     fatia-limite nova e motivo (acrescentado em 2026-09-26; proposta, "Linhas do §16");
   - os eventos `migration-da-5-em-producao` e `implantar-api-da-5a` não foram alcançados.
+
+  **Atualizado em 2026-09-26, por decisão do mantenedor (`/opsx:update`).** O primeiro e o terceiro
+  itens acima passam a ser:
+  - **a linha `5b` do §16 é reagendada para `6`, e não paga.** O token passa de `5b` a `6`, e a prosa
+    ganha o motivo: o mantenedor não tem impressora, e o papel vai para a sessão única antes da 6. A
+    prosa ganha também a evidência parcial, que é a queda consertada, o motivo certo e as regiões
+    reconhecidas no documento renderizado. O veículo nomeado é a sessão única de papel;
+  - **a linha da folha de teste (`5b`) é reagendada para `6`**, pelo mesmo motivo e com o mesmo
+    veículo. A aprovação da folha de teste é em papel;
+  - **a prosa das duas diz que dois registros apontam para "a 4.1 retomada da 5b-1".** São o
+    comentário de `EssayGeometry.kt`, sobre a medição do marcador de 11,2 mm, e a regra de parada da
+    decisão 1 da 5b-0. Os dois passam a valer para a sessão única, e a correção deles fica com ela
+    (P19).

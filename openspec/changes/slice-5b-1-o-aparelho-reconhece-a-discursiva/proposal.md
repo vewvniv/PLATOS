@@ -14,6 +14,18 @@ Esta é a primeira das duas mudanças em que o mantenedor dividiu a 5b. **Por qu
 paga a linha `5b` do §16 ("a região discursiva ainda não passou pelo aparelho nem pelo papel"), e a
 guarda do registro de dívida reprova essa linha no dia em que a 5c abrir.
 
+**Atualizado em 2026-09-26, por decisão do mantenedor.** O mantenedor não tem impressora, e cada
+impressão custa um deslocamento. Toda conferência em papel passa a ser feita numa **sessão única de
+papel antes da fatia 6**, que colhe tudo de uma vez.
+
+Esta mudança **não paga mais** a linha `5b`. Ela entrega a parte do aparelho:
+- a queda consertada;
+- as regiões reconhecidas;
+- o motivo certo na tela.
+
+A parte do papel, que são as fotos da folha impressa e o ponta a ponta no celular, vai para aquela
+sessão. No archive, a linha é **reagendada para `6`**, com esse motivo.
+
 ## What Changes
 
 - **O aparelho deixa de cair.** A sessão de escaneamento deixa de receber uma região escolhida de
@@ -38,6 +50,7 @@ guarda do registro de dívida reprova essa linha no dia em que a 5c abrir.
 - **A folha discursiva passa pelo papel.** O mantenedor imprime a folha de um aluno da fixture
   discursiva, marca respostas conhecidas nas objetivas, escreve nas molduras e fotografa as duas
   páginas. As fotos entram como fixtures, e um teste instrumentado as lê pelo pipeline de produção.
+  **Movido em 2026-09-26 para a sessão única de papel antes da fatia 6** (ver "Por que agora").
 
 ### Linhas do §16 que esta mudança alcança (P27)
 
@@ -59,11 +72,23 @@ discursiva que a prova imprime` (`5b`), acrescentada pela 5b-0 (decisão 9 dela)
 - **O archive diz, para ela,** se foi paga por outro veículo até lá ou se é reagendada, com
   fatia-limite nova e motivo (P27).
 
+**Atualizado em 2026-09-26, por decisão do mantenedor.** O que vale no archive para as duas linhas
+`5b` é isto:
+- **`A região discursiva ainda não passou pelo aparelho nem pelo papel`: reagendada para `6`, e não
+  paga.** O "esta mudança a paga", acima, deixa de valer.
+  - O motivo: o mantenedor não tem impressora, e o papel vai para a sessão única antes da 6.
+  - A evidência parcial fica registrada: a queda consertada, o motivo certo, e as regiões
+    reconhecidas no documento renderizado.
+- **`A folha de teste de impressão não aprova a região discursiva…`: reagendada para `6`**, pelo mesmo
+  motivo. A aprovação da folha de teste é em papel.
+- **O veículo das duas é a sessão única de papel.** Ela ainda não é uma mudança proposta.
+
 Os eventos `migration-da-5-em-producao` e `implantar-api-da-5a` **não** são alcançados: esta mudança
 não tem migration nem implanta nada.
 
 **As fotos novas entram num repositório público.** Antes do commit, a tarefa confere que o EXIF não
 traz coordenada de GPS: as três fotos da 3b tinham bloco de GPS, com latitude e longitude zeradas.
+**Movido em 2026-09-26 com as fotos, para a sessão única de papel.** A conferência do EXIF vai junto.
 
 ## Capabilities
 
@@ -101,6 +126,15 @@ Nenhuma.
 - **`docs/cobertura-slice-5b-1-o-aparelho-reconhece-a-discursiva.md`:** novo.
 - **Ambiente:** o emulador `platos-atd34` para as suítes instrumentadas, e o celular e a impressora do
   mantenedor para as fotos.
+
+**Atualizado em 2026-09-26.** Quatro itens acima saem desta mudança para a sessão única de papel:
+- o teste instrumentado que lê as fotos;
+- as fotos e as marcações em `fixtures/`;
+- o celular e a impressora do ambiente;
+- a linha `5b` marcada como `paga`.
+
+O item de "um teste instrumentado que abre a câmera" já tinha sido substituído pelo teste da montagem
+do analisador (decisão 5). No archive, o §16 recebe as duas linhas `5b` **reagendadas para `6`**.
 
 ### O que NÃO será alterado
 
