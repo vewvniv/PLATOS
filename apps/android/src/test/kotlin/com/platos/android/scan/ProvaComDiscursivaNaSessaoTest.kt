@@ -42,8 +42,8 @@ class ProvaComDiscursivaNaSessaoTest {
 
     private fun sessaoAberta() = ScanSession(pacote).apply { onPermission(granted = true) }
 
-    private fun reconhecida(estado: ScanState): ScanState.DiscursivaNaoCorrigivel =
-        estado as? ScanState.DiscursivaNaoCorrigivel
+    private fun reconhecida(estado: ScanState): ScanState.ProvaComDiscursiva =
+        estado as? ScanState.ProvaComDiscursiva
             ?: throw AssertionError("esperava a prova com discursiva reconhecida, veio $estado")
 
     /** Guarda de vacuidade: sem isto, a fixture poderia ser uma prova objetiva e tudo passaria. */
@@ -64,9 +64,9 @@ class ProvaComDiscursivaNaSessaoTest {
         assertEquals("lido", estado.gabarito)
         assertEquals(listOf("d1"), estado.discursivas)
         assertTrue(
-            ScanState.DiscursivaNaoCorrigivel.AVISO.contains("ainda nao esta disponivel neste aparelho"),
+            ScanState.ProvaComDiscursiva.AVISO.contains("ainda nao esta disponivel neste aparelho"),
         )
-        assertTrue(ScanState.DiscursivaNaoCorrigivel.AVISO.contains("Nada foi guardado"))
+        assertTrue(ScanState.ProvaComDiscursiva.AVISO.contains("Nada foi guardado"))
     }
 
     @Test

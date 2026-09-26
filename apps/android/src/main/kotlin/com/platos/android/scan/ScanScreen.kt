@@ -71,7 +71,7 @@ fun ScanScreen(
                 Text("Folha recusada", fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text(state.reason, fontSize = 16.sp)
             }
-            is ScanState.DiscursivaNaoCorrigivel -> Resultado(onRetomar) {
+            is ScanState.ProvaComDiscursiva -> Resultado(onRetomar) {
                 DeQuemE(idAlunoDaFolha(state.aluno, roster, ZoneId.systemDefault()))
                 Text("Prova com discursiva", fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 state.gabarito?.let { Text("Gabarito: $it", fontSize = 16.sp) }
@@ -79,7 +79,7 @@ fun ScanScreen(
                     Text("Discursivas reconhecidas: ${state.discursivas.joinToString()}", fontSize = 16.sp)
                 }
                 state.discursivasNaoLidas.forEach { Text("Nao lida: $it", fontSize = 16.sp) }
-                Text(ScanState.DiscursivaNaoCorrigivel.AVISO, fontSize = 16.sp)
+                Text(ScanState.ProvaComDiscursiva.AVISO, fontSize = 16.sp)
             }
             is ScanState.Scored -> Resultado(onRetomar) {
                 DeQuemE(idAlunoDaFolha(state.payload.studentToken, roster, ZoneId.systemDefault()))

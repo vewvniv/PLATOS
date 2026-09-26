@@ -50,7 +50,7 @@ sealed interface ScanState {
      * reconhecido nela, e **nao tem nota**: nem parcial, porque uma nota objetiva de prova com parte
      * discursiva nao e a nota da prova (§10, D4). Nada e gravado a partir dele.
      */
-    data class DiscursivaNaoCorrigivel(
+    data class ProvaComDiscursiva(
         /** O token do aluno, pelo QR: vazio na folha avulsa. */
         val aluno: String,
         /** "lido", o motivo de o gabarito nao ter fechado, ou nulo quando ele nao estava no quadro. */

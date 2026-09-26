@@ -38,7 +38,7 @@ class ScanSession(private val examPackage: ExamPackage) {
      */
     private val holdsResult: Boolean
         get() = state is ScanState.Scored || state is ScanState.Rejected ||
-            state is ScanState.DiscursivaNaoCorrigivel
+            state is ScanState.ProvaComDiscursiva
 
     /**
      * Se a prova desta sessao tem parte discursiva — decidido pelo **pacote**, e nao pelo quadro
@@ -162,7 +162,7 @@ class ScanSession(private val examPackage: ExamPackage) {
             return ScanState.Rejected("o quadro tem regioes de folhas diferentes: ${alunos.joinToString()}")
         }
 
-        return ScanState.DiscursivaNaoCorrigivel(
+        return ScanState.ProvaComDiscursiva(
             aluno = alunos.single(),
             gabarito = when (outcome) {
                 is FrameOutcome.Read -> "lido"
