@@ -11,14 +11,22 @@
 - [x] 0.2 Registrar a saída de `node tools/divida/divida.mjs`. Verificação: `exit 0`, sem linha
   vencida.
 
-## 1. Contrato de persistência (Android)
+## 1. Contrato de persistência
 
-- [ ] 1.1 `CadernoEntity`, `CadernoDao` e a `RoomDatabase` nova (`caderno.db`), num commit próprio,
+- [ ] 1.1 `@Serializable` em `PartialScoringOutcome`, `PartialScore`, `AwaitingEssay`,
+  `PendingQuestion`, `PendingReason`, `QuestionOutcome` e `QuestionAnswer` (`packages/domain`), e em
+  `Caderno`, `RegiaoDoCaderno` e `EstadoDaRegiao` (Android) — num commit de contrato próprio, antes
+  do consumidor (regra 1 do `CLAUDE.md`; design, decisão 2, sub-decisão sobre DTO). Verificação:
+  `./gradlew :packages:domain:build` e a suíte de `scoring` (`jvmTest`, `jsNodeTest`,
+  `testAndroidHostTest`) passam sem nenhuma asserção alterada, com a mesma contagem da 0.1; e um
+  teste novo que serializa e desserializa uma `PartialScore` e um `Caderno` (com todos os estados de
+  região e todos os quatro casos de `QuestionAnswer`) e confere igualdade com o original.
+- [ ] 1.2 `CadernoEntity`, `CadernoDao` e a `RoomDatabase` nova (`caderno.db`), num commit próprio,
   antes de qualquer consumidor (regra 1 do `CLAUDE.md`). Uma linha por `exam_id`, coluna `corpo` com
   o `Caderno` serializado (`kotlinx.serialization`), inserção com `OnConflictStrategy.REPLACE`
   (design, decisão 2). Verificação: teste de Room isolado — inserir duas vezes para o mesmo
   `examId` deixa exatamente uma linha, com o `corpo` da segunda.
-- [ ] 1.2 Uma interface própria (`CadernosGuardados` ou nome equivalente), com `guardar(examId,
+- [ ] 1.3 Uma interface própria (`CadernosGuardados` ou nome equivalente), com `guardar(examId,
   caderno)` e `ler(examId): Caderno?`, implementada em Room recebendo o `Dao` — não o `Context` —,
   no mesmo padrão de `ResultadosEmRoom` (design, decisão 2). Verificação: o contrato é exercitado por
   uma implementação em memória nos testes de `ScanSession`, e pela implementação em Room num teste

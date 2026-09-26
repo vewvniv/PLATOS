@@ -36,8 +36,9 @@ isso como lacuna explícita ("o caderno se perde ao sair da tela... e é a 5b-3 
   tarefa própria, fora desta mudança.
 - O comportamento em revogação de vínculo segue o mesmo padrão do resultado pendente hoje
   (preservado); nenhum requisito novo dedicado a esse caminho.
-- `ObjectiveScoring`, `PartialScoringOutcome`, `Caderno` e qualquer contrato de domínio — só a
-  camada de persistência é nova.
+- O comportamento de `ObjectiveScoring`, `PartialScoringOutcome` e `Caderno` — nenhum campo, guarda
+  ou regra muda. A única adição de contrato é a marca `@Serializable`, que não altera comportamento
+  (ver Impact).
 
 ## Capabilities
 
@@ -56,6 +57,14 @@ Nenhuma.
 - Android: `ScanState`, `Caderno` e a sessão de escaneamento ganham uma camada de persistência local
   (Room, no mesmo padrão que `device-session` e `result-sync` já usam), escopada pela prova e pela
   organização.
-- Nenhuma mudança de contrato KMP: `ObjectiveScoring.scorePartial`, `PartialScoringOutcome` e
-  `Caderno` continuam como estão.
+- **Mudança de contrato KMP, pequena e aditiva:** `PartialScoringOutcome`, `PartialScore`,
+  `AwaitingEssay`, `PendingQuestion`, `PendingReason`, `QuestionOutcome` e `QuestionAnswer` (em
+  `packages/domain`) ganham a anotação `@Serializable`. Nenhum campo, guarda ou comportamento muda —
+  é o que permite reconstruir o `Caderno` (e a `PartialScore` que ele carrega) de volta a um objeto
+  de domínio de verdade, com as guardas de construção revalidando na leitura, em vez de duplicar a
+  forma de `QuestionAnswer` num DTO próprio (o `KDoc` de `QuestionOutcome.answer` já avisa contra
+  essa duplicação: "um segundo vocabulário... seria uma cópia que envelhece sozinha"). O plugin de
+  serialização já está ativo neste módulo (`ResultSubmissionDto`, em `domain.transport`, já o usa).
+  `Caderno`, `RegiaoDoCaderno` e `EstadoDaRegiao` (Android) recebem a mesma anotação; estes não são
+  contrato KMP.
 - Nenhuma mudança em `result-sync`, `exam-package`, `scoring` ou `device-session`.

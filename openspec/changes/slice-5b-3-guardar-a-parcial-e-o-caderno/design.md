@@ -70,6 +70,27 @@ para não acoplar o ciclo de vida do caderno ao do envio), com uma linha por `ex
 o JSON exato em vez de colunas decompostas: decompor e remontar arrisca uma mudança de serialização
 reescrever, em silêncio, um caderno já guardado.
 
+**O que vai dentro do `corpo` é o próprio grafo de domínio, serializado direto — e não um DTO
+próprio.** `Caderno`, `RegiaoDoCaderno` e `EstadoDaRegiao` (Android) e `PartialScoringOutcome`,
+`PartialScore`, `AwaitingEssay`, `PendingQuestion`, `PendingReason`, `QuestionOutcome` e
+`QuestionAnswer` (KMP, `packages/domain`) ganham `@Serializable`. Decisão tomada com o mantenedor
+antes desta tarefa, registrada aqui e corrigida em `proposal.md` (Impact): a proposta original dizia
+"nenhuma mudança de contrato KMP", e ganhar `@Serializable` é mudança de contrato, ainda que aditiva.
+
+- **Por que não um DTO próprio, como `ResultadoDto` faz para o envio:** aquele DTO é *write-only* —
+  nunca volta a ser um `ObjectiveScore`, porque o outbox só envia. Este precisa voltar a ser um
+  `Caderno` de verdade, guardas de construção incluídas, para a sessão retomar de onde parou. Um DTO
+  duplicaria a forma de `QuestionAnswer` nos dois sentidos, exatamente o que o `KDoc` de
+  `QuestionOutcome.answer` já nomeia como risco: "um segundo vocabulário... seria uma cópia que
+  envelhece sozinha." Anotar o tipo de domínio evita a cópia, e as guardas do `init` de `PartialScore`
+  e `QuestionOutcome` revalidam a cada leitura — proteção a mais, não a menos.
+- **O plugin de serialização já está ativo em `packages/domain`:** `ResultSubmissionDto` e
+  `AnswerObservationDto`, em `domain.transport`, já são `@Serializable` nesse módulo. Não há
+  dependência nova a declarar.
+- **Sealed interfaces (`QuestionAnswer`, `PartialScoringOutcome`) ficam polimórficas por padrão**,
+  porque todas as subclasses estão no mesmo módulo e ganham `@Serializable` junto — o compilador
+  gera o discriminador sem `SerializersModule` manual.
+
 Escrever SHALL substituir a linha inteira (`OnConflictStrategy.REPLACE`), porque um caderno novo
 para a mesma prova (outro aluno, ou o mesmo com mais regiões) não emenda o anterior — ele o
 substitui, do mesmo jeito que a variável em memória já faz.
