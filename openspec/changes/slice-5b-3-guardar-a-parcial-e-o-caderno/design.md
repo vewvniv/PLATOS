@@ -58,17 +58,28 @@ primeiro quadro.
   **Não é mitigado, é conhecido (P8):** um encerramento que pule `onStop` perde o que não foi
   escrito ainda, exatamente como perderia hoje, em memória. Isso não piora nada que já existisse.
 - **Ler antes do primeiro quadro:** ao abrir o escaneamento desta prova, a sessão consulta o
-  armazenamento local por um caderno guardado para este `examId`; havendo um, o estado inicial nasce
-  dele em vez de vazio.
+  armazenamento local por um caderno guardado para esta organização e `examId`; havendo um, o estado
+  inicial nasce dele em vez de vazio.
 
-### 2. Registro único por prova, substituído inteiro, na forma de `result-sync`
+### 2. Registro único por organização e prova, substituído inteiro, na forma de `result-sync`
 
 Uma tabela nova, própria de `scan-session` (não o `outbox.db` de `result-sync` — bases distintas,
-para não acoplar o ciclo de vida do caderno ao do envio), com uma linha por `examId`, chave primária
-`exam_id`, e uma coluna `corpo` com o `Caderno` (e a parcial que ele carrega) serializado
-(`kotlinx.serialization`, já na stack), pelo mesmo motivo que `ResultadoPendenteEntity.corpo` guarda
-o JSON exato em vez de colunas decompostas: decompor e remontar arrisca uma mudança de serialização
-reescrever, em silêncio, um caderno já guardado.
+para não acoplar o ciclo de vida do caderno ao do envio), com uma linha por **organização e prova**
+(chave composta `organizacao, exam_id`), e uma coluna `corpo` com o `Caderno` (e a parcial que ele
+carrega) serializado (`kotlinx.serialization`, já na stack), pelo mesmo motivo que
+`ResultadoPendenteEntity.corpo` guarda o JSON exato em vez de colunas decompostas: decompor e
+remontar arrisca uma mudança de serialização reescrever, em silêncio, um caderno já guardado.
+
+**A chave inclui a organização, e não só `examId` — corrigido ao aplicar.** A primeira versão desta
+decisão usava só `examId`, pela mesma lógica de `ScanSession.caderno`: o caderno é do aparelho e da
+prova, não da organização nem do aluno. Mas `ScanSession` vive num aparelho de uma sessão só, com uma
+organização ativa por vez; o armazenamento local sobrevive à troca de organização no mesmo aparelho
+**compartilhado entre escolas**, que é exatamente o cenário que `DeviceSession.sair` protege para
+roster, pacote e visão. `examId` não tem contrato de unicidade entre organizações — a mesma distinção
+que `ScanActivity.EXTRA_SHORT_ID` já registra para o roster ("são iguais hoje, mas por um contrato
+implícito que nada prende"). Sem a organização, um `examId` que colidisse entre duas escolas no mesmo
+aparelho misturaria o caderno de uma na sessão da outra. A organização já está resolvida no `onCreate`
+antes de `ScanSession` existir, então o custo é uma coluna, não um caminho novo.
 
 **O que vai dentro do `corpo` é o próprio grafo de domínio, serializado direto — e não um DTO
 próprio.** `Caderno`, `RegiaoDoCaderno` e `EstadoDaRegiao` (Android) e `PartialScoringOutcome`,

@@ -22,8 +22,9 @@ import kotlinx.coroutines.launch
  */
 fun CoroutineScope.guardarCadernoEmAndamento(
     cadernos: CadernosGuardados,
+    organizacao: String,
     examId: String,
     caderno: Caderno,
 ): Job = launch(Dispatchers.IO + NonCancellable) {
-    cadernos.guardar(examId, caderno)
+    cadernos.guardar(organizacao, examId, caderno)
 }

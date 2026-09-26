@@ -33,6 +33,14 @@
   fechada e reaberta — `o_caderno_volta_do_disco_identico_ao_que_entrou` — e o caso de nenhum caderno
   guardado ainda. O uso por uma implementação em memória nos testes de `ScanSession` é a 2.1, que
   consome a interface.
+- [x] 1.4 **Correção de escopo, achada ao preparar a 3.1.** A 1.2 e a 1.3 chavearam só por `examId`,
+  como o design original dizia. Mas o aparelho é compartilhado entre escolas
+  (`DeviceSession.sair`), e `examId` não tem contrato de unicidade entre organizações — a mesma
+  distinção que `ScanActivity.EXTRA_SHORT_ID` já registra para o roster. A chave passou a ser
+  composta (`organizacao, exam_id`), decisão tomada com o mantenedor e registrada em `design.md`
+  antes desta correção. Verificação: teste novo
+  `o_mesmo_examId_em_outra_organizacao_nao_e_o_mesmo_caderno`; `build` e `connectedDebugAndroidTest`
+  sem filtro repetidos, sem regressão.
 
 ## 2. `ScanSession` retoma e guarda o caderno em andamento
 

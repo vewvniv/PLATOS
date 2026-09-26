@@ -5,8 +5,6 @@ import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
-import androidx.room.OnConflictStrategy
-import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -16,17 +14,21 @@ import kotlinx.serialization.json.Json
 /**
  * O caderno em andamento, como o Room o guarda (`slice-5b-3-guardar-a-parcial-e-o-caderno`).
  *
- * **Uma linha por prova, substituida inteira.** [examId] e a chave porque o caderno e do aparelho e
- * da prova, e nao da organizacao nem do aluno: `ScanSession.caderno` e uma variavel so (decisao 4 da
- * `5b-2`), e guardar espelha essa forma.
+ * **Uma linha por organizacao e prova, substituida inteira.** A chave e composta —
+ * ([organizacao], [examId]) —, e nao so `examId`: o aparelho e compartilhado entre escolas
+ * (`DeviceSession.sair`), e `examId` nao tem contrato de unicidade entre organizacoes — a mesma
+ * distincao que `ScanActivity.EXTRA_SHORT_ID` ja registra para o roster ("sao iguais hoje, mas por
+ * um contrato implicito que nada prende"). Sem a organizacao, um `examId` que colidisse entre duas
+ * escolas no mesmo aparelho misturaria o caderno de uma na sessao da outra.
  *
  * **[corpo] e o JSON exato do `Caderno`**, pela mesma razao de `ResultadoPendenteEntity.corpo`:
  * decompor em colunas e remontar arriscaria uma mudanca de serializacao reescrever, em silencio, um
  * caderno ja guardado.
  */
-@Entity(tableName = "caderno_em_andamento")
+@Entity(tableName = "caderno_em_andamento", primaryKeys = ["organizacao", "exam_id"])
 data class CadernoEntity(
-    @PrimaryKey @ColumnInfo(name = "exam_id") val examId: String,
+    @ColumnInfo(name = "organizacao") val organizacao: String,
+    @ColumnInfo(name = "exam_id") val examId: String,
     @ColumnInfo(name = "corpo") val corpo: String,
 )
 
@@ -41,8 +43,8 @@ interface CadernoDao {
     @Upsert
     fun guardar(linha: CadernoEntity)
 
-    @Query("select * from caderno_em_andamento where exam_id = :examId")
-    fun ler(examId: String): CadernoEntity?
+    @Query("select * from caderno_em_andamento where organizacao = :organizacao and exam_id = :examId")
+    fun ler(organizacao: String, examId: String): CadernoEntity?
 }
 
 @Database(entities = [CadernoEntity::class], version = 1, exportSchema = false)
@@ -57,8 +59,8 @@ abstract class BaseDoCaderno : RoomDatabase() {
  * Room — a mesma fronteira que `ResultadosPendentes` ja desenha para o outbox.
  */
 interface CadernosGuardados {
-    fun guardar(examId: String, caderno: Caderno)
-    fun ler(examId: String): Caderno?
+    fun guardar(organizacao: String, examId: String, caderno: Caderno)
+    fun ler(organizacao: String, examId: String): Caderno?
 }
 
 /**
@@ -74,12 +76,12 @@ interface CadernosGuardados {
  */
 class CadernosEmRoom(private val dao: CadernoDao) : CadernosGuardados {
 
-    override fun guardar(examId: String, caderno: Caderno) {
-        dao.guardar(CadernoEntity(examId, Json.encodeToString(Caderno.serializer(), caderno)))
+    override fun guardar(organizacao: String, examId: String, caderno: Caderno) {
+        dao.guardar(CadernoEntity(organizacao, examId, Json.encodeToString(Caderno.serializer(), caderno)))
     }
 
-    override fun ler(examId: String): Caderno? =
-        dao.ler(examId)?.let { Json.decodeFromString(Caderno.serializer(), it.corpo) }
+    override fun ler(organizacao: String, examId: String): Caderno? =
+        dao.ler(organizacao, examId)?.let { Json.decodeFromString(Caderno.serializer(), it.corpo) }
 
     companion object {
 

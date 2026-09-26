@@ -32,6 +32,7 @@ class GuardarCadernoNoFioPrincipalInstrumentedTest {
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val nomeDaBase = "caderno.db"
+    private val organizacao = "01a06ba4-cb43-7d97-842d-165352d010b5"
     private val examId = "prova-referencia-slice-1"
 
     private lateinit var escopo: CoroutineScope
@@ -80,14 +81,14 @@ class GuardarCadernoNoFioPrincipalInstrumentedTest {
 
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             val guarda = CadernosEmRoom(CadernosEmRoom.abrir(context).cadernos())
-            job = escopo.guardarCadernoEmAndamento(guarda, examId, original)
+            job = escopo.guardarCadernoEmAndamento(guarda, organizacao, examId, original)
         }
 
         runBlocking { job.join() }
 
         // A leitura e por uma instancia nova, e fora do fio principal: se a gravacao tivesse ficado
         // so em memoria, ou nao tivesse acontecido, aqui viria nulo.
-        val lido = CadernosEmRoom(CadernosEmRoom.abrir(context).cadernos()).ler(examId)
+        val lido = CadernosEmRoom(CadernosEmRoom.abrir(context).cadernos()).ler(organizacao, examId)
 
         assertEquals(original, lido)
     }

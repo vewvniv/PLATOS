@@ -132,7 +132,10 @@ class ScanActivity : ComponentActivity() {
         // O caderno em andamento, guardado antes do fechamento anterior do aplicativo (se houver).
         // Lido antes do primeiro quadro, e nao a cada quadro (design, decisao 1).
         cadernos = CadernosEmRoom(CadernosEmRoom.abrir(applicationContext).cadernos())
-        session = ScanSession(examPackage, cadernoInicial = cadernos.ler(examPackage.meta.examId))
+        session = ScanSession(
+            examPackage,
+            cadernoInicial = cadernos.ler(organizacao, examPackage.meta.examId),
+        )
         // A fila do outbox. Aberta aqui e nao no `Application` porque e aqui que ela e usada, e a
         // organizacao e a prova ja estao resolvidas neste ponto.
         pendentes = ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes())
@@ -177,7 +180,7 @@ class ScanActivity : ComponentActivity() {
         super.onStop()
         if (::session.isInitialized) {
             session.cadernoAtual?.let { caderno ->
-                lifecycleScope.guardarCadernoEmAndamento(cadernos, examPackage.meta.examId, caderno)
+                lifecycleScope.guardarCadernoEmAndamento(cadernos, organizacao, examPackage.meta.examId, caderno)
             }
         }
     }

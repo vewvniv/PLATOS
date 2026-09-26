@@ -32,6 +32,8 @@ class CadernoEmRepousoInstrumentedTest {
     private lateinit var base: BaseDoCaderno
     private lateinit var guarda: CadernosGuardados
 
+    private val organizacao = "01a06ba4-cb43-7d97-842d-165352d010b5"
+    private val outraOrganizacao = "01a06ba4-0000-7d97-842d-165352d010b5"
     private val examId = "prova-referencia-slice-1"
 
     private fun abrir(): BaseDoCaderno =
@@ -80,16 +82,16 @@ class CadernoEmRepousoInstrumentedTest {
     }
 
     @Test
-    fun guardar_duas_vezes_para_a_mesma_prova_deixa_uma_linha_so() {
-        guarda.guardar(examId, caderno("tok-a", objectivePoints = 0))
-        guarda.guardar(examId, caderno("tok-b", objectivePoints = 1))
+    fun guardar_duas_vezes_para_a_mesma_organizacao_e_prova_deixa_uma_linha_so() {
+        guarda.guardar(organizacao, examId, caderno("tok-a", objectivePoints = 0))
+        guarda.guardar(organizacao, examId, caderno("tok-b", objectivePoints = 1))
 
         val linhas = base.query("select count(*) from caderno_em_andamento", null)
         linhas.moveToFirst()
         assertEquals(1, linhas.getInt(0))
         linhas.close()
 
-        assertEquals("tok-b", guarda.ler(examId)?.aluno)
+        assertEquals("tok-b", guarda.ler(organizacao, examId)?.aluno)
     }
 
     /**
@@ -98,18 +100,30 @@ class CadernoEmRepousoInstrumentedTest {
     @Test
     fun o_caderno_volta_do_disco_identico_ao_que_entrou() {
         val original = caderno("tok-a", objectivePoints = 1)
-        guarda.guardar(examId, original)
+        guarda.guardar(organizacao, examId, original)
         base.close()
 
         // Instancia nova sobre o mesmo arquivo: se o caderno estivesse em memoria, aqui viria nulo.
         base = abrir()
-        val lido = CadernosEmRoom(base.cadernos()).ler(examId)
+        val lido = CadernosEmRoom(base.cadernos()).ler(organizacao, examId)
 
         assertEquals(original, lido)
     }
 
     @Test
     fun nenhum_caderno_guardado_para_uma_prova_que_nunca_foi_tocada() {
-        assertNull(guarda.ler("outra-prova"))
+        assertNull(guarda.ler(organizacao, "outra-prova"))
+    }
+
+    /**
+     * A organizacao entra na chave porque o aparelho e compartilhado entre escolas
+     * (`DeviceSession.sair`), e `examId` nao tem contrato de unicidade entre organizacoes (design,
+     * decisao 2). Sem isto, o mesmo `examId` em duas organizacoes misturaria os dois cadernos.
+     */
+    @Test
+    fun o_mesmo_examId_em_outra_organizacao_nao_e_o_mesmo_caderno() {
+        guarda.guardar(organizacao, examId, caderno("tok-a", objectivePoints = 1))
+
+        assertNull(guarda.ler(outraOrganizacao, examId))
     }
 }
