@@ -3,6 +3,7 @@ package com.platos.android.outbox
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.platos.domain.capture.QuestionAnswer
+import com.platos.domain.scoring.ApuracaoParaEnvio
 import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.QuestionOutcome
 import kotlinx.coroutines.CoroutineScope
@@ -51,14 +52,16 @@ class GravacaoNoFioPrincipalInstrumentedTest {
         prova = "prova-referencia-slice-1",
         studentToken = "tok-a",
         apuradoEm = 1_789_646_400_000L,
-        nota = ObjectiveScore(
-            packageHash = "a".repeat(64),
-            variantId = "v1",
-            points = 1,
-            maxScore = 1,
-            pending = emptyList(),
-            outcomes = listOf(
-                QuestionOutcome("q01", QuestionAnswer.Marcada("q01", "A"), worth = 1, earned = 1),
+        nota = ApuracaoParaEnvio.Completa(
+            ObjectiveScore(
+                packageHash = "a".repeat(64),
+                variantId = "v1",
+                points = 1,
+                maxScore = 1,
+                pending = emptyList(),
+                outcomes = listOf(
+                    QuestionOutcome("q01", QuestionAnswer.Marcada("q01", "A"), worth = 1, earned = 1),
+                ),
             ),
         ),
     )

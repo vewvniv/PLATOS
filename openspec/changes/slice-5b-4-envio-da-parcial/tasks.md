@@ -57,7 +57,7 @@
 
 ## 3. Aparelho: o outbox aceita `ApuracaoParaEnvio`
 
-- [ ] 3.1 `ResultadoPendente.nota` passa de `ObjectiveScore` para `ApuracaoParaEnvio`. `corpoDoEnvio()`
+- [x] 3.1 `ResultadoPendente.nota` passa de `ObjectiveScore` para `ApuracaoParaEnvio`. `corpoDoEnvio()`
   (`apps/android/.../api/ResultadoDto.kt`) ganha um `when`: `Completa` monta o corpo com os mesmos
   campos de hoje, mais `partial = false` explícito (`encodeDefaults = true` já em vigor emite o
   campo em todo corpo — design, decisão 3, nota sobre o byte); `Parcial` monta `points`, `maxScore`,

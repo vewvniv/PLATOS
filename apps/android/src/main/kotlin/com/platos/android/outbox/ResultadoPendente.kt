@@ -1,6 +1,6 @@
 package com.platos.android.outbox
 
-import com.platos.domain.scoring.ObjectiveScore
+import com.platos.domain.scoring.ApuracaoParaEnvio
 
 /**
  * Uma correcao apurada que ainda nao subiu.
@@ -36,7 +36,12 @@ data class ResultadoPendente(
     val studentToken: String?,
     /** Quando o aparelho apurou, em milissegundos de epoch. Nao e quando o servidor recebeu. */
     val apuradoEm: Long,
-    val nota: ObjectiveScore,
+    /**
+     * A nota fechada, ou a parcial de uma prova com discursiva (`slice-5b-4-envio-da-parcial`).
+     * `ObjectiveScore` e `PartialScore` continuam tipos distintos por baixo — este e o tipo que os
+     * leva a mesma fila sem confundir os dois.
+     */
+    val nota: ApuracaoParaEnvio,
 )
 
 /**

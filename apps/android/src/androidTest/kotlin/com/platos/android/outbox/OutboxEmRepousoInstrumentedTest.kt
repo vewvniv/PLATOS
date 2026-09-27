@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.platos.android.api.corpoDoEnvio
 import com.platos.domain.capture.QuestionAnswer
+import com.platos.domain.scoring.ApuracaoParaEnvio
 import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.PendingQuestion
 import com.platos.domain.scoring.PendingReason
@@ -90,7 +91,7 @@ class OutboxEmRepousoInstrumentedTest {
         prova = prova,
         studentToken = token,
         apuradoEm = 1_789_646_400_000L,
-        nota = nota(comPendencia = comPendencia),
+        nota = ApuracaoParaEnvio.Completa(nota(comPendencia = comPendencia)),
     )
 
     @Before

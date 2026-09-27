@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.platos.android.session.SessaoGuardadaAndroid
 import com.platos.domain.capture.QuestionAnswer
+import com.platos.domain.scoring.ApuracaoParaEnvio
 import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.QuestionOutcome
 import io.ktor.client.engine.mock.MockEngine
@@ -209,7 +210,7 @@ class SegundoMembroInstrumentedTest {
                 prova = prova,
                 studentToken = "tok-a",
                 apuradoEm = 1_789_646_400_000L,
-                nota = nota(),
+                nota = ApuracaoParaEnvio.Completa(nota()),
             ),
         )
     }

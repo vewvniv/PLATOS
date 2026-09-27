@@ -8,6 +8,7 @@ import com.platos.android.outbox.BaseDoOutbox
 import com.platos.android.outbox.ResultadoPendente
 import com.platos.android.outbox.ResultadosEmRoom
 import com.platos.domain.capture.QuestionAnswer
+import com.platos.domain.scoring.ApuracaoParaEnvio
 import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.QuestionOutcome
 import org.junit.After
@@ -170,14 +171,16 @@ class AcumuloDeInstanciasProbe {
         prova = "prova-referencia-slice-1",
         studentToken = "tok-a",
         apuradoEm = 1_789_646_400_000L,
-        nota = ObjectiveScore(
-            packageHash = "a".repeat(64),
-            variantId = "v1",
-            points = 1,
-            maxScore = 1,
-            pending = emptyList(),
-            outcomes = listOf(
-                QuestionOutcome("q01", QuestionAnswer.Marcada("q01", "A"), worth = 1, earned = 1),
+        nota = ApuracaoParaEnvio.Completa(
+            ObjectiveScore(
+                packageHash = "a".repeat(64),
+                variantId = "v1",
+                points = 1,
+                maxScore = 1,
+                pending = emptyList(),
+                outcomes = listOf(
+                    QuestionOutcome("q01", QuestionAnswer.Marcada("q01", "A"), worth = 1, earned = 1),
+                ),
             ),
         ),
     )
