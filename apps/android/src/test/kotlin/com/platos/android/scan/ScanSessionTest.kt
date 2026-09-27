@@ -162,7 +162,8 @@ class ScanSessionTest {
         val apuracao = sessao.onFrame(FrameOutcome.Read(leitura(acertos = 40)))
 
         assertTrue(sessao.state is ScanState.Scored, "esperava a nota, veio ${sessao.state}")
-        assertEquals(40, apuracao?.score?.points, "a nota continua sendo entregue para gravar")
+        val completa = apuracao as? ApuracaoNova.Completa
+        assertEquals(40, completa?.score?.points, "a nota continua sendo entregue para gravar")
     }
 
     @Test
@@ -296,9 +297,10 @@ class ScanSessionTest {
         val apuracao = sessao.onFrame(FrameOutcome.Read(leitura(token = "aluno-1")))
 
         assertTrue(apuracao != null, "a folha apurada precisa produzir o que gravar")
-        assertEquals("aluno-1", apuracao!!.reading.payload.studentToken)
-        assertEquals(40, apuracao.score.points)
-        assertEquals(40, apuracao.score.outcomes.size, "a evidencia por questao precisa vir junto")
+        val completa = apuracao as ApuracaoNova.Completa
+        assertEquals("aluno-1", completa.reading.payload.studentToken)
+        assertEquals(40, completa.score.points)
+        assertEquals(40, completa.score.outcomes.size, "a evidencia por questao precisa vir junto")
     }
 
     /**
@@ -329,7 +331,7 @@ class ScanSessionTest {
         val outra = sessao.onFrame(FrameOutcome.Read(leitura(token = "aluno-2")))
 
         assertTrue(outra != null, "folha de outro aluno e outra captura")
-        assertEquals("aluno-2", outra!!.reading.payload.studentToken)
+        assertEquals("aluno-2", (outra as ApuracaoNova.Completa).reading.payload.studentToken)
     }
 
     /**

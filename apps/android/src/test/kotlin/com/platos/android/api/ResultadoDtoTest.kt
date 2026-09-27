@@ -2,7 +2,10 @@ package com.platos.android.api
 
 import com.platos.android.outbox.ResultadoPendente
 import com.platos.domain.capture.QuestionAnswer
+import com.platos.domain.scoring.ApuracaoParaEnvio
+import com.platos.domain.scoring.AwaitingEssay
 import com.platos.domain.scoring.ObjectiveScore
+import com.platos.domain.scoring.PartialScore
 import com.platos.domain.scoring.PendingQuestion
 import com.platos.domain.scoring.PendingReason
 import com.platos.domain.scoring.QuestionOutcome
@@ -42,13 +45,15 @@ class ResultadoDtoTest {
         // 2026-09-17T12:00:00Z em milissegundos de epoch. Fixo: relogio no teste faria o corpo
         // esperado mudar a cada execucao, e o que este arquivo prende e a **forma**.
         apuradoEm = 1_789_646_400_000L,
-        nota = ObjectiveScore(
-            packageHash = "a".repeat(64),
-            variantId = "v1",
-            points = pontos,
-            maxScore = 2,
-            pending = pendencias,
-            outcomes = outcomes,
+        nota = ApuracaoParaEnvio.Completa(
+            ObjectiveScore(
+                packageHash = "a".repeat(64),
+                variantId = "v1",
+                points = pontos,
+                maxScore = 2,
+                pending = pendencias,
+                outcomes = outcomes,
+            ),
         ),
     )
 
@@ -63,7 +68,7 @@ class ResultadoDtoTest {
         ).corpoDoEnvio()
 
         val esperado = """
-            {"capture_id":"cap-abc","student_token":"aluno-1","package_hash":"${"a".repeat(64)}","variant_id":"v1","points":1,"max_score":2,"closed":true,"captured_at":"2026-09-17T12:00:00Z","observations":[{"item_id":"q01","answer_kind":"marcada","answer_options":["A"],"worth":1,"earned":1},{"item_id":"q02","answer_kind":"em_branco","answer_options":[],"worth":1,"earned":0}]}
+            {"capture_id":"cap-abc","student_token":"aluno-1","package_hash":"${"a".repeat(64)}","variant_id":"v1","points":1,"max_score":2,"closed":true,"captured_at":"2026-09-17T12:00:00Z","observations":[{"item_id":"q01","answer_kind":"marcada","answer_options":["A"],"worth":1,"earned":1},{"item_id":"q02","answer_kind":"em_branco","answer_options":[],"worth":1,"earned":0}],"partial":false}
         """.trimIndent()
 
         assertEquals(esperado, corpo)
@@ -137,7 +142,7 @@ class ResultadoDtoTest {
         assertEquals(
             setOf(
                 "capture_id", "student_token", "package_hash", "variant_id",
-                "points", "max_score", "closed", "captured_at", "observations",
+                "points", "max_score", "closed", "captured_at", "observations", "partial",
             ),
             raiz.keys,
             "campo a mais no corpo e dado a mais saindo do aparelho",
@@ -149,6 +154,50 @@ class ResultadoDtoTest {
             setOf("item_id", "answer_kind", "answer_options", "worth", "earned"),
             observacao.keys,
             "a evidencia nao carrega habilidade: ela e derivada do pacote, no servidor",
+        )
+    }
+
+    /**
+     * O corpo de uma parcial (`slice-5b-4-envio-da-parcial`): `partial=true`, `closed=false`
+     * sempre, `points`/`max_score` da parte objetiva e da prova (nao do maximo objetivo), e
+     * `observations` so das questoes objetivas — nenhuma discursiva aguardando entra aqui (design,
+     * decisao 4: quem deriva `awaiting` e o servidor, a partir do pacote publicado).
+     */
+    @Test
+    fun `o corpo de uma parcial vai com partial=true, closed=false e so as objetivas na evidencia`() {
+        val pendente = ResultadoPendente(
+            captureId = "cap-parcial",
+            organizacao = "org-1",
+            prova = "prova-r",
+            studentToken = "aluno-1",
+            apuradoEm = 1_789_646_400_000L,
+            nota = ApuracaoParaEnvio.Parcial(
+                PartialScore(
+                    packageHash = "a".repeat(64),
+                    variantId = "v1",
+                    objectivePoints = 1,
+                    objectiveMaxScore = 1,
+                    maxScore = 8,
+                    awaiting = listOf(AwaitingEssay("d1", 3), AwaitingEssay("d2", 4)),
+                    pending = emptyList(),
+                    outcomes = listOf(
+                        QuestionOutcome("q01", QuestionAnswer.Marcada("q01", "A"), worth = 1, earned = 1),
+                    ),
+                ),
+            ),
+        )
+
+        val corpo = pendente.corpoDoEnvio()
+        val raiz = json.parseToJsonElement(corpo) as JsonObject
+
+        assertEquals("true", raiz.getValue("partial").jsonPrimitive.content)
+        assertEquals("false", raiz.getValue("closed").jsonPrimitive.content)
+        assertEquals("1", raiz.getValue("points").jsonPrimitive.content, "pontos da parte objetiva")
+        assertEquals("8", raiz.getValue("max_score").jsonPrimitive.content, "maximo da prova, nao so do objetivo")
+        assertEquals(
+            1,
+            (raiz.getValue("observations") as kotlinx.serialization.json.JsonArray).size,
+            "so a questao objetiva entra na evidencia; as discursivas aguardando nao viajam aqui",
         )
     }
 }

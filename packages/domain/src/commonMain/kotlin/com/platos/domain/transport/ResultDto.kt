@@ -46,6 +46,13 @@ data class AnswerObservationDto(
  * mudanca de comportamento. Quem **codifica** com defaults presentes precisa de
  * `encodeDefaults = true`, ou o campo deixa de ser emitido — e e por isso que o aparelho declara
  * essa opcao explicitamente em `corpoDoEnvio`.
+ *
+ * **[partial] discrimina uma parcial de discursiva de uma nota objetiva ambigua**
+ * (`slice-5b-4-envio-da-parcial`, design decisao 3). As duas podem chegar com `closed = false`, e
+ * inferir uma da outra pela forma — `closed` mais a lista de pendencias — quebraria no caso em que
+ * as duas coexistem: uma folha de prova com discursiva cuja parte objetiva tambem tem uma bolha
+ * ambigua. O default `false` mantem todo corpo ja emitido por uma nota completa decodificando sem
+ * mudanca.
  */
 @Serializable
 data class ResultSubmissionDto(
@@ -58,4 +65,5 @@ data class ResultSubmissionDto(
     val closed: Boolean,
     @SerialName("captured_at") val capturedAt: String,
     val observations: List<AnswerObservationDto>,
+    val partial: Boolean = false,
 )

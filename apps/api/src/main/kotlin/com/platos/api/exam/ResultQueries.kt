@@ -4,7 +4,8 @@ import com.platos.api.db.generated.tables.references.ANSWER_OBSERVATION
 import com.platos.api.db.generated.tables.references.EXAM
 import com.platos.api.db.generated.tables.references.GRADING_RESULT
 import com.platos.domain.capture.QuestionAnswer
-import com.platos.domain.scoring.ObjectiveScore
+import com.platos.domain.scoring.ApuracaoParaEnvio
+import com.platos.domain.scoring.QuestionOutcome
 import com.platos.domain.transport.ResultSubmissionDto
 import com.platos.domain.transport.answerKind
 import com.platos.domain.transport.answerOptions
@@ -108,8 +109,10 @@ class ResultQueries {
         organizationId: UUID,
         examId: UUID,
         submission: ResultSubmissionDto,
-        nota: ObjectiveScore,
+        nota: ApuracaoParaEnvio,
     ): Int {
+        val campos = nota.paraGravacao()
+
         val jaGravada = ctx.select(GRADING_RESULT.REVISION)
             .from(GRADING_RESULT)
             .where(GRADING_RESULT.EXAM_ID.eq(examId))
@@ -141,16 +144,16 @@ class ResultQueries {
             // Leitura optica. `ai` e `teacher` sao das fatias 5 e 8, e o valor e explicito aqui para
             // que o dia em que existir outra origem nao dependa do default da coluna.
             .set(GRADING_RESULT.ORIGIN, "omr")
-            .set(GRADING_RESULT.PACKAGE_HASH, nota.packageHash)
-            .set(GRADING_RESULT.VARIANT_ID, nota.variantId)
-            .set(GRADING_RESULT.POINTS, nota.points)
-            .set(GRADING_RESULT.MAX_SCORE, nota.maxScore)
-            .set(GRADING_RESULT.CLOSED, nota.closed)
+            .set(GRADING_RESULT.PACKAGE_HASH, campos.packageHash)
+            .set(GRADING_RESULT.VARIANT_ID, campos.variantId)
+            .set(GRADING_RESULT.POINTS, campos.points)
+            .set(GRADING_RESULT.MAX_SCORE, campos.maxScore)
+            .set(GRADING_RESULT.CLOSED, campos.closed)
             .set(GRADING_RESULT.CAPTURED_AT, OffsetDateTime.parse(submission.capturedAt))
             .returningResult(GRADING_RESULT.ID)
             .fetchOne { it.value1() }!!
 
-        for (outcome in nota.outcomes) {
+        for (outcome in campos.outcomes) {
             ctx.insertInto(ANSWER_OBSERVATION)
                 .set(ANSWER_OBSERVATION.ORGANIZATION_ID, organizationId)
                 .set(ANSWER_OBSERVATION.GRADING_RESULT_ID, resultadoId)
@@ -176,3 +179,38 @@ class ResultQueries {
  */
 private fun QuestionAnswer.alternativas(): Array<String?> =
     answerOptions().toTypedArray<String?>()
+
+/**
+ * Os cinco escalares e a evidencia que [ResultQueries.record] grava, de qualquer um dos dois casos
+ * de [ApuracaoParaEnvio] (`slice-5b-4-envio-da-parcial`, design decisao 5).
+ *
+ * Uma parcial nunca e `closed`, por construcao de [com.platos.domain.scoring.PartialScore] — o
+ * `false` aqui e o mesmo que o tipo ja garante, e nao uma segunda declaracao dele.
+ */
+private data class CamposGravaveis(
+    val packageHash: String,
+    val variantId: String,
+    val points: Int,
+    val maxScore: Int,
+    val closed: Boolean,
+    val outcomes: List<QuestionOutcome>,
+)
+
+private fun ApuracaoParaEnvio.paraGravacao(): CamposGravaveis = when (this) {
+    is ApuracaoParaEnvio.Completa -> CamposGravaveis(
+        packageHash = score.packageHash,
+        variantId = score.variantId,
+        points = score.points,
+        maxScore = score.maxScore,
+        closed = score.closed,
+        outcomes = score.outcomes,
+    )
+    is ApuracaoParaEnvio.Parcial -> CamposGravaveis(
+        packageHash = score.packageHash,
+        variantId = score.variantId,
+        points = score.objectivePoints,
+        maxScore = score.maxScore,
+        closed = false,
+        outcomes = score.outcomes,
+    )
+}
