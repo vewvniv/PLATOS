@@ -168,14 +168,19 @@ class ProvaComDiscursivaNaSessaoTest {
         )
     }
 
-    /** Cenario "Nada e gravado", com a parcial presente. */
+    /**
+     * Cenario "Nada e gravado", com a parcial presente **e o caderno ainda incompleto** — o
+     * terceiro quadro (`SoDiscursivas(d2())`), que completaria o caderno com d1 e o gabarito ja
+     * capturados, saiu deste teste na `slice-5b-4-envio-da-parcial`: e exatamente o cenario que ela
+     * passa a entregar, coberto em `o caderno completo e entregue quando a ultima regiao e
+     * capturada`.
+     */
     @Test
-    fun `nada e entregue para gravar, quantas vezes a folha for reconhecida`() {
+    fun `nada e entregue para gravar enquanto o caderno nao completa, quantas vezes a folha for reconhecida`() {
         val sessao = sessaoAberta()
         val quadros = listOf(
             FrameOutcome.Read(gabarito(), listOf(d1())),
             FrameOutcome.Read(gabarito()),
-            FrameOutcome.SoDiscursivas(listOf(d2())),
         )
 
         // O canario (P13): a leitura do gabarito rende parcial no dominio. Sem isso, "nada e gravado"
@@ -192,6 +197,7 @@ class ProvaComDiscursivaNaSessaoTest {
             sessao.resume()
             assertNull(sessao.onFrame(quadro), "a sessao entregou apuracao depois de retomar")
         }
+        assertEquals(2, reconhecida(sessao.state).caderno.capturadas, "guarda de vacuidade: o caderno continua incompleto")
     }
 
     /** Parte da sessao do cenario "Abrir a camera numa prova com discursiva"; a queda e a 3.1. */
@@ -451,5 +457,72 @@ class ProvaComDiscursivaNaSessaoTest {
         val sessao = sessaoAberta()
 
         assertNull(sessao.cadernoAtual)
+    }
+
+    // --- Envio da parcial (`slice-5b-4-envio-da-parcial`) ---
+
+    /** Cenario "O caderno completo e entregue para gravacao". */
+    @Test
+    fun `o caderno completo e entregue quando a ultima regiao e capturada`() {
+        val sessao = sessaoAberta()
+        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+
+        val entrega = sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2())))
+
+        val deCaderno = entrega as? ApuracaoNova.DeCaderno
+            ?: throw AssertionError("esperava a entrega do caderno completo, veio $entrega")
+        assertEquals("tok-a", deCaderno.aluno)
+        assertTresDeQuatro(deCaderno.score)
+        assertTrue(reconhecida(sessao.state).caderno.entregue, "o caderno guardado precisa marcar a entrega")
+    }
+
+    /** Cenario "Confirmar um caderno ja completo nao duplica o envio". */
+    @Test
+    fun `um caderno ja completo nao e entregue de novo em quadros seguintes`() {
+        val sessao = sessaoAberta()
+        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2())))
+
+        val depois = sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2())))
+
+        assertNull(depois, "o caderno ja foi entregue, e o mesmo quadro nao pode entregar de novo")
+    }
+
+    /** Cenario "Caderno incompleto substituido por outro aluno nao e entregue". */
+    @Test
+    fun `trocar de aluno antes de completar nao entrega o caderno anterior`() {
+        val sessao = sessaoAberta()
+        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+
+        val aoTrocar = sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2(token = "tok-b"))))
+
+        assertNull(aoTrocar, "o caderno de tok-a estava incompleto, e nao pode ter sido entregue")
+    }
+
+    /**
+     * A parcial recusada nao conta como completude entregavel, mesmo com as tres regioes
+     * capturadas — a protecao e do indicador de regiao ("capturada nao volta atras"), e nao de
+     * `parcial`, que pode regredir para uma recusa (`Caderno.depoisDe`). Sem a guarda extra do
+     * design decisao 1, este cenario entregaria uma parcial que na verdade foi recusada.
+     *
+     * A primeira folha deixa o caderno em 2 de 3 (gabarito valido e `d1`), para que a completude so
+     * aconteca na segunda passada — junto com a recusa.
+     */
+    @Test
+    fun `caderno que completa com a parcial recusada nao e entregue`() {
+        val sessao = sessaoAberta()
+        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        val semQ5 = listOf(
+            QuestionAnswer.Marcada("q1", "A"),
+            QuestionAnswer.Marcada("q2", "C"),
+            QuestionAnswer.Marcada("q4", "A"),
+        )
+
+        val entrega = sessao.onFrame(FrameOutcome.Read(gabarito(respostas = semQ5), listOf(d1(), d2())))
+
+        assertNull(entrega, "a parcial recusada nao pode virar entrega, mesmo com as tres regioes capturadas")
+        val estado = reconhecida(sessao.state)
+        assertEquals(3, estado.caderno.capturadas, "guarda de vacuidade: as tres regioes ficam capturadas")
+        assertTrue(estado.parcial is PartialScoringOutcome.Rejected, "guarda de vacuidade: a parcial precisa estar recusada")
     }
 }

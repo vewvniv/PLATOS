@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import com.platos.android.pacote.PacotesEmArquivo
 import com.platos.domain.exam.ExamPackage
+import com.platos.domain.scoring.ApuracaoParaEnvio
 import com.platos.domain.layout.LayoutMap
 import androidx.lifecycle.lifecycleScope
 import com.platos.android.outbox.EnvioDeResultadosWorker
@@ -284,15 +285,26 @@ class ScanActivity : ComponentActivity() {
      * existir, e a mensagem teria de explicar, com a folha na mao e a nota na tela, algo que so podia
      * ter sido decidido antes de a camera abrir. Quem decide e [decidirAbertura]; aqui os dois
      * valores existem por construcao.
+     *
+     * **O `when` sobre [ApuracaoNova]** (`slice-5b-4-envio-da-parcial`) e o unico lugar que sabe de
+     * onde vem o token de cada caso: [ApuracaoNova.Completa] o tem no payload da leitura;
+     * [ApuracaoNova.DeCaderno] o tem no campo `aluno` do caderno, que e o mesmo QR, so que sem uma
+     * leitura inteira para carrega-lo.
      */
     private fun gravar(apuracao: ApuracaoNova) {
+        val (studentToken, nota) = when (apuracao) {
+            is ApuracaoNova.Completa ->
+                apuracao.reading.payload.studentToken.ifEmpty { null } to ApuracaoParaEnvio.Completa(apuracao.score)
+            is ApuracaoNova.DeCaderno ->
+                apuracao.aluno.ifEmpty { null } to ApuracaoParaEnvio.Parcial(apuracao.score)
+        }
         val resultado = ResultadoPendente(
             captureId = UUID.randomUUID().toString(),
             organizacao = organizacao,
             prova = prova,
-            studentToken = apuracao.reading.payload.studentToken.ifEmpty { null },
+            studentToken = studentToken,
             apuradoEm = System.currentTimeMillis(),
-            nota = apuracao.score,
+            nota = nota,
         )
 
         lifecycleScope.gravarEAgendar(pendentes, resultado) {

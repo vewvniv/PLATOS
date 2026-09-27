@@ -68,11 +68,11 @@
 
 ## 4. Aparelho: o caderno completo dispara a entrega
 
-- [ ] 4.1 `Caderno` ganha `val entregue: Boolean = false` (`@Serializable`, como o resto da classe).
+- [x] 4.1 `Caderno` ganha `val entregue: Boolean = false` (`@Serializable`, como o resto da classe).
   `depoisDe` preserva a regra de "capturada não volta atrás" e não desliga `entregue` sozinho.
   Verificação: teste de serialização round-trip incluindo o campo novo (estende o teste da 1.1 da
   5b-3); teste que `entregue` permanece `true` num caderno já entregue que recebe mais um quadro.
-- [ ] 4.2 `ApuracaoNova` vira `sealed interface` com `Completa(reading, score: ObjectiveScore)` e
+- [x] 4.2 `ApuracaoNova` vira `sealed interface` com `Completa(reading, score: ObjectiveScore)` e
   `DeCaderno(aluno: String, score: PartialScore)` (design, decisão 1). `ScanSession.onFrame`, no ramo
   `comDiscursiva`, passa a devolver `DeCaderno` exatamente na transição
   `capturadas == esperadas && !entregue`, marcando `entregue = true` no `Caderno` guardado na mesma
@@ -81,7 +81,7 @@
   "Confirmar um caderno já completo não duplica o envio", "Caderno incompleto substituído por outro
   aluno não é entregue" — e os nove cenários existentes da capacidade continuam passando sem
   alteração de asserção.
-- [ ] 4.3 `ScanActivity.gravar` (ou o ponto equivalente que chama `pendentes.guardar`) ganha um `when`
+- [x] 4.3 `ScanActivity.gravar` (ou o ponto equivalente que chama `pendentes.guardar`) ganha um `when`
   sobre `ApuracaoNova`, construindo `ResultadoPendente(nota = ApuracaoParaEnvio.Completa(...))` ou
   `.Parcial(...)` conforme o caso, com `studentToken` vindo de `reading.payload.studentToken` num
   caso e de `aluno` no outro (mesma regra "vazio vira nulo" dos dois). Verificação: teste de
@@ -91,7 +91,7 @@
 
 ## 5. Verificação de ponta a ponta e fechamento
 
-- [ ] 5.1 Cenário completo, num teste de instrumentação: escanear gabarito + todas as discursivas de
+- [x] 5.1 Cenário completo, num teste de instrumentação: escanear gabarito + todas as discursivas de
   um aluno de uma prova com discursiva, fechar e reabrir o aplicativo no meio (retomando o caderno da
   5b-3), completar, confirmar que exatamente um pendente é criado, enviá-lo (mock do servidor ou API
   de teste) e confirmar que o servidor grava `grading_result` com `closed = false` e as observações

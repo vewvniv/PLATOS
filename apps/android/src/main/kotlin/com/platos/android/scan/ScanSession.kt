@@ -7,6 +7,7 @@ import com.platos.domain.capture.InterpretedReading
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.ObjectiveScoring
+import com.platos.domain.scoring.PartialScore
 import com.platos.domain.scoring.PartialScoringOutcome
 import com.platos.domain.scoring.ScoringOutcome
 
@@ -113,10 +114,12 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
     fun onFrame(outcome: FrameOutcome): ApuracaoNova? {
         if (state is ScanState.NoPermission) return null
         if (comDiscursiva) {
-            // Reconhece e mostra a parcial, e nunca entrega apuracao: nada desta prova vira resultado
-            // neste aparelho. A parcial e `PartialScore`, e `ApuracaoNova` nem a aceitaria.
-            state = estadoDaDiscursiva(outcome)
-            return null
+            // Reconhece e mostra a parcial. So entrega quando o caderno completa nesta passada
+            // (`slice-5b-4-envio-da-parcial`, design decisao 1) — o resto continua sem produzir
+            // resultado: nada mais desta prova vira fila de envio neste aparelho.
+            val (novoEstado, entrega) = estadoDaDiscursiva(outcome)
+            state = novoEstado
+            return entrega
         }
 
         state = when (outcome) {
@@ -136,18 +139,21 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
         if (apuracao.reading.payload == apurada) return null
 
         apurada = apuracao.reading.payload
-        return ApuracaoNova(apuracao.reading, apuracao.score)
+        return ApuracaoNova.Completa(apuracao.reading, apuracao.score)
     }
 
     /**
-     * O que a tela mostra de uma folha de prova com discursiva.
+     * O que a tela mostra de uma folha de prova com discursiva, e a entrega quando o caderno
+     * completa nesta passada.
      *
      * A folha e identificada pelo QR de qualquer regiao lida no quadro — o gabarito ou uma
      * discursiva —, e a conferencia de prova e a mesma da prova objetiva: QR de outra prova e recusa,
      * com a mesma frase. Nenhuma regiao com QR lido e "achei a folha e nao consegui ler", como hoje.
      */
-    private fun estadoDaDiscursiva(outcome: FrameOutcome): ScanState {
-        if (outcome is FrameOutcome.NoSheet) return if (holdsResult) state else ScanState.Searching
+    private fun estadoDaDiscursiva(outcome: FrameOutcome): Pair<ScanState, ApuracaoNova.DeCaderno?> {
+        if (outcome is FrameOutcome.NoSheet) {
+            return (if (holdsResult) state else ScanState.Searching) to null
+        }
 
         val reconhecidas = outcome.discursivas.filterIsInstance<RegiaoDiscursivaNoQuadro.Reconhecida>()
         val naoLidas = outcome.discursivas.filterIsInstance<RegiaoDiscursivaNoQuadro.NaoLida>()
@@ -157,7 +163,7 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
         }
 
         if (payloads.isEmpty()) {
-            return when (outcome) {
+            val semApuracao = when (outcome) {
                 // A recusa da interpretacao nao e transitoria, e continua sendo recusa.
                 is FrameOutcome.Unreadable -> ScanState.Rejected(outcome.reason)
                 else -> {
@@ -167,17 +173,18 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
                     if (holdsResult) state else ScanState.NotRead(motivo)
                 }
             }
+            return semApuracao to null
         }
 
         val carregado = examPackage.meta.examId
         payloads.firstOrNull { it.examShortId != carregado }?.let { deOutra ->
             return ScanState.Rejected(
                 "a folha e de outra prova: o QR diz ${deOutra.examShortId}, e o aparelho carrega $carregado",
-            )
+            ) to null
         }
         val alunos = payloads.map { it.studentToken }.distinct()
         if (alunos.size > 1) {
-            return ScanState.Rejected("o quadro tem regioes de folhas diferentes: ${alunos.joinToString()}")
+            return ScanState.Rejected("o quadro tem regioes de folhas diferentes: ${alunos.joinToString()}") to null
         }
         val aluno = alunos.single()
 
@@ -194,10 +201,27 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
         } else {
             null
         }
-        val atual = anterior.depoisDe(vistasNoQuadro(anterior, outcome, parcialNova), parcialNova)
+        val atualizado = anterior.depoisDe(vistasNoQuadro(anterior, outcome, parcialNova), parcialNova)
+
+        // A entrega dispara na transicao de incompleto para completo, e so nela — nunca de novo a
+        // cada quadro seguinte que so confirma um caderno ja completo (design decisao 1). Uma regiao
+        // "capturada" nao garante, sozinha, que a parcial atual e utilizavel: "capturada nao volta
+        // atras" protege o indicador da regiao, e nao o campo `parcial`, que pode ter regredido para
+        // uma recusa num quadro seguinte (`Caderno.depoisDe`) — por isso a condicao exige a parcial
+        // atual como `Scored`, e nao so a contagem de regioes.
+        val completouAgora = !anterior.entregue &&
+            atualizado.capturadas == atualizado.esperadas &&
+            atualizado.parcial is PartialScoringOutcome.Scored
+        val atual = if (completouAgora) atualizado.copy(entregue = true) else atualizado
         caderno = atual
 
-        return ScanState.ProvaComDiscursiva(
+        val entrega = if (completouAgora) {
+            ApuracaoNova.DeCaderno(aluno, (atual.parcial as PartialScoringOutcome.Scored).partial)
+        } else {
+            null
+        }
+
+        val novoEstado = ScanState.ProvaComDiscursiva(
             aluno = aluno,
             gabarito = when (outcome) {
                 is FrameOutcome.Read -> "lido"
@@ -209,6 +233,7 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
             discursivasNaoLidas = naoLidas.map { "${it.questionId}: ${it.reason}" },
             caderno = atual,
         )
+        return novoEstado to entrega
     }
 
     /**
@@ -302,13 +327,27 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
 }
 
 /**
- * Uma apuracao que ainda nao foi gravada.
- *
- * Leva a leitura junto da nota porque quem grava precisa do **token do QR**, que esta no payload da
- * leitura e nao na nota: a nota diz de qual pacote e de qual variante ela e, e a leitura diz de
- * quem e a folha. Sao as duas metades da linha que sobe.
+ * Uma apuracao que ainda nao foi gravada — de uma prova so objetiva, ou do caderno completo de
+ * uma prova com discursiva (`slice-5b-4-envio-da-parcial`).
  */
-data class ApuracaoNova(
-    val reading: InterpretedReading,
-    val score: ObjectiveScore,
-)
+sealed interface ApuracaoNova {
+
+    /**
+     * Leva a leitura junto da nota porque quem grava precisa do **token do QR**, que esta no
+     * payload da leitura e nao na nota: a nota diz de qual pacote e de qual variante ela e, e a
+     * leitura diz de quem e a folha. Sao as duas metades da linha que sobe.
+     */
+    data class Completa(
+        val reading: InterpretedReading,
+        val score: ObjectiveScore,
+    ) : ApuracaoNova
+
+    /**
+     * O caderno completo de um aluno, de uma prova com discursiva. [aluno] e o token do QR — vazio
+     * na folha avulsa —, na mesma forma que [Completa] leva pela leitura.
+     */
+    data class DeCaderno(
+        val aluno: String,
+        val score: PartialScore,
+    ) : ApuracaoNova
+}

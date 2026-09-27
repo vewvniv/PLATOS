@@ -61,6 +61,13 @@ data class Caderno(
     val regioes: List<RegiaoDoCaderno>,
     /** A ultima apuracao parcial do gabarito deste aluno, ou nula enquanto ele nao foi lido. */
     val parcial: PartialScoringOutcome?,
+    /**
+     * Se este caderno ja foi entregue para gravar (`slice-5b-4-envio-da-parcial`, design decisao
+     * 1). Marcada uma vez, na mesma passada em que completa, e sobrevive ao fechamento do
+     * aplicativo pelo mesmo caminho que o resto do caderno — e e essa sobrevivencia que impede a
+     * reabertura do aplicativo de entregar de novo o mesmo caderno completo.
+     */
+    val entregue: Boolean = false,
 ) {
 
     val capturadas: Int get() = regioes.count { it.estado == EstadoDaRegiao.Capturada }
@@ -72,6 +79,10 @@ data class Caderno(
      *
      * [vistas] e o que o quadro disse de cada regiao presente, por indice. [parcialNova] e a apuracao
      * do gabarito lido no quadro, ou nula quando ele nao foi lido, e entao vale a anterior.
+     *
+     * **Nao mexe em [entregue].** Quem decide entregar e marca a entrega e `ScanSession`, que sabe
+     * o que "completo" significa para o disparo (design decisao 1); este metodo so atualiza estado
+     * de regiao e parcial, como sempre fez.
      */
     internal fun depoisDe(vistas: Map<Int, EstadoDaRegiao>, parcialNova: PartialScoringOutcome?): Caderno =
         copy(
