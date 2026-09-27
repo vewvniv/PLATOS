@@ -246,6 +246,8 @@ Para essa prova, a sessão SHALL NOT produzir resultado: nada SHALL ser gravado 
 
 A prova só objetiva SHALL continuar sendo apurada e gravada exatamente como antes.
 
+**O caderno em andamento — o do aluno cuja folha está sendo escaneada — SHALL sobreviver ao encerramento do processo do aplicativo**, e a sessão SHALL retomá-lo, com a última parcial que carregava, ao reabrir o escaneamento da mesma prova. Isto SHALL NOT contradizer "nada foi guardado": o que sobrevive é o estado de tela do caderno em andamento, para continuidade do trabalho do professor, e SHALL NOT ser lido, gravado nem enviado como resultado — a garantia desta seção, de que nenhuma apuração de prova com discursiva vira resultado, continua valendo inteira. Encerrar a sessão de uso do aparelho (sair de `device-session`) SHALL NOT apagar o caderno em andamento, pela mesma razão que resultado pendente de `result-sync` não é apagado por sair: é trabalho do professor ainda não concluído.
+
 #### Scenario: Folha de prova com discursiva no quadro
 
 - **WHEN** a sessão de uma prova com discursiva lê o gabarito e uma região discursiva de uma folha
@@ -281,6 +283,16 @@ A prova só objetiva SHALL continuar sendo apurada e gravada exatamente como ant
 - **WHEN** a sessão de uma prova só objetiva lê uma folha
 - **THEN** a nota é apurada, apresentada e entregue para gravar, como antes desta mudança
 
+#### Scenario: O aplicativo fecha no meio da leitura de um aluno
+
+- **WHEN** o processo do aplicativo termina enquanto o caderno de um aluno está em andamento, com a última parcial apurada
+- **THEN** reabrir o escaneamento da mesma prova apresenta o mesmo aluno, o mesmo caderno e a mesma parcial, sem exigir escanear de novo o que já tinha sido lido
+
+#### Scenario: Sair não apaga o caderno em andamento
+
+- **WHEN** o usuário sai da sessão do aparelho com um caderno de prova com discursiva em andamento
+- **THEN** o caderno continua guardado, e reabrir o escaneamento desta prova o retoma
+
 ### Requirement: A completude da folha do aluno é mostrada por região
 
 Numa prova com discursiva, a sessão SHALL manter, para o aluno cuja folha está sendo escaneada, o **caderno** dele: o conjunto de regiões que a variante declara, com o estado de cada uma. O conjunto esperado SHALL sair das regiões que o `LayoutMap` da variante declara. Cada região SHALL estar em um de três estados:
@@ -292,7 +304,9 @@ Uma região capturada SHALL continuar capturada, mesmo que um quadro seguinte n�
 
 A sessão SHALL apresentar um indicador por região, distinto por estado, e SHALL apresentar quantas das regiões esperadas estão capturadas. O indicador da região de gabarito SHALL ser identificado como gabarito, e o de cada região discursiva, pelo **número que a questão tem na folha impressa**. O número SHALL NOT ser derivado de outra fonte que possa divergir do número impresso (ADR-0019: "todo número que o professor vê sai de um lugar só").
 
-O caderno é do aluno que o payload identifica. Um quadro com a folha de **outro** aluno SHALL começar um caderno novo, e o anterior SHALL NOT ser misturado com ele. O caderno SHALL NOT ser gravado.
+O caderno é do aluno que o payload identifica. Um quadro com a folha de **outro** aluno SHALL começar um caderno novo, e o anterior SHALL NOT ser misturado com ele.
+
+**O caderno em andamento SHALL ser guardado em armazenamento local, para sobreviver ao encerramento do processo do aplicativo**, e SHALL NOT virar resultado gravado nem entrar na fila de envio — guardar aqui é continuidade de tela, e não a produção do fato durável que `result-sync` grava. Esta mudança SHALL NOT introduzir memória de mais de um caderno por vez: a folha de outro aluno continua começando um caderno novo, e o caderno substituído por outro antes do fechamento do aplicativo continua se perdendo, exatamente como hoje em memória.
 
 #### Scenario: Caderno começa com tudo não visto
 
@@ -328,3 +342,13 @@ O caderno é do aluno que o payload identifica. Um quadro com a folha de **outro
 
 - **WHEN** a sessão de uma prova só objetiva lê uma folha
 - **THEN** a tela é a de antes desta mudança, sem indicador de região
+
+#### Scenario: O caderno guardado sobrevive ao fechamento do aplicativo
+
+- **WHEN** o aplicativo é fechado com um caderno em andamento, e reaberto em seguida sobre a mesma prova
+- **THEN** o caderno reaparece com o mesmo estado de cada região, sem regredir nenhuma capturada a não vista
+
+#### Scenario: Trocar de aluno antes de fechar continua substituindo o caderno
+
+- **WHEN** a folha de um segundo aluno aparece no quadro antes de o aplicativo ser fechado, e depois o aplicativo é fechado e reaberto
+- **THEN** o caderno guardado e retomado é o do segundo aluno, e o do primeiro não reaparece
