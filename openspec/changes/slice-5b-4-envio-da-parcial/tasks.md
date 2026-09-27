@@ -96,8 +96,14 @@
   5b-3), completar, confirmar que exatamente um pendente é criado, enviá-lo (mock do servidor ou API
   de teste) e confirmar que o servidor grava `grading_result` com `closed = false` e as observações
   objetivas, sem nenhuma linha para as discursivas.
-- [ ] 5.2 Repetir a suíte completa da 0.1 e comparar contagem de testes e resultado; nenhuma
+- [x] 5.2 Repetir a suíte completa da 0.1 e comparar contagem de testes e resultado; nenhuma
   regressão em `scoring`, `result-sync`, `scan-session` ou nas capacidades não tocadas por esta
   mudança. Atualizar `docs/cobertura-slice-5b-4-envio-da-parcial.md` com o fechamento.
-- [ ] 5.3 Reexecutar `node tools/divida/divida.mjs` e reconciliar qualquer linha que esta mudança
+
+  **Desvio registrado (decisão do mantenedor):** o build agregado (`./gradlew build
+  --rerun-tasks`) foi interrompido pelo próprio ambiente por falta de memória, não por falha de
+  código — o mantenedor optou por aceitar as execuções separadas já verdes nesta sessão
+  (`packages:domain:jvmTest`, `apps:api:test`, `apps:android:testDebugUnitTest`,
+  `connectedDebugAndroidTest`) em vez de repetir o agregado.
+- [x] 5.3 Reexecutar `node tools/divida/divida.mjs` e reconciliar qualquer linha que esta mudança
   tenha alcançado (nenhuma esperada, por `proposal.md`; confirmar que continua assim).
