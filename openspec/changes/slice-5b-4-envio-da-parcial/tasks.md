@@ -13,7 +13,7 @@
 
 ## 1. Contrato KMP: `ApuracaoParaEnvio` e o discriminador no fio
 
-- [ ] 1.1 Criar `sealed interface ApuracaoParaEnvio` em `packages/domain` (design, decisão 2), com os
+- [x] 1.1 Criar `sealed interface ApuracaoParaEnvio` em `packages/domain` (design, decisão 2), com os
   casos `Completa(score: ObjectiveScore)` e `Parcial(score: PartialScore)`. Sem `@Serializable` —
   nem `ResultadoPendente` nem este tipo são serializados como um todo em nenhum ponto do caminho
   (design, decisão 2, nota sobre serialização); nenhum campo de `ObjectiveScore` ou `PartialScore`
@@ -21,7 +21,7 @@
   `jsNodeTest`, `testAndroidHostTest`) passam sem nenhuma asserção alterada, com a mesma contagem da
   0.1; teste novo que constrói um `ApuracaoParaEnvio.Completa` e um `.Parcial` e confere, por um
   `when` exaustivo, que cada um expõe o `score` esperado.
-- [ ] 1.2 Acrescentar `val partial: Boolean = false` a `ResultSubmissionDto`
+- [x] 1.2 Acrescentar `val partial: Boolean = false` a `ResultSubmissionDto`
   (`packages/domain/.../transport/ResultDto.kt`), aditivo e com default (design, decisão 3).
   Verificação: teste que decodifica um corpo **sem** o campo `partial` (o formato de hoje) e confere
   que `partial == false` — nenhum corpo já emitido deixa de decodificar.
