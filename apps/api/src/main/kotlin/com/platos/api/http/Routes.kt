@@ -6,7 +6,7 @@ import com.platos.api.auth.toAuthenticatedSubject
 import com.platos.api.exam.Proveniencia
 import com.platos.api.exam.conferirProveniencia
 import com.platos.api.http.dto.ResultAcceptedDto
-import com.platos.api.http.dto.paraNota
+import com.platos.api.http.dto.paraApuracaoSubmetida
 import com.platos.domain.transport.ResultSubmissionDto
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -194,16 +194,20 @@ fun Route.examRoutes(deps: ApiDependencies) {
          * passaria a significar coisas diferentes em rotas diferentes.
          *
          * **Corpo incoerente e 400, e a mensagem diz o que nao fecha.** A conferencia nao e escrita
-         * aqui: `paraNota` reconstroi o `ObjectiveScore` do dominio, e sao as guardas dele — as
-         * mesmas que rodaram no aparelho — que recusam nota fora da escala, evidencia que nao soma a
-         * nota, item repetido e desencontro entre evidencia e pendencias. Uma segunda implementacao
-         * da mesma regra divergiria da primeira (regra 7).
+         * aqui: `paraApuracaoSubmetida` reconstroi o `ObjectiveScore` do dominio (`partial=false`,
+         * inalterado) ou a parte objetiva de uma parcial (`partial=true`), e sao as guardas de cada
+         * um — as mesmas que rodaram no aparelho — que recusam nota fora da escala, evidencia que
+         * nao soma a nota, item repetido e desencontro entre evidencia e pendencias. Uma segunda
+         * implementacao da mesma regra divergiria da primeira (regra 7).
          *
          * **A proveniencia declarada e conferida contra o pacote publicado, e tambem da 400.** E a
-         * segunda faixa de 400 desta rota, e ela cobre o que `paraNota` nao alcanca: `package_hash`
-         * e `variant_id` eram gravados exatamente como o aparelho os enviou, sem oraculo nenhum
-         * (achado 2.2). `ObjectiveScore` nao podia conferi-los — ele roda offline no aparelho, onde
-         * o pacote publicado do servidor nao existe —, entao isto nao e a mesma regra duas vezes.
+         * segunda faixa de 400 desta rota, e ela cobre o que `paraApuracaoSubmetida` nao alcanca:
+         * `package_hash` e `variant_id` eram gravados exatamente como o aparelho os enviou, sem
+         * oraculo nenhum (achado 2.2). Nem `ObjectiveScore` nem a parte objetiva de uma parcial
+         * podiam conferi-los — rodam offline no aparelho, onde o pacote publicado do servidor nao
+         * existe —, entao isto nao e a mesma regra duas vezes. Para uma parcial, e tambem aqui —
+         * e so aqui — que `awaiting` e o maximo objetivo existem: derivados do pacote publicado
+         * (`slice-5b-4-envio-da-parcial`).
          *
          * **A conferencia acontece dentro da transacao e antes de qualquer `insert`.** Nao e
          * preciosismo: `grading_result` e append-only por gatilho, e um `package_hash` errado
@@ -216,8 +220,8 @@ fun Route.examRoutes(deps: ApiDependencies) {
             val shortId = call.parameters["shortId"] ?: return@post call.naoEncontrado()
 
             val submission = call.receive<ResultSubmissionDto>()
-            val nota = try {
-                submission.paraNota()
+            val apuracaoSubmetida = try {
+                submission.paraApuracaoSubmetida()
             } catch (erro: IllegalArgumentException) {
                 return@post call.respondText(
                     erro.message ?: "resultado incoerente",
@@ -231,15 +235,15 @@ fun Route.examRoutes(deps: ApiDependencies) {
                 if (publicada == null) {
                     null
                 } else {
-                    when (val proveniencia = conferirProveniencia(publicada.pacote, nota)) {
+                    when (val proveniencia = conferirProveniencia(publicada.pacote, apuracaoSubmetida)) {
                         is Proveniencia.NaoConfere -> Desfecho.Recusado(proveniencia.motivo)
-                        Proveniencia.Confere -> Desfecho.Gravado(
+                        is Proveniencia.Confere -> Desfecho.Gravado(
                             deps.resultQueries.record(
                                 ctx,
                                 organizationId,
                                 publicada.examId,
                                 submission,
-                                nota,
+                                proveniencia.apuracao,
                             ),
                         )
                     }

@@ -323,6 +323,123 @@ class ResultRouteTest {
         assertEquals(1, contar("select count(*) from grading_result"))
     }
 
+    // ---------------------------------------- envio da parcial (`slice-5b-4-envio-da-parcial`)
+
+    /**
+     * O caminho feliz: uma parcial de prova com discursiva grava com `closed=false`, `points` e
+     * `max_score` da forma que a Fase 2 monta — objetivo apurado e maximo da **prova**, nao so do
+     * objetivo —, e so a evidencia objetiva entra em `answer_observation`. Nenhuma linha para a
+     * discursiva aguardando: ela e derivavel do pacote publicado (design, decisao 5), e nao tem
+     * consumidor nesta mudanca.
+     */
+    @Test
+    fun `parcial de prova com discursiva grava com closed=false e so a evidencia objetiva`() = comApp { client ->
+        val (userId, org) = professorComOrganizacao(client)
+        val prova = PostgresSupport.createExam(org, SHORT_ID_DISCURSIVA, "Prova com discursiva", userId)
+        PostgresSupport.publishPackage(org, prova, CONTEUDO_COM_DISCURSIVA)
+
+        val resposta = client.enviar(org, corpoParcial(captureId = "cap-parcial-1"), shortId = SHORT_ID_DISCURSIVA)
+
+        assertEquals(HttpStatusCode.OK, resposta.status, resposta.bodyAsText())
+        assertEquals(1, contar("select count(*) from grading_result"))
+        assertEquals(
+            1,
+            umInt("select points from grading_result where capture_id = 'cap-parcial-1'"),
+            "pontos da parte objetiva",
+        )
+        assertEquals(
+            4,
+            umInt("select max_score from grading_result where capture_id = 'cap-parcial-1'"),
+            "maximo da prova inteira (1 objetiva + 3 da discursiva), nao so do objetivo",
+        )
+        assertEquals(
+            false,
+            PostgresSupport.adminDataSource.connection.use { c ->
+                c.createStatement().use { s ->
+                    s.executeQuery("select closed from grading_result where capture_id = 'cap-parcial-1'")
+                        .use { it.next(); it.getBoolean(1) }
+                }
+            },
+            "uma parcial nunca e fechada",
+        )
+        assertEquals(
+            1,
+            contar("select count(*) from answer_observation"),
+            "so a questao objetiva entra na evidencia; a discursiva aguardando nao tem linha aqui",
+        )
+    }
+
+    /**
+     * Uma parcial declarada contra uma variante que nao tem discursiva nenhuma e proveniencia que
+     * nao fecha — a mesma classe de recusa definitiva do `package_hash`/`variant_id` errados, e nao
+     * uma segunda validacao de aritmetica (design, decisao 4, Fase 2).
+     */
+    @Test
+    fun `parcial contra variante sem discursiva e recusada, e nada e gravado`() = comApp { client ->
+        val (userId, org) = professorComOrganizacao(client)
+        val prova = PostgresSupport.createExam(org, SHORT_ID, "Prova R", userId)
+        PostgresSupport.publishPackage(org, prova, CONTEUDO)
+
+        val resposta = client.enviar(org, corpoParcial(captureId = "cap-parcial-sem-discursiva", hash = HASH))
+
+        assertEquals(HttpStatusCode.BadRequest, resposta.status, resposta.bodyAsText())
+        assertTrue(
+            resposta.bodyAsText().contains("nao declara nenhuma questao discursiva"),
+            "a recusa precisa dizer que a variante nao tem discursiva: ${resposta.bodyAsText()}",
+        )
+        assertEquals(0, contar("select count(*) from grading_result"))
+    }
+
+    /**
+     * `partial=true` e `closed=true` juntos e incoerencia estrutural, recusada na Fase 1 — antes de
+     * qualquer busca de pacote (design, decisao 4).
+     */
+    @Test
+    fun `parcial declarada fechada e recusada antes de buscar o pacote`() = comApp { client ->
+        val (userId, org) = professorComOrganizacao(client)
+        val prova = PostgresSupport.createExam(org, SHORT_ID, "Prova R", userId)
+        PostgresSupport.publishPackage(org, prova, CONTEUDO)
+
+        val corpo = """
+            {"capture_id":"cap-parcial-fechada","student_token":"aluno-1","package_hash":"$HASH",
+             "variant_id":"v1","points":1,"max_score":2,"closed":true,
+             "captured_at":"2026-09-17T12:00:00Z",
+             "observations":[{"item_id":"q01","answer_kind":"marcada","answer_options":["A"],"worth":1,"earned":1}],
+             "partial":true}
+        """.trimIndent()
+
+        val resposta = client.enviar(org, corpo)
+
+        assertEquals(HttpStatusCode.BadRequest, resposta.status, resposta.bodyAsText())
+        assertTrue(
+            resposta.bodyAsText().contains("uma parcial nunca e fechada"),
+            "a recusa precisa nomear a contradicao: ${resposta.bodyAsText()}",
+        )
+        assertEquals(0, contar("select count(*) from grading_result"))
+    }
+
+    /**
+     * O corpo de uma parcial, como JSON literal — a mesma razao do [corpo]: nao serializar com o
+     * mesmo DTO que a rota desserializa.
+     *
+     * `q01` marcada e certa (1 de 1), `max_score=4` e o da prova inteira em
+     * [CONTEUDO_COM_DISCURSIVA] (1 objetiva + a rubrica de 3 pontos de `d1`).
+     */
+    private fun corpoParcial(
+        captureId: String,
+        token: String? = "aluno-1",
+        hash: String = HASH_DISCURSIVA,
+    ): String {
+        val tokenJson = if (token == null) "null" else "\"$token\""
+        return """
+            {"capture_id":"$captureId","student_token":$tokenJson,"package_hash":"$hash",
+             "variant_id":"v1","points":1,"max_score":4,"closed":false,
+             "captured_at":"2026-09-17T12:00:00Z",
+             "observations":[{"item_id":"q01","answer_kind":"marcada","answer_options":["A"],"worth":1,"earned":1}],
+             "partial":true}
+        """.trimIndent()
+    }
+
     // ------------------------------------------------------------------ montagem
 
     /**
@@ -459,5 +576,21 @@ class ResultRouteTest {
 
         /** O hash de um pacote que existe e nao e o desta prova. */
         val HASH_DE_OUTRO_PACOTE: String = PostgresSupport.sha256Hex(CONTEUDO_DE_OUTRA_PROVA)
+
+        const val SHORT_ID_DISCURSIVA = "prova-discursiva-r"
+
+        /**
+         * Uma prova com discursiva de verdade: `q01` objetiva de 1 ponto, `d1` discursiva com
+         * rubrica de 3 pontos — `scoring.max_score` e a soma, 4 (`slice-5b-4-envio-da-parcial`).
+         *
+         * **`fully_offline_gradable: false`** e o que a distingue de [CONTEUDO]: sem isto, uma
+         * parcial contra este pacote nao teria o que a Fase 2 confere — a variante precisa **ter**
+         * discursiva para uma parcial fazer sentido contra ela.
+         */
+        const val CONTEUDO_COM_DISCURSIVA =
+            """{"meta":{"exam_id":"$SHORT_ID_DISCURSIVA","layout_engine_version":1,"min_renderer_version":1,"fully_offline_gradable":false},"items":[{"id":"q01","statement":"Q1","options":["A","B"],"skills":[{"code":"EM13MAT301","coverage":"anchor"}],"kind":"objective"},{"id":"d1","statement":"D1","options":[],"skills":[{"code":"EM13MAT301","coverage":"anchor"}],"kind":"essay","rubric":{"criteria":[{"id":"c1","description":"C1","points":3,"expected_lines":2,"descriptors":[]}]}}],"variants":[{"variant_id":"v1","positions":{"1":"q01","2":"d1"}}],"assignments":[],"layout":{},"answer_key":[{"item_id":"q01","correct":"A","points":1}],"scoring":{"max_score":4}}"""
+
+        /** O hash do pacote com discursiva, conferido por `MessageDigest` da JVM. */
+        val HASH_DISCURSIVA: String = PostgresSupport.sha256Hex(CONTEUDO_COM_DISCURSIVA)
     }
 }

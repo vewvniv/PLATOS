@@ -28,7 +28,7 @@
 
 ## 2. Servidor: as duas fases da validação aceitam parcial
 
-- [ ] 2.1 Dividir a reconstrução de `ResultDto.paraNota()` em duas: o caminho `partial == false`
+- [x] 2.1 Dividir a reconstrução de `ResultDto.paraNota()` em duas: o caminho `partial == false`
   fica **byte a byte igual ao de hoje** (mesma função, mesmas guardas, nenhuma asserção de teste
   existente muda); o caminho `partial == true` valida os outcomes objetivos com as mesmas guardas
   (soma bate, sem item repetido, sem desencontro pendência/evidência) e exige `closed == false`
@@ -36,7 +36,7 @@
   Verificação: teste que um corpo `partial=true, closed=true` é recusado; teste que um corpo
   `partial=true, closed=false` com toda objetiva sem pendência é aceito nesta fase (a fase seguinte é
   quem decide se ele fecha com o pacote).
-- [ ] 2.2 Estender `conferirProveniencia` (`apps/api/.../ProvenienciaDoResultado.kt`) para, quando
+- [x] 2.2 Estender `conferirProveniencia` (`apps/api/.../ProvenienciaDoResultado.kt`) para, quando
   `partial == true`, conferir que a variante declarada tem ao menos um item `ESSAY`, e então derivar
   `awaiting` e `objectiveMaxScore` do pacote (mesmo filtro `PackageItem.kind == ESSAY` e mesma soma de
   rubrica que `ObjectiveScoring.scorePartial` já faz — design, decisão 4, Fase 2), construindo o
@@ -44,13 +44,13 @@
   contra uma variante **sem** discursiva é recusada como proveniência incoerente, com o motivo
   nomeando a variante; teste que uma parcial válida produz um `PartialScore` cujas guardas de `init`
   passam.
-- [ ] 2.3 `ResultQueries.record()` passa a receber `nota: ApuracaoParaEnvio` (design, decisão 5), com
+- [x] 2.3 `ResultQueries.record()` passa a receber `nota: ApuracaoParaEnvio` (design, decisão 5), com
   um `when` que extrai `packageHash/variantId/points/maxScore/closed/outcomes` — `Completa` como
   hoje, `Parcial` com `points = objectivePoints`, `maxScore` da prova, `closed = false`. Nenhuma
   coluna nova, nenhuma migration. Verificação: teste que grava uma parcial e confere as colunas de
   `grading_result` e `answer_observation` (só as objetivas); teste que grava uma `ObjectiveScore`
   continua produzindo exatamente as mesmas linhas de antes.
-- [ ] 2.4 Atualizar a rota `POST .../results` para os dois novos ramos de recusa (proveniência
+- [x] 2.4 Atualizar a rota `POST .../results` para os dois novos ramos de recusa (proveniência
   incoerente de parcial; coerência interna de parcial), com a mesma forma de 400 já usada pelos
   outros dois. Verificação: um cenário por caminho de recusa novo, no nível da rota
   (request/response), ao lado dos já existentes de pacote/variante.
