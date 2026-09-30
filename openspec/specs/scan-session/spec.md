@@ -238,15 +238,15 @@ Quando o pacote da sessão declara que a prova não é corrigível só no aparel
 - quais regiões da folha ela reconheceu: o gabarito e cada região discursiva, esta pela questão;
 - quando o gabarito foi lido, a **parcial objetiva**: a pontuação objetiva apurada sobre o máximo objetivo, a pontuação das discursivas que aguardam correção e as pendências de revisão das objetivas;
 - que a nota **não é definitiva**, porque a parte discursiva ainda não foi corrigida;
-- que **nada foi guardado**.
+- que, enquanto o caderno não completa, **nada foi guardado**, e que o caderno completo é entregue para envio.
 
 A parcial SHALL vir da apuração parcial do pacote da sessão, e SHALL NOT ser calculada pela sessão por conta própria. Enquanto o gabarito desse aluno não foi lido em nenhum quadro, a sessão SHALL NOT apresentar parcial. Quando ele já foi lido e o quadro corrente não o traz, a sessão SHALL apresentar a última parcial desse aluno. Quando a apuração parcial recusa a folha, a sessão SHALL apresentar o motivo da recusa, e não uma parcial.
 
-Para essa prova, a sessão SHALL NOT produzir resultado: nada SHALL ser gravado nem entrar na fila de envio, nem a parcial. A folha de outra prova continua recusada com o motivo de sempre.
+Enquanto o caderno do aluno não completar — todas as regiões que a variante declara em estado capturada —, a sessão SHALL NOT produzir resultado: nada SHALL ser gravado nem entrar na fila de envio, nem a parcial. Ao completar, o caderno SHALL produzir o resultado parcial correspondente, pela regra do requisito "A completude da folha do aluno é mostrada por região", e esse resultado SHALL continuar não-definitivo: a parte discursiva ainda não foi corrigida. A folha de outra prova continua recusada com o motivo de sempre.
 
 A prova só objetiva SHALL continuar sendo apurada e gravada exatamente como antes.
 
-**O caderno em andamento — o do aluno cuja folha está sendo escaneada — SHALL sobreviver ao encerramento do processo do aplicativo**, e a sessão SHALL retomá-lo, com a última parcial que carregava, ao reabrir o escaneamento da mesma prova. Isto SHALL NOT contradizer "nada foi guardado": o que sobrevive é o estado de tela do caderno em andamento, para continuidade do trabalho do professor, e SHALL NOT ser lido, gravado nem enviado como resultado — a garantia desta seção, de que nenhuma apuração de prova com discursiva vira resultado, continua valendo inteira. Encerrar a sessão de uso do aparelho (sair de `device-session`) SHALL NOT apagar o caderno em andamento, pela mesma razão que resultado pendente de `result-sync` não é apagado por sair: é trabalho do professor ainda não concluído.
+**O caderno em andamento — o do aluno cuja folha está sendo escaneada — SHALL sobreviver ao encerramento do processo do aplicativo**, e a sessão SHALL retomá-lo, com a última parcial que carregava, ao reabrir o escaneamento da mesma prova. Isto SHALL NOT contradizer "nada foi guardado" enquanto incompleto: o que sobrevive é o estado de tela do caderno em andamento, para continuidade do trabalho do professor, e enquanto o caderno não completa ele SHALL NOT ser lido, gravado nem enviado como resultado. Encerrar a sessão de uso do aparelho (sair de `device-session`) SHALL NOT apagar o caderno em andamento, pela mesma razão que resultado pendente de `result-sync` não é apagado por sair: é trabalho do professor ainda não concluído.
 
 #### Scenario: Folha de prova com discursiva no quadro
 
@@ -270,7 +270,7 @@ A prova só objetiva SHALL continuar sendo apurada e gravada exatamente como ant
 
 #### Scenario: Nada é gravado
 
-- **WHEN** a sessão de uma prova com discursiva apresenta a parcial de uma folha, quantas vezes for
+- **WHEN** a sessão de uma prova com discursiva apresenta a parcial de um caderno que ainda não completou, quantas vezes for
 - **THEN** nenhuma apuração é entregue para gravar, e a fila de envio não ganha resultado
 
 #### Scenario: Abrir a câmera numa prova com discursiva
@@ -306,7 +306,7 @@ A sessão SHALL apresentar um indicador por região, distinto por estado, e SHAL
 
 O caderno é do aluno que o payload identifica. Um quadro com a folha de **outro** aluno SHALL começar um caderno novo, e o anterior SHALL NOT ser misturado com ele.
 
-**O caderno em andamento SHALL ser guardado em armazenamento local, para sobreviver ao encerramento do processo do aplicativo**, e SHALL NOT virar resultado gravado nem entrar na fila de envio — guardar aqui é continuidade de tela, e não a produção do fato durável que `result-sync` grava. Esta mudança SHALL NOT introduzir memória de mais de um caderno por vez: a folha de outro aluno continua começando um caderno novo, e o caderno substituído por outro antes do fechamento do aplicativo continua se perdendo, exatamente como hoje em memória.
+**O caderno em andamento SHALL ser guardado em armazenamento local, para sobreviver ao encerramento do processo do aplicativo.** Guardar o caderno para a tela continua distinto de produzir o fato durável que `result-sync` grava: um não substitui o outro. **Quando a última região que faltava é capturada, o caderno completa**, e a sessão SHALL, nesse momento, entregar a apuração parcial correspondente para gravação, que SHALL entrar na fila de envio de `result-sync`. Essa entrega SHALL acontecer uma vez, na transição de incompleto para completo, e SHALL NOT se repetir a cada quadro seguinte que apenas confirma um caderno já completo. Esta mudança SHALL NOT introduzir memória de mais de um caderno por vez: a folha de outro aluno continua começando um caderno novo, e o caderno substituído por outro antes de completar continua se perdendo, exatamente como hoje.
 
 #### Scenario: Caderno começa com tudo não visto
 
@@ -352,3 +352,18 @@ O caderno é do aluno que o payload identifica. Um quadro com a folha de **outro
 
 - **WHEN** a folha de um segundo aluno aparece no quadro antes de o aplicativo ser fechado, e depois o aplicativo é fechado e reaberto
 - **THEN** o caderno guardado e retomado é o do segundo aluno, e o do primeiro não reaparece
+
+#### Scenario: O caderno completo é entregue para gravação
+
+- **WHEN** a última região que faltava no caderno de um aluno é capturada e o contador chega a "N de N"
+- **THEN** a apuração parcial desse caderno é entregue para gravação e passa a constar na fila de envio de `result-sync`, com a nota apresentada como não definitiva
+
+#### Scenario: Confirmar um caderno já completo não duplica o envio
+
+- **WHEN** quadros seguintes continuam reconhecendo um caderno que já completou e já foi entregue
+- **THEN** nenhum resultado novo é entregue para o mesmo caderno
+
+#### Scenario: Caderno incompleto substituído por outro aluno não é entregue
+
+- **WHEN** a folha de outro aluno aparece no quadro antes de o caderno do primeiro aluno completar
+- **THEN** nenhum resultado é entregue para o caderno do primeiro aluno, e ele continua se perdendo como antes desta mudança
