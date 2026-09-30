@@ -54,7 +54,7 @@
   *(Nota de 2026-09-30: não havia construção de `QrOutcome.Read` a atualizar — os testes só fazem cast.)*
   Verificação: as construções existentes (4) atualizadas sem mudar asserção; `testDebugUnitTest` e a
   contagem da 0.1 iguais, mais o teste novo de que `position` vem preenchida numa leitura válida.
-- [ ] 2.2 **Medir o que `position` significa**, antes de escrever o ajuste (design, Context: "o que
+- [x] 2.2 **Medir o que `position` significa**, antes de escrever o ajuste (design, Context: "o que
   esses quatro pontos significam no mapa é suposto"). Teste instrumentado sobre a folha renderizada
   de `tok-a`, região da página 0: para cada um de `topLeft`, `topRight` e `bottomLeft`, a distância
   ao canto correspondente de `region.qr` no canvas do QR, em milímetros; e o mesmo para
@@ -68,6 +68,12 @@
   0,532 mm. Ver `design.md` (Context, "Resultado da tarefa 2.2") e o documento de cobertura. A tarefa
   fica **desmarcada**, e as tarefas 3.x não começam até o mantenedor decidir o que fazer com o
   critério (P11).
+  **RETOMADA (2026-09-30), pelo ADR-0020 (decisão do mantenedor):** o critério acima fica registrado
+  como **reprovado**, e a tarefa foi refeita com o do ADR — os três cantos a ≤ 0,5 mm (a mesma
+  tolerância) da **caixa escura do próprio símbolo**, numa janela de ±1,5 mm, com guarda de
+  vacuidade (lado de 13 a 15 mm) e as duas mutações do ADR. Resultado: âncoras a 0,0–0,1 mm do
+  símbolo nas duas regiões; as mutações reprovam. **Este critério não é cego** (foi escolhido depois
+  do diagnóstico), e o ADR diz isso.
 
 ## 3. Android: o segundo ajuste e a conferência pelo resíduo
 

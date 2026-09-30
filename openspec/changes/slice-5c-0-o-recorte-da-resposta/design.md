@@ -37,6 +37,14 @@ afirmação (P6): **lido** (no código, hoje), **conferido** (por ferramenta, co
   > depende dessa segunda, porque os pontos do QR voltam à imagem pela **inversa da mesma homografia**
   > que fez o canvas (o erro dela se cancela na ida e volta) e só o significado de `position` importa;
   > (3) mudar o critério depois de ver o resultado é P11, e exige decisão do mantenedor.
+  > **Retomada, 2026-09-30: `docs/adr/0020-...md`.** O mantenedor decidiu reformular com um ADR curto.
+  > O critério acima fica como reprovado; o novo compara `position` com a caixa escura do próprio
+  > símbolo (≤ 0,5 mm, a mesma tolerância) e não é cego. Resultado: `topLeft`/`topRight`/`bottomLeft` a
+  > 0,100 / 0,000 / 0,000 mm (região 1) e 0,100 / 0,000 / 0,100 mm (região 2) do símbolo. **A semântica
+  > de `position` está medida por um oráculo independente; a hipótese seguinte, também suposta —
+  > os pontos do QR voltam à imagem pela inversa da mesma homografia e o erro dela se cancela —, é
+  > da tarefa 3.1.** O erro da primeira homografia no canto do QR, na folha de frente, é dado
+  > registrado: (0,20, −0,25) mm na região 1 e (0,40, −0,35) mm na região 2.
 - **A `answer_area` já é contrato.** `ScannableRegion.answerArea` existe, o motor a emite (largura
   inteira da região, da base do QR até a zona de silêncio do marcador de baixo) e a validação a
   confere contra `[0,1]` e contra o QR. Com a moldura, ela deixa 2 mm de folga acima e 2 mm abaixo

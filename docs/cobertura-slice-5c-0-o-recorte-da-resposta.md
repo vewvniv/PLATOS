@@ -180,3 +180,45 @@ Não estabelece que a hipótese da decisão 2 se sustenta. E **não autoriza** t
 vermelha) proíbe mudar critério depois de conhecer o resultado sem ADR que registre o resultado. A
 tarefa 2.2 fica desmarcada, o grupo 3 não começa, e o `PosicaoDoQrInstrumentedTest` (com o teste que
 reprova) **não foi commitado**.
+
+### 2.2 — retomada pelo ADR-0020 (decisão do mantenedor), 2026-09-30
+
+O mantenedor mandou reformular o critério com um ADR curto (`docs/adr/0020-...`). O critério
+reprovado acima **fica registrado como reprovado** (P7). O novo: `topLeft`, `topRight` e `bottomLeft`
+a ≤ 0,5 mm (a mesma tolerância, não afrouxada) da **caixa escura do próprio símbolo**, numa janela de
+±1,5 mm em volta do QR do mapa (isola moldura e marcadores), com guarda de vacuidade (lado da caixa
+entre 13 e 15 mm) e a distância ao mapa passando a **dado**, não critério.
+
+**Este critério não é cego.** Foi escolhido depois do diagnóstico que já mostrava `TR` e `TL` a
+menos de 1 px do símbolo. Vale como oráculo de pixel independente (não compartilha código com o
+decodificador nem com o mapa) e como guarda de regressão. Não é a prova que o critério original
+prometia.
+
+**Resultado** (`PosicaoDoQrInstrumentedTest`, `platos-atd34`, 3 de 3, `timestamp` 14:10:58Z):
+
+| Região | topLeft | topRight | bottomLeft | Erro da 1ª homografia no canto do QR (TL do símbolo − TL do mapa) |
+|---|---|---|---|---|
+| 1 | 0,100 mm | 0,000 mm | 0,000 mm | (0,20; −0,25) mm |
+| 2 | 0,100 mm | 0,000 mm | 0,100 mm | (0,40; −0,35) mm |
+
+O erro da última coluna é o **risco (a) do ADR-0018, medido**: na folha de frente, renderizada, a
+primeira homografia põe o símbolo até 0,5 mm fora do lugar que o mapa declara. Em papel e em
+perspectiva ele pode ser maior; não foi medido.
+
+**Visto falhar (previsão feita antes):**
+| Mutação em `positionOf` | Previsto | Real |
+|---|---|---|
+| `topLeft = bottomRight` | cai o critério **e** o teste de reação do instrumento (que parte da leitura real); passa o de "dentro do canvas" | exatamente isso: critério — `topLeft a 19,870 mm do símbolo`; reação — `topLeft devia estar a ~2 mm, esta a 21,336` |
+| `topLeft` recuado 5 px na diagonal | **só o critério** | **errei**: caíram os dois. Critério — `topLeft a 0,781 mm do símbolo` (o motivo certo); reação — `topLeft ... esta a 2,648`, fora de 1,5–2,5, porque o teste de reação parte da leitura já mutada |
+
+Nas duas, o teste de "os quatro cantos dentro do canvas" (2.1) passa, como deveria: a 2.1 e a 2.2
+guardam coisas diferentes. Reversões conferidas por `diff` contra a cópia (`igual`), `grep -c
+MUTACAO` = 0, e a classe rodada de novo verde (3 de 3, 14:10:58Z).
+
+**Instrumento que reagiu, e o que aprendi dele:** o teste de reação também cai quando a *leitura* é
+mutada, não só quando o *deslocamento* é grande. Isso o torna um segundo guarda do `positionOf`, e
+não um teste independente da mutação. Aceito, dito aqui.
+
+**O que continua não verificado:** a semântica de `position` foi medida só no documento renderizado
+de frente; em papel o oráculo de pixel e o decodificador leem o mesmo módulo borrado e podem
+concordar com o mesmo erro (ADR-0020, "Como isto poderia falhar em silêncio").
