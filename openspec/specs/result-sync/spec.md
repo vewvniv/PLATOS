@@ -50,6 +50,13 @@ O resultado SHALL levar o total apurado, a pontuação máxima, se a nota está 
 pendências e quanto ainda está em disputa, e SHALL levar o **resultado de cada questão** como
 evidência da correção.
 
+Quando o resultado vem da apuração parcial de uma prova com discursiva, cada questão discursiva
+**aguardando correção** SHALL contar como pendência do resultado enviado, com um motivo próprio que
+a distingue de múltipla marcação e de indecisa, e a pontuação dela SHALL somar ao quanto está em
+disputa. A nota SHALL continuar não-fechada enquanto houver ao menos uma discursiva aguardando,
+mesmo que nenhuma questão objetiva esteja pendente — quem decide "fechada" é a lista de pendências
+estar vazia, e uma discursiva aguardando a mantém não-vazia.
+
 O resultado SHALL NOT levar nome, turma ou matrícula do aluno.
 
 **A proveniência declarada SHALL ser conferida pelo servidor antes de gravar, e não apenas
@@ -92,6 +99,13 @@ aritmética.
 
 - **WHEN** um resultado com questões pendentes é gravado
 - **THEN** ele registra que a nota não está fechada, quais questões pendem e quanto está em disputa
+
+#### Scenario: Discursiva aguardando correção conta como pendência
+
+- **WHEN** um resultado de prova com discursiva completa é gravado, com toda questão objetiva sem
+  pendência e uma ou mais discursivas aguardando correção
+- **THEN** o resultado lista cada discursiva aguardando como pendência, soma seus pontos ao quanto
+  está em disputa, e a nota não é apresentada como fechada
 
 #### Scenario: Nenhum dado pessoal direto no resultado
 
