@@ -240,7 +240,94 @@ private fun checkEssayRegion(
         problems += "a area de resposta da regiao ${region.index} sobrepoe o QR da regiao"
     }
     checkPauta(region, area, primitivas, problems)
+    checkAreaSoComMolduraEPauta(region, area, primitivas, problems)
 }
+
+/**
+ * A area de resposta so tem a moldura e a pauta (`slice-5c-0-o-recorte-da-resposta`, decisao 6,
+ * camada 1).
+ *
+ * O que esta dentro da area e o que o recorte entrega (§8), e cabecalho, enunciado ou nome do aluno
+ * num recorte e dado que a correcao nao pode ver. A regra e sobre o **mapa**, e por isso roda antes
+ * de qualquer impressao.
+ *
+ * Interseccao com area positiva: **encostar na borda nao e estar dentro** — o QR da regiao termina
+ * exatamente onde a area comeca, e isso e o desenho, nao um defeito. Texto e a excecao, porque o
+ * `DrawText` nao carrega largura e esta validacao nao mede fonte: ele esta dentro quando **comeca**
+ * dentro da largura da regiao e a linha dele (`baseline - size ... baseline`) cruza a altura da
+ * area. Texto que comeca fora da largura da regiao e a invade lendo para a direita **nao e visto
+ * aqui** — nao e mitigado, e conhecido, e a camada da captura sobre o documento renderizado e quem
+ * o ve. Uma caixa de texto larga o bastante para pega-lo tambem acusaria o texto da coluna vizinha
+ * na mesma altura, e uma guarda que acusa o que esta certo e desligada por quem a le.
+ */
+private fun checkAreaSoComMolduraEPauta(
+    region: ScannableRegion,
+    area: NormalizedRect,
+    primitivas: List<Primitive>,
+    problems: MutableList<String>,
+) {
+    val esquerda = region.quadX + scale(area.u, region.quadWidth)
+    val direita = region.quadX + scale(area.u + area.uSize, region.quadWidth)
+    val topo = region.quadY + scale(area.v, region.quadHeight)
+    val base = region.quadY + scale(area.v + area.vSize, region.quadHeight)
+    val regiaoEsquerda = region.quadX
+    val regiaoDireita = region.quadX + region.quadWidth
+
+    for (primitiva in primitivas) {
+        // O QR da propria regiao sobre a area ja e recusado por `checkEssayRegion`, com mensagem
+        // propria; recusa-lo aqui de novo daria duas mensagens para o mesmo defeito.
+        if (primitiva is DrawQr && primitiva.id == region.qrId) continue
+        val (tipo, dentro) = when (primitiva) {
+            is DrawText -> "texto" to (
+                primitiva.x in regiaoEsquerda until regiaoDireita &&
+                    primitiva.baseline - primitiva.size < base && primitiva.baseline > topo
+                )
+
+            is DrawImage -> "imagem" to cruza(
+                Quad(primitiva.x, primitiva.y, primitiva.x + primitiva.width, primitiva.y + primitiva.height),
+                esquerda, topo, direita, base,
+            )
+
+            is DrawQr -> "QR" to cruza(
+                Quad(primitiva.x, primitiva.y, primitiva.x + primitiva.side, primitiva.y + primitiva.side),
+                esquerda, topo, direita, base,
+            )
+
+            is DrawAruco -> "marcador" to cruza(
+                Quad(primitiva.x, primitiva.y, primitiva.x + primitiva.side, primitiva.y + primitiva.side),
+                esquerda, topo, direita, base,
+            )
+
+            is DrawCircle -> "circulo" to cruza(
+                Quad(
+                    primitiva.centerX - primitiva.diameter / 2,
+                    primitiva.centerY - primitiva.diameter / 2,
+                    primitiva.centerX + primitiva.diameter / 2,
+                    primitiva.centerY + primitiva.diameter / 2,
+                ),
+                esquerda, topo, direita, base,
+            )
+
+            // So o retangulo preenchido e tinta: a moldura e um retangulo sem preenchimento.
+            is DrawRect -> "retangulo preenchido" to (
+                primitiva.fill != null && cruza(
+                    Quad(primitiva.x, primitiva.y, primitiva.x + primitiva.width, primitiva.y + primitiva.height),
+                    esquerda, topo, direita, base,
+                )
+                )
+
+            is DrawLine -> continue
+        }
+        if (dentro) {
+            problems += "regiao ${region.index}: a primitiva `${primitiva.id}` ($tipo) esta dentro da " +
+                "area de resposta, que so admite a moldura e a pauta"
+        }
+    }
+}
+
+/** Interseccao com area positiva: tocar a borda nao conta. */
+private fun cruza(caixa: Quad, esquerda: Int, topo: Int, direita: Int, base: Int): Boolean =
+    caixa.left < direita && esquerda < caixa.right && caixa.top < base && topo < caixa.bottom
 
 /**
  * A linha dentro da area de resposta e pauta, e a pauta e decoracao (ADR-0016): tom declarado, e

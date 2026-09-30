@@ -78,6 +78,17 @@ object EssayGeometry {
     val BOTTOM_CLEARANCE: Um = DESCENDER_CLEARANCE + MARKER_QUIET_ZONE + MARKER_SIDE
 
     /**
+     * A faixa fora da area de resposta em que a captura mede o desvio da escrita
+     * (`slice-5c-0-o-recorte-da-resposta`, decisao 4; D45).
+     *
+     * Ela tem dono aqui, e nao num literal do Android, porque o valor so e seguro contra a
+     * geometria: a faixa nao pode alcancar a tinta de uma regiao vizinha. Duas colunas ficam a
+     * [LayoutProfile.gutter] uma da outra, e tres milimetros ficam abaixo dos seis do perfil vigente
+     * (P28). E uma suposicao fixada antes da primeira execucao, e nao uma medicao.
+     */
+    val DEVIANT_BAND: Um = Um.mm(3)
+
+    /**
      * Os dois marcadores da regiao discursiva [regionIndex]: `4k` e `4k+3` (ADR-0018).
      *
      * A alocacao `{4k..4k+3}` do §8 fica, e `4k+1` e `4k+2` simplesmente nao sao impressos: a regiao
