@@ -222,3 +222,75 @@ não um teste independente da mutação. Aceito, dito aqui.
 **O que continua não verificado:** a semântica de `position` foi medida só no documento renderizado
 de frente; em papel o oráculo de pixel e o decodificador leem o mesmo módulo borrado e podem
 concordar com o mesmo erro (ADR-0020, "Como isto poderia falhar em silêncio").
+
+## Grupo 3 — o segundo ajuste e a conferência pelo resíduo (tarefas 3.1, 3.2, 3.3), 2026-09-30
+
+`SegundoAjusteInstrumentedTest` (6) e `SensibilidadeDoResiduoInstrumentedTest` (2) no `platos-atd34`,
+folha renderizada de `tok-a`, de frente e em perspectiva (`emAngulo`: cantos da página a 1–4%, fixado
+antes de ver resultado). As três classes do grupo 2 e 3 juntas: 11 de 11, `timestamp` 14:17:46Z.
+`testDebugUnitTest` 353. **Nada é papel.**
+
+### 3.1 — o ajuste fecha, e a hipótese do ADR-0020 se sustenta no documento renderizado
+
+Critério fixado antes: de frente, maior resíduo **< 0,2 mm** (o piso do instrumento). **Medido:**
+
+| | Maior resíduo | Os onze (mm) |
+|---|---|---|
+| Frente, região 1 | **0,076 mm** | 0,059 0,052 0,072 0,036 0,076 0,065 0,064 0,059 0,056 0,042 0,045 |
+| Frente, região 2 | **0,100 mm** | 0,067 0,067 0,079 0,055 0,073 0,065 0,063 0,054 0,042 0,016 0,100 |
+| Perspectiva, região 1 | 0,066 mm | — |
+| Perspectiva, região 2 | 0,103 mm | — |
+
+**A hipótese "o erro da primeira homografia se cancela na ida e volta" se sustenta**, sobre este
+documento: o erro de 0,2–0,4 mm que a 2.2 mediu no canto do QR não aparece no resíduo do segundo
+ajuste. Continua **sem** ser medido em papel, em perspectiva forte ou com foto de celular.
+
+### 3.2 — cada recusa, com o motivo
+
+| Caminho | Motivo conferido | Fixture |
+|---|---|---|
+| resíduo acima do teto | "residuo de" e "teto 1.0 mm" | onze pontos reais, o `QR.tr` deslocado 10 mm |
+| resíduo não finito | "nao e finito", e o controle sem `NaN` passa; `+∞` também recusa | `conferirResiduos` puro (o OpenCV não deixa forçar `NaN` de fora) |
+| QR ilegível | o do QR, e **sem** "residuo" | QR apagado da página, marcadores intactos: a 1ª retificação passa |
+| sem área de resposta | "a regiao 0 nao declara area de resposta" (igualdade) | o gabarito |
+
+**Visto falhar (previsão feita antes; todas coincidiram):**
+| Mutação | Caiu |
+|---|---|
+| M1 teto desligado | só `residuo_acima_do_teto...` ("esperava recusa, veio Ajustado") |
+| M2 guarda de não finito desligada | só `residuo_nao_finito...`: **"um resíduo NaN passou calado pelo teto"** — o perigo que a regra do `NaN > teto` descreve, visto acontecer |
+| M3 motivo do QR trocado por texto genérico | só `qr_ilegivel...` ("o motivo devia ser o do QR: falha generica") |
+| M4 guarda de área desligada | só `regiao_sem_area...`: **sem ela o gabarito passa pelo segundo ajuste** como se fosse discursivo (veio `Ajustado`) |
+| M5 `u0` esquecido na conversão canvas→(u,v) | `de_frente` e `em_perspectiva` (resíduo de 44,4 e 44,0 mm), e nenhum dos de recusa |
+| M6 resíduos na metade (unidade errada) | só `a_tabela_de_sensibilidade...` (`TL.c1` a 3 mm daria 0,9988 mm) |
+
+Reversões conferidas por `diff` contra a cópia do original, `grep -c MUTACAO` = 0.
+
+### 3.3 — o que o resíduo pega, medido
+
+Cada um dos 11 pontos deslocado de 1, 2, 3 e 5 mm, em `+x` e `+y`, nas duas regiões; maior resíduo do
+ajuste, teto 1,0 mm. Valores representativos (mm; a tabela inteira sai do `logcat -s Medida5c0`):
+
+| Ponto | 1 mm | 2 mm | 3 mm | 5 mm |
+|---|---|---|---|---|
+| marcador, cantos (típico) | 0,56–0,82 passa | 1,15–1,61 recusa | 1,68–2,41 recusa | 2,66–4,03 recusa |
+| `QR.tl`, `QR.bl` | 0,60–0,79 passa | 1,23–1,55 recusa | 1,85–2,32 recusa | 3,07–3,88 recusa |
+| **`QR.tr`, `+x`** | 0,36 passa | **0,71–0,72 passa** | 1,04–1,06 recusa | 1,63–1,67 recusa |
+| **`BR.c4`, `+y`** | 0,49–0,50 passa | **0,94–0,97 passa** | 1,35–1,41 recusa | 2,05–2,19 recusa |
+
+**Achados, ditos sem enfeite:**
+1. **O resíduo é 0,36–0,82 vezes o deslocamento**: os mínimos quadrados repartem o erro entre os onze
+   pontos. Com **1 mm de deslocamento, nenhum ponto é recusado**. O teto de 1,0 mm é sobre o **maior
+   resíduo**, e não sobre o erro de posição de um canto: um canto pode estar a até ~2,8 mm (o `QR.tr`
+   em `+x`) do lugar dele sem o ajuste recusar. **Não é mitigado, é conhecido.** O teto não foi
+   mexido (P11).
+2. **O receio de que os pontos do QR, sozinhos no canto superior direito, se acomodassem sem
+   resíduo, não se confirmou** para `QR.tl` e `QR.bl` (denunciados como os marcadores). Confirmou-se,
+   em parte, para o `QR.tr` em `+x`: é o ponto mais fraco.
+3. **A partir de 3 mm, todo ponto, nas duas direções e nas duas regiões, é recusado** (asserção do
+   teste, sobre o que a tabela mostrou).
+
+**As asserções fixam o que a tabela mostrou, e não um critério anterior a ela** — e isso é dito porque
+é a definição do que a tarefa pediu ("assere só o que a tabela diz que é pego"). O que elas pinam:
+crescimento com o deslocamento, 1 mm não recusa (o limite), 3 e 5 mm recusam, e os dois pontos mais
+fracos passam a 2 mm.

@@ -77,19 +77,19 @@
 
 ## 3. Android: o segundo ajuste e a conferência pelo resíduo
 
-- [ ] 3.1 `RegionDetector` (ou colaborador dele em `vision/`) monta o segundo ajuste: recalcula a
+- [x] 3.1 `RegionDetector` (ou colaborador dele em `vision/`) monta o segundo ajuste: recalcula a
   primeira homografia, leva os três cantos do QR do canvas à imagem pela inversa (design, decisão 2),
   e ajusta os 11 pontos por mínimos quadrados sem descarte. Devolve a homografia e o **maior**
   resíduo, em mm da região. Verificação: sobre a folha renderizada de frente, resíduo abaixo de
   0,2 mm e registrado (o piso do instrumento, design, Riscos); em perspectiva (o `skew` do
   `RectifierInstrumentedTest`), abaixo do teto de 1,0 mm.
-- [ ] 3.2 As recusas do spec, cada uma com o motivo conferido, e não só a recusa: resíduo acima do
+- [x] 3.2 As recusas do spec, cada uma com o motivo conferido, e não só a recusa: resíduo acima do
   teto (a mensagem traz o resíduo e o teto), resíduo não finito, QR ilegível (a recusa é a do QR e o
   segundo ajuste nem roda), região sem `answer_area` (gabarito). Verificação: um teste por caminho,
   com fixture que **isola a camada** (passa nas outras conferências); **visto falhar**: cada
   mutação derruba só o seu teste, e `NaN` chega ao ajuste de propósito (`NaN > teto` é falso e passa
   calado — rigorous §3).
-- [ ] 3.3 **Medir o que o resíduo pega.** Deslocar cada um dos 11 pontos, um por vez, de 1, 2, 3 e
+- [x] 3.3 **Medir o que o resíduo pega.** Deslocar cada um dos 11 pontos, um por vez, de 1, 2, 3 e
   5 mm no espaço da imagem, e registrar o maior resíduo resultante e se a região foi recusada.
   Verificação: a tabela 11 × 4 no documento de cobertura. O teste assere **só** o que a tabela diz
   que é pego; os pontos e tamanhos que o resíduo não denuncia entram no documento como lacuna,
