@@ -10,10 +10,31 @@ import com.platos.domain.layout.LayoutMap
 import com.platos.domain.layout.ScannableRegion
 import zxingcpp.BarcodeReader
 
+/** Um ponto do canvas do QR, em pixels inteiros: o decodificador so os devolve assim. */
+data class PontoDoCanvas(val x: Int, val y: Int)
+
+/**
+ * Os quatro cantos do simbolo QR no canvas em que ele foi lido, como o decodificador os devolve.
+ *
+ * `topLeft`, `topRight` e `bottomLeft` sao os candidatos a ancora do segundo ajuste do ADR-0018; o
+ * `bottomRight` e estimado por ele, e nao entra (`slice-5c-0-o-recorte-da-resposta`, design,
+ * decisao 2). **O que cada ponto significa no mapa e suposto** ate a tarefa 2.2 medi-lo.
+ */
+data class PosicaoDoQr(
+    val topLeft: PontoDoCanvas,
+    val topRight: PontoDoCanvas,
+    val bottomRight: PontoDoCanvas,
+    val bottomLeft: PontoDoCanvas,
+)
+
 /** O que saiu de uma tentativa de ler o QR da regiao ja retificada. */
 sealed interface QrOutcome {
 
-    data class Read(val payload: CapturePayload) : QrOutcome
+    /**
+     * [position] existe para o recorte da resposta (`slice-5c-0`); o reconhecimento da regiao, que
+     * roda a cada quadro, o ignora.
+     */
+    data class Read(val payload: CapturePayload, val position: PosicaoDoQr) : QrOutcome
 
     data class Failed(val reason: String) : QrOutcome
 }
@@ -77,7 +98,8 @@ object RegionQrReader {
 
         val results = runCatching { reader.read(bitmapOf(canvas), roi, 0) }
             .getOrElse { return QrOutcome.Failed("o decodificador falhou: ${it.message}") }
-        val text = results.firstOrNull()?.text
+        val result = results.firstOrNull()
+        val text = result?.text
             ?: return QrOutcome.Failed("nenhum QR decodificado na ROI que o mapa declara")
 
         return when (val reading = QrPayload.read(text)) {
@@ -95,11 +117,18 @@ object RegionQrReader {
                             "$expected, mas a captura tem ${detectedMarkerIds.sorted()}",
                     )
                 } else {
-                    QrOutcome.Read(reading.payload)
+                    QrOutcome.Read(reading.payload, positionOf(result.position))
                 }
             }
         }
     }
+
+    private fun positionOf(position: BarcodeReader.Position): PosicaoDoQr = PosicaoDoQr(
+        topLeft = PontoDoCanvas(position.topLeft.x, position.topLeft.y),
+        topRight = PontoDoCanvas(position.topRight.x, position.topRight.y),
+        bottomRight = PontoDoCanvas(position.bottomRight.x, position.bottomRight.y),
+        bottomLeft = PontoDoCanvas(position.bottomLeft.x, position.bottomLeft.y),
+    )
 
     /**
      * Bitmap a partir do buffer cinza.
