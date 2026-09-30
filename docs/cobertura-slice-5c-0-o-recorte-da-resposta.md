@@ -432,3 +432,38 @@ Reversões conferidas por `diff` contra o original; `grep -c MUTACAO` = 0.
 Letra de aluno; tinta de caneta esferográfica com falha; sombra na faixa; **os dois limiares (5% e 4 mm²)
 continuam suposições, agora com fronteira pinada, e não medidas**; o efeito da dilatação de 1 mm da máscara
 sobre tinta do aluno encostada na moldura (a máscara a esconde, de propósito, e isso não foi quantificado).
+
+## Grupo 6 — "sem cabeçalho", camada 2 (tarefa 6.1), 2026-09-30
+
+`RecorteSemCabecalhoInstrumentedTest` (5 testes), no `platos-atd34`. Com todo o resto do Android desta
+mudança: **29 de 29** instrumentados, `timestamp` na janela deste comando. Folha renderizada, de frente e
+em ângulo; o "nome do aluno" é um `DrawText` no `LayoutMap` (o que a fatia 7 vai imprimir). **Nada é papel.**
+
+**Fixture (a):** duas linhas de nome — uma no topo da página, outra colada em cima da região — e mapa
+**válido** (a camada 1 o aceita). **Guarda de vacuidade da fixture (P13):** as duas linhas foram mesmo
+desenhadas (≈3 518 px escuros no topo; ≈3 519 px colado na região 1; 5 617 na região 2, onde a faixa
+colada também pega o enunciado da questão). **Guarda de vacuidade do contador:** com um quadrado plantado,
+o mesmo pipeline conta mais de 8 000 centésimos.
+
+| Caso | Camada 1 (validação do mapa) | Camada 2 (recorte) |
+|---|---|---|
+| (a) folha limpa, nome impresso em volta | aceita (mapa válido) | **zero** de tinta, nos 4 quadros |
+| (b) texto que começa dentro da largura e dentro da área | **recusa** | tinta 3 415–3 563 |
+| (c) texto que começa 8 mm fora da largura e invade | **aceita** (limite conhecido) | tinta 5 621–5 716 |
+
+**A camada 2 vê o que a 1 não vê (c).** Foi essa a razão de ter duas camadas, e o caso (c) é o que carrega
+a independência.
+
+**Visto falhar (previsão antes), com conjuntos disjuntos:**
+| Mutação | Previsto | Real |
+|---|---|---|
+| **E** (captura) janela do canvas 20 mm acima | cai (a); passam b1 e c1; b2 e c2 incertos | cai **só** (a): `ha tinta no recorte de uma folha sem escrita expected: 0 but was: 4606` (o nome colado em cima entrou); b2 e c2 passam |
+| **G** (domínio) regra da camada 1 desligada | cai só `b_camada_1...` | exatamente esse; (a), b2, c1 e c2 passam |
+
+E não derruba nenhum teste da camada 1 (o domínio não é tocado), e G derruba 6 testes da camada 1 (grupo 1)
+e só 1 da camada 2. **Conjuntos disjuntos entre as duas camadas: a prova de que são independentes** (rigorous
+§3). Reversões conferidas por `diff`, `grep -c MUTACAO` = 0.
+
+**O que não é verificado:** o nome impresso em papel (fonte, tamanho e posição reais da fatia 7); texto em
+cor; um cabeçalho que ocupe a moldura *por baixo* da letra do aluno. A camada 1 continua sem ver o texto
+que entra por fora, e só o recorte sobre o documento renderizado o vê — **em papel, não foi medido**.

@@ -134,7 +134,7 @@
 
 ## 6. A garantia de "sem cabeçalho", camada 2
 
-- [ ] 6.1 Sobre a folha renderizada, em perspectiva, um cabeçalho de nome de aluno impresso na página
+- [x] 6.1 Sobre a folha renderizada, em perspectiva, um cabeçalho de nome de aluno impresso na página
   da região. Verificação: (a) folha limpa → **zero** pixels de tinta no recorte fora da máscara da
   moldura; (b) texto com origem **dentro** da largura da região e dentro da área (mapa montado à
   mão, com a validação contornada) → o recorte tem tinta fora da máscara; (c) texto com origem
