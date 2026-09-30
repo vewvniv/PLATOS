@@ -1,6 +1,6 @@
 ## 0. Antes do primeiro commit
 
-- [ ] 0.1 Medir a linha de base na árvore da `main` (com o archive da 5b-4 mergeado, ou sobre o
+- [x] 0.1 Medir a linha de base na árvore da `main` (com o archive da 5b-4 mergeado, ou sobre o
   branch que o contém):
   - `./gradlew build --rerun-tasks` e `./gradlew -p buildSrc test --rerun-tasks`;
   - `./gradlew :apps:android:connectedDebugAndroidTest`, sem filtro, no emulador que já é o da base
@@ -12,12 +12,12 @@
   Anotar em `docs/cobertura-slice-5c-0-o-recorte-da-resposta.md` a contagem de testes por task, o
   `timestamp` de cada relatório e o número de tasks **executadas** (P2, P3).
   Verificação: os relatórios são desta sessão, com o `timestamp` dentro da janela da execução.
-- [ ] 0.2 Registrar `sha256` de `fixtures/*.layout.json` e de `fixtures/*.package.json` (o mapa e o
+- [x] 0.2 Registrar `sha256` de `fixtures/*.layout.json` e de `fixtures/*.package.json` (o mapa e o
   pacote da prova com discursiva incluídos: `prova-discursiva.layout.json`,
   `prova-discursiva.aluno.layout.json`, `prova-discursiva.package.json`), e conferir por `grep` se
   `apps/android/src/androidTest/assets` os copia. Esta mudança não regrava nenhum (proposta, Impact); os `sha256` de antes são o que a 1.2 e a 7.2
   comparam. Verificação: a lista com o comando que a produziu.
-- [ ] 0.3 Registrar a saída de `node tools/divida/divida.mjs`. Verificação: `exit 0`, sem linha
+- [x] 0.3 Registrar a saída de `node tools/divida/divida.mjs`. Verificação: `exit 0`, sem linha
   vencida, e a nota de que a tabela "Aberto" não é lida por ele (proposta, Impact).
 
 ## 1. Domínio: a garantia do mapa, o dono da faixa e a classificação do desvio
