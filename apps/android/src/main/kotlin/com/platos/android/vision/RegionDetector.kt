@@ -277,16 +277,10 @@ object RegionDetector {
         width: Int,
         height: Int,
     ): RectifiedRegion {
-        // Sangria expressa na mesma normalizacao do mapa: partes por milhao do lado do quadrilatero.
-        val bleedU = (QR_BLEED_MM * PX_PER_MM).toLong() * PPM / width
-        val bleedV = (QR_BLEED_MM * PX_PER_MM).toLong() * PPM / height
-        val u0 = (region.qr.u - bleedU).toDouble() / PPM
-        val v0 = (region.qr.v - bleedV).toDouble() / PPM
-        val u1 = (region.qr.u + region.qr.uSize + bleedU).toDouble() / PPM
-        val v1 = (region.qr.v + region.qr.vSize + bleedV).toDouble() / PPM
-
-        val canvasW = ((u1 - u0) * width).toInt().coerceAtLeast(1)
-        val canvasH = ((v1 - v0) * height).toInt().coerceAtLeast(1)
+        val frame = qrFrameOf(region, width, height)
+        val (u0, v0, u1, v1) = frame
+        val canvasW = frame.canvasW
+        val canvasH = frame.canvasH
 
         val cut = homography.clone()
         for (col in 0 until 3) {
@@ -304,6 +298,209 @@ object RegionDetector {
         val buffer = ByteArray(canvasW * canvasH)
         gray8.get(0, 0, buffer)
         return RectifiedRegion(canvasW, canvasH, buffer)
+    }
+
+    /**
+     * O retangulo do quadrado unitario que o canvas do QR cobre, e o tamanho dele em pixels.
+     *
+     * **Um lugar so**, usado por [rectifyQr] para desenhar o canvas e pelo segundo ajuste para levar
+     * um ponto do canvas de volta ao quadrado unitario: se as duas contas divergissem, o ajuste
+     * estaria certo sobre o canvas errado, e nenhuma conferencia acusaria (P28).
+     */
+    internal data class QrFrame(
+        val u0: Double,
+        val v0: Double,
+        val u1: Double,
+        val v1: Double,
+        val canvasW: Int,
+        val canvasH: Int,
+    )
+
+    internal fun qrFrameOf(region: ScannableRegion, width: Int, height: Int): QrFrame {
+        // Sangria expressa na mesma normalizacao do mapa: partes por milhao do lado do quadrilatero.
+        val bleedU = (QR_BLEED_MM * PX_PER_MM).toLong() * PPM / width
+        val bleedV = (QR_BLEED_MM * PX_PER_MM).toLong() * PPM / height
+        val u0 = (region.qr.u - bleedU).toDouble() / PPM
+        val v0 = (region.qr.v - bleedV).toDouble() / PPM
+        val u1 = (region.qr.u + region.qr.uSize + bleedU).toDouble() / PPM
+        val v1 = (region.qr.v + region.qr.vSize + bleedV).toDouble() / PPM
+        return QrFrame(
+            u0, v0, u1, v1,
+            canvasW = ((u1 - u0) * width).toInt().coerceAtLeast(1),
+            canvasH = ((v1 - v0) * height).toInt().coerceAtLeast(1),
+        )
+    }
+
+    // ---------------------------------------------------------------- o segundo ajuste (ADR-0018)
+
+    /**
+     * Teto do **maior** residuo do segundo ajuste, em milimetros da regiao.
+     *
+     * **Suposicao fixada antes da primeira execucao, e nao medicao** (ADR-0007, P11; `design.md` da
+     * `slice-5c-0-o-recorte-da-resposta`, decisao 3): metade dos 2 mm de folga acima e abaixo da
+     * moldura, e igual ao recuo de 1 mm da pauta. Nao se afrouxa depois de conhecido o resultado.
+     */
+    const val MAX_RESIDUAL_MM = 1.0
+
+    /** O que saiu do segundo ajuste da regiao discursiva (ADR-0018, decisao 3, passo (c)). */
+    sealed interface SegundoAjuste {
+
+        /**
+         * [homografia] leva a imagem ao quadrado unitario da regiao. [residuosMm] sao os onze, na ordem
+         * dos pontos (oito cantos de marcador, tres cantos do QR); [residuoMaxMm] e o maior.
+         */
+        class Ajustado(
+            val homografia: Mat,
+            val residuoMaxMm: Double,
+            val residuosMm: List<Double>,
+        ) : SegundoAjuste
+
+        data class Recusado(val motivo: String) : SegundoAjuste
+    }
+
+    /** Os onze pares (ponto observado na imagem, ponto que o mapa declara no quadrado unitario). */
+    internal sealed interface PontosDoAjuste {
+        class Prontos(val observados: List<Point>, val alvos: List<Point>) : PontosDoAjuste
+        class Falhou(val motivo: String) : PontosDoAjuste
+    }
+
+    /**
+     * Segundo ajuste, ponta a ponta: acha os marcadores, retifica pela primeira homografia, le o QR na
+     * regiao ja retificada e so entao ajusta os onze pontos. A ordem e a de §8; o QR nunca e procurado
+     * na imagem em perspectiva.
+     *
+     * Recusa, cada uma com o motivo dela: regiao sem area de resposta (o gabarito), a recusa da
+     * primeira retificacao, a recusa do QR — e, nesse caso, o segundo ajuste nem roda —, e o residuo.
+     */
+    fun segundoAjuste(gray: Mat, map: LayoutMap, region: ScannableRegion): SegundoAjuste {
+        if (region.answerArea == null) {
+            return SegundoAjuste.Recusado("a regiao ${region.index} nao declara area de resposta")
+        }
+        val found = detectMarkers(gray)
+        val rectified = when (val detection = detect(gray, map, region, found)) {
+            is DetectionOutcome.Failed -> return SegundoAjuste.Recusado(detection.reason)
+            is DetectionOutcome.Rectified -> detection
+        }
+        val qr = when (val read = RegionQrReader.read(rectified.qrCanvas, rectified.detectedMarkerIds, map)) {
+            is QrOutcome.Failed -> return SegundoAjuste.Recusado(read.reason)
+            is QrOutcome.Read -> read
+        }
+        return when (val pontos = pontosDoSegundoAjuste(map, region, found, qr, rectified.qrCanvas)) {
+            is PontosDoAjuste.Falhou -> SegundoAjuste.Recusado(pontos.motivo)
+            is PontosDoAjuste.Prontos -> ajustar(pontos.observados, pontos.alvos, region)
+        }
+    }
+
+    /**
+     * Monta os onze pares: os oito cantos dos marcadores, como a primeira homografia ja os usa, e tres
+     * cantos do QR (`topLeft`, `topRight`, `bottomLeft`; o `bottomRight` e estimado pelo decodificador
+     * e fica de fora — ADR-0018, design decisao 2).
+     *
+     * O ponto do QR sai do canvas em que o decodificador o mediu, vira `(u,v)` pelo **mesmo** quadro
+     * que desenhou o canvas ([qrFrameOf]) e volta a imagem pela **inversa da primeira homografia**, a
+     * que fez o canvas: o erro dela se cancela na ida e volta, e o ponto observado e o que a camera
+     * viu. *Suposto, medido na tarefa 3.1.* A posicao chega em pixels inteiros, sem correcao de meio
+     * pixel: quantizacao de ate 0,1 mm a 10 px/mm, dita no design.
+     */
+    internal fun pontosDoSegundoAjuste(
+        map: LayoutMap,
+        region: ScannableRegion,
+        found: Map<Int, List<Point>>,
+        qr: QrOutcome.Read,
+        qrCanvas: RectifiedRegion,
+    ): PontosDoAjuste {
+        val declared = declaredMarkersOf(map, region)
+        val ordered = orderOf(declared, region)
+        val primeira = homographyByCorners(ordered, found, declared, region)
+            ?: return PontosDoAjuste.Falhou("a homografia pelos cantos dos marcadores $ordered nao fecha")
+
+        val width = region.quadWidth * PX_PER_MM / 1_000
+        val height = region.quadHeight * PX_PER_MM / 1_000
+        val frame = qrFrameOf(region, width, height)
+        if (qrCanvas.width != frame.canvasW || qrCanvas.height != frame.canvasH) {
+            return PontosDoAjuste.Falhou(
+                "o canvas do QR tem ${qrCanvas.width}x${qrCanvas.height} px, e o quadro dele ${frame.canvasW}x${frame.canvasH}",
+            )
+        }
+
+        val inversa = primeira.inv()
+        val cantosDoQr = listOf(qr.position.topLeft, qr.position.topRight, qr.position.bottomLeft)
+        val observadosDoQr = cantosDoQr.map { canto ->
+            val u = frame.u0 + canto.x * (frame.u1 - frame.u0) / frame.canvasW
+            val v = frame.v0 + canto.y * (frame.v1 - frame.v0) / frame.canvasH
+            mapPoint(inversa, Point(u, v))
+        }
+        val q = region.qr
+        val alvosDoQr = listOf(
+            Point(q.u.toDouble() / PPM, q.v.toDouble() / PPM),
+            Point((q.u + q.uSize).toDouble() / PPM, q.v.toDouble() / PPM),
+            Point(q.u.toDouble() / PPM, (q.v + q.vSize).toDouble() / PPM),
+        )
+
+        val observadosDosMarcadores = ordered.flatMap { found.getValue(it) }
+        val alvosDosMarcadores = ordered.flatMap { cornersUvOf(declared.getValue(it), region) }
+        return PontosDoAjuste.Prontos(
+            observados = observadosDosMarcadores + observadosDoQr,
+            alvos = alvosDosMarcadores + alvosDoQr,
+        )
+    }
+
+    /**
+     * O ajuste por minimos quadrados (metodo 0: sem RANSAC, nenhum ponto descartado) e a conferencia
+     * pelo **maior** residuo, em milimetros da regiao. Separado de [pontosDoSegundoAjuste] para a
+     * medicao da sensibilidade (tarefa 3.3) deslocar um ponto de cada vez.
+     */
+    internal fun ajustar(observados: List<Point>, alvos: List<Point>, region: ScannableRegion): SegundoAjuste {
+        val ajuste = homografiaEResiduos(observados, alvos, region)
+            ?: return SegundoAjuste.Recusado("o segundo ajuste da regiao ${region.index} nao fecha")
+        val (homografia, residuos) = ajuste
+        conferirResiduos(residuos, region.index)?.let { return SegundoAjuste.Recusado(it) }
+        return SegundoAjuste.Ajustado(homografia, residuos.max(), residuos)
+    }
+
+    /**
+     * A homografia e o residuo de cada ponto, em mm da regiao, **sem** conferir o teto. Nulo quando o
+     * OpenCV nao acha homografia. Existe separado de [ajustar] para a tarefa 3.3 medir o residuo de um
+     * ajuste que o teto recusaria.
+     */
+    internal fun homografiaEResiduos(
+        observados: List<Point>,
+        alvos: List<Point>,
+        region: ScannableRegion,
+    ): Pair<Mat, List<Double>>? {
+        require(observados.size == alvos.size) { "${observados.size} observados para ${alvos.size} alvos" }
+        val homografia = Calib3d.findHomography(
+            MatOfPoint2f(*observados.toTypedArray()),
+            MatOfPoint2f(*alvos.toTypedArray()),
+            0,
+        )
+        if (homografia.empty()) return null
+        val residuos = observados.indices.map { i ->
+            val previsto = mapPoint(homografia, observados[i])
+            hypot(
+                (previsto.x - alvos[i].x) * region.quadWidth / 1_000.0,
+                (previsto.y - alvos[i].y) * region.quadHeight / 1_000.0,
+            )
+        }
+        return homografia to residuos
+    }
+
+    /**
+     * O motivo da recusa pelo residuo, ou nulo quando o ajuste fecha. Puro, para poder ser exercitado
+     * com `NaN` de verdade: o OpenCV nao deixa forcar um residuo nao finito de fora.
+     */
+    internal fun conferirResiduos(residuos: List<Double>, regionIndex: Int): String? {
+        require(residuos.isNotEmpty()) { "nenhum residuo para conferir" }
+        // `NaN > teto` e falso: sem esta guarda um residuo nao finito passaria calado pelo teto.
+        if (residuos.any { !it.isFinite() }) {
+            return "o residuo do segundo ajuste da regiao $regionIndex nao e finito: $residuos"
+        }
+        val maximo = residuos.max()
+        if (maximo > MAX_RESIDUAL_MM) {
+            return "a geometria da regiao $regionIndex nao fecha: residuo de ${format(maximo)} mm no " +
+                "segundo ajuste, teto ${format(MAX_RESIDUAL_MM)} mm"
+        }
+        return null
     }
 
     /** Quatro centros para os quatro cantos do quadrado unitario: exata por construcao. */
