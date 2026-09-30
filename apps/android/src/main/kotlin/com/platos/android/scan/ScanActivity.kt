@@ -26,6 +26,7 @@ import com.platos.domain.exam.ExamPackage
 import com.platos.domain.scoring.ApuracaoParaEnvio
 import com.platos.domain.layout.LayoutMap
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.platos.android.outbox.EnvioDeResultadosWorker
 import com.platos.android.outbox.gravarEAgendar
 import com.platos.android.outbox.ResultadoPendente
@@ -90,6 +91,10 @@ class ScanActivity : ComponentActivity() {
 
     private val pedidoDePermissao =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { concedida ->
+            // O resultado pode chegar antes de `montar` (recriacao da Activity com o dialogo aberto:
+            // o registro entrega o resultado ao iniciar, e a sessao so existe depois da leitura do
+            // caderno). Ignorar nao perde nada: `montar` consulta a permissao real do sistema.
+            if (!::session.isInitialized) return@registerForActivityResult
             session.onPermission(concedida)
             state = session.state
             if (concedida) ligaCamera()
@@ -130,19 +135,33 @@ class ScanActivity : ComponentActivity() {
         // folha poria disco no caminho da camera sem nada a ganhar.
         roster = RostersEmArquivo(File(filesDir, "rosters")).ler(organizacao, shortId)
         map = examPackage.layout.values.single()
-        // O caderno em andamento, guardado antes do fechamento anterior do aplicativo (se houver).
-        // Lido antes do primeiro quadro, e nao a cada quadro (design, decisao 1).
         cadernos = CadernosEmRoom(CadernosEmRoom.abrir(applicationContext).cadernos())
-        session = ScanSession(
-            examPackage,
-            cadernoInicial = cadernos.ler(organizacao, examPackage.meta.examId),
-        )
         // A fila do outbox. Aberta aqui e nao no `Application` porque e aqui que ela e usada, e a
         // organizacao e a prova ja estao resolvidas neste ponto.
         pendentes = ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes())
         this.organizacao = organizacao
         this.prova = shortId
         analysisExecutor = Executors.newSingleThreadExecutor()
+
+        // O caderno em andamento, guardado antes do fechamento anterior do aplicativo (se houver).
+        // **Lido fora do fio principal**, e a sessao so existe depois dele (`o-caderno-e-lido-fora-do-fio-principal`):
+        // o Room recusa consulta aqui, e `cadernos.ler(...)` direto no `onCreate` derrubava o
+        // escaneamento ao abrir, com caderno guardado ou nao. Ate a leitura terminar a janela fica em
+        // branco; `Activity` destruida antes disso cancela o escopo e [montar] nao roda.
+        lifecycleScope.launch {
+            montar(lerCadernoEmAndamento(cadernos, organizacao, examPackage.meta.examId).await())
+        }
+    }
+
+    /**
+     * O que faltava do `onCreate` depois da leitura do caderno: a sessao, a tela e a permissao.
+     *
+     * Nao decide nada que o `onCreate` de antes nao decidisse — e o mesmo trecho, movido para depois
+     * da leitura. A permissao e conferida no sistema, e nao herdada do callback de
+     * [pedidoDePermissao], que ignora resultado entregue antes de a sessao existir.
+     */
+    private fun montar(cadernoInicial: Caderno?) {
+        session = ScanSession(examPackage, cadernoInicial = cadernoInicial)
 
         setContent {
             ScanScreen(

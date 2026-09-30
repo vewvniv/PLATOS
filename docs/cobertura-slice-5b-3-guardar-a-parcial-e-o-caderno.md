@@ -157,3 +157,22 @@ jobs deram `success`:
 - `web` (38s): os testes e o build do web.
 
 Nenhum job falhou, e nenhum foi pulado.
+
+
+## Correção de registro, 2026-09-30 (P7: o texto acima fica)
+
+**As afirmações de retomada deste documento — 2.1, 2.2 e o "retomada" da linha de contagem do §4 —
+foram conferidas por um caminho que não é o de produção.** `CadernoEmRepousoInstrumentedTest`,
+`EntregaDoCadernoInstrumentedTest` e `GuardarCadernoNoFioPrincipalInstrumentedTest` leem e guardam
+o caderno **fora da thread principal** (a do instrumento) ou guardam pelo fio principal por uma
+função de escrita. A **leitura** que `ScanActivity.onCreate` fazia (`cadernos.ler(...)`, na thread
+principal) **nunca foi exercitada por teste algum**, e **estourava**: o Room, aberto sem
+`allowMainThreadQueries`, lança `IllegalStateException: Cannot access database on the main thread`,
+com caderno guardado e sem ele, e o escaneamento caía ao abrir.
+
+Medido em 2026-09-30, com a `ScanActivity` lançada de verdade (`AbrirEscaneamentoComCadernoInstrumentedTest`,
+emulador `platos-atd34`, Android 14): `Unable to start activity … IllegalStateException`, com a pilha
+`RoomDatabase.assertNotMainThread ← CadernoDao_Impl.ler ← CadernosEmRoom.ler ← ScanActivity.onCreate
+(ScanActivity.kt:138)`. O número "96 testes, 0 falhas" da linha 122 era verdadeiro e não tocava essa
+camada (P16). Corrigido em `o-caderno-e-lido-fora-do-fio-principal`; a evidência, a correção e o que
+ela não verificou estão em `docs/cobertura-o-caderno-e-lido-fora-do-fio-principal.md`.
