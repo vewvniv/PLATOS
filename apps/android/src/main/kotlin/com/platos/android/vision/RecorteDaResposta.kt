@@ -1,9 +1,17 @@
 package com.platos.android.vision
 
 import com.platos.android.omr.RectifiedRegion
+import com.platos.android.omr.RetanguloPx
+import com.platos.android.omr.TintaDoAluno
+import com.platos.domain.capture.DesvioDaResposta
+import com.platos.domain.layout.DrawAruco
+import com.platos.domain.layout.DrawQr
+import com.platos.domain.layout.DrawRect
 import com.platos.domain.layout.EssayGeometry
 import com.platos.domain.layout.LayoutMap
 import com.platos.domain.layout.ScannableRegion
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.roundToInt
 import org.opencv.core.Core
 import org.opencv.core.CvType
@@ -16,9 +24,14 @@ sealed interface RecorteOutcome {
 
     /**
      * [resposta] e a `answer_area` do mapa, retificada, em cinza, a [RegionDetector.PX_PER_MM] px/mm, e
-     * **so ela**: a faixa de fora nao sai da funcao (`design.md`, decisao 4).
+     * **so ela**: a faixa de fora nao sai da funcao (`design.md`, decisao 4). [desvio] e um sinal de
+     * conferencia: nao altera o recorte nem o recusa.
      */
-    class Recortado(val resposta: RectifiedRegion, val residuoMaxMm: Double) : RecorteOutcome
+    class Recortado(
+        val resposta: RectifiedRegion,
+        val residuoMaxMm: Double,
+        val desvio: DesvioDaResposta,
+    ) : RecorteOutcome
 
     data class Recusado(val motivo: String) : RecorteOutcome
 }
@@ -51,7 +64,75 @@ object RecorteDaResposta {
             is RegionDetector.SegundoAjuste.Ajustado -> resultado
         }
         val canvas = canvasDaResposta(gray, region, ajuste.homografia)
-        return RecorteOutcome.Recortado(canvas.miolo(), ajuste.residuoMaxMm)
+        val desvio = when (val medido = medirDesvio(map, region, canvas)) {
+            is Desvio.Recusado -> return RecorteOutcome.Recusado(medido.motivo)
+            is Desvio.Medido -> medido.desvio
+        }
+        return RecorteOutcome.Recortado(canvas.miolo(), ajuste.residuoMaxMm, desvio)
+    }
+
+    private sealed interface Desvio {
+        class Medido(val desvio: DesvioDaResposta) : Desvio
+        class Recusado(val motivo: String) : Desvio
+    }
+
+    /**
+     * Conta a tinta do aluno na area e na faixa, com a tinta impressa descontada, e classifica
+     * (`design.md`, decisao 5). Uma contagem que nao se faz recusa o recorte com o motivo, e nao o
+     * entrega com um "sem desvio" que ninguem mediu.
+     */
+    private fun medirDesvio(map: LayoutMap, region: ScannableRegion, canvas: CanvasDaResposta): Desvio {
+        val mascara = mascaraDaTintaImpressa(map, region, canvas)
+            ?: return Desvio.Recusado("a pagina da regiao ${region.index} nao desenha a moldura dela")
+        val contagem = TintaDoAluno.contar(
+            canvas.canvas, canvas.faixaPx, mascara, region.inkBudget.decorativeToneMax,
+        ) ?: return Desvio.Recusado("a captura esta escura demais para achar o branco do papel")
+
+        val dentro = TintaDoAluno.centesimosDeMm2(contagem.dentro, RegionDetector.PX_PER_MM)
+        val fora = TintaDoAluno.centesimosDeMm2(contagem.fora, RegionDetector.PX_PER_MM)
+        return try {
+            Desvio.Medido(DesvioDaResposta.classificar(dentro, fora))
+        } catch (e: IllegalArgumentException) {
+            Desvio.Recusado("a contagem de tinta nao e valida: ${e.message}")
+        }
+    }
+
+    /**
+     * Os retangulos da tinta que o mapa declara na pagina da regiao — os dois marcadores, o QR e os
+     * quatro lados da moldura —, no canvas, **dilatados pelo teto do residuo**: o erro de posicao que o
+     * proprio ajuste admite. Nulo se a moldura nao esta na pagina.
+     */
+    internal fun mascaraDaTintaImpressa(
+        map: LayoutMap,
+        region: ScannableRegion,
+        canvas: CanvasDaResposta,
+    ): List<RetanguloPx>? {
+        val primitivas = map.pages.firstOrNull { it.index == region.page }?.primitives ?: return null
+        val dilatacao = ceil(RegionDetector.MAX_RESIDUAL_MM * RegionDetector.PX_PER_MM).toInt()
+
+        fun caixa(x0: Int, y0: Int, x1: Int, y1: Int) = RetanguloPx(
+            floor(canvas.xDe(x0)).toInt(), floor(canvas.yDe(y0)).toInt(),
+            ceil(canvas.xDe(x1)).toInt(), ceil(canvas.yDe(y1)).toInt(),
+        ).dilatado(dilatacao)
+
+        val mascara = ArrayList<RetanguloPx>()
+        for (p in primitivas) {
+            when {
+                p is DrawAruco && p.markerId in region.markerIds -> mascara += caixa(p.x, p.y, p.x + p.side, p.y + p.side)
+                p is DrawQr && p.id == region.qrId -> mascara += caixa(p.x, p.y, p.x + p.side, p.y + p.side)
+            }
+        }
+        val moldura = primitivas.filterIsInstance<DrawRect>().firstOrNull { it.id == "r${region.index}-moldura" }
+            ?: return null
+        // O traco e centrado no caminho do retangulo: meio traco para cada lado.
+        val meio = moldura.stroke / 2
+        val x0 = moldura.x - meio; val x1 = moldura.x + moldura.width + meio
+        val y0 = moldura.y - meio; val y1 = moldura.y + moldura.height + meio
+        mascara += caixa(x0, y0, x1, moldura.y + meio) // topo
+        mascara += caixa(x0, moldura.y + moldura.height - meio, x1, y1) // base
+        mascara += caixa(x0, y0, moldura.x + meio, y1) // esquerda
+        mascara += caixa(moldura.x + moldura.width - meio, y0, x1, y1) // direita
+        return mascara
     }
 
     /**

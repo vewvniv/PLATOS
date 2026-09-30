@@ -119,14 +119,14 @@
 
 ## 5. Android: o desvio
 
-- [ ] 5.1 Contar tinta do aluno na área e na faixa (design, decisão 5): tinta = cobertura contra o
+- [x] 5.1 Contar tinta do aluno na área e na faixa (design, decisão 5): tinta = cobertura contra o
   `PaperWhite` local ≥ `decorativeToneMax / 1000`; máscara = marcadores, QR e os quatro lados da
   moldura, dilatados pelo teto do resíduo; converter para mm² e chamar `classificar`. O recorte não
   leva nenhum pixel da faixa. Verificação, um teste por cenário da spec: dentro da área; extrapola;
   folha em branco (proporção **exatamente zero**); mancha abaixo do piso; resposta em branco; faixa
   não vaza. **Visto falhar:** tirar a máscara faz a folha em branco acusar tinta; trocar o limiar por
   um fixo em 255 conta a pauta como tinta; ambos derrubam só o cenário deles.
-- [ ] 5.2 Guarda de vacuidade (P13) do contador: um teste que planta uma quantidade **conhecida** de
+- [x] 5.2 Guarda de vacuidade (P13) do contador: um teste que planta uma quantidade **conhecida** de
   tinta na faixa (área em mm² calculada do desenho, não do contador) e confere que o contador a
   reporta dentro de 10%. **Critério fixado agora:** 10% — o erro do contador pode ser maior que o
   do ajuste porque a borda do traço é suavizada. Verificação: o teste passa; e um contador

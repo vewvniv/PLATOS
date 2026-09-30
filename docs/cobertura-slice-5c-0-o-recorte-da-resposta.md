@@ -380,3 +380,55 @@ sentinela na janela larga; ele é **recusado** pelo teto e não chega ao recorte
 
 **O que o grupo 4 não verifica:** papel; letra real; a extrapolação do canto inferior esquerdo além do
 documento renderizado; erro simultâneo de vários pontos; foto de celular (compressão, desfoque).
+
+## Grupo 5 — o desvio (tarefas 5.1 e 5.2), 2026-09-30
+
+`DesvioDaRespostaInstrumentedTest` (6) e o contador `TintaDoAluno` (9 testes JVM). Com os grupos 2 a 4:
+**24 de 24** instrumentados, `timestamp` 14:32:22Z; `testDebugUnitTest` 353. Folha renderizada, de
+frente e em ângulo; **tinta sintética**, retângulos pretos de área conhecida. Nada é papel.
+
+`RecorteOutcome.Recortado` ganha `desvio: DesvioDaResposta`. A tinta é a cobertura contra o `PaperWhite`
+local acima do tom decorativo máximo da região (500‰); a máscara é a tinta impressa (2 marcadores, o QR e
+os 4 lados da moldura) dilatada pelo teto do resíduo (10 px); a classificação é a do domínio (1.3).
+
+### O que foi medido (centésimos de mm²; 1 mm² = 100)
+
+| Caso | Construído | Medido (frente / ângulo, regiões 1 e 2) |
+|---|---|---|
+| tinta dentro | 10 000 | 10 021 / 10 018 / 10 000 / 10 003, `fora` = 0 nos 4 |
+| tinta fora (faixa da esquerda) | 2 800 | 2 827 / 2 794 / 2 810 / 2 812 (proporção 21,8–22,0%, sinalizada) |
+| folha em branco | 0 | **0 e 0** nos 4, proporção 0 |
+| mancha abaixo do piso | 280 (com dentro = 1 600) | 280 / 279 / 280 / 281; proporção 14,9%, **não** sinalizada |
+
+Pior erro de contagem: 1,0% (o critério de 10% foi fixado antes, e a guarda de vacuidade da 5.2 é esta
+tabela). O recorte com a tinta de fora é **igual byte a byte** ao sem ela, nos 4 quadros.
+
+### Erros meus, mantidos (P7)
+
+- O primeiro `dentro()` do teste centrava o quadrado com `quadWidth * uSize`, uma multiplicação de `Int` por
+  `Int` que **estourava** (87 000 × 1 000 000) antes da divisão: o "quadrado de 10 mm no meio" caiu fora do
+  lugar, 4 dos 6 testes reprovaram, e li isso como falha do recorte por alguns minutos. **A causa era o
+  helper do teste** (`dentro: 4180`, `fora: 2000` numa folha sem tinta de fora); o código de produção não
+  usa essa conta. Corrigido com `toDouble()`.
+
+### Visto falhar (previsão antes)
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| **D1** sem máscara | a folha em branco acusa tinta impressa; quase tudo cai | 5 de 6 (só o sinal de conferência passa): `dentro` = 5025 na folha em branco |
+| **D2** limiar de tinta em 200‰ (a pauta a 300‰ passa a contar) | branco, dentro, extrapola, piso; **não** faixa nem sinal | exatamente esses 4: `dentro` = 4947 na folha em branco, 14 789 contra 10 000 |
+| **D3** contador `return Contagem(0, 0)` | dentro, extrapola, piso, faixa; a folha em branco **passa** | exatamente esses 4, e a folha em branco passou — **sozinha, ela seria uma guarda vazia (P13)** |
+| **D3** nos testes JVM | — | 3 dos 9 de `TintaDoAlunoTest` caem |
+
+**A mutação "limiar fixo em 255" que a tarefa 5.1 cita não discrimina neste material:** as páginas
+renderizadas são brancas puras (255), então o branco local do `PaperWhite` e 255 coincidem e o resultado
+seria o mesmo. Troquei por D2 (o tom, que é onde a pauta entra), e digo aqui que a mutação escrita na tarefa
+não foi feita. O `PaperWhite` só será exercido de verdade por foto com sombra, que não existe aqui.
+
+Reversões conferidas por `diff` contra o original; `grep -c MUTACAO` = 0.
+
+### O que o grupo 5 não verifica
+
+Letra de aluno; tinta de caneta esferográfica com falha; sombra na faixa; **os dois limiares (5% e 4 mm²)
+continuam suposições, agora com fronteira pinada, e não medidas**; o efeito da dilatação de 1 mm da máscara
+sobre tinta do aluno encostada na moldura (a máscara a esconde, de propósito, e isso não foi quantificado).
