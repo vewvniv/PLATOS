@@ -137,3 +137,46 @@ Cada reversão conferida por `diff` contra a cópia do original (`igual`) e `gre
 **O que este grupo não verifica.** Nada foi medido em letra de aluno; os dois números do desvio (5% e
 4 mm²) são suposições fixadas antes da execução (design, decisão 5), e a fronteira de cada um está
 pinada por teste — o que não diz que estejam certos.
+
+## Grupo 2 — os cantos do QR chegam ao ajuste (tarefas 2.1 e 2.2), 2026-09-30
+
+### 2.1 — `QrOutcome.Read.position`: feita
+
+`RegionQrReader` devolve os quatro cantos do símbolo (`PosicaoDoQr`), convertidos de `android.graphics.Point`
+para tipo próprio. Aditivo: o `analyze` o ignora. **Não havia construção a atualizar**: nenhum teste
+constrói `QrOutcome.Read`, só faz cast (a tarefa dizia "4"; a contagem estava errada). Verificação:
+o teste instrumentado `a_leitura_valida_traz_a_posicao_do_qr_dentro_do_canvas` passou nas regiões 1 e 2
+(os quatro cantos dentro do canvas), e `testDebugUnitTest` deu **353** (344 + 9 do contador de tinta
+da 5.1, escrito antes do gate e ainda sem marca), `timestamp` 13:47Z.
+
+### 2.2 — `position` significa o canto do QR no mapa: **REPROVOU o critério fixado**
+
+Critério fixado antes da primeira execução (ADR-0007): `topLeft`, `topRight`, `bottomLeft` a ≤ 0,5 mm
+do canto que o mapa declara para o QR, no canvas do QR. Esperado calculado por aritmética própria
+(lado do QR pelo mapa, sangria simétrica). Documento renderizado de frente, 10 px/mm, `platos-atd34`,
+`PosicaoDoQrInstrumentedTest`, 15:45Z (`logcat -s Medida5c0`):
+
+| Região | topLeft | topRight | bottomLeft | bottomRight (só registrado) | Veredito |
+|---|---|---|---|---|---|
+| 1 | 0,391 mm | 0,390 mm | 0,320 mm | 0,391 mm | passa |
+| 2 | 0,472 mm | **0,610 mm** | **0,532 mm** | 0,532 mm | **reprova** (2 de 3 âncoras) |
+
+**O instrumento reage:** o mesmo teste com o canvas deslocado 20 px (2 mm) acusa 2,314 / 2,314 / 2,214 mm
+(esperado ≈ 2), e o teste de reação passou. Não é um medidor que devolve zero.
+
+**Diagnóstico posterior — não é critério, e é dito assim:** deslocamento por canto e caixa escura do
+canvas (região 1: canvas 220×219, lado pelo mapa 140 px, sangria 40 px):
+`zxing TL=(43,37) TR=(183,37) BL=(42,177) BR=(183,177)`; caixa escura com topo em y=37 e borda direita
+em x=182 (região 2: topo 36, direita 184, `TR=(185,36)`). A esquerda e a base da caixa escura estão
+contaminadas por marcador e moldura vizinhos (x=0, y=218) e não servem. **Leitura:** o ZXing concorda com a
+borda real do símbolo a ≤ 1 px (0,1 mm); o **símbolo inteiro** está 0,3–0,6 mm fora do lugar que o
+mapa declara, **dentro do canvas**. O canvas nasce da primeira homografia, ajustada só nos dois
+marcadores da diagonal, e extrapola no canto do QR — o risco (a) do ADR-0018, já presente no
+documento de frente.
+
+**O que isto NÃO estabelece.** Não estabelece que `position` significa o canto externo do símbolo:
+isso foi visto por um oráculo de pixel **contaminado em dois lados** e escolhido *depois* do resultado.
+Não estabelece que a hipótese da decisão 2 se sustenta. E **não autoriza** trocar o critério: P11 (zona
+vermelha) proíbe mudar critério depois de conhecer o resultado sem ADR que registre o resultado. A
+tarefa 2.2 fica desmarcada, o grupo 3 não começa, e o `PosicaoDoQrInstrumentedTest` (com o teste que
+reprova) **não foi commitado**.

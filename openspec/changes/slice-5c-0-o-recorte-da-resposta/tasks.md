@@ -49,8 +49,9 @@
 
 ## 2. Android: os cantos do QR chegam ao ajuste
 
-- [ ] 2.1 `QrOutcome.Read` ganha `position` (os quatro cantos do símbolo, em pixels do canvas do
+- [x] 2.1 `QrOutcome.Read` ganha `position` (os quatro cantos do símbolo, em pixels do canvas do
   QR); `RegionQrReader` o preenche a partir de `Result.position`. Aditivo: o `analyze` o ignora.
+  *(Nota de 2026-09-30: não havia construção de `QrOutcome.Read` a atualizar — os testes só fazem cast.)*
   Verificação: as construções existentes (4) atualizadas sem mudar asserção; `testDebugUnitTest` e a
   contagem da 0.1 iguais, mais o teste novo de que `position` vem preenchida numa leitura válida.
 - [ ] 2.2 **Medir o que `position` significa**, antes de escrever o ajuste (design, Context: "o que
@@ -63,6 +64,10 @@
   hipótese cai: parar, atualizar o `design.md` (decisão 2) sem apagar a linha antiga (P7), e só então
   continuar.** Visto falhar: o mesmo teste sobre uma imagem com o QR deslocado 2 mm no canvas
   reprova.
+  **PARADA (2026-09-30): o critério reprovou** — região 2, `topRight` 0,610 mm e `bottomLeft`
+  0,532 mm. Ver `design.md` (Context, "Resultado da tarefa 2.2") e o documento de cobertura. A tarefa
+  fica **desmarcada**, e as tarefas 3.x não começam até o mantenedor decidir o que fazer com o
+  critério (P11).
 
 ## 3. Android: o segundo ajuste e a conferência pelo resíduo
 

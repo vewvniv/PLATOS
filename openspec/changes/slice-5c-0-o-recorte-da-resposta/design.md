@@ -21,6 +21,22 @@ afirmação (P6): **lido** (no código, hoje), **conferido** (por ferramenta, co
   `bottomLeft` são os cantos externos dos três padrões de posição (os três quadrados do QR), e que
   `bottomRight` é estimado — é por isso que o ADR-0018 fala em **três** quadrados. *Suposto até a
   tarefa 2.2 medi-lo sobre o QR renderizado, contra o retângulo que o mapa declara.*
+  > **Resultado da tarefa 2.2, 2026-09-30 (P7: a hipótese acima fica).** O critério fixado antes da
+  > execução (`topLeft`, `topRight`, `bottomLeft` a ≤ 0,5 mm do canto que o mapa declara, no canvas
+  > do QR) **reprovou**, sobre o documento renderizado de frente: região 1 — 0,391 / 0,390 / 0,320 mm
+  > (passa); região 2 — 0,472 / **0,610** / **0,532** mm (reprova em `topRight` e `bottomLeft`);
+  > `bottomRight` (só registrado) 0,391 e 0,532. **Segundo o que a tarefa manda, a hipótese cai e o
+  > trabalho para aqui.** Um diagnóstico posterior (não é critério) mostrou que o desvio não está no
+  > decodificador: `topRight`/`topLeft` do ZXing caem a ≤ 1 px (0,1 mm) da borda escura real do
+  > símbolo no canvas (`TR=(183,37)` contra topo escuro em 37 e borda direita em 182), enquanto o
+  > **símbolo inteiro está deslocado 0,3–0,6 mm em relação ao mapa dentro do canvas** (topo em 36–37
+  > contra 40 esperados; direita em 182–184 contra 180). O canvas vem da primeira homografia, só com
+  > os dois marcadores da diagonal, que extrapola no canto do QR — o risco (a) do ADR-0018, já
+  > presente no documento de frente. **O que isto implica, sem decidir:** (1) o critério mede duas
+  > coisas juntas, o significado de `position` e o erro da primeira homografia; (2) a decisão 2 não
+  > depende dessa segunda, porque os pontos do QR voltam à imagem pela **inversa da mesma homografia**
+  > que fez o canvas (o erro dela se cancela na ida e volta) e só o significado de `position` importa;
+  > (3) mudar o critério depois de ver o resultado é P11, e exige decisão do mantenedor.
 - **A `answer_area` já é contrato.** `ScannableRegion.answerArea` existe, o motor a emite (largura
   inteira da região, da base do QR até a zona de silêncio do marcador de baixo) e a validação a
   confere contra `[0,1]` e contra o QR. Com a moldura, ela deixa 2 mm de folga acima e 2 mm abaixo
