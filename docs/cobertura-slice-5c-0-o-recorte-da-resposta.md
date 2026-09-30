@@ -467,3 +467,86 @@ e só 1 da camada 2. **Conjuntos disjuntos entre as duas camadas: a prova de que
 **O que não é verificado:** o nome impresso em papel (fonte, tamanho e posição reais da fatia 7); texto em
 cor; um cabeçalho que ocupe a moldura *por baixo* da letra do aluno. A camada 1 continua sem ver o texto
 que entra por fora, e só o recorte sobre o documento renderizado o vê — **em papel, não foi medido**.
+
+## Fechamento (tarefas 7.1 a 7.4), 2026-09-30
+
+### 7.1 — a suíte cheia, comparada com a linha de base
+
+Repetida a da 0.1, com o Docker de pé e o emulador **encerrado** durante o agregado (memória: 2,4 GB livres
+com tudo aberto; 9,3 GB depois de encerrar o emulador e os daemons). Logs em `scratchpad/5c-0-baseline/`.
+
+| Comando | Janela | Resultado | Contagem (`timestamp` dentro da janela) | Base | Diferença |
+|---|---|---|---|---|---|
+| `./gradlew -p buildSrc test --rerun-tasks` | antes do agregado | BUILD SUCCESSFUL | `buildSrc:test` 1 | 1 | — |
+| `./gradlew build --rerun-tasks` | 14:37:41Z–14:41:16Z | BUILD SUCCESSFUL em 3m06s, **183 de 183 tasks executadas** | android debug/release **353**/**353**; api **171**; domain jvm **437**, js **428**, host **428** | 344/344; 171; 414/405/405 | android **+9** (contador de tinta); api **0**; domain **+23** (2 faixa + 11 área limpa + 10 desvio) |
+| `./gradlew :apps:android:connectedDebugAndroidTest` (`platos-atd34`, **sem filtro**) | 14:42:08Z–14:43:50Z | BUILD SUCCESSFUL | 126 executados + 2 ignorados = **128 finalizados**, 0 falhas; relatório 14:43:47Z | 97 + 2 = 99 | **+29** (3 + 6 + 2 + 6 + 1 + 6 + 5) |
+| `npx vitest run` (`apps/web`) | — | **não executado**: esta mudança não toca `apps/web` (7.2, abaixo) | — | — | — |
+
+**Nenhuma regressão:** as contagens de `api`, `result-sync`, `scan-session` e do que a mudança não tocou são
+as da linha de base, e nenhum teste existente mudou de asserção. Um teste existente (`QR declarado que nao
+existe na pagina e recusado`) apareceu numa mutação (regra 1.2, `<=`) como confirmação independente do contato
+de borda, sem ser alterado.
+
+### 7.2 — o escopo
+
+`git diff --stat origin/main...`: **28 arquivos, +3 827 −13**; produção: `TintaDoAluno`, `RecorteDaResposta`,
+`RegionDetector`, `RegionQrReader`, `SheetReader` (Android) e `DesvioDaResposta`, `EssayGeometry`,
+`LayoutMapValidation` (domínio). Filtro por `ScanSession|ScanActivity|outbox|apps/api|apps/web|migration|
+fixtures/|golden|supabase|openspec/specs/` → **nenhum**. `sha256sum fixtures/*.layout.json
+fixtures/*.package.json` **igual** ao da 0.2.
+
+`grep -rn "recortar(" apps/android/src/main` → duas definições: `RecorteDaResposta.recortar` e o delegado
+`SheetReader.recortar`. **Nenhum chamador de produção**, nem fora de `vision/`: a afirmação da decisão 1 do
+design ("código testado e sem chamador até a 5c-1") deixou de ser lembrança e virou leitura. (A tarefa dizia
+"só a definição e o teste"; o delegado existe porque o design manda o ponto de entrada em `SheetReader`.)
+
+### 7.3 — o §16 (P27)
+
+- **Paga:** "Garantia executável de que o recorte discursivo não contém cabeçalho" (fatia-limite 5, tabela
+  "Aberto"), pelas duas camadas — regra do `LayoutMap` (`AreaDeRespostaLimpaTest`) e recorte sobre o
+  documento renderizado (`RecorteSemCabecalhoInstrumentedTest`) —, com o **limite declarado** da camada 1.
+- **Atualizada** (texto anterior mantido, P7): "A região discursiva ainda não passou pelo aparelho nem
+  pelo papel", com o que foi medido no documento renderizado e os quatro pontos que o papel ainda mede.
+- **Abertas** na tabela que a guarda lê: "O limiar do desvio (5% e 4 mm²) e o teto do resíduo (1,0 mm) foram
+  fixados sem letra de aluno" (`6`) e "A guarda de dívida não lê a tabela 'Aberto' do §16" (`5`).
+- **Não tocada, de propósito:** "Injeção de prompt manuscrita pelo aluno, no eval set" (fatia-limite 5). Não há
+  IA na fatia 5. É reconciliada — paga ou reagendada para `8`, com o motivo — no archive da **última** mudança
+  da fatia 5.
+
+`node tools/divida/divida.mjs`: **`exit 0`, 23 linhas lidas** (eram 21), as duas linhas novas listadas; a de
+fatia-limite `5` também aparece em "vence nesta fatia (5c)", como lembrete informativo.
+**Visto falhar:** uma cópia do documento com o token da linha nova sem crases, via `--arquitetura`, faz a
+guarda sair com **2**, com a mensagem `a linha "O limiar do desvio ... " nao comeca com token entre crases na
+coluna 'Fatia-limite'`. **Uma primeira tentativa foi falsa**: o Python não criou a cópia (caminho `/c/...`) e
+a guarda saiu com 2 por *arquivo inexistente* — o motivo errado (P9). Refeita por um caminho que o Python
+cria, e a mensagem conferida.
+
+### O que esta mudança NÃO verificou (P6, P8)
+
+- **Papel, letra de aluno, foto de celular.** Toda medida é sobre o documento renderizado, de frente e em uma
+  perspectiva moderada (cantos da página a 1–4%); a tinta do aluno é sintética.
+- **Os três números novos são suposições fixadas antes da execução, com fronteira pinada:** teto do resíduo
+  1,0 mm, proporção de desvio 5% e piso 4 mm². Pinar não é medir.
+- **O canto inferior esquerdo continua "conhecido, não mitigado":** a extrapolação foi medida no documento
+  renderizado (moldura a ≤ 0,07 mm; tinta inteira no recorte), não em papel.
+- **O resíduo não é guarda suficiente do recorte:** dois pontos (`QR.tr` em `+x`, `BR.c4` em `+y`) com 2 mm de
+  erro passam pelo teto e movem a moldura 0,66–0,89 mm. Medido, pinado, e registrado no §16.
+- **A camada 1 do "sem cabeçalho" não vê texto que entra por fora**; só o recorte sobre o documento renderizado
+  o vê, e não em papel.
+- **A semântica de `position` foi medida por um critério que não é cego** (ADR-0020).
+- **Erro simultâneo de vários pontos**, desfoque e compressão de foto: não medidos.
+- **`PaperWhite` só foi exercido sobre páginas de branco puro (255):** o branco local e 255 coincidem, e a
+  mutação "limiar fixo em 255" da tarefa 5.1 não discrimina neste material (usei o tom, D2).
+- **Nenhum código de produção chama o recorte** (7.2). O `proposal.md` da `slice-5c-1` **SHALL** abrir com o
+  chamador e com a decisão de onde a imagem mora e por quanto tempo (ADR-0012, classe de retenção).
+
+### Erros e correções de rumo desta mudança (P7, todos mantidos acima, resumidos aqui)
+
+1. O agregado da linha de base "passou" no aviso de conclusão porque o `exit 0` era do `date` que eu pus depois
+   do Gradle, e o build tinha falhado (Docker parado; depois, falha guardada pelo daemon).
+2. A guarda D-1.2 proíbe ponto flutuante no `commonMain`: a classificação do desvio foi reescrita em inteiros.
+3. O critério da 2.2 **reprovou** e a hipótese foi reformulada por ADR-0020, por decisão do mantenedor.
+4. Um susto errado sobre a tabela de sensibilidade do recorte foi um artefato do meu instrumento (a borda
+   esquerda da moldura coincide com a borda do recorte).
+5. Um estouro de `Int` no meu helper de teste fez quatro testes do desvio reprovarem por minutos.
+6. Uma primeira "prova" de que a guarda de dívida reprova era o arquivo que não existia.

@@ -146,16 +146,16 @@
 
 ## 7. Fechamento
 
-- [ ] 7.1 Repetir a suíte completa da 0.1 (P5) e comparar contagem e resultado; nenhuma regressão
+- [x] 7.1 Repetir a suíte completa da 0.1 (P5) e comparar contagem e resultado; nenhuma regressão
   em `capture-omr`, `layout-engine`, `scan-session` ou `result-sync`. Verificação: relatórios com
   `timestamp` desta sessão (P3); se o agregado não couber na memória, as tasks separadas e o desvio
   registrado, sem afirmar o agregado.
-- [ ] 7.2 Provar o escopo. `git diff --stat main...` não toca `ScanSession`, `ScanActivity`, outbox,
+- [x] 7.2 Provar o escopo. `git diff --stat main...` não toca `ScanSession`, `ScanActivity`, outbox,
   `apps/api`, `apps/web`, migrations, goldens nem fixtures, e os `sha256` da 0.2 continuam iguais;
   `grep -rn "recortar(" apps/android/src/main` mostra só a definição e o teste (o "sem chamador de
   produção" da decisão 1 é uma afirmação, e vira uma leitura). Verificação: as saídas dos dois
   comandos coladas no documento de cobertura.
-- [ ] 7.3 Reconciliar o §16 (P27) em `docs/architecture/ARQUITETURA-FINAL-v3.md`:
+- [x] 7.3 Reconciliar o §16 (P27) em `docs/architecture/ARQUITETURA-FINAL-v3.md`:
   - marcar **paga** a linha "Garantia executável de que o recorte discursivo não contém cabeçalho",
     citando os testes 1.2 e 6.1 e o limite declarado da camada 1;
   - **atualizar** "A região discursiva ainda não passou pelo aparelho nem pelo papel" com o que esta
@@ -170,7 +170,7 @@
   Verificação: `node tools/divida/divida.mjs` com `exit 0`, o número de linhas lidas aumentado em 2,
   e as duas linhas novas listadas; **visto falhar**: uma linha nova com token malformado
   (`--arquitetura` apontando para uma cópia no scratchpad) faz a guarda sair com `2`.
-- [ ] 7.4 Escrever `docs/cobertura-slice-5c-0-o-recorte-da-resposta.md`: linha de base; as tabelas
+- [x] 7.4 Escrever `docs/cobertura-slice-5c-0-o-recorte-da-resposta.md`: linha de base; as tabelas
   da 2.2 e da 3.3; cada "visto falhar" com o que caiu e o que não caiu; o que **não** foi verificado
   (papel, letra real, o canto inferior esquerdo fora do documento renderizado, a calibração dos três
   números); o par. 16; e a afirmação explícita de que o recorte não tem chamador de produção.
