@@ -99,19 +99,19 @@
 
 ## 4. Android: o recorte
 
-- [ ] 4.1 `SheetReader.recortar(gray, map, region)` devolve `RecorteOutcome` (design, decisão 1): um
+- [x] 4.1 `SheetReader.recortar(gray, map, region)` devolve `RecorteOutcome` (design, decisão 1): um
   warp com a segunda homografia sobre a área mais a faixa, supersampleado em 3× e reduzido por
   `INTER_AREA`, a 10 px/mm; o miolo vira o recorte, e a faixa não sai da função. Verificação, em
   perspectiva sobre a folha renderizada: dimensões = área do mapa × 10 (± 1 px); a **moldura** cai a
   ≤ 0,5 mm da posição declarada no mapa, medida por perfil de intensidade no recorte (oráculo que não
   compartilha código com o warp, P4). **Visto falhar:** trocar a homografia do recorte pela da
   primeira retificação, ou deslocar um ponto do QR pela 3.3, tira a moldura da tolerância.
-- [ ] 4.2 Tinta no canto sem âncora. Desenhar tinta sintética (traços com posição conhecida no mapa)
+- [x] 4.2 Tinta no canto sem âncora. Desenhar tinta sintética (traços com posição conhecida no mapa)
   no canto inferior esquerdo da moldura, antes de pôr a página em perspectiva. Verificação: o traço
   aparece **inteiro** no recorte, com a caixa dele a ≤ 0,5 mm do esperado. Registrar o resultado
   como *medido sobre o documento renderizado*, e o canto continua "conhecido, não mitigado" até o
   papel.
-- [ ] 4.3 Tinta de fora não entra e recorte é determinístico. Verificação: uma mancha grande
+- [x] 4.3 Tinta de fora não entra e recorte é determinístico. Verificação: uma mancha grande
   desenhada a partir de 1 mm **fora** da área deixa a contagem de pixels de tinta do recorte
   **exatamente** igual à do recorte sem a mancha; duas chamadas sobre a mesma captura dão imagens
   iguais byte a byte; o gabarito é recusado com o motivo "não declara área de resposta".

@@ -294,3 +294,89 @@ ajuste, teto 1,0 mm. Valores representativos (mm; a tabela inteira sai do `logca
 é a definição do que a tarefa pediu ("assere só o que a tabela diz que é pego"). O que elas pinam:
 crescimento com o deslocamento, 1 mm não recusa (o limite), 3 e 5 mm recusam, e os dois pontos mais
 fracos passam a 2 mm.
+
+## Grupo 4 — o recorte (tarefas 4.1, 4.2, 4.3), 2026-09-30
+
+`RecorteDaRespostaInstrumentedTest` (6) e `CropSobResiduoAceitoInstrumentedTest` (1), mais os do grupo
+3: **18 de 18** instrumentados, `timestamp` 14:27:21Z; `testDebugUnitTest` 353. Folha renderizada de
+`tok-a`, de frente e em `FolhaEmAngulo` (perspectiva fixada antes de ver resultado). **Nada é papel, e a
+tinta do aluno é sintética** (retângulos pretos com posição do mapa), não letra.
+
+**Entrada:** `SheetReader.recortar(gray, map, region)` → `RecorteDaResposta`: um `warpPerspective` com a
+homografia do segundo ajuste sobre a área **mais** a faixa de 3 mm, supersampleado em 3× e reduzido por
+`INTER_AREA`; o miolo é o recorte e a faixa não sai da função. **Nenhum código de produção o chama.**
+
+### 4.1 — dimensões e posição da moldura
+
+Oráculo de posição: perfil de intensidade sobre os pixels do recorte, contra o que o **mapa** declara
+(aritmética própria); tolerância 0,5 mm, fixada antes. **Medido** (px a 10 px/mm; 1 px = 0,1 mm):
+
+| Quadro | esquerda medido/esperado | direita | topo | base |
+|---|---|---|---|---|
+| frente, região 1 | 0,7 / 1,1 | 869,0 / 868,9 | 21,0 / 21,1 | 369,6 / 368,9 |
+| ângulo, região 1 | 0,5 / 1,1 | 868,5 / 868,9 | 20,9 / 21,1 | 369,6 / 368,9 |
+| frente, região 2 | 0,6 / 1,1 | 868,9 / 868,9 | 21,0 / 21,1 | 649,5 / 648,9 |
+| ângulo, região 2 | 0,5 / 1,1 | 869,0 / 868,9 | 20,5 / 21,1 | 649,5 / 648,9 |
+
+Maior afastamento: 0,7 px (0,07 mm). Dimensões do recorte dentro de 1 px do mapa (870 × 392 na região 1).
+
+### 4.2 — a tinta no canto sem âncora
+
+Retângulo preto de 8 × 3 mm (2400 px) a 2 mm da moldura, no canto inferior esquerdo, desenhado **antes**
+da perspectiva. Caixa medida contra a esperada, e contagem de pixels: região 1 frente `(20,319)-(100,350)`
+com 2429 px; região 1 ângulo 2399 px; região 2 frente 2439 px; região 2 ângulo 2456 px. Cada lado a ≤ 0,2 mm do
+esperado, contagens dentro de 5% de 2400. **Medido sobre o documento renderizado; o canto continua
+"conhecido, não mitigado" até o papel.**
+
+### 4.3 — o que está fora não entra; determinismo; gabarito
+
+Mancha grande a partir de 1 mm **fora** da área: os recortes com e sem a mancha são **iguais byte a byte**
+(guarda de vacuidade: a mancha foi desenhada — a página suja tem mais pixels escuros). Dois recortes da
+mesma captura, iguais byte a byte, nos 4 quadros. O gabarito é recusado com
+`a regiao 0 nao declara area de resposta` (igualdade).
+
+### Visto falhar (previsão antes)
+
+| Mutação | Previsto | Real |
+|---|---|---|
+| **A** segundo ajuste só com os 8 cantos dos marcadores | (não sabia: é a pergunta se o teste distingue o segundo ajuste) | cai **só** a moldura: "frente, região 2: não achei a linha direita da moldura perto de 868.9 px". **O teste distingue.** |
+| **B** janela do miolo deslocada 2 mm | moldura, tinta no canto, tinta de fora | exatamente esses 3; dimensões, determinismo e gabarito passam |
+| **C** `QR.tr` deslocado 2 mm em +x (o resíduo aceita) | tira a moldura da tolerância (a tarefa dizia) | caem a moldura e a tinta no canto |
+| **D** escala X do canvas ×1,01 | dimensões, moldura, afastamento; não a tinta no canto, o determinismo, a tinta de fora nem o gabarito | exatamente esses 3 (`largura 879 contra 870`; `direita a 0,86 mm`) |
+
+**Desvio de forma, dito:** a tarefa 4.3 dizia "ampliar o canvas do miolo em 2 mm derruba o primeiro". Eu
+mutei o **deslocamento da janela** (B), não o tamanho — o efeito sobre "a mancha entra" é o mesmo, e o
+tamanho já é guardado pelas dimensões (D). Reversões conferidas por `diff` contra o original,
+`grep -c MUTACAO` = 0.
+
+### Achado: o que o resíduo aceita move o recorte (e o meu susto errado)
+
+A mutação C mostrou que um erro que o resíduo **aceita** (`QR.tr` 2 mm, resíduo 0,72) tira a moldura da
+tolerância. Medi por quanto (`CropSobResiduoAceitoInstrumentedTest`: 11 pontos × 2 direções × 0,2/0,5/1,0/2,0 mm).
+
+**Registro de um erro meu, mantido (P7).** A primeira leitura da tabela dizia que, com só 1 mm de erro em
+vários cantos de marcador, a moldura ia para fora da janela de ±3 mm ("3,00") e depois de ±12 mm
+("12,00", às vezes com 0,2 mm, e sem monotonia). **Estava errada, e a causa era o meu instrumento:** o
+`NULO` era sempre a borda **esquerda**, que coincide com a borda do recorte (a área ocupa a largura inteira
+da região; o traço esquerdo está metade fora da imagem), e um deslocamento mínimo o faz cruzar o limiar de
+"escuro". Ao registrar as quatro bordas individualmente, as outras três estavam a ≤ 0,35 mm nos mesmos
+casos. O instrumento passou a medir direita, topo e base; o alinhamento horizontal é conferido pela tinta
+(4.2). A borda esquerda **não é medida por moldura**, e isso é uma limitação do oráculo, não do recorte.
+
+**Com o instrumento corrigido** (folha de frente, erro de **um** ponto por vez):
+| Erro no ponto | Pior afastamento da moldura, entre os 22 casos | Pior caso |
+|---|---|---|
+| 0,2 mm | 0,13 mm | `QR.tr` +x |
+| 0,5 mm | 0,21 mm | `QR.tr` +x |
+| 1,0 mm | **0,42 mm** | `BR.c4` +y |
+| 2,0 mm, **aceito pelo resíduo** | **0,66 e 0,89 mm** | `QR.tr` +x (resíduo 0,72) e `BR.c4` +y (resíduo 0,94) |
+
+Todo erro de até 1 mm move o recorte ≤ 0,42 mm (dentro da tolerância de 0,5 mm). **A lacuna** são os dois
+pontos que a 3.3 já apontou como mais fracos, com 2 mm: o resíduo aceita e o recorte anda mais que 0,5 mm.
+O que amortece: a folga vertical de 2 mm entre a moldura e a borda da área; o que não amortece: o eixo
+horizontal, sem folga. Pinado em asserção (o que a tabela mostrou, e dito assim). **Não é mitigado, é
+conhecido**; o teto de 1,0 mm não foi mexido (P11). Um caso a 2 mm com resíduo 1,141 (`TL.c4` +y) deu
+sentinela na janela larga; ele é **recusado** pelo teto e não chega ao recorte em produção.
+
+**O que o grupo 4 não verifica:** papel; letra real; a extrapolação do canto inferior esquerdo além do
+documento renderizado; erro simultâneo de vários pontos; foto de celular (compressão, desfoque).

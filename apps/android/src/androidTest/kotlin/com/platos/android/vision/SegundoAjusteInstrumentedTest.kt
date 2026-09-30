@@ -11,12 +11,9 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.opencv.android.OpenCVLoader
-import org.opencv.core.Core
 import org.opencv.core.Mat
-import org.opencv.core.MatOfPoint2f
 import org.opencv.core.Point
 import org.opencv.core.Scalar
-import org.opencv.core.Size
 import org.opencv.imgproc.Imgproc
 
 /**
@@ -51,25 +48,8 @@ class SegundoAjusteInstrumentedTest {
         (resultado as? RegionDetector.SegundoAjuste.Recusado
             ?: throw AssertionError("esperava recusa, veio $resultado")).motivo
 
-    /**
-     * A pagina de uma foto tirada de canto, moderada: os quatro cantos da pagina vao para dentro de 1 a
-     * 4%. Fixada antes de ver qualquer resultado.
-     */
-    private fun emAngulo(pagina: Mat): Mat {
-        val w = pagina.cols().toDouble()
-        val h = pagina.rows().toDouble()
-        val origem = MatOfPoint2f(Point(0.0, 0.0), Point(w, 0.0), Point(w, h), Point(0.0, h))
-        val destino = MatOfPoint2f(
-            Point(w * 0.03, h * 0.01), Point(w * 0.98, h * 0.04),
-            Point(w * 0.96, h * 0.99), Point(w * 0.01, h * 0.96),
-        )
-        val saida = Mat()
-        Imgproc.warpPerspective(
-            pagina, saida, Imgproc.getPerspectiveTransform(origem, destino), Size(w, h), Imgproc.INTER_LINEAR,
-            Core.BORDER_CONSTANT, Scalar(255.0),
-        )
-        return saida
-    }
+    /** A perspectiva compartilhada com os testes do recorte, fixada antes de ver resultado. */
+    private fun emAngulo(pagina: Mat): Mat = FolhaEmAngulo.de(pagina)
 
     private fun registra(rotulo: String, r: RegionDetector.SegundoAjuste.Ajustado) {
         Log.i(TAG, "$rotulo: maior residuo %.3f mm; onze: ".format(r.residuoMaxMm) + r.residuosMm.joinToString { "%.3f".format(it) })

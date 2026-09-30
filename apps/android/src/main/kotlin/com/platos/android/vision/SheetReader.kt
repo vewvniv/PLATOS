@@ -43,6 +43,15 @@ object SheetReader {
             is DetectionOutcome.Rectified -> readFrom(detection, map, region)
         }
 
+    /**
+     * O recorte da area de resposta de uma regiao discursiva (`slice-5c-0-o-recorte-da-resposta`).
+     *
+     * Uma leitura a parte: o `analyze` **nao** a chama, e nenhum codigo de producao ainda a pede. Ver
+     * [RecorteDaResposta].
+     */
+    fun recortar(gray: Mat, map: LayoutMap, region: ScannableRegion): RecorteOutcome =
+        RecorteDaResposta.recortar(gray, map, region)
+
     /** Do quadrilatero ja desempenado ate as medicoes: QR primeiro, bolhas depois. */
     private fun readFrom(
         rectified: DetectionOutcome.Rectified,
