@@ -176,6 +176,16 @@ sinalizado = proporcao >= 0,05  &&  fora >= 4 mm²
 
 Testável na JVM, sem OpenCV, com `NaN`, negativos, zero e infinito cobertos (rigorous §3).
 
+> **Correção de 2026-09-30, na tarefa 1.3 (P7: o texto acima fica).** A guarda D-1.2
+> (`IntegerArithmeticGuardTest`) proíbe `Double`/`Float` em todo o `commonMain` do domínio, porque
+> ponto flutuante diverge entre JVM e JS. A função acima, escrita com milímetros quadrados
+> fracionários e `NaN`/infinito, não compilaria contra a guarda. **Mesma regra, aritmética inteira:**
+> a tinta é contada em **centésimos de mm²** (exatamente um pixel a 10 px/mm), a proporção sai em
+> partes por milhão, e a comparação é por multiplicação (`fora × 10⁶ ≥ total × 50 000`), sem divisão.
+> O piso de 4 mm² é 400. `NaN` e infinito deixam de existir como entrada; o que resta a recusar é
+> negativo e acima de um teto (10 m²) que impede o estouro da multiplicação. O comportamento da
+> spec não muda.
+
 **Os dois números são suposições** (5% e 4 mm²), fixadas aqui antes da primeira execução. O piso de
 4 mm² é aproximadamente um traço de 0,4 × 10 mm — abaixo disso, poeira, sombra na borda ou um ponto
 de caneta —, e existe porque sem ele uma resposta curta com um respingo passa de 5% sozinha. *Nenhum

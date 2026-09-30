@@ -22,11 +22,11 @@
 
 ## 1. Domínio: a garantia do mapa, o dono da faixa e a classificação do desvio
 
-- [ ] 1.1 `EssayGeometry.DEVIANT_BAND = Um.mm(3)` e um teste KMP de que ela é **menor** que o
+- [x] 1.1 `EssayGeometry.DEVIANT_BAND = Um.mm(3)` e um teste KMP de que ela é **menor** que o
   `gutter` de `LayoutProfile.DEFAULT` (design, decisão 4). Verificação: `jvmTest`, `jsNodeTest` e
   `testAndroidHostTest` passam; **visto falhar**: trocar a faixa para 6 mm derruba só esse teste, e a
   reversão é conferida rodando de novo (P9, P10).
-- [ ] 1.2 `LayoutMapValidation` recusa texto, imagem, QR, marcador, círculo ou retângulo preenchido
+- [x] 1.2 `LayoutMapValidation` recusa texto, imagem, QR, marcador, círculo ou retângulo preenchido
   dentro da `answer_area` de região discursiva, apontando região e primitiva (design, decisão 6,
   camada 1; spec `layout-engine`). Regras de interseção do design: área positiva, contato de borda
   fora, e texto pela origem dentro da largura da região e caixa de linha cruzando a altura da área.
@@ -37,12 +37,15 @@
   é **aceito** (nomeado como o limite conhecido da camada 1, para não virar lacuna silenciosa).
   **Visto falhar:** desligar a regra derruba só os cenários de recusa, e a mensagem confere região
   e primitiva. Rodar nos três alvos.
-- [ ] 1.3 `DesvioDaResposta.classificar(dentro, fora)` no domínio (`capture`), com a regra do
+- [x] 1.3 `DesvioDaResposta.classificar(dentro, fora)` no domínio (`capture`), com a regra do
   design, decisão 5 (`proporcao >= 0,05 && fora >= 4 mm²`), e o tipo que carrega proporção, `fora` e
   o sinal. Verificação: testes de fronteira — 4,99%/5,00%, 3,99/4,00 mm², os dois juntos, zero,
   `dentro + fora == 0`, `NaN`, negativo e infinito (recusa clara ou zero, escolhido e pinado);
   **visto falhar**: trocar `>=` por `>` derruba exatamente os dois testes de fronteira exata, e trocar
   `&&` por `||` derruba o da mancha abaixo do piso. Nos três alvos.
+  *Nota de 2026-09-30:* a guarda D-1.2 proíbe ponto flutuante no `commonMain`; a classificação usa
+  inteiros (centésimos de mm² e ppm — `design.md`, decisão 5), e "`NaN`, negativo e infinito" virou
+  "negativo, acima do teto da entrada e o estouro da multiplicação".
 
 ## 2. Android: os cantos do QR chegam ao ajuste
 

@@ -63,3 +63,77 @@ ff2b94ef600101e2c20d5b6b298f7d0612ee0a66beb4d74d7dcd954cfbde40da  fixtures/prova
 (5c): nenhuma". Fatia corrente derivada: `5c`. **A guarda não lê a tabela "Aberto" do §16**
 (`TITULO_TABELA = '### Ponto de não-retorno'`); as duas linhas de fatia-limite 5 que estão nela não
 aparecem nesta saída. Ver a tarefa 7.3.
+
+## Grupo 1 — o domínio (tarefas 1.1, 1.2, 1.3), 2026-09-30
+
+Contagem no fim do grupo, `--rerun` não usado (só o módulo tocado, tasks executadas):
+`jvmTest` **437**, `jsNodeTest` **428**, `testAndroidHostTest` **428** (base 414/405/405: +2 da 1.1,
++11 da 1.2, +10 da 1.3), `timestamp` 13:40Z. `sha256sum fixtures/*.layout.json fixtures/*.package.json`
+**igual** ao de antes (0.2): nenhum golden nem fixture mudou.
+
+**Um teste filtrado não vale aqui, e a guarda diz isso.** `./gradlew :packages:domain:jvmTest --tests
+"*FaixaDoDesvioTest*"` passou os dois testes e o build deu `FAILED`: "414 método(s) declarado(s) com
+@Test sem resultado no relatório". É a guarda do projeto contra rodar suíte pela metade (P5). Todas as
+contagens acima são de `jvmTest` inteiro.
+
+### 1.1 — `EssayGeometry.DEVIANT_BAND` (3 mm, menor que o `gutter` de 6 mm)
+
+**Visto falhar:** a faixa trocada para 6 mm, com `// MUTACAO`. **Previsto: cai só o teste do
+`gutter`. Real: caíram os dois** — o do `gutter` ("a faixa do desvio (6000 um) alcança a coluna
+vizinha: o gutter é 6000 um") e o que prende o valor ("expected: <3000um> but was: <6000um>"). A
+previsão da tarefa estava errada: os dois testes guardam coisas diferentes (a folga e o critério
+fixado), e ambos veem o 6 mm. Revertida com `grep -c MUTACAO` = 0, e `jvmTest` 416 verde de novo.
+
+### 1.2 — a área de resposta só tem a moldura e a pauta
+
+Onze testes (`AreaDeRespostaLimpaTest`), um por cenário da spec `layout-engine`, mais os que prendem
+os limites: o mapa de hoje é válido e a área **contém** moldura e pauta (guarda de vacuidade, P13: sem
+isso, "aceita moldura e pauta" passaria sobre uma área vazia); o QR da própria região encosta e é
+aceito; e **um texto que começa fora da largura da região e a invade é ACEITO** — o limite conhecido
+da camada 1, nomeado num teste para não virar lacuna silenciosa.
+
+**Três vermelhos na primeira execução, diagnosticados pela mensagem (P12):**
+1. Erro **do meu teste**: `expected: <150999> but was: <151000>`. A aritmética do teste truncava; a
+   validação arredonda. O teste passou a arredondar meio para cima.
+2. Erro **do meu helper**: "esperava exatamente um problema citando `estranho-retangulo`" — outra
+   regra existente (trama acima do teto de 80‰) também cita o retângulo. O helper passou a contar só
+   a recusa **desta** regra (`dentro da area de resposta`). A asserção continua exigindo exatamente uma.
+3. **Achado real**: quando a área sobrepõe o QR da própria região, um teste **existente**
+   (`area de resposta sobre o QR e recusada`) esperava exatamente `[a area ... sobrepoe o QR da
+   regiao]`, e a regra nova acrescentava uma segunda mensagem para o mesmo defeito. Não toquei o teste
+   existente (P12): a regra nova **pula o QR da própria região**, que já tem regra e mensagem. Custo
+   registrado: a regra nova não repete essa recusa; quem a segura é `checkEssayRegion`, e o teste
+   existente continua verde sem alteração.
+
+**Visto falhar (duas mutações, com `// MUTACAO`, revertidas e conferidas):**
+- **Regra desligada** (`if (false) checkAreaSoComMolduraEPauta(...)`): caíram exatamente os **6**
+  testes de recusa (texto, nome do aluno, marcador, QR, imagem, círculo+retângulo) e **nenhum** dos 5
+  de aceitação. Previsto e real coincidem.
+- **`topo < caixa.bottom` trocado por `<=`** (tocar a borda passa a contar como "dentro"): **previsto
+  1** (o de encostar). **Real: 2** — o meu e um **existente**, `QR declarado que nao existe na pagina
+  e recusado`, cuja fixture deixa um QR que só encosta na borda. A previsão estava incompleta, e o
+  segundo teste é uma confirmação independente do comportamento de borda. Mensagem do meu: `expected:
+  <Valid> but was: <Invalid(problems=[regiao 1: a primitiva `imagem-encostada` (imagem) esta dentro da
+  area de resposta ...])>`.
+
+### 1.3 — `DesvioDaResposta.classificar`
+
+**Correção de rumo, registrada (P7): o design escrevia a função com `Double` e `NaN`.** A primeira
+execução caiu em `IntegerArithmeticGuardTest` ("nenhum ponto flutuante no código de cálculo", D-1.2),
+que varre o `commonMain` do domínio. A regra é da arquitetura, e a função foi reescrita em inteiros
+(centésimos de mm² = 1 pixel a 10 px/mm; proporção em ppm; comparação por multiplicação). O
+comportamento da spec não mudou. `NaN`/infinito deixaram de ser entrada possível; sobra negativo e
+acima do teto (10 m²), e a conta no próprio teto não estoura (teste).
+
+**Visto falhar (três mutações, previsão feita antes, todas coincidiram):**
+| Mutação | Previsto | Real |
+|---|---|---|
+| proporção `>=` → `>` | só "exatamente 5%" | só "exatamente 5 por cento com o piso satisfeito" |
+| `&&` → `\|\|` entre proporção e piso | 3 | "logo abaixo de 5%", "logo abaixo do piso" e "mancha isolada" |
+| piso `>=` → `>` | 2 | "exatamente 5%" e "exatamente o piso" |
+
+Cada reversão conferida por `diff` contra a cópia do original (`igual`) e `grep -c MUTACAO` = 0.
+
+**O que este grupo não verifica.** Nada foi medido em letra de aluno; os dois números do desvio (5% e
+4 mm²) são suposições fixadas antes da execução (design, decisão 5), e a fronteira de cada um está
+pinada por teste — o que não diz que estejam certos.
