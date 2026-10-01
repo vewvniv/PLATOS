@@ -4,6 +4,8 @@ import com.platos.domain.scoring.PontuacaoDada
 import com.platos.domain.scoring.Pontos
 import com.platos.domain.scoring.QuestionOutcome
 import com.platos.domain.transport.GradedResultSubmissionDto
+import java.time.OffsetDateTime
+import java.time.format.DateTimeParseException
 
 private const val ORIGEM_ACEITA = "teacher"
 private const val CAMINHO_ACEITO = "image"
@@ -35,6 +37,24 @@ fun GradedResultSubmissionDto.paraNotaSubmetida(): NotaDoProfessorSubmetida {
     require(path == CAMINHO_ACEITO) { "caminho '$path' nao e aceito nesta rota: so '$CAMINHO_ACEITO'" }
     require(completesCaptureId.isNotBlank()) {
         "completes_capture_id e obrigatorio: diz qual captura da parcial esta nota completa"
+    }
+    // O que o banco recusaria com um `check` vira 500 se passar daqui, e o aparelho trata 5xx como
+    // transitorio e reenviaria o mesmo corpo para sempre. Recusa definitiva e 400, com o motivo.
+    require(captureId.isNotBlank()) { "capture_id e obrigatorio: e a chave de idempotencia desta correcao" }
+    val token = studentToken
+    require(token == null || token.isNotBlank()) {
+        "student_token em branco: a folha avulsa leva `null`, e nunca texto vazio"
+    }
+    require(captureId != completesCaptureId) {
+        "capture_id da nota do professor deve ser diferente de completes_capture_id (`$captureId`): " +
+            "o primeiro e a chave de idempotencia desta correcao; o segundo, a captura da parcial que ela completa"
+    }
+    try {
+        OffsetDateTime.parse(capturedAt)
+    } catch (erro: DateTimeParseException) {
+        throw IllegalArgumentException(
+            "captured_at '$capturedAt' nao e um instante com fuso, como 2026-09-17T12:00:00Z",
+        )
     }
 
     return NotaDoProfessorSubmetida(

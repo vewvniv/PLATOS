@@ -41,8 +41,9 @@ com `UPDATE`.
 
 ## Como isto poderia falhar em silêncio
 
-- **A view perder a RLS** se não for `security_invoker`: cada organização leria as folhas das outras. Teste com
-  usuário de outra organização.
+- **A view perder a RLS** se não for `security_invoker`: ela passa a rodar como `app_owner`, que não tem política de
+  RLS, e devolve **zero** linhas para todos (medido: falha fechada, não vazamento). O teste com usuário de outra
+  organização pega pelo piso ("o dono vê a própria folha").
 - **A exclusão por `completes_capture_id` não ser exercitada**: a view devolveria a parcial automática depois da
   nota do professor. Mutação: remover a exclusão e ver os cenários de chegada tardia falharem.
 - **Soma em `Double`** reintroduzir `0.1 + 0.2 ≠ 0.3`. Teste de igualdade exata e mutação.

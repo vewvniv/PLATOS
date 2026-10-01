@@ -35,11 +35,18 @@ value class Pontos private constructor(val centesimos: Long) : Comparable<Pontos
     }
 
     companion object {
+        /**
+         * O maior valor, em centesimos: 999999.99, o alcance do `numeric(8,2)` do banco. E a **fonte**
+         * que o teste de banco confronta (um centesimo acima estoura no Postgres), para o teto nao
+         * viver em dois lugares sem nada que reprove a divergencia (P28).
+         */
+        const val MAXIMO_CENTESIMOS: Long = 99_999_999L
+
         val ZERO: Pontos = Pontos(0L)
 
         /** Uma pontuacao inteira, como as do pacote. */
         fun inteiros(valor: Int): Pontos {
-            require(valor in 0..999_999) { "pontuacao inteira $valor fora de 0..999999" }
+            require(valor * 100L in 0L..MAXIMO_CENTESIMOS) { "pontuacao inteira $valor fora de 0..999999" }
             return Pontos(valor * 100L)
         }
 

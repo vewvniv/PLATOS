@@ -1,6 +1,7 @@
 package com.platos.api.db
 
 import com.platos.api.support.PostgresSupport
+import com.platos.domain.scoring.Pontos
 import org.jooq.exception.DataAccessException
 import java.math.BigDecimal
 import java.sql.SQLException
@@ -270,6 +271,26 @@ class GradingResultCurrentViewTest {
         gravar("avulsa-a", 2, token = null)
 
         assertEquals(listOf("nota-a"), correntes())
+    }
+
+    @Test
+    fun `uma nota de outro aluno nao esconde a parcial que ela cita`() {
+        gravar("parcial-1", 1, token = "aluno-1")
+        gravar("nota-x", 2, token = "aluno-2", origem = "teacher", completa = "parcial-1")
+
+        assertEquals(listOf("nota-x", "parcial-1"), correntes())
+    }
+
+    @Test
+    fun `o teto do dominio e o do banco, e um centesimo acima estoura no banco`() {
+        val teto = BigDecimal.valueOf(Pontos.MAXIMO_CENTESIMOS, 2)
+        val resultado = gravar("teto", 1, origem = "teacher", completa = "p1", pontos = teto.toPlainString(), maximo = 1_000_000)
+        gravarObservacao(resultado, "d1", "discursiva_corrigida", arrayOf(), vale = 1_000_000, rendeu = teto.toPlainString())
+        assertEquals(teto.toPlainString(), umTexto("select points::text from grading_result where capture_id = 'teto'"))
+
+        val acima = BigDecimal.valueOf(Pontos.MAXIMO_CENTESIMOS + 1, 2).toPlainString()
+        val erro = assertFailsWith<DataAccessException> { gravar("acima", 2, pontos = acima, maximo = 2_000_000) }
+        assertEquals("22003", causaSql(erro).sqlState, "esperava numeric field overflow: ${causaSql(erro).message}")
     }
 
     @Test

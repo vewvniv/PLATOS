@@ -222,11 +222,32 @@ class ResultQueries {
         examId: UUID,
         submission: GradedResultSubmissionDto,
         nota: NotaDoProfessor,
-    ): Int = gravar(
-        ctx,
-        organizationId,
-        examId,
-        Gravacao(
+    ): Int {
+        // Idempotencia por (prova, capture_id): so e REENVIO se for a mesma correcao. Um capture_id que ja
+        // existe com outra origem, outra folha ou outra captura completada nao e reenvio, e responder com
+        // a revisao dele tiraria a nota do professor da fila do aparelho sem gravar nada.
+        val existente = ctx.select(GRADING_RESULT.ORIGIN, GRADING_RESULT.COMPLETES_CAPTURE_ID, GRADING_RESULT.STUDENT_TOKEN)
+            .from(GRADING_RESULT)
+            .where(GRADING_RESULT.EXAM_ID.eq(examId))
+            .and(GRADING_RESULT.CAPTURE_ID.eq(submission.captureId))
+            .fetchOne()
+        if (existente != null &&
+            (
+                existente.value1() != "teacher" ||
+                    existente.value2() != submission.completesCaptureId ||
+                    existente.value3() != submission.studentToken
+                )
+        ) {
+            throw CapturaEmConflito(
+                "capture_id `${submission.captureId}` ja foi usado por outra gravacao desta prova " +
+                    "(origem `${existente.value1()}`); a nota do professor precisa de capture_id proprio",
+            )
+        }
+        return gravar(
+            ctx,
+            organizationId,
+            examId,
+            Gravacao(
             captureId = submission.captureId,
             studentToken = submission.studentToken,
             capturedAt = submission.capturedAt,
@@ -255,9 +276,16 @@ class ResultQueries {
                     earned = essay.earned.paraBigDecimal(),
                 )
             },
-        ),
-    )
+            ),
+        )
+    }
 }
+
+/**
+ * O `capture_id` de uma nota do professor ja existe na prova como **outra** gravacao (outra origem,
+ * outra folha ou outra captura completada). Nao e reenvio: a rota o devolve como recusa definitiva.
+ */
+class CapturaEmConflito(mensagem: String) : RuntimeException(mensagem)
 
 /**
  * A forma que o jOOQ quer, e **so** ela.

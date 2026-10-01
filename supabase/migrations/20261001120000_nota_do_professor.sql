@@ -66,7 +66,8 @@ alter table public.answer_observation
 -- avulsa.
 --
 -- `security_invoker`: a view roda com os privilegios de QUEM CONSULTA, e a RLS de `grading_result`
--- continua valendo. Sem isso, cada escola leria as folhas das outras.
+-- continua valendo. Sem isso a view roda como `app_owner`, que nao tem politica de RLS, e devolve ZERO
+-- linhas para todos (medido em 2026-10-01; falha fechada, e nao vazamento).
 -- ---------------------------------------------------------------------------
 create view public.grading_result_current
     with (security_invoker = true) as
@@ -86,6 +87,8 @@ where r.origin = 'teacher'
         where t.exam_id = r.exam_id
           and t.origin = 'teacher'
           and t.completes_capture_id = r.capture_id
+          -- da MESMA folha: uma nota de outro aluno que cite esta captura nao a esconde
+          and t.student_token is not distinct from r.student_token
    )
 order by r.exam_id,
          r.student_token,

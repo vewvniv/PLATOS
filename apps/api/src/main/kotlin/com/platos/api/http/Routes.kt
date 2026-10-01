@@ -4,6 +4,7 @@ import com.platos.api.ApiDependencies
 import com.platos.api.auth.SUPABASE_AUTH
 import com.platos.api.auth.toAuthenticatedSubject
 import com.platos.api.exam.Proveniencia
+import com.platos.api.exam.CapturaEmConflito
 import com.platos.api.exam.ProvenienciaDaNota
 import com.platos.api.exam.conferirNotaDoProfessor
 import com.platos.api.exam.conferirProveniencia
@@ -296,15 +297,20 @@ fun Route.examRoutes(deps: ApiDependencies) {
                 } else {
                     when (val conferencia = conferirNotaDoProfessor(publicada.pacote, submetida)) {
                         is ProvenienciaDaNota.NaoConfere -> Desfecho.Recusado(conferencia.motivo)
-                        is ProvenienciaDaNota.Confere -> Desfecho.Gravado(
-                            deps.resultQueries.recordGraded(
-                                ctx,
-                                organizationId,
-                                publicada.examId,
-                                submission,
-                                conferencia.nota,
-                            ),
-                        )
+                        is ProvenienciaDaNota.Confere -> try {
+                            Desfecho.Gravado(
+                                deps.resultQueries.recordGraded(
+                                    ctx,
+                                    organizationId,
+                                    publicada.examId,
+                                    submission,
+                                    conferencia.nota,
+                                ),
+                            )
+                        } catch (conflito: CapturaEmConflito) {
+                            // Nada foi gravado: o conflito e detectado antes do primeiro `insert`.
+                            Desfecho.Recusado(conflito.message ?: "capture_id em conflito")
+                        }
                     }
                 }
             } ?: return@post call.naoEncontrado()

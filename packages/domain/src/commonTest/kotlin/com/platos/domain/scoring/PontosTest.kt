@@ -102,6 +102,13 @@ class PontosTest {
     }
 
     @Test
+    fun `o maximo do dominio e exatamente o que o parse aceita`() {
+        assertEquals(Pontos.MAXIMO_CENTESIMOS, Pontos.parse("999999.99").centesimos)
+        assertTrue("999999.99" in recusa("1000000.00"))
+        assertEquals(Pontos.MAXIMO_CENTESIMOS, Pontos.inteiros(999_999).centesimos + 99)
+    }
+
+    @Test
     fun `a ordem e a dos centesimos`() {
         assertTrue(Pontos.parse("1.75") > Pontos.parse("1.5"))
         assertTrue(Pontos.ZERO < Pontos.parse("0.01"))

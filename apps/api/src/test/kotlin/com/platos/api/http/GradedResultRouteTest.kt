@@ -181,6 +181,12 @@ class GradedResultRouteTest {
                     observacoes = """[{"item_id":"q01","answer_kind":"discursiva_corrigida","answer_options":[],"worth":1,"earned":1}]""",
                 ) to "que nao existe"
                 ),
+            "capture_id vazio" to (corpoNota("") to "capture_id e obrigatorio"),
+            "student_token em branco" to (corpoNota("c19", token = "  ") to "student_token"),
+            "captured_at invalido" to (corpoNota("c20", capturadoEm = "2026-09-17 12:00") to "captured_at"),
+            "capture_id igual ao completes_capture_id" to (
+                corpoNota("c21", completa = "c21") to "diferente de completes_capture_id"
+                ),
         )
 
         for ((nome, caso) in casos) {
@@ -188,9 +194,57 @@ class GradedResultRouteTest {
             val resposta = client.enviarNota(org, corpo)
             assertEquals(HttpStatusCode.BadRequest, resposta.status, "$nome: ${resposta.bodyAsText()}")
             assertTrue(trecho in resposta.bodyAsText(), "$nome: esperava '$trecho' em: ${resposta.bodyAsText()}")
+            // A spec manda a recusa de pontuacao dizer QUAL questao nao fecha.
+            if (nome in RECUSAS_QUE_NOMEIAM_A_QUESTAO) {
+                assertTrue("'d1'" in resposta.bodyAsText(), "$nome: a mensagem nao nomeia a questao: ${resposta.bodyAsText()}")
+            }
             assertEquals(0, contar("select count(*) from grading_result"), "$nome gravou resultado")
             assertEquals(0, contar("select count(*) from answer_observation"), "$nome gravou evidencia")
         }
+    }
+
+    @Test
+    fun `capture_id ja usado por outra gravacao nao some a nota em silencio`() = comApp { client ->
+        val org = prepararProva(client)
+        client.enviarParcial(org, corpoParcial("cap-x"))
+
+        val resposta = client.enviarNota(org, corpoNota("cap-x", completa = "cap-parcial-1"))
+
+        assertEquals(HttpStatusCode.BadRequest, resposta.status, resposta.bodyAsText())
+        assertTrue("ja foi usado" in resposta.bodyAsText(), resposta.bodyAsText())
+        assertEquals(1, contar("select count(*) from grading_result"), "a nota nao pode ter virado reenvio da parcial")
+    }
+
+    @Test
+    fun `reenvio da parcial depois da nota nao cria registro novo e a corrente continua sendo a nota`() = comApp { client ->
+        val org = prepararProva(client)
+
+        client.enviarNota(org, corpoNota("cap-nota-1"))
+        client.enviarParcial(org, corpoParcial("cap-parcial-1"))
+        val reenvio = client.enviarParcial(org, corpoParcial("cap-parcial-1"))
+
+        assertEquals(HttpStatusCode.OK, reenvio.status, reenvio.bodyAsText())
+        assertEquals(2, contar("select count(*) from grading_result"))
+        assertEquals(listOf("cap-nota-1"), textos("select capture_id from grading_result_current"))
+    }
+
+    @Test
+    fun `objetiva pendente mantem a nota do professor gravada como nao fechada`() = comApp { client ->
+        val org = prepararProva(client)
+
+        val resposta = client.enviarNota(
+            org,
+            corpoNota(
+                "cap-nota-1",
+                pontos = "1.75",
+                fechada = false,
+                observacoes = """[{"item_id":"q01","answer_kind":"multipla_marcacao","answer_options":["A","B"],"worth":1,"earned":0}]""",
+            ),
+        )
+
+        assertEquals(HttpStatusCode.OK, resposta.status, resposta.bodyAsText())
+        assertEquals("false", umTexto("select closed::text from grading_result where capture_id = 'cap-nota-1'"))
+        assertEquals("1.75", umTexto("select points::text from grading_result where capture_id = 'cap-nota-1'"))
     }
 
     @Test
@@ -261,12 +315,13 @@ class GradedResultRouteTest {
         observacoes: String = """[{"item_id":"q01","answer_kind":"marcada","answer_options":["A"],"worth":1,"earned":1}]""",
         notas: String = """[{"item_id":"d1","earned":"$d1"}]""",
         extra: String = "",
+        capturadoEm: String = "2026-09-17T12:00:00Z",
     ): String {
         val tokenJson = if (token == null) "null" else "\"$token\""
         return """
             {"capture_id":"$captureId","completes_capture_id":"$completa","student_token":$tokenJson,
              "package_hash":"$hash","variant_id":"$variante","origin":"$origem","path":"$caminho",
-             "points":"$pontos","max_score":$maximo,"closed":$fechada,"captured_at":"2026-09-17T12:00:00Z",
+             "points":"$pontos","max_score":$maximo,"closed":$fechada,"captured_at":"$capturadoEm",
              "observations":$observacoes,"essay_grades":$notas$extra}
         """.trimIndent()
     }
@@ -360,6 +415,7 @@ class GradedResultRouteTest {
         const val SHORT_ID = "prova-discursiva-n"
         const val SHORT_ID_OBJETIVA = "prova-objetiva-n"
         const val SHORT_ID_ALHEIA = "prova-alheia-n"
+        val RECUSAS_QUE_NOMEIAM_A_QUESTAO = setOf("tres casas", "negativa", "nao numerica", "virgula decimal", "acima do valor")
 
         /** Escrito a mao, como em `ResultRouteTest`: serializar com o tipo do servidor poria o mesmo codigo dos dois lados. */
         const val CONTEUDO_COM_DISCURSIVA =
