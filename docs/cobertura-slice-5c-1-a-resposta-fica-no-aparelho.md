@@ -74,3 +74,32 @@ comentário).
   `onFrame(...)` com `d1()` e esperam "capturada" precisam passar as respostas. O texto da 1.3 continua
   certo ("passam **sem mudar asserção**"): muda a chamada, não a asserção. O texto anterior fica; este é o
   registro da correção.
+
+## 1. O contrato e a sessão (tarefas 1.1 a 1.4), JVM, sem disco
+
+Comando: `./gradlew :apps:android:testDebugUnitTest` (a suíte android inteira de unidade; `--tests` com filtro
+**reprova** pela guarda `TodoTesteDeclaradoRoda`, e por isso as mutações abaixo rodaram a suíte cheia da
+task). Depois da 1.4: 370 testes, 0 falhas (353 da base + 2 de serialização + 15 de `RespostaNaSessaoTest`).
+
+**Como cada verificação foi vista falhar** (previsão antes, resultado depois, reversão rodada — P9, P10;
+a reversão de cada mutação foi conferida por `diff` contra a cópia boa **e** por nova rodada, `BUILD
+SUCCESSFUL`):
+
+| Tarefa | Mutação | Previsão | Caiu |
+|---|---|---|---|
+| 1.1 | `@Required` em `RegiaoDoCaderno.resposta` (o equivalente de tirar o `= null` sem quebrar a compilação dos outros chamadores) | só o decode do JSON antigo | **só** `um caderno guardado antes da resposta decodifica e vira o mesmo objeto` (`MissingFieldException`); os outros 4 de serialização verdes |
+| 1.2 (a) | `Guardada` tratada como se não houvesse entrada | derruba os cenários que dependem de região capturada | 11 de `RespostaNaSessaoTest` e 10 de `ProvaComDiscursivaNaSessaoTest` — todos usam uma discursiva capturada; **nenhum** dos testes de "recusada", "sem entrada" e "refazer sem resposta" caiu |
+| 1.2 (b) | ausência de entrada conta como `Capturada` | só o teste do "recorte não foi pedido" | **só** `reconhecida sem entrada alguma e sem resposta, com problema, o recorte nao foi pedido` (1 de 370) |
+| 1.3 | `refazer` limpa `entregue` (só em `Caderno.semResposta`) | só o "refazer não entrega de novo" | **só** `refazer uma resposta de um caderno ja entregue nao o entrega de novo` |
+| 1.4 | `refazer` também zera `parcial` | só o teste de "demais regiões e parcial" | **só** `refazer devolve o arquivo e a regiao volta a nao vista, sem tocar nas outras nem na parcial` |
+
+**Erro de rumo na própria verificação (P7).** A primeira mutação da 1.3 aplicou `copy(entregue = false, …)`
+em **dois** `copy(` (`depoisDe` e `semResposta`) e derrubou 2 testes, não 1: ela não isolava a camada. Foi
+refeita só em `semResposta` e então caiu 1. A mutação (a) da 1.2 não compilou na primeira tentativa (perdia o
+*smart cast*) e foi reescrita; ambas ficam registradas porque a primeira leitura teria sido "a mutação não
+pegou nada" ou "pegou dois".
+
+**Chamadas dos testes antigos.** As 33 chamadas de `onFrame` de `ProvaComDiscursivaNaSessaoTest` e as 6 de
+`EntregaDoCadernoInstrumentedTest` passaram a `onFrameGuardando` (um auxiliar de teste que entrega a resposta
+guardada para cada discursiva reconhecida, como o analisador fará). **Nenhuma asserção mudou.** A suíte
+instrumentada ainda não foi rodada para esse arquivo nesta etapa.

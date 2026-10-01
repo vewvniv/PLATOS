@@ -21,6 +21,18 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
+ * Como o analisador entrega o quadro (`slice-5c-1-a-resposta-fica-no-aparelho`): cada regiao discursiva
+ * reconhecida chega com a resposta guardada. Existe para as chamadas anteriores a 5c-1 continuarem
+ * dizendo o que diziam — capturada — sem mudar nenhuma asercao.
+ */
+private fun ScanSession.onFrameGuardando(outcome: FrameOutcome): ApuracaoNova? = onFrame(
+    outcome,
+    outcome.discursivas.filterIsInstance<RegiaoDiscursivaNoQuadro.Reconhecida>().associate {
+        it.regionIndex to RespostaDoQuadro.Guardada(RespostaGuardada("r${it.regionIndex}.png", 0L, false, 0))
+    },
+)
+
+/**
  * A sessao diante de uma prova com discursiva (`slice-5b-1-o-aparelho-reconhece-a-discursiva`, spec
  * de `scan-session`): reconhece e explica, e nao apura.
  *
@@ -97,7 +109,7 @@ class ProvaComDiscursivaNaSessaoTest {
     fun `a folha e reconhecida, com o aluno, as regioes, a parcial nao definitiva e o aviso`() {
         val sessao = sessaoAberta()
 
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
 
         val estado = reconhecida(sessao.state)
         assertEquals("tok-a", estado.aluno)
@@ -116,7 +128,7 @@ class ProvaComDiscursivaNaSessaoTest {
     fun `a folha so com a regiao de d2 tambem e reconhecida, sem gabarito e sem parcial`() {
         val sessao = sessaoAberta()
 
-        sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2())))
+        sessao.onFrameGuardando(FrameOutcome.SoDiscursivas(listOf(d2())))
 
         val estado = reconhecida(sessao.state)
         assertEquals("tok-a", estado.aluno)
@@ -129,9 +141,9 @@ class ProvaComDiscursivaNaSessaoTest {
     @Test
     fun `a outra pagina do mesmo aluno mantem a parcial dele`() {
         val sessao = sessaoAberta()
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
 
-        sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2())))
+        sessao.onFrameGuardando(FrameOutcome.SoDiscursivas(listOf(d2())))
 
         val estado = reconhecida(sessao.state)
         assertEquals("tok-a", estado.aluno)
@@ -155,7 +167,7 @@ class ProvaComDiscursivaNaSessaoTest {
         val doDominio = ObjectiveScoring.scorePartial(pacote, payload(0), semQ5)
         assertTrue(doDominio is PartialScoringOutcome.Rejected, "o dominio precisa recusar, ou o cenario nao mede")
 
-        sessao.onFrame(FrameOutcome.Read(gabarito(respostas = semQ5)))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(respostas = semQ5)))
 
         val estado = reconhecida(sessao.state)
         assertEquals("tok-a", estado.aluno)
@@ -193,9 +205,9 @@ class ProvaComDiscursivaNaSessaoTest {
         )
 
         for (quadro in quadros) {
-            assertNull(sessao.onFrame(quadro), "a sessao entregou apuracao de prova com discursiva")
+            assertNull(sessao.onFrameGuardando(quadro), "a sessao entregou apuracao de prova com discursiva")
             sessao.resume()
-            assertNull(sessao.onFrame(quadro), "a sessao entregou apuracao depois de retomar")
+            assertNull(sessao.onFrameGuardando(quadro), "a sessao entregou apuracao depois de retomar")
         }
         assertEquals(2, reconhecida(sessao.state).caderno.capturadas, "guarda de vacuidade: o caderno continua incompleto")
     }
@@ -206,7 +218,7 @@ class ProvaComDiscursivaNaSessaoTest {
         val sessao = sessaoAberta()
         assertEquals(ScanState.Searching, sessao.state)
 
-        sessao.onFrame(FrameOutcome.NoSheet("nenhum marcador ArUco encontrado na captura"))
+        sessao.onFrameGuardando(FrameOutcome.NoSheet("nenhum marcador ArUco encontrado na captura"))
 
         assertEquals(ScanState.Searching, sessao.state)
     }
@@ -215,7 +227,7 @@ class ProvaComDiscursivaNaSessaoTest {
     fun `folha de outra prova continua recusada com o motivo de sempre`() {
         val sessao = sessaoAberta()
 
-        sessao.onFrame(FrameOutcome.Read(gabarito(prova = "prova-referencia-slice-1")))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(prova = "prova-referencia-slice-1")))
 
         val recusa = sessao.state as? ScanState.Rejected
             ?: throw AssertionError("esperava recusa, veio ${sessao.state}")
@@ -227,7 +239,7 @@ class ProvaComDiscursivaNaSessaoTest {
         val sessao = sessaoAberta()
         val naoLida = RegiaoDiscursivaNoQuadro.NaoLida(2, "d2", "nenhum QR decodificado na ROI que o mapa declara")
 
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1(), naoLida)))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1(), naoLida)))
 
         val estado = reconhecida(sessao.state)
         assertEquals(listOf("d1"), estado.discursivas)
@@ -259,7 +271,7 @@ class ProvaComDiscursivaNaSessaoTest {
     fun `o primeiro quadro do aluno captura o gabarito e d1, e d2 fica nao vista`() {
         val sessao = sessaoAberta()
 
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
 
         val estado = reconhecida(sessao.state)
         assertEquals("tok-a", estado.caderno.aluno)
@@ -278,7 +290,7 @@ class ProvaComDiscursivaNaSessaoTest {
     fun `o indicador de cada discursiva traz o numero que a questao tem na folha impressa`() {
         val sessao = sessaoAberta()
 
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
 
         val rotulos = reconhecida(sessao.state).caderno.regioes.map { it.regionIndex to it.rotulo }
         assertEquals(listOf(0 to "Gabarito", 1 to "3", 2 to "6"), rotulos)
@@ -328,9 +340,9 @@ class ProvaComDiscursivaNaSessaoTest {
     @Test
     fun `a pagina de d2 do mesmo aluno completa o caderno`() {
         val sessao = sessaoAberta()
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
 
-        sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2())))
+        sessao.onFrameGuardando(FrameOutcome.SoDiscursivas(listOf(d2())))
 
         val estado = reconhecida(sessao.state)
         assertEquals(listOf(0 to capturada, 1 to capturada, 2 to capturada), estados(estado))
@@ -344,7 +356,7 @@ class ProvaComDiscursivaNaSessaoTest {
         val sessao = sessaoAberta()
         val motivo = "nenhum QR decodificado na ROI que o mapa declara"
 
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(RegiaoDiscursivaNoQuadro.NaoLida(1, "d1", motivo))))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(RegiaoDiscursivaNoQuadro.NaoLida(1, "d1", motivo))))
 
         val comProblema = reconhecida(sessao.state)
         assertEquals(
@@ -353,7 +365,7 @@ class ProvaComDiscursivaNaSessaoTest {
         )
         assertEquals(1, comProblema.caderno.capturadas, "regiao com problema nao conta como capturada")
 
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
 
         assertEquals(listOf(0 to capturada, 1 to capturada, 2 to naoVista), estados(reconhecida(sessao.state)))
     }
@@ -362,9 +374,9 @@ class ProvaComDiscursivaNaSessaoTest {
     @Test
     fun `a regiao capturada continua capturada quando um quadro seguinte nao a le`() {
         val sessao = sessaoAberta()
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
 
-        sessao.onFrame(
+        sessao.onFrameGuardando(
             FrameOutcome.NotRead(
                 "a medicao foi recusada",
                 listOf(RegiaoDiscursivaNoQuadro.NaoLida(1, "d1", "nenhum QR decodificado na ROI que o mapa declara"), d2()),
@@ -380,9 +392,9 @@ class ProvaComDiscursivaNaSessaoTest {
     @Test
     fun `a folha de outro aluno comeca outro caderno, sem nada do anterior`() {
         val sessao = sessaoAberta()
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
 
-        sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2(token = "tok-b"))))
+        sessao.onFrameGuardando(FrameOutcome.SoDiscursivas(listOf(d2(token = "tok-b"))))
 
         val estado = reconhecida(sessao.state)
         assertEquals("tok-b", estado.aluno)
@@ -407,7 +419,7 @@ class ProvaComDiscursivaNaSessaoTest {
     @Test
     fun `a sessao nova retoma o caderno guardado, aluno, regioes e parcial, antes de qualquer quadro`() {
         val original = sessaoAberta()
-        original.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        original.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
         val guardado = requireNotNull(original.cadernoAtual) { "a sessao original nao capturou nada" }
 
         val retomada = ScanSession(pacote, cadernoInicial = guardado)
@@ -429,7 +441,7 @@ class ProvaComDiscursivaNaSessaoTest {
             File(fixtures, "prova-referencia.package.json").readText(),
         )
         val cadernoDeOutraProva = requireNotNull(sessaoAberta().apply {
-            onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+            onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
         }.cadernoAtual)
 
         val sessao = ScanSession(soObjetiva, cadernoInicial = cadernoDeOutraProva)
@@ -442,9 +454,9 @@ class ProvaComDiscursivaNaSessaoTest {
     @Test
     fun `cadernoAtual e do ultimo aluno, mesmo depois de trocar de aluno antes de fechar`() {
         val sessao = sessaoAberta()
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
 
-        sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2(token = "tok-b"))))
+        sessao.onFrameGuardando(FrameOutcome.SoDiscursivas(listOf(d2(token = "tok-b"))))
 
         val guardaria = requireNotNull(sessao.cadernoAtual)
         assertEquals("tok-b", guardaria.aluno)
@@ -465,9 +477,9 @@ class ProvaComDiscursivaNaSessaoTest {
     @Test
     fun `o caderno completo e entregue quando a ultima regiao e capturada`() {
         val sessao = sessaoAberta()
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
 
-        val entrega = sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2())))
+        val entrega = sessao.onFrameGuardando(FrameOutcome.SoDiscursivas(listOf(d2())))
 
         val deCaderno = entrega as? ApuracaoNova.DeCaderno
             ?: throw AssertionError("esperava a entrega do caderno completo, veio $entrega")
@@ -480,10 +492,10 @@ class ProvaComDiscursivaNaSessaoTest {
     @Test
     fun `um caderno ja completo nao e entregue de novo em quadros seguintes`() {
         val sessao = sessaoAberta()
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
-        sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.SoDiscursivas(listOf(d2())))
 
-        val depois = sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2())))
+        val depois = sessao.onFrameGuardando(FrameOutcome.SoDiscursivas(listOf(d2())))
 
         assertNull(depois, "o caderno ja foi entregue, e o mesmo quadro nao pode entregar de novo")
     }
@@ -492,9 +504,9 @@ class ProvaComDiscursivaNaSessaoTest {
     @Test
     fun `trocar de aluno antes de completar nao entrega o caderno anterior`() {
         val sessao = sessaoAberta()
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
 
-        val aoTrocar = sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2(token = "tok-b"))))
+        val aoTrocar = sessao.onFrameGuardando(FrameOutcome.SoDiscursivas(listOf(d2(token = "tok-b"))))
 
         assertNull(aoTrocar, "o caderno de tok-a estava incompleto, e nao pode ter sido entregue")
     }
@@ -511,14 +523,14 @@ class ProvaComDiscursivaNaSessaoTest {
     @Test
     fun `caderno que completa com a parcial recusada nao e entregue`() {
         val sessao = sessaoAberta()
-        sessao.onFrame(FrameOutcome.Read(gabarito(), listOf(d1())))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito(), listOf(d1())))
         val semQ5 = listOf(
             QuestionAnswer.Marcada("q1", "A"),
             QuestionAnswer.Marcada("q2", "C"),
             QuestionAnswer.Marcada("q4", "A"),
         )
 
-        val entrega = sessao.onFrame(FrameOutcome.Read(gabarito(respostas = semQ5), listOf(d1(), d2())))
+        val entrega = sessao.onFrameGuardando(FrameOutcome.Read(gabarito(respostas = semQ5), listOf(d1(), d2())))
 
         assertNull(entrega, "a parcial recusada nao pode virar entrega, mesmo com as tres regioes capturadas")
         val estado = reconhecida(sessao.state)

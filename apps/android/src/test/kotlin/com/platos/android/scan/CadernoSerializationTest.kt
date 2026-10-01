@@ -9,6 +9,7 @@ import com.platos.domain.scoring.PendingReason
 import com.platos.domain.scoring.QuestionOutcome
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 /**
@@ -61,6 +62,63 @@ class CadernoSerializationTest {
         val deVolta = Json.decodeFromString(Caderno.serializer(), json)
 
         assertEquals(original, deVolta)
+    }
+
+    /**
+     * Um caderno guardado ANTES da `slice-5c-1-a-resposta-fica-no-aparelho`: JSON literal, com `entregue`
+     * e sem a chave `resposta`. O oraculo e o texto, e nao o codificador atual (P4): se o campo novo
+     * perdesse o valor-padrao, este decode quebraria, e so ele.
+     */
+    @Test
+    fun `um caderno guardado antes da resposta decodifica e vira o mesmo objeto`() {
+        val capturada = """{"type":"com.platos.android.scan.EstadoDaRegiao.Capturada"}"""
+        val naoVista = """{"type":"com.platos.android.scan.EstadoDaRegiao.NaoVista"}"""
+        val antigo = """
+            {"aluno":"tok-a","regioes":[
+              {"regionIndex":0,"gabarito":true,"rotulo":"Gabarito","estado":$capturada},
+              {"regionIndex":1,"gabarito":false,"rotulo":"1","estado":$capturada},
+              {"regionIndex":2,"gabarito":false,"rotulo":"2","estado":$naoVista}
+            ],"parcial":null,"entregue":true}
+        """.trimIndent()
+
+        val lido = Json.decodeFromString(Caderno.serializer(), antigo)
+
+        assertEquals(
+            Caderno(
+                aluno = "tok-a",
+                regioes = listOf(
+                    RegiaoDoCaderno(0, gabarito = true, rotulo = Caderno.ROTULO_GABARITO, estado = EstadoDaRegiao.Capturada),
+                    RegiaoDoCaderno(1, gabarito = false, rotulo = "1", estado = EstadoDaRegiao.Capturada),
+                    RegiaoDoCaderno(2, gabarito = false, rotulo = "2", estado = EstadoDaRegiao.NaoVista),
+                ),
+                parcial = null,
+                entregue = true,
+            ),
+            lido,
+        )
+        assertNull(lido.regioes[1].resposta)
+    }
+
+    @Test
+    fun `o caderno com a resposta guardada volta igual`() {
+        val resposta = RespostaGuardada(
+            arquivo = "3f2c9a52-0000-4000-8000-000000000001.png",
+            capturadaEm = 1_759_300_000_000L,
+            desvioSinalizado = true,
+            foraPpm = 61_000,
+        )
+        val base = caderno(parcial = null)
+        val original = base.copy(
+            regioes = base.regioes.map {
+                if (it.regionIndex == 1) it.copy(estado = EstadoDaRegiao.Capturada, resposta = resposta) else it
+            },
+        )
+
+        val json = Json.encodeToString(Caderno.serializer(), original)
+        val deVolta = Json.decodeFromString(Caderno.serializer(), json)
+
+        assertEquals(original, deVolta)
+        assertEquals(resposta, deVolta.regioes[1].resposta)
     }
 
     @Test

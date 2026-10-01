@@ -24,6 +24,18 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
+ * Como o analisador entrega o quadro (`slice-5c-1-a-resposta-fica-no-aparelho`): cada regiao discursiva
+ * reconhecida chega com a resposta guardada. Existe para as chamadas anteriores a 5c-1 continuarem
+ * dizendo o que diziam — capturada — sem mudar nenhuma asercao.
+ */
+private fun ScanSession.onFrameGuardando(outcome: FrameOutcome): ApuracaoNova? = onFrame(
+    outcome,
+    outcome.discursivas.filterIsInstance<RegiaoDiscursivaNoQuadro.Reconhecida>().associate {
+        it.regionIndex to RespostaDoQuadro.Guardada(RespostaGuardada("r${it.regionIndex}.png", 0L, false, 0))
+    },
+)
+
+/**
  * O elo entre `ScanSession` e o outbox real (tarefa 4.3, `slice-5b-4-envio-da-parcial`).
  *
  * **O que isto acrescenta ao teste de JVM.** `ProvaComDiscursivaNaSessaoTest` prova que
@@ -119,9 +131,9 @@ class EntregaDoCadernoInstrumentedTest {
     @Test
     fun o_caderno_completo_entra_na_fila_do_outbox() {
         val sessao = ScanSession(pacote).apply { onPermission(granted = true) }
-        sessao.onFrame(FrameOutcome.Read(gabarito("tok-a"), listOf(d1("tok-a"))))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito("tok-a"), listOf(d1("tok-a"))))
 
-        val entrega = sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2("tok-a"))))
+        val entrega = sessao.onFrameGuardando(FrameOutcome.SoDiscursivas(listOf(d2("tok-a"))))
 
         val deCaderno = entrega as? ApuracaoNova.DeCaderno
             ?: throw AssertionError("esperava a entrega do caderno completo, veio $entrega")
@@ -139,9 +151,9 @@ class EntregaDoCadernoInstrumentedTest {
     @Test
     fun trocar_de_aluno_antes_de_completar_nao_produz_pendente() {
         val sessao = ScanSession(pacote).apply { onPermission(granted = true) }
-        sessao.onFrame(FrameOutcome.Read(gabarito("tok-a"), listOf(d1("tok-a"))))
+        sessao.onFrameGuardando(FrameOutcome.Read(gabarito("tok-a"), listOf(d1("tok-a"))))
 
-        val aoTrocar = sessao.onFrame(FrameOutcome.SoDiscursivas(listOf(d2("tok-b"))))
+        val aoTrocar = sessao.onFrameGuardando(FrameOutcome.SoDiscursivas(listOf(d2("tok-b"))))
 
         assertTrue("o caderno de tok-a estava incompleto, e nao pode ter sido entregue", aoTrocar == null)
         assertEquals(0, pendentes.quantosPendentes(organizacao))
@@ -157,7 +169,7 @@ class EntregaDoCadernoInstrumentedTest {
     @Test
     fun caderno_retomado_apos_fechar_o_aplicativo_completa_e_entra_na_fila() {
         val original = ScanSession(pacote).apply { onPermission(granted = true) }
-        original.onFrame(FrameOutcome.Read(gabarito("tok-a"), listOf(d1("tok-a"))))
+        original.onFrameGuardando(FrameOutcome.Read(gabarito("tok-a"), listOf(d1("tok-a"))))
         val emAndamento = requireNotNull(original.cadernoAtual) { "a sessao original nao capturou nada" }
         assertEquals("guarda de vacuidade: o caderno fecha incompleto", 2, emAndamento.capturadas)
 
@@ -168,7 +180,7 @@ class EntregaDoCadernoInstrumentedTest {
         val retomada = ScanSession(pacote, cadernoInicial = cadernos.ler(organizacao, pacote.meta.examId))
         retomada.onPermission(granted = true)
 
-        val entrega = retomada.onFrame(FrameOutcome.SoDiscursivas(listOf(d2("tok-a"))))
+        val entrega = retomada.onFrameGuardando(FrameOutcome.SoDiscursivas(listOf(d2("tok-a"))))
 
         val deCaderno = entrega as? ApuracaoNova.DeCaderno
             ?: throw AssertionError("esperava a entrega do caderno retomado e completo, veio $entrega")

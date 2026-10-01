@@ -40,6 +40,13 @@ data class RegiaoDoCaderno(
     val gabarito: Boolean,
     val rotulo: String,
     val estado: EstadoDaRegiao,
+    /**
+     * A resposta guardada da regiao discursiva (`slice-5c-1-a-resposta-fica-no-aparelho`). Nula no
+     * gabarito, e na discursiva nao capturada. **Sem `require` de invariante** ("capturada
+     * discursiva implica resposta"): um caderno guardado antes desta mudanca a violaria, e o decode
+     * derrubaria o caderno inteiro. A normalizacao acontece na leitura.
+     */
+    val resposta: RespostaGuardada? = null,
 )
 
 /**
@@ -84,17 +91,32 @@ data class Caderno(
      * o que "completo" significa para o disparo (design decisao 1); este metodo so atualiza estado
      * de regiao e parcial, como sempre fez.
      */
-    internal fun depoisDe(vistas: Map<Int, EstadoDaRegiao>, parcialNova: PartialScoringOutcome?): Caderno =
+    internal fun depoisDe(
+        vistas: Map<Int, EstadoDaRegiao>,
+        parcialNova: PartialScoringOutcome?,
+        respostas: Map<Int, RespostaGuardada> = emptyMap(),
+    ): Caderno =
         copy(
             regioes = regioes.map { regiao ->
                 val agora = vistas[regiao.regionIndex]
                 when {
                     regiao.estado == EstadoDaRegiao.Capturada -> regiao
                     agora == null -> regiao
-                    else -> regiao.copy(estado = agora)
+                    else -> regiao.copy(estado = agora, resposta = respostas[regiao.regionIndex] ?: regiao.resposta)
                 }
             },
             parcial = parcialNova ?: parcial,
+        )
+
+    /**
+     * Este caderno com a resposta de [regionIndex] descartada: a regiao volta a nao vista. Nada mais
+     * muda — as outras regioes, a parcial e [entregue] ficam como estavam.
+     */
+    internal fun semResposta(regionIndex: Int): Caderno =
+        copy(
+            regioes = regioes.map {
+                if (it.regionIndex == regionIndex) it.copy(estado = EstadoDaRegiao.NaoVista, resposta = null) else it
+            },
         )
 
     companion object {

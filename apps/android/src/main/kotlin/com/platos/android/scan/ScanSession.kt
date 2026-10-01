@@ -110,14 +110,17 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
      * testavel sem aparelho, e o `captureId` e o instante — que sao um identificador novo e um
      * relogio — tornariam a apuracao nao-deterministica. Quem chama cunha os dois e grava; esta
      * decide **se** ha o que gravar.
+     *
+     * [respostas] e o que o analisador gravou por regiao discursiva reconhecida
+     * (`slice-5c-1-a-resposta-fica-no-aparelho`): so com resposta guardada a regiao fica capturada.
      */
-    fun onFrame(outcome: FrameOutcome): ApuracaoNova? {
+    fun onFrame(outcome: FrameOutcome, respostas: Map<Int, RespostaDoQuadro> = emptyMap()): ApuracaoNova? {
         if (state is ScanState.NoPermission) return null
         if (comDiscursiva) {
             // Reconhece e mostra a parcial. So entrega quando o caderno completa nesta passada
             // (`slice-5b-4-envio-da-parcial`, design decisao 1) — o resto continua sem produzir
             // resultado: nada mais desta prova vira fila de envio neste aparelho.
-            val (novoEstado, entrega) = estadoDaDiscursiva(outcome)
+            val (novoEstado, entrega) = estadoDaDiscursiva(outcome, respostas)
             state = novoEstado
             return entrega
         }
@@ -150,7 +153,10 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
      * discursiva —, e a conferencia de prova e a mesma da prova objetiva: QR de outra prova e recusa,
      * com a mesma frase. Nenhuma regiao com QR lido e "achei a folha e nao consegui ler", como hoje.
      */
-    private fun estadoDaDiscursiva(outcome: FrameOutcome): Pair<ScanState, ApuracaoNova.DeCaderno?> {
+    private fun estadoDaDiscursiva(
+        outcome: FrameOutcome,
+        respostas: Map<Int, RespostaDoQuadro>,
+    ): Pair<ScanState, ApuracaoNova.DeCaderno?> {
         if (outcome is FrameOutcome.NoSheet) {
             return (if (holdsResult) state else ScanState.Searching) to null
         }
@@ -201,7 +207,9 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
         } else {
             null
         }
-        val atualizado = anterior.depoisDe(vistasNoQuadro(anterior, outcome, parcialNova), parcialNova)
+        val guardadas = mutableMapOf<Int, RespostaGuardada>()
+        val vistas = vistasNoQuadro(anterior, outcome, parcialNova, respostas, guardadas)
+        val atualizado = anterior.depoisDe(vistas, parcialNova, guardadas)
 
         // A entrega dispara na transicao de incompleto para completo, e so nela — nunca de novo a
         // cada quadro seguinte que so confirma um caderno ja completo (design decisao 1). Uma regiao
@@ -247,6 +255,8 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
         caderno: Caderno,
         outcome: FrameOutcome,
         parcialNova: PartialScoringOutcome?,
+        respostas: Map<Int, RespostaDoQuadro>,
+        guardadas: MutableMap<Int, RespostaGuardada>,
     ): Map<Int, EstadoDaRegiao> {
         val gabarito = caderno.regioes.firstOrNull { it.gabarito }?.regionIndex
         return buildMap {
@@ -266,12 +276,65 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
             }
             for (regiao in outcome.discursivas) {
                 when (regiao) {
-                    is RegiaoDiscursivaNoQuadro.Reconhecida -> put(regiao.regionIndex, EstadoDaRegiao.Capturada)
+                    is RegiaoDiscursivaNoQuadro.Reconhecida ->
+                        discursivaReconhecida(caderno, regiao.regionIndex, respostas[regiao.regionIndex], guardadas)
+                            ?.let { put(regiao.regionIndex, it) }
                     is RegiaoDiscursivaNoQuadro.NaoLida ->
                         put(regiao.regionIndex, EstadoDaRegiao.ComProblema(regiao.reason))
                 }
             }
         }
+    }
+
+    /**
+     * O que um quadro diz de uma regiao discursiva **reconhecida**, dada a resposta que o analisador
+     * entregou para ela (`slice-5c-1-a-resposta-fica-no-aparelho`, design, decisao 3). Reconhecer, sozinho,
+     * nao captura: capturada exige resposta guardada.
+     *
+     * Devolve o estado novo da regiao, ou nulo quando ela fica como estava. A ausencia de entrada para
+     * uma regiao sem resposta e "com problema", e nunca capturada em silencio: se a fiacao do analisador
+     * se perder, o professor ve o problema, e nao uma regiao capturada sem imagem.
+     */
+    private fun discursivaReconhecida(
+        caderno: Caderno,
+        regionIndex: Int,
+        entrega: RespostaDoQuadro?,
+        guardadas: MutableMap<Int, RespostaGuardada>,
+    ): EstadoDaRegiao? {
+        val jaTemResposta = caderno.regioes.firstOrNull { it.regionIndex == regionIndex }?.resposta != null
+        return when (entrega) {
+            // A primeira resposta aceita fica; o arquivo novo e um orfao da eliminacao.
+            is RespostaDoQuadro.Guardada -> if (jaTemResposta) {
+                null
+            } else {
+                guardadas[regionIndex] = entrega.resposta
+                EstadoDaRegiao.Capturada
+            }
+            is RespostaDoQuadro.Recusada -> EstadoDaRegiao.ComProblema(entrega.motivo)
+            // O analisador nao pediu porque ja havia resposta (decisao 1), ou nao pediu por defeito dele.
+            null -> if (jaTemResposta) null else EstadoDaRegiao.ComProblema(RECORTE_NAO_PEDIDO)
+        }
+    }
+
+    /**
+     * Refaz a resposta de uma regiao: a resposta e descartada e a regiao volta a nao vista, de modo que
+     * a proxima captura peca o recorte de novo. Devolve o arquivo a eliminar — quem elimina e quem
+     * chama, porque a sessao nao toca disco —, ou a recusa com o motivo, sem efeito.
+     *
+     * As outras regioes, a parcial e a marca de entrega nao mudam: refazer a resposta de um caderno ja
+     * entregue **nao** o entrega de novo.
+     */
+    fun refazer(regionIndex: Int): ResultadoDoRefazer {
+        val atual = caderno ?: return ResultadoDoRefazer.Recusado("nao ha caderno em andamento")
+        val regiao = atual.regioes.firstOrNull { it.regionIndex == regionIndex }
+            ?: return ResultadoDoRefazer.Recusado("a regiao $regionIndex nao existe no caderno")
+        val resposta = regiao.resposta
+            ?: return ResultadoDoRefazer.Recusado("a regiao $regionIndex nao tem resposta guardada")
+
+        val novo = atual.semResposta(regionIndex)
+        caderno = novo
+        (state as? ScanState.ProvaComDiscursiva)?.let { state = it.copy(caderno = novo) }
+        return ResultadoDoRefazer.Refeita(resposta.arquivo)
     }
 
     /**
@@ -324,6 +387,19 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
             is ScoringOutcome.Scored -> ScanState.Scored(reading, nota.score)
         }
     }
+}
+
+/** O motivo de uma regiao reconhecida sem resposta e sem recusa: o analisador nao pediu o recorte. */
+internal const val RECORTE_NAO_PEDIDO = "o recorte nao foi pedido"
+
+/** O que [ScanSession.refazer] fez. */
+sealed interface ResultadoDoRefazer {
+
+    /** A resposta foi descartada; [arquivo] e o que quem chama deve eliminar do disco. */
+    data class Refeita(val arquivo: String) : ResultadoDoRefazer
+
+    /** Nada mudou. */
+    data class Recusado(val motivo: String) : ResultadoDoRefazer
 }
 
 /**
