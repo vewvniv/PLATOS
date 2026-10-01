@@ -5,7 +5,7 @@ Data da verificação: 2026-10-01 (hora local +02:00). Execução inline do plan
 a execução está no commit do plano e abaixo, em "Decisões de execução".
 
 **Comando cheio:** `./gradlew --stop && ./gradlew build --rerun-tasks`, com o Docker de pé e **sem** emulador.
-Resultado e âncoras (P3): ver "A suíte cheia" no fim.
+Resultado e âncoras (P3): ver "A suíte cheia", no fim, que é a rodada **depois** da passada de correção.
 
 ## Como cada verificação foi vista falhar
 
@@ -58,7 +58,9 @@ com o mesmo comando, e `git status --short` ficou vazio depois de cada uma (P10)
   view usa a captura da parcial como chave da folha avulsa.
 - Duas notas do professor da mesma captura chegando fora de ordem: vale a chegada ("a mais recente é a corrente"),
   como na recaptura. Não há ordenação lógica entre elas.
-- Reescanear depois da nota faz a captura nova virar a corrente; a nota anterior continua legível (spec aprovada).
+- Reescanear depois da nota faz a captura nova virar a corrente; a nota anterior continua legível (spec aprovada). E
+  uma nota que chega **depois** da parcial de uma captura mais nova vira a corrente por ordem de chegada (ordenar por
+  `captured_at` é decisão de produto).
 - **Ninguém envia a nota do professor ainda:** o aparelho é a 5c-3. A rota só foi exercida por teste de servidor.
 - O compilador do alvo `js()` do domínio só é exercido pelo `build --rerun-tasks` (ver o fim); `jvmTest` não o cobre.
 - A migration **não** foi aplicada em produção (`antes-de:migration-da-5-em-producao`).
@@ -80,14 +82,39 @@ com o mesmo comando, e `git status --short` ficou vazio depois de cada uma (P10)
 - **`A região discursiva ainda não passou pelo aparelho nem pelo papel`** e **`O limiar do desvio…`** (`6`): sem mudança de
   estado nesta fatia.
 
-## A suíte cheia (P5)
+## Revisão final e a passada de correção
+
+Um revisor de contexto novo leu o branch inteiro (10 commits) e os cinco pontos do foco do plano ficaram presos. A
+passada única de correção, cada item com o teste visto **falhar** antes e **depois da mutação** (revertida e rodada
+de novo, `git status` limpo):
+
+| Achado (regrade por efeito) | Correção | Visto falhar |
+|---|---|---|
+| `capture_id` da nota igual ao de outra gravação da prova tirava a nota da fila sem gravar (reenvio falso) | `CapturaEmConflito` antes do primeiro `insert` (origem, token e captura completada têm de ser os mesmos) e `capture_id != completes_capture_id` na Fase 1 | RED: `capture_id ja usado por outra gravacao nao some a nota em silencio` |
+| A recusa de pontuação nomeia a questão (spec), sem teste | o laço de recusas confere `'d1'` em 5 casos | mutação: tirar o prefixo `$de:` → `cada recusa e 400…` cai, "a mensagem nao nomeia a questao" |
+| O teto 999999.99 vivia no domínio e no `numeric(8,2)` sem conferência cruzada (P28) | `Pontos.MAXIMO_CENTESIMOS` é a fonte; o teste de banco grava o teto e confirma que um centésimo acima estoura (22003) | mutação: teto 99_999_998 → cai o teste de banco **e** `PontosTest.o maximo do dominio…` |
+| A exclusão da view não exigia a mesma folha: nota de outro aluno escondia a parcial dele | `t.student_token is not distinct from r.student_token` | RED: `uma nota de outro aluno nao esconde a parcial que ela cita` |
+| `capture_id`/`student_token` vazios e `captured_at` inválido viravam 500 (o aparelho trata 5xx como transitório e reenvia para sempre) | validados na Fase 1, 400 com motivo | mutação (captured_at): `cada recusa e 400…` cai em "captured_at invalido" |
+| Cenários da spec sem teste: reenvio da parcial depois da nota; objetiva pendente com `closed=false` | dois testes de rota | mutação da view sem a exclusão: agora caem **4** (inclui o reenvio); `closed = true` fixo: cai `objetiva pendente mantem…` |
+| Texto vigente (view e ADR) dizia "cada escola leria as folhas das outras", contra a medição | texto corrigido; o antes está nesta cobertura | — |
+
+**Minors adiados (não entram na passada):** `Pontos.inteiros(objectivePoints)` fora do `try` em `conferirNotaDoProfessor`
+só lança com pontos objetivos acima de 999999 (inalcançável com pacote real); `lerPontos` mora no servidor e a 5c-3
+precisa da mesma regra — vira função do domínio quando houver o segundo consumidor (regra 7); a mutação "gravar antes
+de conferir" do design §5 **não** foi feita (a observável, "zero linhas depois de cada recusa", está no laço de recusas);
+o teste da vírgula decimal não distingue a vírgula de "abc" (mesma frase de recusa).
+
+**Não julgado pelo revisor, e decidido aqui:** corrida do mesmo `capture_id` entre dois aparelhos (preexistente, 23505
+vira 500 e o reenvio resolve); e **parcial de uma captura nova que chega antes da nota da captura antiga** — a nota
+antiga vira a corrente por ordem de chegada, e corrigir pede ordenar por `captured_at` (decisão de produto, entra nas
+limitações abaixo).
+
+## A suíte cheia (P5), depois da passada de correção
 
 - **Comando:** `./gradlew --stop && ./gradlew build --rerun-tasks` (Docker de pé, sem emulador), iniciado às
-  2026-10-01T17:37:39Z. **`BUILD SUCCESSFUL in 3m 19s`, `183 actionable tasks: 183 executed`** (nenhuma `UP-TO-DATE`:
-  é execução, e não relatório antigo). Incluiu `:packages:domain:compileKotlinJs`, que o `jvmTest` não cobre.
-- **Âncoras (P3), todas posteriores ao início:** `NotaDoProfessorTest` 13/13 às 17:40:56Z, `GradedResultRouteTest` 11/11 às
-  17:40:32Z, `GradedResultDtoTest` (aparelho) 1/1 às 17:39:56Z.
-- `./gradlew -p buildSrc test --rerun-tasks`: `BUILD SUCCESSFUL`, 6 de 6 tasks executadas.
-- `node tools/parity/answer-kind.mjs` (5 valores concordam) e `node tools/parity/fio.mjs` (7 contratos presos nos dois
-  lados): `exit 0`. `node tools/divida/divida.mjs`: `exit 0`, fatia corrente `5c`.
-- `openspec validate slice-5c-2-a-nota-do-professor --strict`: válido.
+  2026-10-01T17:57:47Z. **`BUILD SUCCESSFUL in 3m 16s`, `183 actionable tasks: 183 executed`**, incluindo
+  `:packages:domain:compileKotlinJs`.
+- **Âncoras (P3), posteriores ao início:** `PontosTest` 14/14 às 18:00:37Z, `GradedResultRouteTest` 14/14 às 18:00:54Z,
+  `GradingResultCurrentViewTest` 18/18 às 18:00:50Z.
+- `./gradlew -p buildSrc test --rerun-tasks`: `BUILD SUCCESSFUL`. `answer-kind.mjs` (5 valores) e `fio.mjs` (7 contratos):
+  `exit 0`. `divida.mjs`: `exit 0`, fatia corrente `5c`. `openspec validate … --strict`: válido.
