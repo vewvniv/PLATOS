@@ -262,7 +262,7 @@ class ScanActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         val guardando = if (::session.isInitialized) {
-            session.cadernoAtual?.let { caderno ->
+            session.cadernoParaGuardar?.let { caderno ->
                 lifecycleScope.guardarCadernoEmAndamento(cadernos, organizacao, examPackage.meta.examId, caderno)
             }
         } else {

@@ -12,6 +12,7 @@ import java.io.File
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -242,5 +243,27 @@ class NotaNaSessaoTest {
         sessao.quadro(FrameOutcome.SoDiscursivas(listOf(d2("tok-b"))))
 
         assertEquals("tok-b", sessao.cadernoAtual!!.aluno)
+    }
+
+    // --- a corrida com o onStop (revisao final) ---
+
+    /**
+     * `onStop` guarda `cadernoParaGuardar`. Enquanto a nota esta sendo gravada, o caderno em memoria ainda nao esta
+     * corrigido, e guarda-lo sobrescreveria, no Room, o caderno corrigido que a gravacao da nota escreve.
+     */
+    @Test
+    fun `enquanto a nota e gravada, nao ha caderno a guardar ao parar, e depois ha o certo`() {
+        val sessao = completa()
+        assertNotNull(sessao.cadernoParaGuardar)
+
+        sessao.darNota(notas())
+        assertNull(sessao.cadernoParaGuardar, "guardar agora sobrescreveria o corrigido com o caderno sem nota")
+
+        sessao.falhouAGravacao()
+        assertFalse(sessao.cadernoParaGuardar!!.corrigido)
+
+        sessao.darNota(notas())
+        sessao.confirmarCorrigido()
+        assertTrue(sessao.cadernoParaGuardar!!.corrigido)
     }
 }

@@ -437,6 +437,13 @@ class ScanSession(
      */
     val cadernoAtual: Caderno? get() = caderno
 
+    /**
+     * O caderno que `onStop` deve guardar. **Nenhum enquanto uma nota esta sendo gravada**: a gravacao da nota ja
+     * escreve o caderno corrigido no Room, e guardar agora o caderno em memoria, ainda sem a marca, o sobrescreveria
+     * e devolveria "Dar a nota" ao professor para uma folha ja corrigida (revisao final da `slice-5c-3`).
+     */
+    val cadernoParaGuardar: Caderno? get() = if (notaEmCurso) null else caderno
+
     init {
         // So retoma numa prova com discursiva: o caderno e conceito dela, e um cadernoInicial
         // recebido para uma prova so objetiva seria dado de outra prova, ou obsoleto.
