@@ -1,0 +1,76 @@
+# Cobertura — slice-5c-1-a-resposta-fica-no-aparelho
+
+Registro da verificação (`rigorous.md` §8). Cada afirmação carrega o tipo dela: **medido**,
+**conferido**, **herdado** ou **suposto** (P6). Documento escrito durante o apply, tarefa a tarefa.
+
+## 0. A linha de base (tarefas 0.1 a 0.4)
+
+Medida em 2026-10-01 sobre a branch `vewvniv/propose-slice-5c-1-a-resposta-fica-no-aparelho` com a árvore
+limpa (`git status --short` vazio) e **sem nenhuma edição de código**, com o #82 e o #83 na `main`.
+
+| Comando | Janela (UTC) | Resultado |
+|---|---|---|
+| `./gradlew -p buildSrc test --rerun-tasks` | início não anotado, fim 08:56:58 | `exit 0`, 6 de 6 tasks executadas, 1 teste, 0 falhas |
+| `./gradlew build --rerun-tasks` | fim 09:00:42 | `exit 0`, **183 de 183 tasks executadas** |
+| `./gradlew :apps:android:connectedDebugAndroidTest --rerun-tasks -Pandroid.testInstrumentationRunnerArguments.permissaoManual=true` (sem filtro) | 09:09:02–09:12:07 | `exit 0`, 88 de 88 tasks executadas |
+
+Contagem por task do `build` (`timestamp` do XML, todos dentro da janela do comando — P2, P3):
+
+| Task | Testes | Falhas | Primeiro..último `timestamp` |
+|---|---|---|---|
+| `:apps:android:testDebugUnitTest` | 353 | 0 | 08:59:54..09:00:00 |
+| `:apps:android:testReleaseUnitTest` | 353 | 0 | 08:59:42..08:59:48 |
+| `:apps:api:test` | 171 | 0 | 09:00:03..09:00:22 |
+| `:packages:domain:jvmTest` | 437 | 0 | 09:00:27..09:00:31 |
+| `:packages:domain:jsNodeTest` | 428 | 0 | 08:58:59..08:59:03 |
+| `:packages:domain:testAndroidHostTest` | 428 | 0 | 09:00:37..09:00:38 |
+| `buildSrc:test` | 1 | 0 | 08:56:49 |
+
+Igual à referência da tarefa (353 / 171 / 437·428·428 / 1; 183 de 183). **Sem divergência.**
+
+Instrumentado, **por aparelho** (os dois com o relatório do `connected` desta sessão): emulador
+`platos-atd34` (Android 14) e Xiaomi `2511FPC34G` (Android 16): **133 casos, 0 falhas, 2 pulados em cada
+um** — as duas sondas `AcumuloDeInstanciasProbe` (`topologia_antiga_sob_escrita_concorrente`,
+`topologia_nova_sob_a_mesma_carga`). Relatórios com `timestamp` 09:11:58 (emulador) e 09:12:03 (Xiaomi).
+
+**Diferença para a referência (e por quê).** A referência dizia 4 pulados no Xiaomi: as 2 sondas mais os 2
+testes que leem a tela do caderno, que precisam da permissão de câmera. Aqui o comando levou
+`permissaoManual=true` e o Leon tocou em "Permitir" (aviso dado pelo log `>>> TOQUE EM 'PERMITIR' …`), e por
+isso esses 2 **rodaram** no Xiaomi: 2 pulados, não 4. **É prova manual e pontual, que não roda em CI** (P2).
+
+### 0.2 `sha256` das fixtures (antes de qualquer edição)
+
+Produzido por `sha256sum fixtures/*.layout.json fixtures/*.package.json`; é o que a 6.6 compara.
+
+```
+d9f7b08c17a706b02ba21355e2286b71d09792605b1c22adc8b7b95ce566c221  fixtures/folha-de-teste.layout.json
+914fb389830b4754935b608e3320d29bdd1839403c675179820a3edd6ced24c8  fixtures/prova-discursiva.aluno.layout.json
+63040b2f1dfe1152ab4e83561bc77d5abc7023a73aab497491878ecc71ca5840  fixtures/prova-discursiva.layout.json
+8c9756a9db45c1d08a97fd0d99f6edcb353338f78894ff5b26438d1e00078451  fixtures/prova-referencia.layout.json
+c2098e10e6c70f93a469ce56ff5f0e5796b44792da0b661e01465904a48cb717  fixtures/prova-2.package.json
+87a9f3312e9b7156542c7deb121c68782064aea1c61669951a9ad019e4f0a784  fixtures/prova-discursiva.package.json
+ff2b94ef600101e2c20d5b6b298f7d0612ee0a66beb4d74d7dcd954cfbde40da  fixtures/prova-referencia.package.json
+7282a186d3b644dac6108e7ea39931517c5a0614e8fa570b15ad09324cb14df7  fixtures/prova-referencia.turma.package.json
+```
+
+### 0.3 A guarda de dívida
+
+`node tools/divida/divida.mjs` → `exit 0`, fatia corrente `5c`, 23 linhas, nenhuma vencida. A única que
+"vence nesta fatia (5c)" é "A guarda de dívida não lê a tabela 'Aberto' do §16" (`5`): **listada e não
+tomada aqui**, como a proposta diz.
+
+### 0.4 A leitura do caderno já está fora do fio principal
+
+`git log` mostra `1378d10 fix(scan): o caderno e lido fora do fio principal…` na `main` (#82, arquivado em
+#83). `ScanActivity.kt` chama `lerCadernoEmAndamento(...)` dentro de `lifecycleScope.launch` (linhas 151–153)
+e `onCreate` não chama `cadernos.ler` nem `todos()` fora dele (`grep` confere: as outras ocorrências são
+comentário).
+
+## Erros de rumo (P7)
+
+- **`design.md` e `proposal.md` dizem que o valor-padrão `respostas = emptyMap()` mantém "cada chamada de
+  teste atual como está".** Isso vale para a **compilação**, não para o comportamento: pela própria tabela
+  da decisão 3, discursiva reconhecida sem entrada no mapa fica "com problema". Os testes que chamam
+  `onFrame(...)` com `d1()` e esperam "capturada" precisam passar as respostas. O texto da 1.3 continua
+  certo ("passam **sem mudar asserção**"): muda a chamada, não a asserção. O texto anterior fica; este é o
+  registro da correção.
