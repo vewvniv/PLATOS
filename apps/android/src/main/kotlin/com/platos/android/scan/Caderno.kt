@@ -40,6 +40,13 @@ data class RegiaoDoCaderno(
     val gabarito: Boolean,
     val rotulo: String,
     val estado: EstadoDaRegiao,
+    /**
+     * A resposta guardada da regiao discursiva (`slice-5c-1-a-resposta-fica-no-aparelho`). Nula no
+     * gabarito, e na discursiva nao capturada. **Sem `require` de invariante** ("capturada
+     * discursiva implica resposta"): um caderno guardado antes desta mudanca a violaria, e o decode
+     * derrubaria o caderno inteiro. A normalizacao acontece na leitura.
+     */
+    val resposta: RespostaGuardada? = null,
 )
 
 /**
@@ -84,17 +91,32 @@ data class Caderno(
      * o que "completo" significa para o disparo (design decisao 1); este metodo so atualiza estado
      * de regiao e parcial, como sempre fez.
      */
-    internal fun depoisDe(vistas: Map<Int, EstadoDaRegiao>, parcialNova: PartialScoringOutcome?): Caderno =
+    internal fun depoisDe(
+        vistas: Map<Int, EstadoDaRegiao>,
+        parcialNova: PartialScoringOutcome?,
+        respostas: Map<Int, RespostaGuardada> = emptyMap(),
+    ): Caderno =
         copy(
             regioes = regioes.map { regiao ->
                 val agora = vistas[regiao.regionIndex]
                 when {
                     regiao.estado == EstadoDaRegiao.Capturada -> regiao
                     agora == null -> regiao
-                    else -> regiao.copy(estado = agora)
+                    else -> regiao.copy(estado = agora, resposta = respostas[regiao.regionIndex] ?: regiao.resposta)
                 }
             },
             parcial = parcialNova ?: parcial,
+        )
+
+    /**
+     * Este caderno com a resposta de [regionIndex] descartada: a regiao volta a nao vista. Nada mais
+     * muda — as outras regioes, a parcial e [entregue] ficam como estavam.
+     */
+    internal fun semResposta(regionIndex: Int): Caderno =
+        copy(
+            regioes = regioes.map {
+                if (it.regionIndex == regionIndex) it.copy(estado = EstadoDaRegiao.NaoVista, resposta = null) else it
+            },
         )
 
     companion object {
@@ -131,3 +153,39 @@ data class Caderno(
         const val ROTULO_GABARITO = "Gabarito"
     }
 }
+
+/**
+ * Se a regiao [regionIndex] do caderno **do aluno [aluno]** ja tem resposta guardada
+ * (`slice-5c-1-a-resposta-fica-no-aparelho`, design, decisao 1). E o predicado do analisador, **por aluno
+ * e por regiao**: o caderno corrente e do aluno A com a regiao 2 guardada, e a folha do aluno B mostra a
+ * regiao 2 — a resposta e de A, e para B ainda falta. Sem o aluno, a folha de B herdaria a imagem de A.
+ */
+internal fun Caderno?.jaTemResposta(aluno: String, regionIndex: Int): Boolean =
+    this != null && this.aluno == aluno &&
+        regioes.firstOrNull { it.regionIndex == regionIndex }?.resposta != null
+
+/**
+ * Este caderno lido do disco, com toda regiao discursiva cuja resposta nao se sustenta devolvida a nao
+ * vista (`slice-5c-1-a-resposta-fica-no-aparelho`, design, decisao 5). **Funcao pura**: [existe] diz se o
+ * arquivo da resposta existe, e nada aqui toca disco.
+ *
+ * Duas coisas sao "nao se sustenta": a resposta referencia um arquivo que **nao existe mais** (eliminado
+ * por prazo, ou refazer interrompido), e a discursiva esta **capturada sem resposta** (caderno guardado
+ * antes desta mudanca, quando capturada nao implicava resposta). E isto que garante que nenhum caderno
+ * lido referencia imagem que nao existe, e e a unica via de leitura que a \`ScanActivity\` usa.
+ *
+ * O resto fica intacto — o gabarito, as regioes com problema, a parcial e [Caderno.entregue], que nao e
+ * limpo: caderno ja entregue nao entrega de novo por ter perdido uma resposta.
+ */
+internal fun Caderno.normalizado(existe: (String) -> Boolean): Caderno =
+    copy(
+        regioes = regioes.map { regiao ->
+            val resposta = regiao.resposta
+            val semSustentacao = when {
+                regiao.gabarito -> false
+                resposta != null -> !existe(resposta.arquivo)
+                else -> regiao.estado == EstadoDaRegiao.Capturada
+            }
+            if (semSustentacao) regiao.copy(estado = EstadoDaRegiao.NaoVista, resposta = null) else regiao
+        },
+    )

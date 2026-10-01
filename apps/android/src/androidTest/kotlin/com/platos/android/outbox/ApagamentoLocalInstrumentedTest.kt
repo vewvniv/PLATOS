@@ -13,6 +13,9 @@ import com.platos.android.scan.CadernosEmRoom
 import com.platos.android.scan.CadernosGuardados
 import com.platos.android.scan.EstadoDaRegiao
 import com.platos.android.scan.RegiaoDoCaderno
+import com.platos.android.scan.RespostaDoQuadro
+import com.platos.android.scan.RespostaGuardada
+import com.platos.android.scan.RespostasEmArquivo
 import com.platos.android.session.DeviceSession
 import com.platos.android.session.Organizacao
 import com.platos.android.session.ProvaPublicada
@@ -58,6 +61,7 @@ class ApagamentoLocalInstrumentedTest {
     private val raizPacotes = File(context.filesDir, "packages-apagamento-de-teste")
     private val raizVisoes = File(context.filesDir, "visoes-apagamento-de-teste")
     private val raizRosters = File(context.filesDir, "rosters-apagamento-de-teste")
+    private val raizRespostas = File(context.filesDir, "respostas-apagamento-de-teste")
     private val nomeDaBase = "outbox-apagamento-de-teste.db"
     private val nomeDaBaseDeCadernos = "caderno-apagamento-de-teste.db"
 
@@ -99,16 +103,24 @@ class ApagamentoLocalInstrumentedTest {
         ),
     )
 
+    /** A resposta guardada que o caderno referencia (`slice-5c-1-a-resposta-fica-no-aparelho`): arquivo de verdade. */
+    private lateinit var resposta: RespostaGuardada
+
     private fun umCaderno() = Caderno(
         aluno = "tok-a",
         regioes = listOf(
             RegiaoDoCaderno(0, gabarito = true, rotulo = Caderno.ROTULO_GABARITO, estado = EstadoDaRegiao.Capturada),
+            RegiaoDoCaderno(1, gabarito = false, rotulo = "1", estado = EstadoDaRegiao.Capturada, resposta = resposta),
         ),
         parcial = null,
     )
 
-    /** Deixa no disco as cinco coisas que a organizacao guarda, para haver o que apagar. */
+    /** Deixa no disco as coisas que a organizacao guarda, para haver o que apagar — e a resposta, que fica. */
     private fun montarOEstadoLocal(organizacao: String) {
+        resposta = (
+            RespostasEmArquivo(raizRespostas).gravar(byteArrayOf(1, 2, 3), 1_789_646_400_000L, false, 0)
+                as RespostaDoQuadro.Guardada
+            ).resposta
         PacotesEmArquivo(raizPacotes).guardar(organizacao, "b".repeat(64), "{}".toByteArray())
         VisoesEmArquivo(raizVisoes).guardar(
             VisaoDaOrganizacao(
@@ -146,7 +158,7 @@ class ApagamentoLocalInstrumentedTest {
         context.deleteDatabase(nomeDaBaseDeCadernos)
         baseDeCadernos = Room.databaseBuilder(context, BaseDoCaderno::class.java, nomeDaBaseDeCadernos).build()
         cadernos = CadernosEmRoom(baseDeCadernos.cadernos())
-        listOf(raizPacotes, raizVisoes, raizRosters).forEach { it.deleteRecursively() }
+        listOf(raizPacotes, raizVisoes, raizRosters, raizRespostas).forEach { it.deleteRecursively() }
     }
 
     @After
@@ -155,7 +167,7 @@ class ApagamentoLocalInstrumentedTest {
         context.deleteDatabase(nomeDaBase)
         baseDeCadernos.close()
         context.deleteDatabase(nomeDaBaseDeCadernos)
-        listOf(raizPacotes, raizVisoes, raizRosters).forEach { it.deleteRecursively() }
+        listOf(raizPacotes, raizVisoes, raizRosters, raizRespostas).forEach { it.deleteRecursively() }
     }
 
     // ------------------------------------------------------------------ 7.1
@@ -170,6 +182,7 @@ class ApagamentoLocalInstrumentedTest {
         assertEquals(1, arquivosDe(raizPacotes).size)
         assertEquals(1, arquivosDe(raizVisoes).size)
         assertEquals(1, arquivosDe(raizRosters).size)
+        assertEquals(listOf(resposta.arquivo), arquivosDe(raizRespostas))
         assertEquals(1, pendentes.quantosPendentes(escola.id))
         assertEquals(umCaderno(), cadernos.ler(escola.id, prova.shortId))
 
@@ -178,6 +191,11 @@ class ApagamentoLocalInstrumentedTest {
         assertEquals("o pacote ficou no disco depois de sair", emptyList<String>(), arquivosDe(raizPacotes))
         assertEquals("a visao ficou no disco depois de sair", emptyList<String>(), arquivosDe(raizVisoes))
         assertEquals("o roster ficou no disco depois de sair", emptyList<String>(), arquivosDe(raizRosters))
+        assertEquals(
+            "sair apagou a resposta guardada, que e trabalho nao concluido como o caderno que a referencia",
+            listOf(resposta.arquivo),
+            arquivosDe(raizRespostas),
+        )
         assertEquals(
             "sair apagou correcao que ainda nao subiu",
             1,
@@ -238,12 +256,18 @@ class ApagamentoLocalInstrumentedTest {
         sessao.abrir(temSessaoGuardada = true)
 
         assertEquals(1, arquivosDe(raizRosters).size)
+        assertEquals(listOf(resposta.arquivo), arquivosDe(raizRespostas))
 
         sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(pessoal)))
 
         assertEquals("o pacote sobreviveu a revogacao", emptyList<String>(), arquivosDe(raizPacotes))
         assertEquals("a visao sobreviveu a revogacao", emptyList<String>(), arquivosDe(raizVisoes))
         assertEquals("o roster sobreviveu a revogacao", emptyList<String>(), arquivosDe(raizRosters))
+        assertEquals(
+            "a revogacao apagou a resposta guardada, que fica como o caderno que a referencia",
+            listOf(resposta.arquivo),
+            arquivosDe(raizRespostas),
+        )
         assertEquals(
             "a revogacao apagou correcao que ainda nao subiu",
             1,

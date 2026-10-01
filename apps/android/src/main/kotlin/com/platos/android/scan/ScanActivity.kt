@@ -26,6 +26,8 @@ import com.platos.domain.exam.ExamPackage
 import com.platos.domain.scoring.ApuracaoParaEnvio
 import com.platos.domain.layout.LayoutMap
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import com.platos.android.outbox.EnvioDeResultadosWorker
 import com.platos.android.outbox.gravarEAgendar
@@ -77,6 +79,23 @@ class ScanActivity : ComponentActivity() {
     private lateinit var session: ScanSession
     private lateinit var pendentes: ResultadosPendentes
     private lateinit var cadernos: CadernosGuardados
+    private lateinit var respostas: RespostasGuardadas
+
+    /**
+     * O caderno como o analisador o enxerga (`slice-5c-1-a-resposta-fica-no-aparelho`, design,
+     * decisao 1): um **instantaneo** imutavel, publicado por `@Volatile` na thread principal no mesmo
+     * ponto em que [state] e atualizado, e lido pela thread de analise. A sessao nao e thread-safe e
+     * **nao** e lida de la.
+     *
+     * **Nasce em [montar], com o caderno retomado**, e nao so nos quadros: sem isso o analisador de uma
+     * `Activity` reaberta com respostas ja guardadas acharia que nenhuma regiao tem resposta e recortaria
+     * tudo de novo.
+     */
+    @Volatile
+    private var cadernoVisivel: Caderno? = null
+
+    /** O instantaneo, para o teste conferir o que o analisador veria. */
+    internal val instantaneoDoCaderno: Caderno? get() = cadernoVisivel
     // **Nao nulaveis, e a ausencia do `?` e o requisito.** Eram `String?`, e `gravar` tinha um
     // `?: return` para cada: folha medida, nota desenhada na tela, nada gravado, nada agendado, sem
     // mensagem (achado 3.3). Quem decide que ha tudo o que precisa e [decidirAbertura], antes de a
@@ -86,6 +105,9 @@ class ScanActivity : ComponentActivity() {
     private lateinit var analysisExecutor: ExecutorService
 
     private var state by mutableStateOf<ScanState>(ScanState.NoPermission)
+
+    /** A regiao discursiva cuja resposta esta aberta em tela cheia (`RespostaTela`), ou nula. */
+    private var respostaAberta by mutableStateOf<Int?>(null)
     private var previewView: PreviewView? = null
     private var cameraLigada = false
 
@@ -136,6 +158,7 @@ class ScanActivity : ComponentActivity() {
         roster = RostersEmArquivo(File(filesDir, "rosters")).ler(organizacao, shortId)
         map = examPackage.layout.values.single()
         cadernos = CadernosEmRoom(CadernosEmRoom.abrir(applicationContext).cadernos())
+        respostas = RespostasEmArquivo(RespostasEmArquivo.diretorioDe(filesDir))
         // A fila do outbox. Aberta aqui e nao no `Application` porque e aqui que ela e usada, e a
         // organizacao e a prova ja estao resolvidas neste ponto.
         pendentes = ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes())
@@ -149,7 +172,12 @@ class ScanActivity : ComponentActivity() {
         // escaneamento ao abrir, com caderno guardado ou nao. Ate a leitura terminar a janela fica em
         // branco; `Activity` destruida antes disso cancela o escopo e [montar] nao roda.
         lifecycleScope.launch {
-            montar(lerCadernoEmAndamento(cadernos, organizacao, examPackage.meta.examId).await())
+            montar(
+                retomarCadernoEmAndamento(
+                    cadernos, respostas, organizacao, examPackage.meta.examId,
+                    aoVarrer = ::registrarVarredura,
+                ).await(),
+            )
         }
     }
 
@@ -162,6 +190,7 @@ class ScanActivity : ComponentActivity() {
      */
     private fun montar(cadernoInicial: Caderno?) {
         session = ScanSession(examPackage, cadernoInicial = cadernoInicial)
+        cadernoVisivel = session.cadernoAtual
 
         setContent {
             ScanScreen(
@@ -171,7 +200,16 @@ class ScanActivity : ComponentActivity() {
                 onRetomar = {
                     session.resume()
                     state = session.state
+                    respostaAberta = null
                 },
+                respostaAberta = respostaAberta,
+                respostas = respostas,
+                onVerResposta = { respostaAberta = it },
+                onRefazerResposta = {
+                    respostaAberta = null
+                    refazerResposta(it)
+                },
+                onFecharResposta = { respostaAberta = null },
                 onPreviewCriado = { view ->
                     previewView = view
                     if (temPermissao()) ligaCamera()
@@ -254,31 +292,62 @@ class ScanActivity : ComponentActivity() {
                 )
                 .build()
 
-            analise.setAnalyzer(
-                analysisExecutor,
-                CameraFrameAnalyzer.daSessao(
-                    map = map,
-                    // A analise para assim que ha resposta na tela; retomar e acao de quem segura o
-                    // aparelho. Ver `design.md`, decisao 4.
-                    deveAnalisar = {
-                        val atual = state
-                        atual is ScanState.Searching || atual is ScanState.NotRead
-                    },
-                    entrega = { resultado ->
-                        // A sessao vive na thread principal, e so nela: ela nao e thread-safe, e
-                        // nao precisa ser.
-                        ContextCompat.getMainExecutor(this).execute {
-                            val apuracao = session.onFrame(resultado)
-                            state = session.state
-                            if (apuracao != null) gravar(apuracao)
-                        }
-                    },
-                ),
-            )
+            analise.setAnalyzer(analysisExecutor, analisadorDaCamera())
 
             provider.unbindAll()
             provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, analise)
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    /**
+     * O analisador **como a camera o usa**, e so por aqui. `internal` para o teste do aparelho chamar
+     * [CameraFrameAnalyzer.analisar] sobre a folha renderizada e levar o resultado a [entregarQuadro], os
+     * dois passos que o laco da camera percorre: o emulador nao alimenta a camera real com um documento.
+     */
+    internal fun analisadorDaCamera(): CameraFrameAnalyzer = CameraFrameAnalyzer.daSessao(
+        map = map,
+        // A analise para assim que ha resposta na tela; retomar e acao de quem segura o
+        // aparelho. Ver `design.md`, decisao 4.
+        deveAnalisar = { deveAnalisar(state) },
+        jaTemResposta = { aluno, regiao -> cadernoVisivel.jaTemResposta(aluno, regiao) },
+        respostas = respostas,
+        entrega = ::entregarQuadro,
+    )
+
+    /**
+     * Leva o quadro analisado a sessao. Chamado na thread de analise; a sessao vive na thread principal,
+     * e so nela: ela nao e thread-safe, e nao precisa ser.
+     */
+    internal fun entregarQuadro(quadro: QuadroAnalisado) {
+        ContextCompat.getMainExecutor(this).execute {
+            val apuracao = session.onFrame(quadro.resultado, quadro.respostas)
+            state = session.state
+            cadernoVisivel = session.cadernoAtual
+            if (apuracao != null) gravar(apuracao)
+        }
+    }
+
+    /**
+     * Refaz a resposta de uma regiao (`slice-5c-1-a-resposta-fica-no-aparelho`, tarefa 4.4): a sessao a
+     * descarta e a regiao volta a nao vista, e o arquivo e eliminado **na hora**, fora do fio principal.
+     *
+     * Eliminar antes de o caderno ser guardado e seguro por construcao: o caderno em disco que ainda
+     * aponte para o arquivo e lido com a regiao nao vista (normalizacao), que e o que refazer queria.
+     * A eliminacao por prazo e a rede, e nao o caminho: se esta falhar, o arquivo nao tem mais referencia
+     * e a varredura seguinte o elimina. `NonCancellable`, porque a Activity pode ser destruida logo em
+     * seguida e o arquivo nao tem por que ficar.
+     */
+    internal fun refazerResposta(regionIndex: Int) {
+        val refeita = session.refazer(regionIndex) as? ResultadoDoRefazer.Refeita ?: return
+        state = session.state
+        cadernoVisivel = session.cadernoAtual
+        lifecycleScope.launch(Dispatchers.IO + NonCancellable) {
+            try {
+                respostas.eliminar(refeita.arquivo)
+            } catch (e: Exception) {
+                // Fica para a proxima varredura: nenhum caderno o referencia mais.
+            }
+        }
     }
 
     /**
