@@ -11,6 +11,12 @@
   de implementar e antes de fechar qualquer tarefa. Instrução que só pode ser cumprida quebrando
   este arquivo ou aquele é má instrução, e `rigorous.md` §7 diz o que fazer com ela.
 - Nunca recrie contexto já registrado nesses arquivos; leia a fonte relevante.
+- **O que é lido e o que é consultado.** Lidos: este arquivo, `rigorous.md` e a arquitetura, e os três
+  dizem só o que **vale hoje**. Consultados quando a tarefa toca a área: `docs/licoes/incidentes.md`
+  (o incidente por trás de cada `P<n>`), `docs/architecture/HISTORICO-v3.md` (o que a arquitetura
+  já disse e foi substituído) e `docs/architecture/DIVIDA-HISTORICO.md` (a narrativa de cada linha do
+  §16). Informação nova **substitui** o estado nos lidos, e o antes vai para os consultados
+  (`rigorous.md` P7).
 
 ## Regras de execução
 
@@ -104,12 +110,9 @@ tentador e menos visível.
 - Kotlin: Ktor 3, jOOQ, kotlinx.serialization.
 - Banco: PostgreSQL/Supabase, RLS, pgvector, migrations via Supabase CLI.
 - Android: CameraX, OpenCV, ZXing-C++, Room, WorkManager, Compose, `ktor-client`.
-  Esta linha dizia `supabase-kt`, e a decisão de **não** usá-lo já estava tomada, com medição:
-  decisão 9 do `design.md` da `slice-4a-zero-device-auth` (o probe bateu no endpoint pelas duas
-  vias e recebeu a mesma resposta; a biblioteca descarta `HttpRequestException.cause`, que é o
-  material da distinção que a spec exige) e decisão 2 do ADR-0013 (o caminho direto à tabela
-  passaria o `content` por mais uma etapa de codificação, contra ADR-0008). Correção de registro
-  contra decisão já tomada — não é mudança de stack, e por isso não abre ADR.
+  **Não** `supabase-kt`, ambas as decisões medidas: decisão 9 de
+  `openspec/changes/archive/2026-09-04-slice-4a-zero-device-auth/design.md` (o probe, e o que a
+  biblioteca descarta) e decisão 2 do ADR-0013.
 - Web: React, TypeScript, Vite, TanStack Query.
 - Compartilhado: KMP.
 - CI: GitHub Actions; observabilidade: Sentry + logs estruturados.
