@@ -77,6 +77,23 @@ class ScanActivity : ComponentActivity() {
     private lateinit var session: ScanSession
     private lateinit var pendentes: ResultadosPendentes
     private lateinit var cadernos: CadernosGuardados
+    private lateinit var respostas: RespostasGuardadas
+
+    /**
+     * O caderno como o analisador o enxerga (`slice-5c-1-a-resposta-fica-no-aparelho`, design,
+     * decisao 1): um **instantaneo** imutavel, publicado por `@Volatile` na thread principal no mesmo
+     * ponto em que [state] e atualizado, e lido pela thread de analise. A sessao nao e thread-safe e
+     * **nao** e lida de la.
+     *
+     * **Nasce em [montar], com o caderno retomado**, e nao so nos quadros: sem isso o analisador de uma
+     * `Activity` reaberta com respostas ja guardadas acharia que nenhuma regiao tem resposta e recortaria
+     * tudo de novo.
+     */
+    @Volatile
+    private var cadernoVisivel: Caderno? = null
+
+    /** O instantaneo, para o teste conferir o que o analisador veria. */
+    internal val instantaneoDoCaderno: Caderno? get() = cadernoVisivel
     // **Nao nulaveis, e a ausencia do `?` e o requisito.** Eram `String?`, e `gravar` tinha um
     // `?: return` para cada: folha medida, nota desenhada na tela, nada gravado, nada agendado, sem
     // mensagem (achado 3.3). Quem decide que ha tudo o que precisa e [decidirAbertura], antes de a
@@ -136,6 +153,7 @@ class ScanActivity : ComponentActivity() {
         roster = RostersEmArquivo(File(filesDir, "rosters")).ler(organizacao, shortId)
         map = examPackage.layout.values.single()
         cadernos = CadernosEmRoom(CadernosEmRoom.abrir(applicationContext).cadernos())
+        respostas = RespostasEmArquivo(File(filesDir, "respostas"))
         // A fila do outbox. Aberta aqui e nao no `Application` porque e aqui que ela e usada, e a
         // organizacao e a prova ja estao resolvidas neste ponto.
         pendentes = ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes())
@@ -162,6 +180,7 @@ class ScanActivity : ComponentActivity() {
      */
     private fun montar(cadernoInicial: Caderno?) {
         session = ScanSession(examPackage, cadernoInicial = cadernoInicial)
+        cadernoVisivel = session.cadernoAtual
 
         setContent {
             ScanScreen(
@@ -261,12 +280,15 @@ class ScanActivity : ComponentActivity() {
                     // A analise para assim que ha resposta na tela; retomar e acao de quem segura o
                     // aparelho. Ver `design.md`, decisao 4.
                     deveAnalisar = { deveAnalisar(state) },
-                    entrega = { resultado ->
+                    jaTemResposta = { aluno, regiao -> cadernoVisivel.jaTemResposta(aluno, regiao) },
+                    respostas = respostas,
+                    entrega = { quadro ->
                         // A sessao vive na thread principal, e so nela: ela nao e thread-safe, e
                         // nao precisa ser.
                         ContextCompat.getMainExecutor(this).execute {
-                            val apuracao = session.onFrame(resultado)
+                            val apuracao = session.onFrame(quadro.resultado, quadro.respostas)
                             state = session.state
+                            cadernoVisivel = session.cadernoAtual
                             if (apuracao != null) gravar(apuracao)
                         }
                     },

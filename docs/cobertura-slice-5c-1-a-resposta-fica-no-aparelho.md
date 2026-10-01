@@ -141,3 +141,51 @@ pede confirmação na tela a cada instalação). A camada é a mesma nos dois ap
 
 **Costura para o teste:** `RespostasEmArquivo(diretorio, escrever = …)` aceita o escritor, porque disco cheio
 não se simula de outro jeito; o padrão é `File.writeBytes`.
+
+## 2.2 e 2.3 O analisador pede o recorte, e a análise para sozinha
+
+**O que foi rodado.** Unidade: `./gradlew :apps:android:testDebugUnitTest` (375 testes, 0 falhas depois de
+tudo revertido). Instrumentado: `AnalisadorGravaARespostaInstrumentedTest` (10 casos) **no emulador**
+(`ANDROID_SERIAL=emulator-5554`, `-Pandroid.testInstrumentationRunnerArguments.class=…`; execução com filtro de
+classe, para iterar — **não fecha nada**, P5). O Xiaomi não entrou nestas rodadas (ver a lacuna de instalação
+na 2.1); a 6.6 roda a suíte inteira nos dois.
+
+**O que o teste prova, sobre o documento renderizado, não papel nem câmera:** de frente e em perspectiva
+(`FolhaEmAngulo`) o quadro devolve a resposta guardada de `d1` com `capturadaEm` do relógio injetado (1 234
+567), `desvioSinalizado = false` e `foraPpm = 0` (folha em branco), e o arquivo existe; um quadro de duas
+páginas empilhadas (`vconcat`, **sintético**: nenhuma página renderizada traz duas discursivas) devolve as
+duas, com dois arquivos distintos; o `FrameOutcome` do quadro é **igual** (`assertEquals`) ao de
+`SheetReader.analyze` sozinho nas três páginas; `d1` cortada ao meio (fora do quadro) e `d1` com o QR coberto
+de branco (**presente e `NaoLida`**, com motivo) não geram recorte nem arquivo; com `jaTemResposta` verdadeiro
+há **zero gravações e zero arquivos**; a folha do `tok-b` (a fixture tem as duas atribuições) é recortada com a
+região 1 de `tok-a` já guardada; imagem que falha no meio da escrita chega como `Recusada` com o motivo e
+nenhum arquivo.
+
+**Visto falhar** (emulador; reversão por `diff` + nova rodada verde):
+
+| Mutação | Caiu |
+|---|---|
+| M1: o analisador passa `""` como aluno ao predicado | **só** `com_a_resposta_ja_guardada_do_mesmo_aluno_nenhum_recorte_e_pedido` (o do aluno B ficou verde: o predicado dele diz "tok-b", e `""` também dá falso) |
+| M2: o predicado é ignorado (`false && …`) | **só** o mesmo teste |
+| M3': recorta também a região presente e `NaoLida` | **só** `regiao_presente_e_nao_lida_nao_e_recortada_e_o_resultado_diz_o_motivo` |
+| N2 (JVM): `Caderno?.jaTemResposta` sem comparar o aluno | **só** `a folha de outro aluno nao herda a resposta do aluno do caderno` (unidade; o instrumentado ficou verde) |
+| N1: `deveAnalisar` verdadeiro também para `ProvaComDiscursiva` | **3**: `so Searching e NotRead analisam quadro`, `depois de um quadro que reconhece a discursiva a sessao esta num estado que nao analisa` e o instrumentado `o_estado_depois_do_primeiro_quadro_…` |
+
+**Erros de rumo, escritos (P7).**
+- A tarefa 2.2 previa "predicado sem o aluno derruba **só** o teste do aluno B". Não é o que ocorreu no analisador
+  (M1 derrubou o teste do "mesmo aluno", não o do B): quem prova "por aluno" é o `Caderno?.jaTemResposta`, e é N2
+  que derruba só o teste do outro aluno. As duas camadas têm cada uma o seu.
+- A tarefa 2.3 previa que, ao tornar `ProvaComDiscursiva` analisável, caísse o teste do estado e o do predicado
+  ficasse verde ("conjuntos disjuntos"). Com a partição que escrevi, **N1 derruba o do predicado também**: os
+  testes não são disjuntos, e eu não forço a afirmação. O que a mutação mostra é que a propriedade tem **três**
+  guardas (tabela do predicado, estado real da sessão, e o instrumentado com analisador real), e que nenhuma delas
+  fica verde se alguém religar a análise.
+- A primeira versão de M3 mutou também o `payload` fictício e derrubou 4 testes (não isolava). Foi refeita como M3'
+  e a cobertura passou a incluir o cenário `NaoLida`, que o corte a meio não exercita (a região cortada nem entra
+  no resultado).
+
+**A extração de `deveAnalisar`** foi commit próprio e antes (`refactor(scan): deveAnalisar sai da lambda…`):
+mesmo predicado, sem mudança de comportamento (P19, P25).
+
+**Lacuna (P8):** o quadro é o documento, não uma foto. A taxa de recusa do recorte ao vivo continua desconhecida;
+a 6.2 mede a perspectiva moderada.

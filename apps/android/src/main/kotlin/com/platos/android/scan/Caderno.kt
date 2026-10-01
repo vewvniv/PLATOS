@@ -153,3 +153,13 @@ data class Caderno(
         const val ROTULO_GABARITO = "Gabarito"
     }
 }
+
+/**
+ * Se a regiao [regionIndex] do caderno **do aluno [aluno]** ja tem resposta guardada
+ * (`slice-5c-1-a-resposta-fica-no-aparelho`, design, decisao 1). E o predicado do analisador, **por aluno
+ * e por regiao**: o caderno corrente e do aluno A com a regiao 2 guardada, e a folha do aluno B mostra a
+ * regiao 2 — a resposta e de A, e para B ainda falta. Sem o aluno, a folha de B herdaria a imagem de A.
+ */
+internal fun Caderno?.jaTemResposta(aluno: String, regionIndex: Int): Boolean =
+    this != null && this.aluno == aluno &&
+        regioes.firstOrNull { it.regionIndex == regionIndex }?.resposta != null
