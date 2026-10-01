@@ -35,6 +35,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.PartialScore
 import com.platos.domain.scoring.PartialScoringOutcome
+import com.platos.domain.scoring.PontuacaoDada
 
 /**
  * A tela, e e uma so: preview ocupando a area, faixa de estado embaixo, resultado por cima.
@@ -57,6 +58,12 @@ fun ScanScreen(
     onVerResposta: (Int) -> Unit = {},
     onRefazerResposta: (Int) -> Unit = {},
     onFecharResposta: () -> Unit = {},
+    notaAberta: Boolean = false,
+    erroDaNota: String? = null,
+    onDarNota: () -> Unit = {},
+    onGravarNota: (List<PontuacaoDada>) -> Unit = {},
+    onFecharNota: () -> Unit = {},
+    onDescartarESeguir: () -> Unit = {},
 ) {
     Box(modifier.fillMaxSize().background(Color.Black)) {
         if (state !is ScanState.NoPermission) {
@@ -93,9 +100,33 @@ fun ScanScreen(
                     null -> Unit
                 }
                 CadernoDaFolha(state.caderno, onVerResposta)
+                if (state.caderno.aguardaNota) {
+                    Button(onClick = onDarNota) { Text("Dar a nota") }
+                }
+                if (state.caderno.corrigido) {
+                    Text("Caderno corrigido: a nota foi gravada e sera enviada.", fontSize = 16.sp)
+                }
                 Text(ScanState.ProvaComDiscursiva.AVISO, fontSize = 16.sp)
             }
-            is ScanState.NotaPorDarDeOutroAluno -> Faixa("O caderno de outro aluno aguarda a nota")
+            is ScanState.NotaPorDarDeOutroAluno -> Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(Color(0xEE000000))
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                CompositionLocalProvider(LocalContentColor provides Color.White) {
+                    Text("O caderno do aluno anterior aguarda a nota", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "A folha de outro aluno apareceu. Descartar o caderno perde as respostas capturadas; " +
+                            "nada sera gravado nem enviado.",
+                        fontSize = 16.sp,
+                    )
+                    Button(onClick = onDarNota) { Text("Dar a nota") }
+                    Button(onClick = onDescartarESeguir) { Text("Descartar e seguir") }
+                }
+            }
             is ScanState.Scored -> Resultado(onRetomar) {
                 DeQuemE(idAlunoDaFolha(state.payload.studentToken, roster, ZoneId.systemDefault()))
                 Nota(state.score)
@@ -114,6 +145,25 @@ fun ScanScreen(
                 respostas = respostas,
                 onRefazer = { onRefazerResposta(aberta.regionIndex) },
                 onVoltar = onFecharResposta,
+            )
+        }
+
+        // A tela de nota, por cima de tudo (`slice-5c-3-a-nota-no-aparelho`): so abre com um caderno que aguarda a nota
+        // e com a parcial apurada.
+        val cadernoDaNota = when (state) {
+            is ScanState.ProvaComDiscursiva -> state.caderno
+            is ScanState.NotaPorDarDeOutroAluno -> state.caderno
+            else -> null
+        }
+        val parcialDaNota = (cadernoDaNota?.parcial as? PartialScoringOutcome.Scored)?.partial
+        if (notaAberta && cadernoDaNota != null && parcialDaNota != null && respostas != null) {
+            NotaTela(
+                caderno = cadernoDaNota,
+                parcial = parcialDaNota,
+                respostas = respostas,
+                erro = erroDaNota,
+                onGravar = onGravarNota,
+                onVoltar = onFecharNota,
             )
         }
     }

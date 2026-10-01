@@ -24,13 +24,16 @@ import androidx.core.content.ContextCompat
 import com.platos.android.pacote.PacotesEmArquivo
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.scoring.ApuracaoParaEnvio
+import com.platos.domain.scoring.PontuacaoDada
 import com.platos.domain.layout.LayoutMap
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.platos.android.outbox.EnvioDeResultadosWorker
 import com.platos.android.outbox.gravarEAgendar
+import com.platos.android.outbox.NotaPendente
 import com.platos.android.outbox.ResultadoPendente
 import com.platos.android.outbox.ResultadosEmRoom
 import com.platos.android.outbox.ResultadosPendentes
@@ -108,6 +111,10 @@ class ScanActivity : ComponentActivity() {
 
     /** A regiao discursiva cuja resposta esta aberta em tela cheia (`RespostaTela`), ou nula. */
     private var respostaAberta by mutableStateOf<Int?>(null)
+
+    /** A tela de nota aberta, e a recusa que a sessao ou a gravacao devolveram (`slice-5c-3-a-nota-no-aparelho`). */
+    private var notaAberta by mutableStateOf(false)
+    private var erroDaNota by mutableStateOf<String?>(null)
     private var previewView: PreviewView? = null
     private var cameraLigada = false
 
@@ -210,6 +217,18 @@ class ScanActivity : ComponentActivity() {
                     refazerResposta(it)
                 },
                 onFecharResposta = { respostaAberta = null },
+                notaAberta = notaAberta,
+                erroDaNota = erroDaNota,
+                onDarNota = {
+                    erroDaNota = null
+                    notaAberta = true
+                },
+                onGravarNota = ::darNota,
+                onFecharNota = {
+                    notaAberta = false
+                    erroDaNota = null
+                },
+                onDescartarESeguir = ::descartarESeguir,
                 onPreviewCriado = { view ->
                     previewView = view
                     if (temPermissao()) ligaCamera()
@@ -346,6 +365,68 @@ class ScanActivity : ComponentActivity() {
                 respostas.eliminar(refeita.arquivo)
             } catch (e: Exception) {
                 // Fica para a proxima varredura: nenhum caderno o referencia mais.
+            }
+        }
+    }
+
+    /**
+     * O professor confirmou o total: a sessao decide, e a gravacao acontece **em sequencia, nota primeiro, caderno
+     * depois**, fora do fio principal e sem cancelamento (dois bancos Room, sem transacao entre eles; a ordem torna a
+     * queda entre os dois inofensiva — design, desvio 2). So depois da gravacao a sessao passa o caderno a
+     * `corrigido`. Falha na gravacao deixa a tela aberta, com o motivo, e nada vai ao caderno.
+     */
+    internal fun darNota(pontuacoes: List<PontuacaoDada>) {
+        when (val r = session.darNota(pontuacoes)) {
+            is ResultadoDaNota.Recusada -> erroDaNota = r.motivo
+            is ResultadoDaNota.Corrigida -> {
+                val pendente = NotaPendente(
+                    captureId = UUID.randomUUID().toString(),
+                    completaCaptura = r.completaCaptura,
+                    organizacao = organizacao,
+                    prova = prova,
+                    studentToken = r.aluno.ifEmpty { null },
+                    apuradoEm = System.currentTimeMillis(),
+                    nota = r.nota,
+                )
+                lifecycleScope.launch {
+                    val gravou = withContext(Dispatchers.IO + NonCancellable) {
+                        try {
+                            pendentes.guardarNota(pendente)
+                            cadernos.guardar(organizacao, examPackage.meta.examId, r.cadernoCorrigido)
+                            EnvioDeResultadosWorker.agendar(applicationContext, organizacao)
+                            true
+                        } catch (e: Exception) {
+                            false
+                        }
+                    }
+                    if (gravou) {
+                        session.confirmarCorrigido()
+                        state = session.state
+                        cadernoVisivel = session.cadernoAtual
+                        notaAberta = false
+                        erroDaNota = null
+                    } else {
+                        session.falhouAGravacao()
+                        erroDaNota = "Nao foi possivel gravar a nota neste aparelho. Tente de novo."
+                    }
+                }
+            }
+        }
+    }
+
+    /** Descarta o caderno completo sem nota (spec: ato explicito do professor) e elimina as imagens na hora. */
+    internal fun descartarESeguir() {
+        val arquivos = session.descartarESeguir()
+        state = session.state
+        cadernoVisivel = session.cadernoAtual
+        notaAberta = false
+        lifecycleScope.launch(Dispatchers.IO + NonCancellable) {
+            for (arquivo in arquivos) {
+                try {
+                    respostas.eliminar(arquivo)
+                } catch (e: Exception) {
+                    // Fica para a varredura: nenhum caderno o referencia mais.
+                }
             }
         }
     }
