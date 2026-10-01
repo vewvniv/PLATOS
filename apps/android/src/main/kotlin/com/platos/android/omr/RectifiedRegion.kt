@@ -26,4 +26,10 @@ class RectifiedRegion(
     fun luminanceAt(x: Int, y: Int): Int = pixels[y * width + x].toInt() and 0xFF
 
     fun contains(x: Int, y: Int): Boolean = x in 0 until width && y in 0 until height
+
+    /**
+     * Uma **copia** dos pixels, linha a linha (`slice-5c-1-a-resposta-fica-no-aparelho`). O unico lugar em
+     * que o tipo deixa de esconder o buffer, e por isso devolve copia: quem a recebe nao altera a regiao.
+     */
+    fun paraBytes(): ByteArray = pixels.copyOf()
 }

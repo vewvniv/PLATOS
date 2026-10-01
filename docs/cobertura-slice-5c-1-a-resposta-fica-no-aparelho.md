@@ -103,3 +103,41 @@ pegou nada" ou "pegou dois".
 `EntregaDoCadernoInstrumentedTest` passaram a `onFrameGuardando` (um auxiliar de teste que entrega a resposta
 guardada para cada discursiva reconhecida, como o analisador fará). **Nenhuma asserção mudou.** A suíte
 instrumentada ainda não foi rodada para esse arquivo nesta etapa.
+
+## 2.1 O arquivo da resposta e o PNG
+
+**Medido primeiro (design, decisão 2 dizia "suposto"):** `Imgcodecs.imencode(".png", …)` **existe e codifica
+PNG** no artefato `org.opencv:opencv` 4.11.0 do aplicativo, nos dois aparelhos (emulador `platos-atd34`,
+Android 14, e Xiaomi `2511FPC34G`, Android 16): o teste de ida e volta rodou nos dois com 0 falhas. Por isso
+**não** foi preciso o `Bitmap.compress(PNG)` de reserva. Escolha registrada: `PngDaResposta` (`vision/`),
+`Imgcodecs.imencode`.
+
+**Tamanho do arquivo, medido** (2026-10-01, `Log.i` do teste, idêntico nos dois aparelhos), região de
+870×1000 px (870 000 bytes crus):
+
+| Imagem | PNG |
+|---|---|
+| folha em branco (todo pixel 255) | 3 079 bytes |
+| "tinta" sintética (40 traços de 3 px de altura, tom 0–39, sobre papel de tom 245–254 **aleatório por pixel**) | 459 686 bytes |
+
+**O que isto não diz (P6, P8):** não é papel nem letra. O papel sintético tem ruído por pixel, que é o pior
+caso para o PNG (sem repetição), e o traço é um retângulo. O estimado do design (100 a 800 KB) fica **dentro**
+do que o ruído sintético produziu, mas a medição em manuscrito real continua não feita. Não passa de alguns MB,
+que era o gatilho do design para mudar algo.
+
+**A ida e volta é bit a bit** (870×1000 px com 256 tons presentes, semente fixa; guarda de vacuidade: mais de 250
+tons distintos): o PNG gravado, lido de volta e decodificado pelo `BitmapFactory` (oráculo independente: outro
+decodificador, P4) tem as mesmas dimensões e os mesmos pixels do `RectifiedRegion`, com 0 pixels diferentes.
+
+**Visto falhar:** mutação "gravar direto no nome final" (`escrever(File(diretorio, nome), png)` sem temporário
+nem `rename`). Previsão: derruba só a falha no meio da escrita. Resultado no emulador: **só**
+`escrita_que_falha_no_meio_devolve_recusada_e_nenhum_arquivo_fica` caiu, com
+`ficou arquivo depois da falha: [454bc7a8-….png]`; os outros 6 do arquivo ficaram verdes, inclusive o do
+diretório somente leitura (que não cria nada nem na mutação, e por isso não prova a atomicidade — é o
+motivo de o teste de falha no meio existir). A reversão foi conferida por `diff` e por nova rodada
+(`BUILD SUCCESSFUL`, 7 testes). **Lacuna:** a mutação foi rodada só no emulador, porque o Xiaomi recusou a
+instalação do APK na rodada seguinte (`INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`: o aparelho
+pede confirmação na tela a cada instalação). A camada é a mesma nos dois aparelhos, mas só o emulador a viu falhar.
+
+**Costura para o teste:** `RespostasEmArquivo(diretorio, escrever = …)` aceita o escritor, porque disco cheio
+não se simula de outro jeito; o padrão é `File.writeBytes`.
