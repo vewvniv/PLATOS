@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.platos.android.outbox.EnvioDeResultadosWorker
 import com.platos.android.outbox.gravarEAgendar
+import com.platos.android.outbox.gravarNota
 import com.platos.android.outbox.NotaPendente
 import com.platos.android.outbox.ResultadoPendente
 import com.platos.android.outbox.ResultadosEmRoom
@@ -406,13 +407,8 @@ class ScanActivity : ComponentActivity() {
                 )
                 lifecycleScope.launch {
                     val gravou = withContext(Dispatchers.IO + NonCancellable) {
-                        try {
-                            pendentes.guardarNota(pendente)
-                            cadernos.guardar(organizacao, examPackage.meta.examId, r.cadernoCorrigido)
+                        gravarNota(pendentes, cadernos, pendente, r.cadernoCorrigido, examPackage.meta.examId) {
                             EnvioDeResultadosWorker.agendar(applicationContext, organizacao)
-                            true
-                        } catch (e: Exception) {
-                            false
                         }
                     }
                     if (gravou) {

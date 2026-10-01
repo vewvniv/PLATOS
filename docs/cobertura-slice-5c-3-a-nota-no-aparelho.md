@@ -40,8 +40,9 @@ implementação; os quatro acima provam que também falham por **comportamento**
 - O gancho de confirmação: só a rota `nota` elimina; só o caderno da captura que a nota completa; a queda entre gravar a
   nota e gravar o caderno não impede a eliminação; arquivo que falha é contado e não interrompe; falha do gancho não
   desfaz a confirmação; não confirmada não chama o gancho.
-- A trava: a regra "ninguém referencia" não roda com o escaneamento aberto, o teto de 30 dias roda; `abrir()` espera a
-  varredura em curso (teste com duas threads).
+- A marca: a regra "ninguém referencia" não roda com o escaneamento aberto e o teto de 30 dias roda; a marca é lida **a
+  cada arquivo**, na hora de eliminar (teste em que o escaneamento abre no meio da varredura). *(A primeira versão era
+  uma trava que `onStart` esperava na thread principal; foi trocada na passada de correção, abaixo.)*
 
 ## Decisões de execução (rulings)
 
@@ -95,3 +96,30 @@ Estão no ledger da execução e nos desvios do topo do plano. As que mudaram c�
   6, mudança própria ainda não proposta. Silêncio não é reconciliação.
 - **`A região discursiva ainda não passou pelo aparelho nem pelo papel`** e **`O limiar do desvio … sem letra de aluno`**
   (`6`): a tela de nota usa o sinal de desvio e a região passa pela câmera, não pelo papel; sem reagendamento.
+
+## Revisão final e a passada de correção
+
+Revisor com contexto novo (modelo mais capaz disponível), sobre a branch inteira. **Nenhum Critical.** Três Important,
+reclassificados por efeito e corrigidos numa passada, cada um com teste visto falhar antes (RED por compilação, pois a
+API que o teste exige ainda não existia) e a suíte verde depois:
+
+1. **Corrida entre `darNota` e o `onStop`.** Com a nota em gravação, o `onStop` guardava o caderno em memória, ainda sem a
+   marca, e podia sobrescrever o caderno corrigido no Room: "Dar a nota" voltava para uma folha já corrigida e uma
+   segunda nota entrava na fila. Agora `ScanSession.cadernoParaGuardar` é nulo enquanto a nota é gravada.
+   Teste: `NotaNaSessaoTest > enquanto a nota e gravada, nao ha caderno a guardar ao parar, e depois ha o certo`.
+2. **A trava segurada durante o I/O da varredura bloqueava a thread principal no `onStart`.** Trocada por uma marca
+   `@Volatile` lida a cada arquivo, na hora de eliminar; o argumento de por que basta está na KDoc de
+   `EscaneamentoAberto`. Teste: `RetencaoDaRespostaTest > o escaneamento que abre no meio da varredura poupa os orfaos
+   seguintes e nao o vencido`. O teste das duas threads saiu junto com a trava.
+3. **Falha parcial da gravação composta virava "tente de novo" e duplicava a nota.** `gravarNota` agora só devolve
+   `false` se a **nota** não gravou; falha do caderno ou do agendamento depois de a nota estar durável é engolida (o gancho
+   acha o caderno pela captura, e o envio sobe na próxima sessão). Testes: `GravacaoDaNotaTest` (4 cenários).
+
+Contagem final do aparelho: **456** testes (eram 451 antes da passada).
+
+**Minors adiados** (não entraram na passada, por regra): `worth = 0` nunca exercitado em teste; `passadaDeEnvio` (despacho
+por rota e gancho) sem teste direto, como já era antes; `passadaDeEnvio` abre `caderno.db` mesmo sem nota na fila.
+
+**Resíduo conhecido da correção 1:** a ordem entre uma escrita do `onStop` lançada *antes* do toque em "Confirmar" e a
+escrita da nota, ambas em `Dispatchers.IO`, não é garantida; a janela é de milissegundos e o efeito, o mesmo "Dar a nota"
+de novo (uma revisão nova no servidor, sem perda).
