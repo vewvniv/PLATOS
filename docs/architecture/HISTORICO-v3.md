@@ -187,3 +187,12 @@ Três itens desta lista não viraram ADR de propósito — unicidade de `skill`,
 
 **Saiu da lista ao fechar a 2a.** A parametrização de `Sheet` foi entregue na 1.6, como `LayoutProfile`, e o campo de perfil entrou no `LayoutMap` na 2a (ADR-0004) — as duas metades cumpridas dentro do prazo que a lista registrava. `CaptureGeometry` **não** foi parametrizada, e isso é decisão e não pendência: geometria de bolha está amarrada às tolerâncias de OMR do ADR-0001 e só se mexe com evidência de captura sob outra escala. Um teste afirma que perfil nenhum a altera.
 
+
+## Correções pontuais do corpo (§6, §13, §17 D35) — o texto antes
+
+_Três linhas do original, literais, que o corpo vigente corrigiu em 2026-10-01. §6 item 2: o quadrilátero passou a valer para o gabarito (ADR-0018). §13: `supabase-kt` já estava decidido contra em ADR-0013, decisão 2, e no `CLAUDE.md`; o §13 divergia. D35: o nome da decisão mudou com o ADR-0017._
+
+**2. Coordenadas normalizadas ao quad.** Dentro de uma região escaneável, tudo é `(u,v) ∈ [0,1]²` do quadrilátero dos 4 ArUcos. Imunidade automática a escala de impressão, tamanho de papel, DPI e distância da câmera.
+**Android:** CameraX · OpenCV (ArUco + homografia) · ZXing-C++ · Room · WorkManager · Compose · `supabase-kt` · ONNX Runtime **condicional** ao resultado da medição de §9.
+
+D35 área dimensionada pela rubrica ·
