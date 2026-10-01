@@ -90,3 +90,15 @@ sealed interface ScanState {
         val payload: CapturePayload get() = reading.payload
     }
 }
+
+/**
+ * Se um quadro novo deve ser analisado neste estado: so enquanto se procura a folha ([ScanState.Searching])
+ * ou se achou a folha e a leitura nao fechou ([ScanState.NotRead]).
+ *
+ * **Existe como funcao, e fora da `ScanActivity`, para um teste poder exercita-la** — era uma lambda
+ * dentro de `ligaCamera`. O desenho de `slice-5c-1-a-resposta-fica-no-aparelho` depende desta propriedade:
+ * depois do primeiro quadro que reconhece algo o estado e [ScanState.ProvaComDiscursiva], que nao e nenhum
+ * dos dois, e a analise para sozinha ate o professor tocar em "Escanear outra folha". E isso que faz o
+ * recorte acontecer uma vez por regiao e por toque, e nao a cada quadro.
+ */
+fun deveAnalisar(estado: ScanState): Boolean = estado is ScanState.Searching || estado is ScanState.NotRead

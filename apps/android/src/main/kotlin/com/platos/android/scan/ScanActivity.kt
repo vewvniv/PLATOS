@@ -260,10 +260,7 @@ class ScanActivity : ComponentActivity() {
                     map = map,
                     // A analise para assim que ha resposta na tela; retomar e acao de quem segura o
                     // aparelho. Ver `design.md`, decisao 4.
-                    deveAnalisar = {
-                        val atual = state
-                        atual is ScanState.Searching || atual is ScanState.NotRead
-                    },
+                    deveAnalisar = { deveAnalisar(state) },
                     entrega = { resultado ->
                         // A sessao vive na thread principal, e so nela: ela nao e thread-safe, e
                         // nao precisa ser.
