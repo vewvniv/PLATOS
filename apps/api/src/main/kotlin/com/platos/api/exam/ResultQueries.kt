@@ -5,14 +5,19 @@ import com.platos.api.db.generated.tables.references.EXAM
 import com.platos.api.db.generated.tables.references.GRADING_RESULT
 import com.platos.domain.capture.QuestionAnswer
 import com.platos.domain.scoring.ApuracaoParaEnvio
+import com.platos.domain.scoring.NotaDoProfessor
+import com.platos.domain.scoring.Pontos
 import com.platos.domain.scoring.QuestionOutcome
+import com.platos.domain.transport.AnswerKind
+import com.platos.domain.transport.GradedResultSubmissionDto
 import com.platos.domain.transport.ResultSubmissionDto
 import com.platos.domain.transport.answerKind
 import com.platos.domain.transport.answerOptions
-import org.jooq.DSLContext
-import org.jooq.impl.DSL
+import java.math.BigDecimal
 import java.time.OffsetDateTime
 import java.util.UUID
+import org.jooq.DSLContext
+import org.jooq.impl.DSL
 
 /**
  * A gravacao do resultado apurado no aparelho (§10, push append-only).
@@ -112,11 +117,45 @@ class ResultQueries {
         nota: ApuracaoParaEnvio,
     ): Int {
         val campos = nota.paraGravacao()
+        return gravar(
+            ctx,
+            organizationId,
+            examId,
+            Gravacao(
+                captureId = submission.captureId,
+                studentToken = submission.studentToken,
+                capturedAt = submission.capturedAt,
+                origin = "omr",
+                path = null,
+                completesCaptureId = null,
+                packageHash = campos.packageHash,
+                variantId = campos.variantId,
+                points = campos.points.toBigDecimal(),
+                maxScore = campos.maxScore,
+                closed = campos.closed,
+                evidencias = campos.outcomes.map { outcome ->
+                    Evidencia(
+                        itemId = outcome.questionId,
+                        answerKind = outcome.answer.answerKind(),
+                        answerOptions = outcome.answer.alternativas(),
+                        worth = outcome.worth,
+                        earned = outcome.earned.toBigDecimal(),
+                    )
+                },
+            ),
+        )
+    }
 
+    /**
+     * O miolo da gravacao, **um so** para toda origem: idempotencia por `(exam_id, capture_id)`, revisao
+     * por `(exam_id, student_token)` e as linhas de evidencia, na transacao que `asUser` ja abriu.
+     * Foi extraido de `record` sem mudar uma linha do que ele fazia (`slice-5c-2-a-nota-do-professor`).
+     */
+    private fun gravar(ctx: DSLContext, organizationId: UUID, examId: UUID, g: Gravacao): Int {
         val jaGravada = ctx.select(GRADING_RESULT.REVISION)
             .from(GRADING_RESULT)
             .where(GRADING_RESULT.EXAM_ID.eq(examId))
-            .and(GRADING_RESULT.CAPTURE_ID.eq(submission.captureId))
+            .and(GRADING_RESULT.CAPTURE_ID.eq(g.captureId))
             .fetchOne { it.value1() }
         if (jaGravada != null) return jaGravada
 
@@ -130,7 +169,7 @@ class ResultQueries {
                 DSL.condition(
                     "{0} is not distinct from {1}",
                     GRADING_RESULT.STUDENT_TOKEN,
-                    DSL.value(submission.studentToken),
+                    DSL.value(g.studentToken),
                 ),
             )
             .fetchOne { it.value1() } ?: 1
@@ -138,36 +177,115 @@ class ResultQueries {
         val resultadoId = ctx.insertInto(GRADING_RESULT)
             .set(GRADING_RESULT.ORGANIZATION_ID, organizationId)
             .set(GRADING_RESULT.EXAM_ID, examId)
-            .set(GRADING_RESULT.STUDENT_TOKEN, submission.studentToken)
+            .set(GRADING_RESULT.STUDENT_TOKEN, g.studentToken)
             .set(GRADING_RESULT.REVISION, proxima)
-            .set(GRADING_RESULT.CAPTURE_ID, submission.captureId)
-            // Leitura optica. `ai` e `teacher` sao das fatias 5 e 8, e o valor e explicito aqui para
-            // que o dia em que existir outra origem nao dependa do default da coluna.
-            .set(GRADING_RESULT.ORIGIN, "omr")
-            .set(GRADING_RESULT.PACKAGE_HASH, campos.packageHash)
-            .set(GRADING_RESULT.VARIANT_ID, campos.variantId)
-            .set(GRADING_RESULT.POINTS, campos.points)
-            .set(GRADING_RESULT.MAX_SCORE, campos.maxScore)
-            .set(GRADING_RESULT.CLOSED, campos.closed)
-            .set(GRADING_RESULT.CAPTURED_AT, OffsetDateTime.parse(submission.capturedAt))
+            .set(GRADING_RESULT.CAPTURE_ID, g.captureId)
+            // A origem e explicita: o dia em que existir outra nao depende do default da coluna.
+            .set(GRADING_RESULT.ORIGIN, g.origin)
+            .set(GRADING_RESULT.PATH, g.path)
+            .set(GRADING_RESULT.COMPLETES_CAPTURE_ID, g.completesCaptureId)
+            .set(GRADING_RESULT.PACKAGE_HASH, g.packageHash)
+            .set(GRADING_RESULT.VARIANT_ID, g.variantId)
+            .set(GRADING_RESULT.POINTS, g.points)
+            .set(GRADING_RESULT.MAX_SCORE, g.maxScore)
+            .set(GRADING_RESULT.CLOSED, g.closed)
+            .set(GRADING_RESULT.CAPTURED_AT, OffsetDateTime.parse(g.capturedAt))
             .returningResult(GRADING_RESULT.ID)
             .fetchOne { it.value1() }!!
 
-        for (outcome in campos.outcomes) {
+        for (evidencia in g.evidencias) {
             ctx.insertInto(ANSWER_OBSERVATION)
                 .set(ANSWER_OBSERVATION.ORGANIZATION_ID, organizationId)
                 .set(ANSWER_OBSERVATION.GRADING_RESULT_ID, resultadoId)
-                .set(ANSWER_OBSERVATION.ITEM_ID, outcome.questionId)
-                .set(ANSWER_OBSERVATION.ANSWER_KIND, outcome.answer.answerKind())
-                .set(ANSWER_OBSERVATION.ANSWER_OPTIONS, outcome.answer.alternativas())
-                .set(ANSWER_OBSERVATION.WORTH, outcome.worth)
-                .set(ANSWER_OBSERVATION.EARNED, outcome.earned)
+                .set(ANSWER_OBSERVATION.ITEM_ID, evidencia.itemId)
+                .set(ANSWER_OBSERVATION.ANSWER_KIND, evidencia.answerKind)
+                .set(ANSWER_OBSERVATION.ANSWER_OPTIONS, evidencia.answerOptions)
+                .set(ANSWER_OBSERVATION.WORTH, evidencia.worth)
+                .set(ANSWER_OBSERVATION.EARNED, evidencia.earned)
                 .execute()
         }
 
         return proxima
     }
+
+    /**
+     * Grava a nota do professor como **revisao nova** da mesma folha (`slice-5c-2-a-nota-do-professor`).
+     *
+     * Mesma idempotencia e mesma numeracao de [record], porque e o mesmo [gravar]: reenvio devolve a
+     * revisao que ja existe, e nova correcao da mesma captura tem `capture_id` proprio. A evidencia leva
+     * as objetivas, como na parcial, **e** uma linha `discursiva_corrigida` por discursiva. Quem decide
+     * qual revisao e a corrente e a view `grading_result_current`, e nao este metodo.
+     */
+    fun recordGraded(
+        ctx: DSLContext,
+        organizationId: UUID,
+        examId: UUID,
+        submission: GradedResultSubmissionDto,
+        nota: NotaDoProfessor,
+    ): Int {
+        // Idempotencia por (prova, capture_id): so e REENVIO se for a mesma correcao. Um capture_id que ja
+        // existe com outra origem, outra folha ou outra captura completada nao e reenvio, e responder com
+        // a revisao dele tiraria a nota do professor da fila do aparelho sem gravar nada.
+        val existente = ctx.select(GRADING_RESULT.ORIGIN, GRADING_RESULT.COMPLETES_CAPTURE_ID, GRADING_RESULT.STUDENT_TOKEN)
+            .from(GRADING_RESULT)
+            .where(GRADING_RESULT.EXAM_ID.eq(examId))
+            .and(GRADING_RESULT.CAPTURE_ID.eq(submission.captureId))
+            .fetchOne()
+        if (existente != null &&
+            (
+                existente.value1() != "teacher" ||
+                    existente.value2() != submission.completesCaptureId ||
+                    existente.value3() != submission.studentToken
+                )
+        ) {
+            throw CapturaEmConflito(
+                "capture_id `${submission.captureId}` ja foi usado por outra gravacao desta prova " +
+                    "(origem `${existente.value1()}`); a nota do professor precisa de capture_id proprio",
+            )
+        }
+        return gravar(
+            ctx,
+            organizationId,
+            examId,
+            Gravacao(
+            captureId = submission.captureId,
+            studentToken = submission.studentToken,
+            capturedAt = submission.capturedAt,
+            origin = "teacher",
+            path = "image",
+            completesCaptureId = submission.completesCaptureId,
+            packageHash = nota.packageHash,
+            variantId = nota.variantId,
+            points = nota.total.paraBigDecimal(),
+            maxScore = nota.maxScore,
+            closed = nota.closed,
+            evidencias = nota.outcomes.map { outcome ->
+                Evidencia(
+                    itemId = outcome.questionId,
+                    answerKind = outcome.answer.answerKind(),
+                    answerOptions = outcome.answer.alternativas(),
+                    worth = outcome.worth,
+                    earned = outcome.earned.toBigDecimal(),
+                )
+            } + nota.essays.map { essay ->
+                Evidencia(
+                    itemId = essay.questionId,
+                    answerKind = AnswerKind.DISCURSIVA_CORRIGIDA,
+                    answerOptions = emptyArray(),
+                    worth = essay.worth,
+                    earned = essay.earned.paraBigDecimal(),
+                )
+            },
+            ),
+        )
+    }
 }
+
+/**
+ * O `capture_id` de uma nota do professor ja existe na prova como **outra** gravacao (outra origem,
+ * outra folha ou outra captura completada). Nao e reenvio: a rota o devolve como recusa definitiva.
+ */
+class CapturaEmConflito(mensagem: String) : RuntimeException(mensagem)
 
 /**
  * A forma que o jOOQ quer, e **so** ela.
@@ -214,3 +332,31 @@ private fun ApuracaoParaEnvio.paraGravacao(): CamposGravaveis = when (this) {
         outcomes = score.outcomes,
     )
 }
+
+/** Uma linha de evidencia pronta para o banco: o que `answer_observation` guarda. */
+internal class Evidencia(
+    val itemId: String,
+    val answerKind: String,
+    val answerOptions: Array<String?>,
+    val worth: Int,
+    val earned: java.math.BigDecimal,
+)
+
+/** Tudo o que `grading_result` e `answer_observation` guardam de **uma** gravacao, qualquer que seja a origem. */
+internal class Gravacao(
+    val captureId: String,
+    val studentToken: String?,
+    val capturedAt: String,
+    val origin: String,
+    val path: String?,
+    val completesCaptureId: String?,
+    val packageHash: String,
+    val variantId: String,
+    val points: java.math.BigDecimal,
+    val maxScore: Int,
+    val closed: Boolean,
+    val evidencias: List<Evidencia>,
+)
+
+/** Centesimos exatos para o `numeric(8,2)`: sem passar por `Double`. */
+private fun Pontos.paraBigDecimal(): BigDecimal = BigDecimal.valueOf(centesimos, 2)

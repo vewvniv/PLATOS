@@ -3,7 +3,7 @@ package com.platos.domain.transport
 import com.platos.domain.capture.QuestionAnswer
 
 /**
- * Os quatro valores de `answer_kind`, num lugar so — e este e o lugar (ADR-0015 decisao 2).
+ * Os cinco valores de `answer_kind`, num lugar so — e este e o lugar (ADR-0015 decisao 2).
  *
  * Eles viviam em **tres** registros que nao se conheciam: `tipoGravado()` na API, `tipoNoEnvio()`
  * no aparelho, e o `check (answer_kind in (...))` da migration. Os dois primeiros eram Kotlin e
@@ -20,17 +20,21 @@ import com.platos.domain.capture.QuestionAnswer
  * literais. Sem isso, o parse do servidor seria um terceiro registro Kotlin, e a unificacao teria
  * fechado so metade do defeito.
  *
- * **Nao ha um quinto valor**: "em branco" e afirmacao sobre o que o aluno fez, "indecisa" e
- * afirmacao sobre o que a leitura conseguiu apurar, e as duas so parecem iguais ate a nota.
+ * **Entre os quatro de `QuestionAnswer` nao ha um quinto**: "em branco" e afirmacao sobre o que o
+ * aluno fez, "indecisa" e afirmacao sobre o que a leitura conseguiu apurar, e as duas so parecem
+ * iguais ate a nota. O quinto valor, `discursiva_corrigida`, nao e um `QuestionAnswer`: a resposta discursiva e uma imagem que fica no
+ * aparelho, e o que viaja e a nota do professor (`slice-5c-2-a-nota-do-professor`). O `when` sobre
+ * `QuestionAnswer` abaixo nao muda.
  */
 object AnswerKind {
     const val MARCADA: String = "marcada"
     const val EM_BRANCO: String = "em_branco"
     const val MULTIPLA_MARCACAO: String = "multipla_marcacao"
     const val INDECISA: String = "indecisa"
+    const val DISCURSIVA_CORRIGIDA: String = "discursiva_corrigida"
 
     /** Na ordem em que o `check` da migration os lista, que e a ordem que o conferidor compara. */
-    val TODOS: List<String> = listOf(MARCADA, EM_BRANCO, MULTIPLA_MARCACAO, INDECISA)
+    val TODOS: List<String> = listOf(MARCADA, EM_BRANCO, MULTIPLA_MARCACAO, INDECISA, DISCURSIVA_CORRIGIDA)
 }
 
 /** O tipo da resposta, como ele viaja e como ele e gravado. */

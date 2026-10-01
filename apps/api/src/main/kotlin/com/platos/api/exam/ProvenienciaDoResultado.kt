@@ -1,12 +1,17 @@
 package com.platos.api.exam
 
 import com.platos.api.http.dto.ApuracaoSubmetida
+import com.platos.api.http.dto.NotaDoProfessorSubmetida
 import com.platos.api.http.dto.ParteObjetivaSubmetida
+import com.platos.api.http.dto.paraPendencia
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.exam.PackageVariant
 import com.platos.domain.exam.QuestionKind
 import com.platos.domain.scoring.ApuracaoParaEnvio
 import com.platos.domain.scoring.AwaitingEssay
+import com.platos.domain.scoring.CorrecaoDoProfessor
+import com.platos.domain.scoring.NotaDoProfessor
+import com.platos.domain.scoring.NotaDoProfessorOutcome
 import com.platos.domain.scoring.PartialScore
 
 /**
@@ -74,8 +79,34 @@ fun conferirProveniencia(pacote: PackageContent, apuracao: ApuracaoSubmetida): P
         is ApuracaoSubmetida.Parcial -> apuracao.parte.variantId
     }
 
+    val base = conferirPacoteEVariante(pacote, packageHash, variantId)
+    if (base is ConferenciaDoPacote.Falha) return Proveniencia.NaoConfere(base.motivo)
+    base as ConferenciaDoPacote.Ok
+
+    return when (apuracao) {
+        is ApuracaoSubmetida.Completa -> Proveniencia.Confere(ApuracaoParaEnvio.Completa(apuracao.nota))
+        is ApuracaoSubmetida.Parcial -> conferirParcial(base.publicado, base.variante, apuracao.parte)
+    }
+}
+
+/** O pacote publicado decodificado e a variante declarada, ou o motivo de o corpo nao fechar com eles. */
+private sealed interface ConferenciaDoPacote {
+    data class Ok(val publicado: ExamPackage, val variante: PackageVariant) : ConferenciaDoPacote
+    data class Falha(val motivo: String) : ConferenciaDoPacote
+}
+
+/**
+ * As duas travas de proveniencia, na ordem que o KDoc de [conferirProveniencia] justifica: o hash vem
+ * primeiro porque e ele que decide se [pacote] e o artefato certo; so depois faz sentido perguntar o que
+ * ele declara. **As mensagens sao as de antes, byte a byte**: os testes de rota as leem.
+ */
+private fun conferirPacoteEVariante(
+    pacote: PackageContent,
+    packageHash: String,
+    variantId: String,
+): ConferenciaDoPacote {
     if (packageHash != pacote.contentHash) {
-        return Proveniencia.NaoConfere(
+        return ConferenciaDoPacote.Falha(
             "o resultado diz ter sido apurado contra o pacote `$packageHash`, " +
                 "e o pacote publicado desta prova e `${pacote.contentHash}`",
         )
@@ -86,17 +117,43 @@ fun conferirProveniencia(pacote: PackageContent, apuracao: ApuracaoSubmetida): P
     val publicado = ExamPackage.JSON.decodeFromString(ExamPackage.serializer(), pacote.content)
     val declaradas = publicado.variants.map { it.variantId }
     val variante = publicado.variants.firstOrNull { it.variantId == variantId }
-    if (variante == null) {
-        return Proveniencia.NaoConfere(
+        ?: return ConferenciaDoPacote.Falha(
             "o resultado diz a variante `$variantId`, e o pacote publicado desta prova " +
                 "declara ${declaradas.joinToString(", ") { "`$it`" }.ifEmpty { "nenhuma" }}",
         )
-    }
 
-    return when (apuracao) {
-        is ApuracaoSubmetida.Completa -> Proveniencia.Confere(ApuracaoParaEnvio.Completa(apuracao.nota))
-        is ApuracaoSubmetida.Parcial -> conferirParcial(publicado, variante, apuracao.parte)
+    return ConferenciaDoPacote.Ok(publicado, variante)
+}
+
+private sealed interface Derivacao {
+    data class Ok(val discursivas: List<AwaitingEssay>) : Derivacao
+    data class Falha(val motivo: String) : Derivacao
+}
+
+/** As discursivas da variante, cada uma com o que vale (a soma da rubrica), lidas do pacote publicado. */
+private fun derivarDiscursivas(publicado: ExamPackage, variante: PackageVariant): Derivacao {
+    val itens = publicado.items.associateBy { it.id }
+    val discursivas = mutableListOf<AwaitingEssay>()
+    for (itemId in variante.positions.values) {
+        val item = itens[itemId] ?: return Derivacao.Falha(
+            "item `$itemId` da variante `${variante.variantId}` nao existe no pacote publicado",
+        )
+        if (item.kind == QuestionKind.ESSAY) {
+            val rubrica = item.rubric ?: return Derivacao.Falha(
+                "discursiva `${item.id}` nao tem rubrica no pacote publicado",
+            )
+            discursivas += AwaitingEssay(item.id, rubrica.criteria.sumOf { it.points })
+        }
     }
+    return Derivacao.Ok(discursivas)
+}
+
+/** O maximo da parte objetiva: o gabarito dos itens que o pacote declara objetivos. */
+private fun maximoObjetivo(publicado: ExamPackage): Int {
+    val itens = publicado.items.associateBy { it.id }
+    return publicado.answerKey
+        .filter { entrada -> itens.getValue(entrada.itemId).kind == QuestionKind.OBJECTIVE }
+        .sumOf { it.points }
 }
 
 /** A Fase 2 de uma parcial: deriva `awaiting` e o maximo objetivo do pacote, e constroi a [PartialScore]. */
@@ -105,18 +162,9 @@ private fun conferirParcial(
     variante: PackageVariant,
     parte: ParteObjetivaSubmetida,
 ): Proveniencia {
-    val itens = publicado.items.associateBy { it.id }
-    val discursivas = mutableListOf<AwaitingEssay>()
-    for (itemId in variante.positions.values) {
-        val item = itens[itemId] ?: return Proveniencia.NaoConfere(
-            "item `$itemId` da variante `${variante.variantId}` nao existe no pacote publicado",
-        )
-        if (item.kind == QuestionKind.ESSAY) {
-            val rubrica = item.rubric ?: return Proveniencia.NaoConfere(
-                "discursiva `${item.id}` nao tem rubrica no pacote publicado",
-            )
-            discursivas += AwaitingEssay(item.id, rubrica.criteria.sumOf { it.points })
-        }
+    val discursivas = when (val derivacao = derivarDiscursivas(publicado, variante)) {
+        is Derivacao.Falha -> return Proveniencia.NaoConfere(derivacao.motivo)
+        is Derivacao.Ok -> derivacao.discursivas
     }
 
     if (discursivas.isEmpty()) {
@@ -126,16 +174,12 @@ private fun conferirParcial(
         )
     }
 
-    val objectiveMaxScore = publicado.answerKey
-        .filter { entrada -> itens.getValue(entrada.itemId).kind == QuestionKind.OBJECTIVE }
-        .sumOf { it.points }
-
     return try {
         val partial = PartialScore(
             packageHash = parte.packageHash,
             variantId = parte.variantId,
             objectivePoints = parte.objectivePoints,
-            objectiveMaxScore = objectiveMaxScore,
+            objectiveMaxScore = maximoObjetivo(publicado),
             maxScore = parte.maxScoreDeclarado,
             awaiting = discursivas,
             pending = parte.pending,
@@ -145,4 +189,75 @@ private fun conferirParcial(
     } catch (incoerente: IllegalArgumentException) {
         Proveniencia.NaoConfere(incoerente.message ?: "parcial incoerente com o pacote publicado")
     }
+}
+
+/** O desfecho da conferencia da nota do professor: a mesma distincao de [Proveniencia]. */
+sealed interface ProvenienciaDaNota {
+    data class Confere(val nota: NotaDoProfessor) : ProvenienciaDaNota
+    data class NaoConfere(val motivo: String) : ProvenienciaDaNota
+}
+
+/**
+ * A Fase 2 da nota do professor, contra o **pacote publicado da propria prova** — o unico oraculo
+ * (`slice-5c-2-a-nota-do-professor`, spec `result-sync`).
+ *
+ * Confere o pacote e a variante (as mesmas travas de [conferirProveniencia]), deriva as discursivas do
+ * pacote, reconstroi a parte objetiva como [PartialScore] (as guardas dela rodam: evidencia que nao
+ * soma, item repetido, maximo que nao fecha com a prova), e **roda o mesmo codigo que o aparelho usara**
+ * para completar com as pontuacoes. So entao compara o total e o `closed` **declarados** com os
+ * recalculados: e o que produz "a pontuacao nao soma o total".
+ *
+ * **Nao recalcula a parte objetiva a partir do gabarito**: confere-se proveniencia e coerencia, nao
+ * aritmetica objetiva (D4, §10).
+ */
+fun conferirNotaDoProfessor(pacote: PackageContent, submetida: NotaDoProfessorSubmetida): ProvenienciaDaNota {
+    val base = conferirPacoteEVariante(pacote, submetida.packageHash, submetida.variantId)
+    if (base is ConferenciaDoPacote.Falha) return ProvenienciaDaNota.NaoConfere(base.motivo)
+    base as ConferenciaDoPacote.Ok
+
+    val discursivas = when (val derivacao = derivarDiscursivas(base.publicado, base.variante)) {
+        is Derivacao.Falha -> return ProvenienciaDaNota.NaoConfere(derivacao.motivo)
+        is Derivacao.Ok -> derivacao.discursivas
+    }
+    if (discursivas.isEmpty()) {
+        return ProvenienciaDaNota.NaoConfere(
+            "a variante `${base.variante.variantId}` do pacote publicado nao declara nenhuma questao " +
+                "discursiva, e a prova tem nota completa",
+        )
+    }
+
+    val parcial = try {
+        PartialScore(
+            packageHash = submetida.packageHash,
+            variantId = submetida.variantId,
+            objectivePoints = submetida.outcomes.sumOf { it.earned },
+            objectiveMaxScore = maximoObjetivo(base.publicado),
+            maxScore = submetida.maxScoreDeclarado,
+            awaiting = discursivas,
+            pending = submetida.outcomes.filter { it.pendente }.map { it.paraPendencia() },
+            outcomes = submetida.outcomes,
+        )
+    } catch (incoerente: IllegalArgumentException) {
+        return ProvenienciaDaNota.NaoConfere(
+            incoerente.message ?: "parte objetiva incoerente com o pacote publicado",
+        )
+    }
+
+    val nota = when (val composta = CorrecaoDoProfessor.completar(parcial, submetida.pontuacoes)) {
+        is NotaDoProfessorOutcome.Rejected -> return ProvenienciaDaNota.NaoConfere(composta.reason)
+        is NotaDoProfessorOutcome.Scored -> composta.nota
+    }
+
+    if (nota.total != submetida.totalDeclarado) {
+        return ProvenienciaDaNota.NaoConfere(
+            "o resultado declara total ${submetida.totalDeclarado} e a apuracao contra o pacote " +
+                "publicado soma ${nota.total}",
+        )
+    }
+    if (nota.closed != submetida.closedDeclarado) {
+        return ProvenienciaDaNota.NaoConfere(
+            "o corpo diz closed=${submetida.closedDeclarado} e a nota apurada tem closed=${nota.closed}",
+        )
+    }
+    return ProvenienciaDaNota.Confere(nota)
 }
