@@ -27,6 +27,7 @@ class EnvioDeResultadosTest {
         val linhas = iniciais.toMutableList()
 
         override fun guardar(resultado: ResultadoPendente) = error("nao usado neste teste")
+        override fun guardarNota(nota: NotaPendente) = error("nao usado neste teste")
         override fun pendentesDa(organizacao: String) = linhas.filter { it.organizacao == organizacao }
         override fun quantosPendentes(organizacao: String) = pendentesDa(organizacao).size
         override fun apagarConfirmado(captureId: String) {

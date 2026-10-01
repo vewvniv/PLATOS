@@ -136,23 +136,25 @@ class ApiPlatos(
      * de organizacao cujo vinculo foi revogado responde 404 — a rota nao distingue, de proposito —,
      * e outro membro da organizacao consegue enviar o mesmo pendente depois.
      */
-    suspend fun enviarResultado(
-        organizacaoId: String,
-        shortId: String,
-        corpo: String,
-    ): Retorno<Unit> =
-        when (val retorno = retornoDe<Unit> { pedirEnvio(organizacaoId, shortId, corpo) }) {
+    suspend fun enviarResultado(organizacaoId: String, shortId: String, corpo: String): Retorno<Unit> =
+        enviar(organizacaoId, shortId, corpo, "results")
+
+    /**
+     * Envia a nota do professor (`slice-5c-3-a-nota-no-aparelho`): `POST .../results/graded`. Mesma classificacao de
+     * retorno do resultado — o 404 de vinculo revogado, o 4xx definitivo e o 5xx transitorio.
+     */
+    suspend fun enviarNota(organizacaoId: String, shortId: String, corpo: String): Retorno<Unit> =
+        enviar(organizacaoId, shortId, corpo, "results/graded")
+
+    private suspend fun enviar(organizacaoId: String, shortId: String, corpo: String, rota: String): Retorno<Unit> =
+        when (val retorno = retornoDe<Unit> { pedirEnvio(organizacaoId, shortId, corpo, rota) }) {
             is Retorno.Respondeu -> Retorno.Respondeu(Unit)
             is Retorno.Recusou -> retorno
             is Retorno.SemRede -> Retorno.SemRede
         }
 
-    private suspend fun pedirEnvio(
-        organizacaoId: String,
-        shortId: String,
-        corpo: String,
-    ): HttpResponse =
-        autenticado.post("$urlBase/organizations/$organizacaoId/exams/$shortId/results") {
+    private suspend fun pedirEnvio(organizacaoId: String, shortId: String, corpo: String, rota: String): HttpResponse =
+        autenticado.post("$urlBase/organizations/$organizacaoId/exams/$shortId/$rota") {
             contentType(ContentType.Application.Json)
             setBody(corpo)
         }

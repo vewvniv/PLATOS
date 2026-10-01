@@ -25,6 +25,9 @@ import com.platos.android.session.VisaoDaOrganizacao
 import com.platos.android.session.VisoesEmArquivo
 import com.platos.domain.capture.QuestionAnswer
 import com.platos.domain.scoring.ApuracaoParaEnvio
+import com.platos.domain.scoring.DiscursivaCorrigida
+import com.platos.domain.scoring.NotaDoProfessor
+import com.platos.domain.scoring.Pontos
 import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.QuestionOutcome
 import java.io.File
@@ -295,5 +298,47 @@ class ApagamentoLocalInstrumentedTest {
             "o pendente da outra organizacao foi enviado junto na conta de quem saiu",
             (sessao.state as com.platos.android.session.DeviceState.Entrada).pendentes == 2,
         )
+    }
+
+    // ------------------------------------------------------------------ slice-5c-3
+
+    /**
+     * A nota do professor pendente e uma correcao que nao existe em outro lugar, como o resultado: sair a preserva, e a
+     * conta que a tela de saida informa a inclui (`slice-5c-3-a-nota-no-aparelho`, spec `result-sync`).
+     */
+    @Test
+    fun sair_preserva_a_nota_pendente_e_a_conta_entre_as_nao_enviadas() {
+        montarOEstadoLocal(escola.id)
+        pendentes.guardarNota(
+            NotaPendente(
+                captureId = "cap-nota-1",
+                completaCaptura = "cap-1",
+                organizacao = escola.id,
+                prova = prova.shortId,
+                studentToken = "tok-a",
+                apuradoEm = 1_789_646_400_000L,
+                nota = NotaDoProfessor(
+                    packageHash = "a".repeat(64),
+                    variantId = "v1",
+                    objectivePoints = 1,
+                    objectiveMaxScore = 1,
+                    maxScore = 4,
+                    pending = emptyList(),
+                    outcomes = listOf(QuestionOutcome("q01", QuestionAnswer.Marcada("q01", "A"), worth = 1, earned = 1)),
+                    essays = listOf(DiscursivaCorrigida("d1", worth = 3, earned = Pontos.parse("1.75"))),
+                ),
+            ),
+        )
+        montarSessao(escola.id)
+        assertEquals("canario: o resultado e a nota", 2, pendentes.quantosPendentes(escola.id))
+
+        sessao.sair(pendentes.quantosPendentes(escola.id))
+
+        assertEquals("sair apagou a nota pendente", 2, pendentes.quantosPendentes(escola.id))
+        assertEquals(
+            listOf(RotaDoEnvio.RESULTADO, RotaDoEnvio.NOTA),
+            pendentes.pendentesDa(escola.id).map { it.rota }.sortedBy { it.ordinal },
+        )
+        assertEquals(2, (sessao.state as com.platos.android.session.DeviceState.Entrada).pendentes)
     }
 }

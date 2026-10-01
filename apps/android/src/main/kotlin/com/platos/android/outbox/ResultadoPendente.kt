@@ -61,6 +61,10 @@ data class EnvelopeDeEnvio(
     val prova: String,
     /** O JSON exato do corpo, como ele sera enviado. */
     val corpo: String,
+    /** Qual rota o leva (`slice-5c-3-a-nota-no-aparelho`). O padrao e a rota antiga: o que nao diz nada e resultado. */
+    val rota: RotaDoEnvio = RotaDoEnvio.RESULTADO,
+    /** Na nota do professor, o `capture_id` da parcial que ela completa; nulo no resultado. */
+    val completaCaptura: String? = null,
 )
 
 /**
@@ -81,6 +85,9 @@ interface ResultadosPendentes {
 
     /** Guarda uma correcao recem-apurada. Substitui a de mesmo [ResultadoPendente.captureId]. */
     fun guardar(resultado: ResultadoPendente)
+
+    /** Guarda a nota do professor, pendente, na mesma fila. Substitui a de mesmo [NotaPendente.captureId]. */
+    fun guardarNota(nota: NotaPendente)
 
     /** Os pendentes de uma organizacao, do mais antigo para o mais novo. */
     fun pendentesDa(organizacao: String): List<EnvelopeDeEnvio>

@@ -3,6 +3,7 @@ package com.platos.android.scan
 import com.platos.android.net.Retorno
 import com.platos.android.outbox.EnvelopeDeEnvio
 import com.platos.android.outbox.EnvioDeResultados
+import com.platos.android.outbox.NotaPendente
 import com.platos.android.outbox.ResultadoPendente
 import com.platos.android.outbox.ResultadosPendentes
 import java.nio.file.Files
@@ -27,6 +28,7 @@ class EnvioDaParcialNaoEliminaARespostaTest {
         val linhas = iniciais.toMutableList()
 
         override fun guardar(resultado: ResultadoPendente) = error("nao usado neste teste")
+        override fun guardarNota(nota: NotaPendente) = error("nao usado neste teste")
         override fun pendentesDa(organizacao: String) = linhas.filter { it.organizacao == organizacao }
         override fun quantosPendentes(organizacao: String) = pendentesDa(organizacao).size
         override fun apagarConfirmado(captureId: String) {

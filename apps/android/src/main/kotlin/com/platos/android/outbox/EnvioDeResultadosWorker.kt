@@ -172,7 +172,10 @@ internal suspend fun passadaDeEnvio(
     // travou a conferencia em aparelho.
     var ultimoStatus = 0
     val envio = EnvioDeResultados(pendentes) { envelope ->
-        val retorno = api.enviarResultado(envelope.organizacao, envelope.prova, envelope.corpo)
+        val retorno = when (envelope.rota) {
+            RotaDoEnvio.RESULTADO -> api.enviarResultado(envelope.organizacao, envelope.prova, envelope.corpo)
+            RotaDoEnvio.NOTA -> api.enviarNota(envelope.organizacao, envelope.prova, envelope.corpo)
+        }
         if (retorno is Retorno.Recusou) ultimoStatus = retorno.status
         retorno
     }

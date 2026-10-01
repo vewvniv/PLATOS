@@ -11,6 +11,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.platos.android.api.corpoDoEnvio
 
 /**
@@ -31,6 +33,8 @@ data class ResultadoPendenteEntity(
     @ColumnInfo(name = "prova") val prova: String,
     @ColumnInfo(name = "apurado_em") val apuradoEm: Long,
     @ColumnInfo(name = "corpo") val corpo: String,
+    @ColumnInfo(name = "rota", defaultValue = "'resultado'") val rota: String = "resultado",
+    @ColumnInfo(name = "completa_captura") val completaCaptura: String? = null,
 )
 
 @Dao
@@ -57,7 +61,18 @@ interface ResultadoPendenteDao {
     fun apagar(captureId: String)
 }
 
-@Database(entities = [ResultadoPendenteEntity::class], version = 1, exportSchema = false)
+/**
+ * A migration 1 -> 2 (`slice-5c-3-a-nota-no-aparelho`, design D2): a linha antiga e um resultado, e a rota
+ * nova e a nota. **Sem `fallbackToDestructiveMigration`**: a fila guarda correcao que nao existe em outro lugar.
+ */
+val MIGRACAO_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE resultado_pendente ADD COLUMN rota TEXT NOT NULL DEFAULT 'resultado'")
+        db.execSQL("ALTER TABLE resultado_pendente ADD COLUMN completa_captura TEXT")
+    }
+}
+
+@Database(entities = [ResultadoPendenteEntity::class], version = 2, exportSchema = false)
 abstract class BaseDoOutbox : RoomDatabase() {
     abstract fun pendentes(): ResultadoPendenteDao
 }
@@ -89,6 +104,20 @@ class ResultadosEmRoom(private val dao: ResultadoPendenteDao) : ResultadosPenden
         )
     }
 
+    override fun guardarNota(nota: NotaPendente) {
+        dao.inserir(
+            ResultadoPendenteEntity(
+                captureId = nota.captureId,
+                organizacao = nota.organizacao,
+                prova = nota.prova,
+                apuradoEm = nota.apuradoEm,
+                corpo = nota.corpoDoEnvio(),
+                rota = RotaDoEnvio.NOTA.valor,
+                completaCaptura = nota.completaCaptura,
+            ),
+        )
+    }
+
     override fun pendentesDa(organizacao: String): List<EnvelopeDeEnvio> =
         dao.daOrganizacao(organizacao).map {
             EnvelopeDeEnvio(
@@ -96,6 +125,8 @@ class ResultadosEmRoom(private val dao: ResultadoPendenteDao) : ResultadosPenden
                 organizacao = it.organizacao,
                 prova = it.prova,
                 corpo = it.corpo,
+                rota = RotaDoEnvio.deValor(it.rota),
+                completaCaptura = it.completaCaptura,
             )
         }
 
@@ -146,7 +177,7 @@ class ResultadosEmRoom(private val dao: ResultadoPendenteDao) : ResultadosPenden
                     context.applicationContext,
                     BaseDoOutbox::class.java,
                     "outbox.db",
-                ).build().also { instancia = it }
+                ).addMigrations(MIGRACAO_1_2).build().also { instancia = it }
             }
 
         /**
