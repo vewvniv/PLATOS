@@ -95,6 +95,14 @@ sealed interface ScanState {
         }
     }
 
+    /**
+     * A folha de **outro** aluno apareceu enquanto o caderno corrente esta completo e sem nota
+     * (`slice-5c-3-a-nota-no-aparelho`, spec `scan-session`). A sessao **nao** troca o caderno: oferece dar a
+     * nota ou descartar e seguir, porque descartar perde as respostas capturadas. O quadro nao e guardado: depois
+     * da escolha, o professor escaneia a folha do outro aluno de novo.
+     */
+    data class NotaPorDarDeOutroAluno(val caderno: Caderno, val alunoNovo: String) : ScanState
+
     data class Scored(
         val reading: InterpretedReading,
         val score: ObjectiveScore,

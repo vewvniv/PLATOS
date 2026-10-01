@@ -95,6 +95,7 @@ fun ScanScreen(
                 CadernoDaFolha(state.caderno, onVerResposta)
                 Text(ScanState.ProvaComDiscursiva.AVISO, fontSize = 16.sp)
             }
+            is ScanState.NotaPorDarDeOutroAluno -> Faixa("O caderno de outro aluno aguarda a nota")
             is ScanState.Scored -> Resultado(onRetomar) {
                 DeQuemE(idAlunoDaFolha(state.payload.studentToken, roster, ZoneId.systemDefault()))
                 Nota(state.score)

@@ -387,7 +387,7 @@ class ScanActivity : ComponentActivity() {
                 apuracao.aluno.ifEmpty { null } to ApuracaoParaEnvio.Parcial(apuracao.score)
         }
         val resultado = ResultadoPendente(
-            captureId = UUID.randomUUID().toString(),
+            captureId = (apuracao as? ApuracaoNova.DeCaderno)?.captureId ?: UUID.randomUUID().toString(),
             organizacao = organizacao,
             prova = prova,
             studentToken = studentToken,
