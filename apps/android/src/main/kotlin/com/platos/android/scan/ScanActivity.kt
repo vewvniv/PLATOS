@@ -24,13 +24,17 @@ import androidx.core.content.ContextCompat
 import com.platos.android.pacote.PacotesEmArquivo
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.scoring.ApuracaoParaEnvio
+import com.platos.domain.scoring.PontuacaoDada
 import com.platos.domain.layout.LayoutMap
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.platos.android.outbox.EnvioDeResultadosWorker
 import com.platos.android.outbox.gravarEAgendar
+import com.platos.android.outbox.gravarNota
+import com.platos.android.outbox.NotaPendente
 import com.platos.android.outbox.ResultadoPendente
 import com.platos.android.outbox.ResultadosEmRoom
 import com.platos.android.outbox.ResultadosPendentes
@@ -108,6 +112,10 @@ class ScanActivity : ComponentActivity() {
 
     /** A regiao discursiva cuja resposta esta aberta em tela cheia (`RespostaTela`), ou nula. */
     private var respostaAberta by mutableStateOf<Int?>(null)
+
+    /** A tela de nota aberta, e a recusa que a sessao ou a gravacao devolveram (`slice-5c-3-a-nota-no-aparelho`). */
+    private var notaAberta by mutableStateOf(false)
+    private var erroDaNota by mutableStateOf<String?>(null)
     private var previewView: PreviewView? = null
     private var cameraLigada = false
 
@@ -210,6 +218,18 @@ class ScanActivity : ComponentActivity() {
                     refazerResposta(it)
                 },
                 onFecharResposta = { respostaAberta = null },
+                notaAberta = notaAberta,
+                erroDaNota = erroDaNota,
+                onDarNota = {
+                    erroDaNota = null
+                    notaAberta = true
+                },
+                onGravarNota = ::darNota,
+                onFecharNota = {
+                    notaAberta = false
+                    erroDaNota = null
+                },
+                onDescartarESeguir = ::descartarESeguir,
                 onPreviewCriado = { view ->
                     previewView = view
                     if (temPermissao()) ligaCamera()
@@ -234,12 +254,28 @@ class ScanActivity : ComponentActivity() {
      * **`isInitialized` pela mesma razao de `onDestroy`**: a recusa por falta de pacote retorna
      * antes de `session` e `cadernos` existirem.
      */
+    /** O escaneamento ficou visivel: a varredura em segundo plano para de eliminar o que ninguem referencia. */
+    override fun onStart() {
+        super.onStart()
+        EscaneamentoAberto.abrir()
+    }
+
     override fun onStop() {
         super.onStop()
-        if (::session.isInitialized) {
-            session.cadernoAtual?.let { caderno ->
+        val guardando = if (::session.isInitialized) {
+            session.cadernoParaGuardar?.let { caderno ->
                 lifecycleScope.guardarCadernoEmAndamento(cadernos, organizacao, examPackage.meta.examId, caderno)
             }
+        } else {
+            null
+        }
+        // A marca so cai depois de o caderno estar no Room: `guardarCadernoEmAndamento` e assincrono, e fechar antes
+        // deixaria uma varredura ver o Room desatualizado e eliminar, como orfa, a resposta que o caderno em
+        // memoria referencia (`EscaneamentoAberto`).
+        if (guardando == null) {
+            EscaneamentoAberto.fechar()
+        } else {
+            guardando.invokeOnCompletion { EscaneamentoAberto.fechar() }
         }
     }
 
@@ -351,6 +387,63 @@ class ScanActivity : ComponentActivity() {
     }
 
     /**
+     * O professor confirmou o total: a sessao decide, e a gravacao acontece **em sequencia, nota primeiro, caderno
+     * depois**, fora do fio principal e sem cancelamento (dois bancos Room, sem transacao entre eles; a ordem torna a
+     * queda entre os dois inofensiva — design, desvio 2). So depois da gravacao a sessao passa o caderno a
+     * `corrigido`. Falha na gravacao deixa a tela aberta, com o motivo, e nada vai ao caderno.
+     */
+    internal fun darNota(pontuacoes: List<PontuacaoDada>) {
+        when (val r = session.darNota(pontuacoes)) {
+            is ResultadoDaNota.Recusada -> erroDaNota = r.motivo
+            is ResultadoDaNota.Corrigida -> {
+                val pendente = NotaPendente(
+                    captureId = UUID.randomUUID().toString(),
+                    completaCaptura = r.completaCaptura,
+                    organizacao = organizacao,
+                    prova = prova,
+                    studentToken = r.aluno.ifEmpty { null },
+                    apuradoEm = System.currentTimeMillis(),
+                    nota = r.nota,
+                )
+                lifecycleScope.launch {
+                    val gravou = withContext(Dispatchers.IO + NonCancellable) {
+                        gravarNota(pendentes, cadernos, pendente, r.cadernoCorrigido, examPackage.meta.examId) {
+                            EnvioDeResultadosWorker.agendar(applicationContext, organizacao)
+                        }
+                    }
+                    if (gravou) {
+                        session.confirmarCorrigido()
+                        state = session.state
+                        cadernoVisivel = session.cadernoAtual
+                        notaAberta = false
+                        erroDaNota = null
+                    } else {
+                        session.falhouAGravacao()
+                        erroDaNota = "Nao foi possivel gravar a nota neste aparelho. Tente de novo."
+                    }
+                }
+            }
+        }
+    }
+
+    /** Descarta o caderno completo sem nota (spec: ato explicito do professor) e elimina as imagens na hora. */
+    internal fun descartarESeguir() {
+        val arquivos = session.descartarESeguir()
+        state = session.state
+        cadernoVisivel = session.cadernoAtual
+        notaAberta = false
+        lifecycleScope.launch(Dispatchers.IO + NonCancellable) {
+            for (arquivo in arquivos) {
+                try {
+                    respostas.eliminar(arquivo)
+                } catch (e: Exception) {
+                    // Fica para a varredura: nenhum caderno o referencia mais.
+                }
+            }
+        }
+    }
+
+    /**
      * Grava a correcao apurada, **antes de qualquer rede**.
      *
      * **A escrita nao acontece aqui, e nao acontece no fio principal.** Ela vai para
@@ -387,7 +480,7 @@ class ScanActivity : ComponentActivity() {
                 apuracao.aluno.ifEmpty { null } to ApuracaoParaEnvio.Parcial(apuracao.score)
         }
         val resultado = ResultadoPendente(
-            captureId = UUID.randomUUID().toString(),
+            captureId = (apuracao as? ApuracaoNova.DeCaderno)?.captureId ?: UUID.randomUUID().toString(),
             organizacao = organizacao,
             prova = prova,
             studentToken = studentToken,

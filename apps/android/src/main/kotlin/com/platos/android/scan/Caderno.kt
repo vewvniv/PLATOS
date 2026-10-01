@@ -47,6 +47,12 @@ data class RegiaoDoCaderno(
      * derrubaria o caderno inteiro. A normalizacao acontece na leitura.
      */
     val resposta: RespostaGuardada? = null,
+    /**
+     * A questao que a regiao discursiva corrige, como o mapa a declara (`slice-5c-3-a-nota-no-aparelho`): a tela de
+     * nota casa cada imagem com o `AwaitingEssay` dela por aqui. Nulo no gabarito, e em caderno guardado antes desta
+     * mudanca — que entao nao oferece a nota.
+     */
+    val questionId: String? = null,
 )
 
 /**
@@ -75,11 +81,29 @@ data class Caderno(
      * reabertura do aplicativo de entregar de novo o mesmo caderno completo.
      */
     val entregue: Boolean = false,
+    /**
+     * A captura da parcial que este caderno entregou (`slice-5c-3-a-nota-no-aparelho`, design D5): e o
+     * `completes_capture_id` da nota do professor. Marcada na mesma passada em que [entregue].
+     */
+    val capturaDaParcial: String? = null,
+    /**
+     * Se o professor ja deu a nota deste caderno. Caderno corrigido **nao e caderno em andamento**: as imagens dele
+     * sao eliminadas quando o servidor confirma a nota, e isso nao o devolve a incompleto.
+     */
+    val corrigido: Boolean = false,
 ) {
 
     val capturadas: Int get() = regioes.count { it.estado == EstadoDaRegiao.Capturada }
 
     val esperadas: Int get() = regioes.size
+
+    /**
+     * Se a tela pode oferecer **dar a nota**: caderno completo, entregue (a parcial foi apurada), sem nota, com a
+     * captura da parcial na mao e com a questao de cada discursiva conhecida.
+     */
+    val aguardaNota: Boolean
+        get() = !corrigido && entregue && capturaDaParcial != null && esperadas > 0 &&
+            capturadas == esperadas && regioes.all { it.gabarito || it.questionId != null }
 
     /**
      * Este caderno depois de um quadro do mesmo aluno.
@@ -144,6 +168,7 @@ data class Caderno(
                             ROTULO_GABARITO
                         },
                         estado = EstadoDaRegiao.NaoVista,
+                        questionId = if (discursiva) regiao.questionId else null,
                     )
                 },
                 parcial = null,
@@ -174,11 +199,13 @@ internal fun Caderno?.jaTemResposta(aluno: String, regionIndex: Int): Boolean =
  * antes desta mudanca, quando capturada nao implicava resposta). E isto que garante que nenhum caderno
  * lido referencia imagem que nao existe, e e a unica via de leitura que a \`ScanActivity\` usa.
  *
+ * Caderno **corrigido** volta intacto: as respostas dele foram eliminadas de proposito.
+ *
  * O resto fica intacto — o gabarito, as regioes com problema, a parcial e [Caderno.entregue], que nao e
  * limpo: caderno ja entregue nao entrega de novo por ter perdido uma resposta.
  */
 internal fun Caderno.normalizado(existe: (String) -> Boolean): Caderno =
-    copy(
+    if (corrigido) this else copy(
         regioes = regioes.map { regiao ->
             val resposta = regiao.resposta
             val semSustentacao = when {
@@ -189,3 +216,11 @@ internal fun Caderno.normalizado(existe: (String) -> Boolean): Caderno =
             if (semSustentacao) regiao.copy(estado = EstadoDaRegiao.NaoVista, resposta = null) else regiao
         },
     )
+
+/**
+ * Este caderno depois de a nota ser confirmada pelo servidor e as imagens eliminadas: sem nenhuma resposta, e
+ * `corrigido`. O estado das regioes e [Caderno.entregue] ficam como estavam — eliminar a imagem de caderno
+ * corrigido nao o devolve a incompleto (spec `scan-session`).
+ */
+internal fun Caderno.corrigidoSemRespostas(): Caderno =
+    copy(regioes = regioes.map { it.copy(resposta = null) }, corrigido = true)

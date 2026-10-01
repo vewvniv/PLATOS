@@ -5,11 +5,16 @@ import com.platos.android.vision.RegiaoDiscursivaNoQuadro
 import com.platos.domain.capture.CapturePayload
 import com.platos.domain.capture.InterpretedReading
 import com.platos.domain.exam.ExamPackage
+import com.platos.domain.scoring.CorrecaoDoProfessor
+import com.platos.domain.scoring.NotaDoProfessor
+import com.platos.domain.scoring.NotaDoProfessorOutcome
 import com.platos.domain.scoring.ObjectiveScore
 import com.platos.domain.scoring.ObjectiveScoring
 import com.platos.domain.scoring.PartialScore
 import com.platos.domain.scoring.PartialScoringOutcome
+import com.platos.domain.scoring.PontuacaoDada
 import com.platos.domain.scoring.ScoringOutcome
+import java.util.UUID
 
 /**
  * A sessao de escaneamento de uma folha: quadros entram, [ScanState] sai.
@@ -32,7 +37,12 @@ import com.platos.domain.scoring.ScoringOutcome
  * (`slice-5b-3-guardar-a-parcial-e-o-caderno`). A sessao nasce com ele exatamente como estaria se
  * nenhum quadro tivesse sido perdido — nao um caderno "revisitado" por um quadro novo.
  */
-class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno? = null) {
+class ScanSession(
+    private val examPackage: ExamPackage,
+    cadernoInicial: Caderno? = null,
+    /** O id da captura da parcial, cunhado na transicao que entrega o caderno (design D5); fixo nos testes. */
+    private val novoId: () -> String = { UUID.randomUUID().toString() },
+) {
 
     var state: ScanState = ScanState.NoPermission
         private set
@@ -46,7 +56,7 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
      */
     private val holdsResult: Boolean
         get() = state is ScanState.Scored || state is ScanState.Rejected ||
-            state is ScanState.ProvaComDiscursiva
+            state is ScanState.ProvaComDiscursiva || state is ScanState.NotaPorDarDeOutroAluno
 
     /**
      * Se a prova desta sessao tem parte discursiva — decidido pelo **pacote**, e nao pelo quadro
@@ -194,8 +204,16 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
         }
         val aluno = alunos.single()
 
-        // O caderno e do aluno: a folha de outro comeca um novo, e nao herda nada dele (decisao 4).
-        val anterior = caderno?.takeIf { it.aluno == aluno } ?: run {
+        // Caderno completo e sem nota nao e substituido em silencio (`slice-5c-3-a-nota-no-aparelho`): descartar
+        // perde as respostas, e quem decide e o professor.
+        val corrente = caderno
+        if (corrente != null && corrente.aluno != aluno && corrente.aguardaNota) {
+            return ScanState.NotaPorDarDeOutroAluno(corrente, aluno) to null
+        }
+
+        // O caderno e do aluno: a folha de outro comeca um novo, e nao herda nada dele (decisao 4). O caderno
+        // **corrigido** do mesmo aluno tambem nao e reaproveitado: a folha lida de novo e captura nova.
+        val anterior = caderno?.takeIf { it.aluno == aluno && !it.corrigido } ?: run {
             val variante = ObjectiveScoring.resolveVariant(examPackage, payloads.first())
             Caderno.novo(aluno, variante, variante?.let { examPackage.layout[it.variantId] })
         }
@@ -220,11 +238,20 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
         val completouAgora = !anterior.entregue &&
             atualizado.capturadas == atualizado.esperadas &&
             atualizado.parcial is PartialScoringOutcome.Scored
-        val atual = if (completouAgora) atualizado.copy(entregue = true) else atualizado
+        val capturaDaParcial = if (completouAgora) novoId() else null
+        val atual = if (completouAgora) {
+            atualizado.copy(entregue = true, capturaDaParcial = capturaDaParcial)
+        } else {
+            atualizado
+        }
         caderno = atual
 
         val entrega = if (completouAgora) {
-            ApuracaoNova.DeCaderno(aluno, (atual.parcial as PartialScoringOutcome.Scored).partial)
+            ApuracaoNova.DeCaderno(
+                aluno,
+                (atual.parcial as PartialScoringOutcome.Scored).partial,
+                requireNotNull(capturaDaParcial),
+            )
         } else {
             null
         }
@@ -337,6 +364,62 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
         return ResultadoDoRefazer.Refeita(resposta.arquivo)
     }
 
+    /** Se uma nota ja foi decidida e a gravacao dela ainda nao terminou: o duplo toque nao gera duas notas. */
+    private var notaEmCurso = false
+
+    /**
+     * Decide a nota do professor sobre o caderno **corrente** — o da tela, ou o que aguarda nota quando outro aluno
+     * apareceu. **Nao muda o caderno**: a gravacao pode falhar, e a spec manda deixar a tela aberta com o motivo e
+     * nada no caderno. Quem grava chama [confirmarCorrigido] depois, ou [falhouAGravacao].
+     */
+    fun darNota(pontuacoes: List<PontuacaoDada>): ResultadoDaNota {
+        val atual = caderno ?: return ResultadoDaNota.Recusada("nao ha caderno em andamento")
+        if (atual.corrigido) return ResultadoDaNota.Recusada("o caderno ja foi corrigido")
+        if (notaEmCurso) return ResultadoDaNota.Recusada("a nota ja esta sendo gravada")
+        if (!atual.aguardaNota) return ResultadoDaNota.Recusada("o caderno ainda nao esta completo")
+        val parcial = (atual.parcial as? PartialScoringOutcome.Scored)?.partial
+            ?: return ResultadoDaNota.Recusada("a parcial do caderno nao foi apurada")
+        val captura = requireNotNull(atual.capturaDaParcial) // `aguardaNota` ja exige
+
+        return when (val r = CorrecaoDoProfessor.completar(parcial, pontuacoes)) {
+            is NotaDoProfessorOutcome.Rejected -> ResultadoDaNota.Recusada(r.reason)
+            is NotaDoProfessorOutcome.Scored -> {
+                notaEmCurso = true
+                ResultadoDaNota.Corrigida(r.nota, captura, atual.aluno, atual.copy(corrigido = true))
+            }
+        }
+    }
+
+    /** A nota foi gravada: o caderno passa a corrigido, e quem estava segurando a troca de aluno a libera. */
+    fun confirmarCorrigido() {
+        val atual = caderno ?: return
+        notaEmCurso = false
+        val novo = atual.copy(corrigido = true)
+        caderno = novo
+        state = when (val s = state) {
+            is ScanState.NotaPorDarDeOutroAluno -> ScanState.Searching
+            is ScanState.ProvaComDiscursiva -> s.copy(caderno = novo)
+            else -> s
+        }
+    }
+
+    /** A gravacao da nota falhou: nada mudou, e o professor pode tentar de novo. */
+    fun falhouAGravacao() {
+        notaEmCurso = false
+    }
+
+    /**
+     * Descarta o caderno completo sem nota e volta a procurar. Devolve os arquivos a eliminar — quem elimina e quem
+     * chama, porque a sessao nao toca disco. Nada e gravado nem enviado.
+     */
+    fun descartarESeguir(): List<String> {
+        val arquivos = caderno?.regioes?.mapNotNull { it.resposta?.arquivo }.orEmpty()
+        caderno = null
+        notaEmCurso = false
+        state = ScanState.Searching
+        return arquivos
+    }
+
     /**
      * O caderno do aluno corrente (§8), em memoria e nunca gravado.
      *
@@ -353,6 +436,13 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
      * reconhecido, ou numa prova so objetiva.
      */
     val cadernoAtual: Caderno? get() = caderno
+
+    /**
+     * O caderno que `onStop` deve guardar. **Nenhum enquanto uma nota esta sendo gravada**: a gravacao da nota ja
+     * escreve o caderno corrigido no Room, e guardar agora o caderno em memoria, ainda sem a marca, o sobrescreveria
+     * e devolveria "Dar a nota" ao professor para uma folha ja corrigida (revisao final da `slice-5c-3`).
+     */
+    val cadernoParaGuardar: Caderno? get() = if (notaEmCurso) null else caderno
 
     init {
         // So retoma numa prova com discursiva: o caderno e conceito dela, e um cadernoInicial
@@ -392,6 +482,21 @@ class ScanSession(private val examPackage: ExamPackage, cadernoInicial: Caderno?
 /** O motivo de uma regiao reconhecida sem resposta e sem recusa: o analisador nao pediu o recorte. */
 internal const val RECORTE_NAO_PEDIDO = "o recorte nao foi pedido"
 
+/** O que [ScanSession.darNota] decidiu. */
+sealed interface ResultadoDaNota {
+
+    /** A nota foi aceita; [cadernoCorrigido] e o que se grava no Room junto do pendente. */
+    data class Corrigida(
+        val nota: NotaDoProfessor,
+        val completaCaptura: String,
+        val aluno: String,
+        val cadernoCorrigido: Caderno,
+    ) : ResultadoDaNota
+
+    /** Nada mudou; [motivo] serve para a tela. */
+    data class Recusada(val motivo: String) : ResultadoDaNota
+}
+
 /** O que [ScanSession.refazer] fez. */
 sealed interface ResultadoDoRefazer {
 
@@ -425,5 +530,7 @@ sealed interface ApuracaoNova {
     data class DeCaderno(
         val aluno: String,
         val score: PartialScore,
+        /** A captura da parcial, cunhada na transicao: e o `completes_capture_id` da nota do professor. */
+        val captureId: String,
     ) : ApuracaoNova
 }

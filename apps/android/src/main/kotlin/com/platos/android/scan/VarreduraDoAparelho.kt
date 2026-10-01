@@ -27,16 +27,25 @@ internal fun registrarVarredura(varredura: Varredura) {
  * O escaneamento nao usa esta funcao: a varredura dele esta **dentro** de [retomarCadernoEmAndamento], antes
  * da leitura do caderno.
  */
-suspend fun varrerRespostasDoAparelho(context: Context): Varredura = withContext(Dispatchers.IO) {
+suspend fun varrerRespostasDoAparelho(context: Context): Varredura =
+    withContext(Dispatchers.IO) { varrerAgora(context) }
+
+/**
+ * O nucleo nao suspenso da varredura, que a `VarreduraPeriodicaWorker` chama com a marca de [EscaneamentoAberto]
+ * (`slice-5c-3-a-nota-no-aparelho`). A abertura do aplicativo e a do escaneamento chamam com o
+ * padrao (marca sempre fechada): elas rodam **antes** de a camera abrir, quando nenhum arquivo esta sendo gravado.
+ */
+fun varrerAgora(context: Context, escaneamentoAberto: () -> Boolean = { false }): Varredura {
     val varredura = try {
         varrerRespostas(
             respostas = RespostasEmArquivo(RespostasEmArquivo.diretorioDe(context.filesDir)),
             cadernos = CadernosEmRoom(CadernosEmRoom.abrir(context).cadernos()),
             agora = System.currentTimeMillis(),
+            escaneamentoAberto = escaneamentoAberto,
         )
     } catch (e: Exception) {
         Varredura(eliminados = 0, naoEliminados = 0, semLeituraDosCadernos = true)
     }
     registrarVarredura(varredura)
-    varredura
+    return varredura
 }

@@ -3,6 +3,7 @@ package com.platos.android.outbox
 import com.platos.android.net.Retorno
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -27,6 +28,7 @@ class EnvioDeResultadosTest {
         val linhas = iniciais.toMutableList()
 
         override fun guardar(resultado: ResultadoPendente) = error("nao usado neste teste")
+        override fun guardarNota(nota: NotaPendente) = error("nao usado neste teste")
         override fun pendentesDa(organizacao: String) = linhas.filter { it.organizacao == organizacao }
         override fun quantosPendentes(organizacao: String) = pendentesDa(organizacao).size
         override fun apagarConfirmado(captureId: String) {
@@ -238,5 +240,43 @@ class EnvioDeResultadosTest {
 
     private companion object {
         const val ORG = "org-1"
+    }
+
+    @Test
+    fun `o gancho roda depois da confirmacao e so nela`() = runBlocking {
+        val guarda = GuardaEmMemoria(listOf(envelope("cap-1"), envelope("cap-2")))
+        val vistos = mutableListOf<Pair<String, Int>>()
+        val envio = EnvioDeResultados(
+            guarda,
+            enviar = { if (it.captureId == "cap-1") Retorno.Respondeu(Unit) else Retorno.Recusou(400) },
+            aoConfirmar = { vistos += it.captureId to guarda.linhas.size },
+        )
+
+        envio.enviarPendentesDa(ORG)
+
+        assertEquals(listOf("cap-1" to 1), vistos, "o gancho rodou depois de o pendente sair da fila")
+    }
+
+    @Test
+    fun `falha do gancho nao desfaz a confirmacao e e contada`() = runBlocking {
+        val guarda = GuardaEmMemoria(listOf(envelope("cap-1")))
+        val envio = EnvioDeResultados(guarda, enviar = { Retorno.Respondeu(Unit) }, aoConfirmar = { error("disco") })
+
+        val resumo = envio.enviarPendentesDa(ORG)
+
+        assertEquals(1, resumo.confirmados)
+        assertEquals(1, resumo.falhasAoConfirmar)
+        assertTrue(guarda.linhas.isEmpty(), "a confirmacao do servidor nao se desfaz")
+    }
+
+    @Test
+    fun `nota nao confirmada nao chama o gancho`() = runBlocking {
+        val guarda = GuardaEmMemoria(listOf(envelope("cap-1")))
+        var chamado = false
+        val envio = EnvioDeResultados(guarda, enviar = { Retorno.SemRede }, aoConfirmar = { chamado = true })
+
+        envio.enviarPendentesDa(ORG)
+
+        assertFalse(chamado)
     }
 }

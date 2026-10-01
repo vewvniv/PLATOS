@@ -181,4 +181,54 @@ class RetencaoDaRespostaTest {
         assertTrue(varredura.semLeituraDosCadernos)
         assertEquals(0, varredura.eliminados)
     }
+
+    // --- a trava do segundo plano (`slice-5c-3-a-nota-no-aparelho`) ---
+
+    /** Com o escaneamento aberto, a regra "ninguem referencia" nao roda: o caderno em memoria ainda nao foi ao Room. */
+    @Test
+    fun `com o escaneamento aberto o arquivo sem referencia e mantido`() {
+        assertEquals(
+            emptyList<String>(),
+            RetencaoDaResposta.arquivosAEliminar(listOf("recem-gravada.png"), emptyMap(), agora, escaneamentoAberto = true),
+        )
+    }
+
+    @Test
+    fun `com o escaneamento aberto o teto de 30 dias continua valendo`() {
+        assertEquals(
+            listOf("velha.png"),
+            RetencaoDaResposta.arquivosAEliminar(
+                listOf("velha.png", "nova.png"),
+                mapOf("velha.png" to aosDias(31), "nova.png" to aosDias(1)),
+                agora,
+                escaneamentoAberto = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `sem o escaneamento aberto o arquivo sem referencia e eliminado, como sempre`() {
+        assertEquals(
+            listOf("orfao.png"),
+            RetencaoDaResposta.arquivosAEliminar(listOf("orfao.png"), emptyMap(), agora),
+        )
+    }
+
+    /**
+     * A marca e lida **a cada arquivo**, na hora de eliminar (revisao final da `slice-5c-3`): o escaneamento pode abrir
+     * no meio da varredura, e a trava que bloqueava a thread principal foi trocada por esta leitura. O orfao
+     * que vem depois de a marca ligar e poupado; o vencido continua saindo.
+     */
+    @Test
+    fun `o escaneamento que abre no meio da varredura poupa os orfaos seguintes e nao o vencido`() {
+        val disco = Disco(listOf("velho.png", "orfao-1.png", "orfao-2.png"))
+        val cadernos = Cadernos(listOf(caderno("a", resposta("velho.png", 31))))
+        var consultas = 0
+
+        val v = varrerRespostas(disco, cadernos, agora, escaneamentoAberto = { ++consultas > 1 })
+
+        assertEquals(listOf("orfao-2.png"), disco.presentes)
+        assertEquals(2, v.eliminados)
+        assertEquals(2, consultas, "so os orfaos consultam a marca: o vencido sai de qualquer jeito")
+    }
 }

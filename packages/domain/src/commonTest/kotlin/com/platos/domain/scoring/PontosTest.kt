@@ -113,4 +113,22 @@ class PontosTest {
         assertTrue(Pontos.parse("1.75") > Pontos.parse("1.5"))
         assertTrue(Pontos.ZERO < Pontos.parse("0.01"))
     }
+
+    @Test
+    fun `lerPontos devolve o valor exato`() {
+        assertEquals("1.75", lerPontos("1.75", "a discursiva 'd1'").toString())
+    }
+
+    @Test
+    fun `lerPontos diz de qual campo veio o erro`() {
+        val erro = assertFailsWith<IllegalArgumentException> { lerPontos("1,5", "a discursiva 'd1'") }
+        assertTrue(erro.message.orEmpty().startsWith("a discursiva 'd1': "), erro.message)
+        assertTrue(erro.message.orEmpty().contains("ponto decimal"), erro.message)
+    }
+
+    @Test
+    fun `lerPontos recusa tres casas e negativo`() {
+        assertFailsWith<IllegalArgumentException> { lerPontos("1.333", "x") }
+        assertFailsWith<IllegalArgumentException> { lerPontos("-1", "x") }
+    }
 }
