@@ -17,7 +17,6 @@
 | Implementar | §15 (roadmap), depois a spec da fatia |
 | Modelar o banco | §11 |
 | Entender a folha impressa | §7, §8 e `mockup-prova.html` |
-| Saber o que já foi trocado, e por quê | [`HISTORICO-v3.md`](HISTORICO-v3.md) (texto substituído e emendas) e [`DIVIDA-HISTORICO.md`](DIVIDA-HISTORICO.md) (a narrativa de cada linha do §16) |
 
 ---
 
