@@ -6,9 +6,15 @@ não cria arquitetura, não substitui ADR e não reabre decisão registrada: gov
 
 **Por que ele existe.** As piores falhas desta base não foram erros de raciocínio. Foram afirmações
 verdes sobre coisa nenhuma, feitas depressa, quase sempre no fim de uma sessão longa e a poucos
-passos de fechar uma fatia. Estão todas registradas em `docs/cobertura-*.md` e no histórico do Git.
-**Cada proibição abaixo é paga por uma delas**, e a citação está na própria regra. Nenhuma regra
-aqui é preventiva; todas são retrospectivas. Uma regra sem incidente não entra (§10).
+passos de fechar uma fatia, e estão registradas em `docs/cobertura-*.md` e no histórico do Git.
+**Cada proibição abaixo é paga por uma delas.** Nenhuma regra aqui é
+preventiva; todas são retrospectivas. Uma regra sem incidente não entra (§10).
+
+**Onde mora o incidente.** Aqui ficam a regra, o que fazer e uma linha de por quê. **O incidente
+inteiro** — commit, número medido, a afirmação errada — está em
+[`docs/licoes/incidentes.md`](docs/licoes/incidentes.md), sob o mesmo `P<n>`. Leia lá quando tocar a área
+da regra, quando alguém a contestar, ou quando a regra parecer exagerada: **a regra não precisa ser
+reaprendida a cada sessão, mas o custo dela precisa estar ao alcance**.
 
 **Quem ele prende.** A IA. O desenvolvedor decide o que se constrói, em que ordem e o que fica para
 depois. Ele **não** decide o que é verdade sobre o que já foi construído.
@@ -50,238 +56,169 @@ que esteja.
 ## 2. As proibições
 
 Regras marcadas **[V]** são zona vermelha: insistência não as libera (§4). As demais são zona
-amarela: o desenvolvedor pode decidir contra elas, e a decisão fica escrita (§5).
+amarela: o desenvolvedor pode decidir contra elas, e a decisão fica escrita (§5). O incidente de cada
+uma: `docs/licoes/incidentes.md#p<n>`.
 
 ### A. Evidência
 
 **P1 [V].** **Nunca marcar tarefa, cenário ou item como concluído sem a execução que o fecha, na
-sessão em que se marca.** É a regra 10 do `CLAUDE.md`, na forma que ela precisou tomar depois de ser
-quebrada: marcar para "rodar depois" cria registro falso, e registro falso é o que torna toda
-verificação futura inútil. Se a execução não coube, a tarefa fica **desmarcada**, com o
-que falta escrito nela. Desmarcar não é derrota — `3f523aa` desmarcou a 9.2b com "eu a marquei sem
-ter rodado", no commit seguinte ao que a marcara.
+sessão em que se marca.** É a regra 10 do `CLAUDE.md`. Se a execução não coube, a tarefa fica
+**desmarcada**, com o que falta escrito nela. Desmarcar não é derrota (`3f523aa` desmarcou a 9.2b com
+"eu a marquei sem ter rodado"). Marcar para "rodar depois" cria registro falso, e registro falso
+torna inútil toda verificação futura.
 
-**P2 [V].** **Nunca citar um sinal sem dizer qual passo ele atravessa.** Proibido tratar como prova:
-`comando; echo "ok"` (o `ok` sai com o comando vermelho — só `&&` ou `$?` amarram os dois); workflow
-verde como prova de que a imagem **está servindo** (`04d2f30`: imagem no GHCR às 14:47Z, serviço
-respondendo com a de 09-04); 401 sem token como prova de que o processo alcança o banco (`544dafe`);
-`/health` como prova de folga sobre o tempo limite de requisição (`c1aa6b3`: 43,5 s lidos como ~2×
-de folga; o caminho real deu 69,2 s, folga de 20,8 s); `exit 0` do Gradle como prova de que a suíte
-rodou (`docs/cobertura-fatia-1.md`: `-q` deu exit 0 com a task `UP-TO-DATE` e **zero testes**); um
-relatório **completo e com contagem plausível** como prova de que a suíte rodou **agora**
-(`60ba7bd`: `./gradlew build` deu `BUILD SUCCESSFUL` com **21 de 173** tasks executadas, e as
-contagens de 233, 121 e 293 vinham de relatórios de ontem, de seis dias antes e de um mês — o
-`timestamp` foi o único sinal que denunciou); um arquivo com o nome certo como prova de que o
-conteúdo é aquele. Quatro vezes só na fatia 4a
-(`b2eb65c`).
+**P2 [V].** **Nunca citar um sinal sem dizer qual passo ele atravessa.** Não são prova:
+- `comando; echo "ok"` — o `ok` sai com o comando vermelho; só `&&` ou `$?` amarram os dois;
+- workflow verde → imagem **está servindo** (`04d2f30`); `/health` → o processo alcança o banco, ou
+  há folga de tempo limite (`c1aa6b3`: 43,5 s lidos como ~2× de folga, o caminho real deu 69,2 s);
+  401 sem token → alcança o banco (`544dafe`);
+- `exit 0` do Gradle → a suíte rodou: `-q` deu exit 0 com a task `UP-TO-DATE` e **zero testes**; e
+  `./gradlew build` deu `BUILD SUCCESSFUL` com **21 de 173** tasks executadas (`60ba7bd`);
+- relatório **completo e de contagem plausível** → rodou **agora**: confira o `timestamp` do XML;
+- arquivo com o nome certo → conteúdo certo; "a tela mostra X" → "a tela **ainda** mostra X".
 
 **P3 [V].** **Nunca comparar artefato sem conferir a âncora — data, hash, ou diretório por
 execução.** Estado que mora no instrumento não avisa quando envelhece: `connectedDebugAndroidTest`
-com filtro de classe reinstala o APK e apaga o `filesDir`, e a primeira tentativa de fechar paridade
-comparou o web de hoje contra um `android.pdf` de **agosto** — nome certo, lugar certo, só a data
-denunciava (`9d4f3f8`). (`installDebug` **não** apaga: é atualização, e preserva os dados. Conferido
-em 2026-09-08.) É defeito **diferente** do comando de CI filtrado de P5: lá falta cobertura; aqui a
-cobertura roda e mede o artefato errado.
+com filtro de classe reinstala o APK e apaga o `filesDir`, e a paridade chegou a comparar o web de
+hoje contra um `android.pdf` de **agosto** (`9d4f3f8`). `installDebug` **não** apaga (conferido em
+2026-09-08). Para relatório de teste a âncora é o **`timestamp` do XML, nunca a contagem**.
+`UP-TO-DATE` não é mentira — é legítimo para módulo não tocado —, mas **não é execução**: o CI roda em
+checkout limpo, e reproduzi-lo exige `--rerun-tasks` ou `--rerun`. Somar relatórios sem conferir a
+qual task cada um pertence é o mesmo defeito (a soma de 1246 incluiu uma task que não existe mais).
 
-**Para relatório de teste a âncora tem nome: é o `timestamp` do XML, e nunca a contagem.** Zero
-testes é o caso fácil — ele salta aos olhos. O caso difícil é a contagem **plausível** de uma
-execução anterior, e `UP-TO-DATE` a serve sem avisar: ela é indistinguível de verde de hoje até
-alguém ler a data (`60ba7bd`, e o registro em
-`docs/cobertura-fatia-4a-cache-referencia.md`, seção "O comando cheio do CI"). `UP-TO-DATE` **não é
-mentira** — significa entradas inalteradas desde a última execução bem-sucedida, e para módulo que a
-fatia não tocou é legítimo. O que não vale é citá-lo como execução: o CI roda em checkout limpo, e
-reproduzi-lo exige `--rerun-tasks` ou `--rerun`. **E somar relatórios sem conferir a qual task cada
-um pertence é o mesmo defeito um nível abaixo:** a primeira soma daquele dia deu 1246 porque incluiu
-o XML de uma task que não existe mais no grafo. O par em tela: numa conferência por `adb`, "a tela mostra X"
-e "a tela **ainda** mostra X" são indistinguíveis sem âncora — a faixa antiga do modo avião e o
-*starting window* do `am start` já custaram duas conclusões erradas
-(`docs/cobertura-fatia-4a-zero.md`).
-
-**P4.** **Nunca usar oráculo que compartilhe código com o que ele julga.** O hash do pacote é
-conferido pelo `MessageDigest` da JVM, e não por uma segunda serialização em Kotlin; a cobertura
-oficial é conferida contra `papel.mjs` em JavaScript; o corpo de erro do Supabase foi conferido por
-`curl` do host. **E o oráculo também desanda:** o 7 da fatia 3b está **fixado** no teste, e não só
-comparado — se ele passasse a devolver 0 ou 40, a comparação seguiria verde com a apuração quebrada
-nos dois sentidos.
+**P4.** **Nunca usar oráculo que compartilhe código com o que ele julga.** O hash do pacote é conferido
+pelo `MessageDigest` da JVM, e não por uma segunda serialização em Kotlin; a cobertura oficial, contra
+`papel.mjs`; o corpo de erro do Supabase, por `curl` do host. **O oráculo também desanda:** o 7 da
+fatia 3b está **fixado** no teste, e não só comparado — senão a comparação seguiria verde com a
+apuração quebrada nos dois sentidos.
 
 **P5.** **Nunca declarar verde de comando estreito como verde do CI.** `./gradlew build` não roda
-`connectedDebugAndroidTest`, e `--tests` de uma classe não roda as outras. Duas vezes o comando
-estreito local escondeu o que o cheio pega (`5bd94a5`, e a tarefa 2.2 da 4a-zero, em que a exigência
-de configuração do Android derrubou `:apps:api:installDist` e quem acusou foi o CI). Rodar o comando
-**cheio** antes de publicar, de fechar fatia, de afirmar suíte verde, e sempre que a mudança tocar
-build, manifesto ou suíte instrumentada.
+`connectedDebugAndroidTest`, e `--tests` de uma classe não roda as outras (`5bd94a5`; 2.2 da 4a-zero).
+Rode o comando **cheio** antes de publicar, de fechar fatia, de afirmar suíte verde, e sempre que a
+mudança tocar build, manifesto ou suíte instrumentada.
 
 **P6 [V].** **Nunca apresentar suposição, leitura de documentação ou inferência como medição.** Toda
-afirmação carrega o tipo dela: **medido** (com o número, o instrumento e a data), **conferido**
-(contra qual oráculo), **herdado** (de qual fatia, por qual teste) ou **suposto** (e então dito como
-suposto). Três afirmações de transporte escritas com convicção no `design.md` da 4a não
-sobreviveram ao instrumento — o charset do `respondText` (1.4), o `body<ByteArray>()` (2.3) e o teto
-do `Intent` (6.5) —, e **nenhuma das três foi achada por revisão**. O limite de ~11 px/mm da 3b foi
-retirado pela mesma razão: nenhum teste ficou vermelho, porque a prosa afirmava mais do que a
-verificação sustentava.
+afirmação carrega o tipo dela: **medido** (número, instrumento, data), **conferido** (contra qual
+oráculo), **herdado** (de qual fatia, por qual teste) ou **suposto** (dito como suposto). Três
+afirmações de transporte da 4a escritas com convicção — charset do `respondText`, `body<ByteArray>()`,
+teto do `Intent` — não sobreviveram ao instrumento, e **nenhuma foi achada por revisão**.
 
-**P7 [V].** **Nunca corrigir o registro apagando a afirmação errada.** Ela fica, marcada como
-errada, com a razão e o número certo ao lado — `c1aa6b3` manteve a leitura de "~2× de folga" porque
-quem lesse só o trecho antigo repetiria o erro. Apagar produz um documento coerente e um leitor que
-não sabe o que já falhou.
+**P7 [V].** **Nunca corrigir o registro sem deixar o antes em algum registro.** *(Redação de 2026-10-01;
+a anterior mandava a afirmação errada ficar "ao lado" no mesmo trecho, o que enterrou o estado vigente
+— ver §10.)* A afirmação errada ou superada **fica registrada, marcada como errada, com a razão e o
+número certo** — mas **no registro histórico**, e não no trecho que descreve o que vale hoje:
+`docs/licoes/incidentes.md`, `docs/architecture/HISTORICO-v3.md`, `docs/architecture/DIVIDA-HISTORICO.md`
+e os ADRs. O trecho vigente diz o estado **atual**, em poucas linhas, e aponta para o histórico.
+**Proibido:** apagar sem guardar; e empilhar "Atualizado em… (o texto anterior fica)" dentro do trecho
+vigente — informação nova **substitui** o estado e a história vai ao histórico. A razão original
+permanece: quem lesse só o trecho antigo repetiria o erro (`c1aa6b3`), e por isso a correção entra
+**no mesmo commit** que a descoberta.
 
-**P8.** **Nunca chamar de mitigado o que é apenas conhecido.** Uma lacuna sem teste é lacuna, e
-entra no documento de cobertura como lacuna: "**não é mitigado, é conhecido**"
-(`docs/cobertura-fatia-4a-zero.md`, tarefa 5.4b — três mutações, e a terceira, a tela que ignora o
-parâmetro e escreve um literal, **não é pega por nada**).
+**P8.** **Nunca chamar de mitigado o que é apenas conhecido.** Lacuna sem teste entra no documento de
+cobertura como lacuna: "**não é mitigado, é conhecido**" (4a-zero, tarefa 5.4b: a terceira mutação, a
+tela que ignora o parâmetro e escreve um literal, não é pega por nada).
 
 ### B. Verificação
 
-**P9 [V].** **Nunca confiar em verificação que não foi vista falhar.** O método está em §3, e as duas
-exigências que a prática acrescentou são: a mutação **SHALL isolar a camada** (passar em todas as
-outras conferências e falhar só na que está sob teste) e a asserção **SHALL conferir o motivo** da
-recusa, não só que houve recusa. Duas vezes na 4a uma proteção pareceu coberta e não estava: o
-cenário de cache truncado ficou **verde** com a camada (a) desligada, porque truncado também não
-parseia e a camada (b) recusava por interpretação (4.4); e a identidade da folha só pôde ser
-exercitada porque a `prova-2` foi construída com os **mesmos itens, posições e gabarito** da
-referência (8.3b).
+**P9 [V].** **Nunca confiar em verificação que não foi vista falhar.** O método está em §3. A mutação
+**SHALL isolar a camada** e a asserção **SHALL conferir o motivo** da recusa: na 4a, o cenário de cache
+truncado ficou **verde** com a camada (a) desligada, porque a camada (b) recusava por interpretação
+(4.4); e a identidade da folha só foi exercitada porque a `prova-2` tinha os mesmos itens, posições e
+gabarito da referência (8.3b).
 
 **P10 [V].** **Nunca deixar mutação injetada na árvore, e nunca confirmar a reversão pela memória do
-que se editou.** A reversão é conferida rodando de novo. A cultura de "ver falhar" cria este risco;
-ele é responsabilidade de quem a pratica.
+que se editou.** A reversão é conferida rodando de novo.
 
-**P11 [V].** **Nunca afrouxar tolerância, janela, limiar ou critério depois de conhecer o
-resultado** — nem para "destravar", nem para "só desta vez". ADR-0007 é explícito: depois que o
-resultado é conhecido, qualquer limiar escolhido é racionalização. Mudar exige ADR novo que registre
-o resultado obtido. Três verificações da fatia 3a passaram por acidente antes de alguém perceber,
-todas por tolerância maior que o defeito que deveriam pegar — "**tolerância folgada é o jeito mais
-comum de um teste de medição não medir nada**".
+**P11 [V].** **Nunca afrouxar tolerância, janela, limiar ou critério depois de conhecer o resultado.**
+Depois do resultado, qualquer limiar é racionalização (ADR-0007). Mudar exige ADR novo que registre o
+resultado obtido. Três verificações da 3a passaram por acidente, todas por tolerância maior que o
+defeito: "**tolerância folgada é o jeito mais comum de um teste de medição não medir nada**".
 
 **P12 [V].** **Nunca consertar vermelho enfraquecendo a asserção.** Se a asserção estava errada, a
-correção é da asserção — e isso se **prova**, lendo a mensagem. Na 1.6 o vermelho era expectativa
-minha errada sobre a linha de base, e o teste corrigiu a afirmação; na 9b.1 dois testes nasceram
-vermelhos juntos e eram coisas diferentes — um defeito real e uma expectativa errada. **Vermelho
-novo se diagnostica pela mensagem, nunca pela contagem.**
+correção é dela — e se **prova**, lendo a mensagem. **Vermelho novo se diagnostica pela mensagem,
+nunca pela contagem:** na 9b.1 dois testes nasceram vermelhos juntos e eram coisas diferentes.
 
-**P13.** **Nunca aceitar medição sem guarda de vacuidade.** Consulta que pode voltar vazia leva
-piso; varredura leva canário; contagem sobre cache não conta. A guarda de RLS já passou por isso
-(`o piso reprova um catalogo vazio`), a busca do token em repouso foi salva pelo canário e não pela
-asserção, e a tarefa de `check` do APK **abria zero arquivos e passava** até o
-`require(apks.files.any { … })` existir — sem ele, a verificação teria entrado no CI dizendo verde
-sobre nada.
+**P13.** **Nunca aceitar medição sem guarda de vacuidade.** Consulta que pode voltar vazia leva piso;
+varredura leva canário; contagem sobre cache não conta. A tarefa de `check` do APK **abria zero
+arquivos e passava** até o `require(apks.files.any { … })` existir.
 
 **P14.** **Nunca ler "duas medições independentes se contradizem" como "uma delas está quebrada".**
-Procure o defeito comum às duas primeiro. Na 1.6 a contradição entre fidelidade e paridade era o
-sinal certo, foi lida como ruído, e o conserto foi no instrumento: **117 linhas escritas e depois
-revertidas**, com o comparador original medindo certo assim que a folha foi corrigida.
+Procure o defeito comum às duas primeiro. Na 1.6 o sinal certo foi lido como ruído e o conserto no
+instrumento custou **117 linhas escritas e revertidas**.
 
-**P15.** **Nunca tratar vermelho de CI como regressão sem ler o log e o histórico do mesmo job.**
-Passo marcado como falha **sem erro no log** é cancelamento — `concurrency: cancel-in-progress`
-derrubou a paridade na PR #30 e custou horas. Da mesma família: dois falsos vermelhos por
-`docker cp` copiando para o lugar errado, antes de a guarda de oito migrations existir.
+**P15.** **Nunca tratar vermelho de CI como regressão sem ler o log e o histórico do mesmo job.** Passo
+marcado como falha **sem erro no log** é cancelamento (`concurrency: cancel-in-progress`, PR #30).
+Da mesma família: falsos vermelhos por `docker cp` copiando para o lugar errado.
 
-**P16.** **Nunca declarar uma camada verificada pela prova da camada vizinha.** Cada uma precisa da
-própria: os treze cenários de `DeviceSession` aprovam uma tela que mente, e os onze de
-`ApiPlatosTest` aprovariam por unanimidade o 401 tratado no chamador. Suíte existente verde sob um
-defeito novo não é sinal de que ele é pequeno — é sinal de que a cobertura anterior falava de outra
-coisa.
+**P16.** **Nunca declarar uma camada verificada pela prova da camada vizinha.** Os treze cenários de
+`DeviceSession` aprovam uma tela que mente. Suíte existente verde sob um defeito novo não diz que ele é
+pequeno — diz que a cobertura anterior falava de outra coisa.
 
 ### C. Escopo e decisão
 
-**P17 [V].** **Nunca substituir decisão registrada por preferência.** Atualizar uma decisão com
-informação nova é permitido e fica escrito ao lado dela — a decisão 11 do `design.md` da 4a faz isso
-com a decisão 10 da 4a-zero, dizendo em uma linha que a razão original continua certa. Trocar por
-gosto exige ADR. Depreciação de biblioteca, sozinha, **não** é argumento: `security-crypto`
-continua, e o que muda é que o modo de falha conhecido dela passou a ser desta base.
+**P17 [V].** **Nunca substituir decisão registrada por preferência.** Atualizar com informação nova é
+permitido e fica escrito ao lado da decisão (decisão 11 da 4a com a 10 da 4a-zero). Trocar por gosto
+exige ADR. Depreciação de biblioteca, sozinha, **não** é argumento (`security-crypto` continua).
 
-**P18.** **Nunca introduzir tecnologia, abstração, política ou número sem consumidor.** Room ficou
-para a 4b; a política de expurgo do cache não foi inventada porque não há evidência de pressão de
-espaço; e o `paperPxPerMm` **saiu** do código quando a hipótese que ele servia caiu — "número medido
-sem consumidor é número que ninguém lê". Tecnologia fora da lista do `CLAUDE.md` exige ADR, não
-argumento.
+**P18.** **Nunca introduzir tecnologia, abstração, política ou número sem consumidor.** Room ficou para
+a 4b; o `paperPxPerMm` **saiu** quando a hipótese que ele servia caiu — "número medido sem consumidor
+é número que ninguém lê". Tecnologia fora da lista do `CLAUDE.md` exige ADR.
 
-**P19.** **Nunca refatorar fora do escopo, e nunca esconder refatoração dentro de commit
-funcional.** A 4a corrigiu a regressão de `SessaoExpirada` e **deixou nomeada** a modelagem que a
-tornaria impossível, em vez de fazê-la ali. Achado fora do escopo vira item escrito com dono e
-fatia — nunca implementação silenciosa.
+**P19.** **Nunca refatorar fora do escopo, nem esconder refatoração em commit funcional.** Achado fora do
+escopo vira item escrito com dono e fatia — nunca implementação silenciosa.
 
-**P20 [V].** **Nunca fechar fatia com item de segurança, LGPD ou imutabilidade adiado sem
-fatia-limite, custo e dono registrados.** §16 tem a tabela de ponto de não-retorno exatamente porque
-o item da LGPD flutuou até quase virar retrofit: "o item estava certo, o **registro** é que não
-dizia quando ele deixa de ser barato".
+**P20 [V].** **Nunca fechar fatia com item de segurança, LGPD ou imutabilidade adiado sem fatia-limite,
+custo e dono registrados.** É o §16: "o item estava certo, o **registro** é que não dizia quando ele
+deixa de ser barato".
 
-**P21.** **Nunca inferir o estado do sistema pela memória da conversa quando um arquivo o
-registra.** Antes de alterar: o change ativo, a spec, o ADR, e só os arquivos de código diretamente
-necessários. Contexto reconstruído de cabeça é a forma mais barata de contradizer uma decisão sem
-perceber.
+**P21.** **Nunca inferir o estado do sistema pela memória da conversa quando um arquivo o registra.**
+Antes de alterar: o change ativo, a spec, o ADR e só os arquivos de código necessários.
 
 ### D. Ambiente, artefato e segredo
 
-**P22 [V].** **Nunca mudar o ambiente local sem avisar e obter resposta** — JDK, Node, SDK,
-emulador, versão de plugin, dependência do catálogo. Vale inclusive em modo automático.
+**P22 [V].** **Nunca mudar o ambiente local sem avisar e obter resposta** — JDK, Node, SDK, emulador,
+versão de plugin, dependência do catálogo. Vale inclusive em modo automático.
 
 **P23 [V].** **Nunca regravar golden, fixture ou hash sem fechar paridade e fidelidade na mesma
-sessão**, com os artefatos dos dois lados gerados **naquela** sessão (P3). Um caminho de desenho
-alterado já é motivo suficiente para não confiar na última medição, mesmo sem regravar golden — foi
-o que a 4a fez ao mexer no `PLATOS_PACKAGE`.
+sessão**, com os artefatos dos dois lados gerados **naquela** sessão (P3). Mexer num caminho de
+desenho já basta para não confiar na última medição, mesmo sem regravar golden (a 4a, no
+`PLATOS_PACKAGE`).
 
 **P24 [V].** **Nunca commitar segredo, `.env` ou credencial; nunca `--no-verify`; nunca force-push,
-`reset --hard` ou remoção de arquivo não rastreado sem pedido explícito nesta sessão.** Antes de
-apagar ou sobrescrever qualquer coisa, olhe o alvo.
+`reset --hard` ou remoção de arquivo não rastreado sem pedido explícito nesta sessão.** Antes de apagar
+ou sobrescrever, olhe o alvo.
 
-**P25.** **Nunca misturar formatação, renomeação ou limpeza com implementação funcional**, e nunca
-juntar contrato/DB/API com consumidor quando separar reduz risco.
+**P25.** **Nunca misturar formatação, renomeação ou limpeza com implementação funcional**, nem juntar
+contrato/DB/API com consumidor quando separar reduz risco.
 
-**P26 [V].** **Nunca declarar publicado, servindo ou implantado o que não foi observado no
-destino.** Publicar imagem não é implantar; implantar não é responder; responder `/health` não é
-alcançar o banco. Cada elo se observa onde ele termina.
+**P26 [V].** **Nunca declarar publicado, servindo ou implantado o que não foi observado no destino.**
+Publicar imagem não é implantar; implantar não é responder; responder `/health` não é alcançar o
+banco. Cada elo se observa onde ele termina.
 
 ### E. Depois do archive, e entre módulos
 
-As regras acima governam o que acontece **dentro** de uma mudança, e ali esta base é implacável. As
-duas abaixo cobrem as duas fronteiras que a auditoria de 2026-09-18 achou sem camada posicionada
-para vê-las (`docs/auditoria-2026-09-18-antes-da-fatia-5.md` §7). Uma é o **tempo**: o que vence
-depois do archive. A outra é o **espaço**: o que atravessa dois módulos. Entraram juntas, com a
-ETAPA 8 do plano de correção, e são duas e não três. O terceiro eixo da auditoria, o artefato de
-release, é **um** incidente, e já foi corrigido.
+Duas fronteiras que a auditoria de 2026-09-18 achou sem camada para vê-las: o **tempo** (o que vence
+depois do archive) e o **espaço** (o que atravessa dois módulos).
 
-**P27 [V].** **Nunca adiar item com dono em prosa.** O registro de dívida do projeto é **um**: a tabela
-de ponto de não-retorno do §16. Item adiado que não entra nela não tem data, e item sem data volta
-a flutuar — que é o que §16 já dizia da LGPD, e o que quatro itens repetiram depois. **O archive de
-uma mudança SHALL dizer, para cada linha cuja fatia-limite ou gatilho ela alcançou, se foi paga ou
-reagendada**; reagendar é legítimo e exige fatia-limite nova com o motivo escrito. Silêncio não é.
-Adiar em `docs/cobertura-*.md` continua certo e continua obrigatório — o que deixa de valer é adiar
-**só** lá.
-
-Paga por cinco incidentes. Em todos, o item tinha dono e tinha prazo, e o prazo morava em prosa:
-
-| Incidente | Onde |
-|---|---|
-| **Modo degradado.** §15 o pôs na fatia 4, que fechou inteira sem ele. ADR-0013 o mandou para uma "4c" que nunca existiu. E o spec passou a afirmar o contrário de §10, sem marca de provisoriedade | auditoria 2.3; `openspec/specs/device-session/spec.md:395`, desde `6f2dfe9`; `docs/adr/0013-pull-de-referencia-imutavel-no-aparelho.md:138`, desde `46c4ffb`; `docs/cobertura-slice-4b-outbox-de-resultado.md:379` (`c0f327a`) |
-| **Variante release.** O gatilho escrito, "a próxima que mexer em build ou variante", disparou duas vezes sem ninguém atender. A dívida chegou a ser documentada de novo sem ser paga, e só foi paga quando ganhou veículo (`f761306`) | auditoria 3.1; `docs/cobertura-fatia-4a-cache-referencia.md:220`, desde `60ba7bd`; os disparos `d054e1f` e `6c9356a`; `438030a` |
-| **Migration em produção.** Produziu **HTTP 500** na conferência da 4b, com `/health` em 200, e continuou sem data numa lista de "o que este roteiro não cobre" | auditoria 4.6; `docs/deploy-api.md:459`, desde `5fb26b7`; o 500 em `docs/cobertura-slice-4b-outbox-de-resultado.md:302-304` |
-| **Reexame do limiar do OMR.** A 3b o atribuiu "à fatia da câmera". A 3c era essa fatia, e registrou "continua aberta" sem novo prazo | auditoria 4.7; `docs/cobertura-fatia-3b.md:332` (`8e4e1b3`); `docs/cobertura-fatia-3c.md:266` (`f40fd9c`) |
-| **A linha que o próprio plano de correção mandava pôr no §16.** O item do APK de release trazia a instrução escrita, "Fica na tabela do §16 com essa fatia-limite", e nunca entrou: fechou sem que a linha tenha existido. Nem o documento que propôs esta regra escapou do padrão | `docs/plano-de-correcao-antes-da-fatia-5.md:186-187` (`72e1557`), e a nota que registra a ausência, `:189` (`c7013c4`) |
-
-O contraste que a sustenta: os itens que entraram na tabela (o roster cacheado, a classe H, a
-retenção da classe B) avançaram e fecharam. A diferença entre os dois grupos não é importância: é
-**estar na tabela**. A guarda que a torna reprovável é `tools/divida/divida.mjs`. Ela lê a tabela do
-próprio §16 e reprova, no CI, uma linha vencida sem reconciliação.
+**P27 [V].** **Nunca adiar item com dono em prosa.** O registro de dívida é **um**: a tabela "Ponto de
+não-retorno" do §16. Item adiado que não entra nela não tem data, e item sem data volta a flutuar.
+**O archive de uma mudança SHALL dizer, para cada linha cuja fatia-limite ou gatilho ela alcançou, se
+foi paga ou reagendada**; reagendar exige fatia-limite nova com o motivo escrito. Silêncio não é. A
+guarda é `tools/divida/divida.mjs`, que reprova no CI linha vencida sem reconciliação. Adiar em
+`docs/cobertura-*.md` continua obrigatório — mas **só** lá não basta. Cinco incidentes, todos com o
+prazo em prosa: o modo degradado; a variante release (o gatilho "a próxima que mexer em build"
+disparou duas vezes sem ninguém atender); a migration em produção (HTTP 500 com `/health` em 200); o
+reexame do limiar do OMR; e a própria linha que o plano de correção mandava pôr no §16 e nunca entrou.
 
 **P28.** **Nunca deixar o mesmo valor, contrato ou recurso viver em dois módulos sem dono único
 compilado ou sem uma conferência cruzada que reprove a divergência.** Espelho é permitido; espelho
-**cego** não. Divergir entre registros que não se conhecem não quebra teste nenhum: compila, o
-golden não muda, o hash continua igual, e o defeito chega ao papel ou à nota. Espelho contido por
-**oráculo de saída** — como o `LayoutMap` em TypeScript, julgado pela paridade sobre o documento
-rasterizado — satisfaz esta regra; espelho contido só por literal combinado nos dois lados, não.
-
-Paga por três incidentes. O rigor desta base é por módulo, porque todo teste vive dentro de um, e
-os três atravessavam dois:
-
-| Incidente | Onde |
-|---|---|
-| **A versão do renderizador em três registros que não se conheciam.** Um renderizador subindo sozinho não derrubava teste nenhum: 14 de 14 no web e 308 de 308 no Android, medido | auditoria 4.4; `LayoutMap.kt:237`, `RendererContract.kt:25`, `apps/web/src/layoutMap.ts:124`; conferência cruzada desde `54160b9` |
-| **O contrato do fio, digitado duas vezes** em quatro DTOs, e o mapa `QuestionAnswer → string` escrito três vezes | auditoria 2.1; dono único desde `1af2460`, e os espelhos removidos em `ea28ad0` (ADR-0015) |
-| **A instância de Room, alcançada por três caminhos sem dono.** Duas `Activity` e o worker abriam, cada um, uma base nova sobre o mesmo `outbox.db` | auditoria 3.2; uma instância por processo desde `75f05ed` |
-
-O precedente que mostra que a regra é barata: `tools/parity/limiar.mjs` (`8e4e1b3`) já fazia isto
-para o limiar do OMR, e o comentário dele em `.github/workflows/ci.yml:187` escreveu a justificativa
-desta regra antes de ela existir.
+**cego** não: divergir entre registros que não se conhecem não quebra teste nenhum — compila, o golden
+não muda, o hash continua igual, e o defeito chega ao papel ou à nota. Espelho contido por **oráculo de
+saída** (o `LayoutMap` em TypeScript, julgado pela paridade sobre o documento rasterizado) satisfaz;
+espelho contido só por literal combinado nos dois lados, não. Três incidentes: a versão do
+renderizador em três registros (14/14 no web e 308/308 no Android com ela subindo sozinha); o contrato
+do fio digitado duas vezes; a instância de Room alcançada por três caminhos sem dono. Precedente
+barato: `tools/parity/limiar.mjs`.
 
 > **Sobre IA e custo:** as regras de `prompt_version`, schema validation e registro de chamadas
 > estão no `CLAUDE.md` e valem integralmente. Não são repetidas aqui porque **ainda não há incidente
@@ -291,45 +228,35 @@ desta regra antes de ela existir.
 
 ## 3. Como saber se uma verificação vale
 
-Esta seção morava no `CLAUDE.md` e veio inteira para cá. Ela é o **método** por trás de P2–P5, P9,
-P10 e P13: a regra 9 de lá manda testar antes de declarar concluído e a regra 10 proíbe marcar sem
-verificação real; esta diz **como saber se a verificação vale**. Aplica-se a número, não só a
-teste — as piores evidências falsas desta base foram medições, não suítes vermelhas.
+O **método** por trás de P2–P5, P9, P10 e P13: a regra 9 do `CLAUDE.md` manda testar antes de declarar
+concluído e a 10 proíbe marcar sem verificação real; esta seção diz **como saber se a verificação vale**.
+Aplica-se a número, não só a teste — as piores evidências falsas desta base foram medições, não suítes
+vermelhas.
 
-**Antes de confiar numa medição, prove que ela reage a uma mudança no que ela mede.**
-
-Crítico é o que falha em silêncio e chega à folha impressa ou ao OMR — medição de texto, geometria,
-paridade, fidelidade e todo artefato imutável hasheado. Para esses:
+**Antes de confiar numa medição, prove que ela reage a uma mudança no que ela mede.** Crítico é o que
+falha em silêncio e chega à folha impressa ou ao OMR: texto, geometria, paridade, fidelidade e todo
+artefato imutável hasheado. Para esses:
 
 - **Introduza um erro de propósito, confirme que a verificação fica vermelha, e reverta** — e a
-  reversão se confere rodando, não pela lembrança do que se editou (P9, P10).
+  reversão se confere rodando (P9, P10).
 - **Cubra `NaN`, infinito, vazio e fora de faixa.** `NaN > tolerância` é falso e passa calado.
 - **Desconfie de janela de medição que alcance o vizinho**, e de contagem feita sobre cache (P13).
-- Confira valor numérico contra oráculo independente (P4); rode o comando cheio do CI (P5); confira
-  a âncora do artefato antes de comparar (P3); diga qual passo o sinal atravessa antes de citá-lo
-  como evidência (P2).
+- Confira valor numérico contra oráculo independente (P4); rode o comando cheio do CI (P5); confira a
+  âncora do artefato (P3); diga qual passo o sinal atravessa (P2).
 - **Registre em `docs/cobertura-*.md` como o teste foi visto falhar**, e não só que ele passa (§8).
 
-### A fixture mínima sombreia a camada que deveria testar
-
-Quando duas conferências cobrem o mesmo dado por motivos diferentes, mutar a de dentro deixa a de
-fora recusando pelo motivo errado, e o teste fica verde por acidente — ou vermelho sem provar nada.
-Aconteceu duas vezes na fatia 4a: o cenário de conteúdo truncado no cache continuou **verde** com a
-leitura confiando no nome do arquivo, porque truncado também não parseia e a camada (b) o recusava
-por interpretação; e a conferência de identidade da folha só pôde ser exercitada porque a `prova-2`
-foi construída com os **mesmos itens, posições e gabarito** da `prova-referencia` — com itens
-diferentes, `ObjectiveScoring` recusaria por divergência de conjunto e a identidade nunca seria
-consultada.
-
-Ao escrever um "ver falhar" para uma camada específica:
+**A fixture mínima sombreia a camada que deveria testar.** Quando duas conferências cobrem o mesmo
+dado por motivos diferentes, mutar a de dentro deixa a de fora recusando pelo motivo errado, e o teste
+fica verde por acidente. Ao escrever um "ver falhar" para uma camada específica:
 
 - A fixture da mutação SHALL **isolar essa camada**: passar em todas as outras conferências e falhar
-  só na que está sob teste. Se ela falha em duas, a mutação não diz qual das duas segurou.
-- A asserção SHALL conferir o **motivo** da recusa, e não só que houve recusa. "Recusou" é
-  indistinguível entre a camada certa e a vizinha.
-- Leia **quais** cenários caíram e quais não: conjuntos disjuntos entre duas mutações são a prova de
-  que as camadas são independentes; um cenário que sobrevive à mutação da própria camada que ele
-  nomeia está medindo outra coisa.
+  só na que está sob teste. Se ela falha em duas, a mutação não diz qual segurou.
+- A asserção SHALL conferir o **motivo** da recusa, e não só que houve recusa.
+- Leia **quais** cenários caíram: conjuntos disjuntos entre duas mutações provam que as camadas são
+  independentes; um cenário que sobrevive à mutação da própria camada que ele nomeia mede outra coisa.
+
+(Os dois casos da 4a — cache truncado e identidade da folha — estão em `docs/licoes/incidentes.md`, P9 e
+"A fixture mínima sombreia".)
 
 ---
 
@@ -449,8 +376,10 @@ com cinco marcados e dois sem execução não é resultado nenhum — é dívida
 
 ## 10. Como este documento muda
 
-- **Regra nova entra com o incidente que a pagou** — commit, arquivo e linha. Regra sem incidente é
-  preventiva, e este documento não as tem.
+- **Regra nova entra com o incidente que a pagou.** A regra entra aqui, curta (a regra, o que fazer, uma
+  linha de por quê); o incidente — commit, arquivo, a medição — entra em `docs/licoes/incidentes.md`, sob o
+  mesmo `P<n>`, e **nunca** com número de linha como endereço. Regra sem incidente é preventiva, e este
+  documento não as tem.
 - **Regra sai com a medição que provou que ela não era necessária**, e o registro da saída fica. É o
   que a 4a fez com a justificativa de charset do `respondText`: a decisão continuou, e a proteção
   imaginária saiu do registro **com a medição ao lado**.
@@ -459,3 +388,12 @@ com cinco marcados e dois sem execução não é resultado nenhum — é dívida
   argumento que a criou.
 - Precedência interna: se algo aqui contradisser o `CLAUDE.md`, a arquitetura ou um ADR, **eles
   vencem** e este arquivo está errado — corrija-o.
+- **Registro de 2026-10-01 — o incidente que reescreveu a P7 e separou este documento em dois.** Os três
+  documentos lidos em toda sessão chegaram a 128 KB, e a arquitetura não cabia numa leitura só. A causa
+  não foi o conteúdo, e sim **misturar três ritmos no mesmo texto**: a norma vigente, o estado vigente e a
+  história. A P7, como estava escrita, mandava a afirmação errada ficar **ao lado**, e isso produziu
+  emendas empilhadas com o valor antigo no corpo (a pauta de 8,6 mm ao lado da emenda de 7 mm) e linhas
+  de dívida de 2 a 6 KB que se corrigiam a si mesmas. A regra agora manda a afirmação superada para o
+  registro histórico, e o trecho vigente diz só o que vale. O texto integral de antes está em
+  `docs/licoes/incidentes.md` (P1 a P28) e nos dois `docs/architecture/*HISTORICO*.md`; a versão de
+  `rigorous.md` anterior está em `6984ae9`. Decisão do mantenedor, 2026-10-01.
