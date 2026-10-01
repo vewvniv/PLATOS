@@ -463,3 +463,94 @@ mudança própria que a paga ainda não existe, e que precisa ser proposta antes
 - **visto reprovar**, por cópia criada nesta sessão (`diff` contra o original mostra **uma** linha diferente, 584): (1) a
   cópia com o token sem crases → `exit 2`, "nao comeca com token entre crases na coluna `Fatia-limite`"; (2) a cópia com
   `` `5c-2` `` → `exit 2`, "tem o token `5c-2`, fora da gramatica". Os dois pelo motivo certo.
+
+## 6.6 A verificação final, com os comandos cheios (2026-10-01)
+
+Ordem que coube na memória (16 GB): emulador encerrado (`adb emu kill`) e daemons parados; `buildSrc` e `build` com o
+Docker de pé; daemons parados de novo; emulador `platos-atd34` subido sem janela; suíte instrumentada completa.
+
+| Comando | Janela (UTC) | Resultado |
+|---|---|---|
+| `./gradlew -p buildSrc test --rerun-tasks` | 10:22:31–10:23:03 | `exit 0`, **6 de 6 tasks executadas**, 1 teste |
+| `./gradlew build --rerun-tasks` | 10:23:03–10:26:51 | `exit 0`, **183 de 183 tasks executadas** (igual à 0.1) |
+| `./gradlew :apps:android:connectedDebugAndroidTest --rerun-tasks -Pandroid.testInstrumentationRunnerArguments.permissaoManual=true` (sem filtro) | 10:27:44–10:31:57 | `exit 0`, 88 de 88 tasks executadas |
+
+Contagem por task do `build` (`timestamp` do XML dentro da janela; antes → depois, P3):
+
+| Task | Antes (0.1) | Agora | Primeiro..último `timestamp` |
+|---|---|---|---|
+| `:apps:android:testDebugUnitTest` | 353 | **399** | 10:25:39..10:25:45 |
+| `:apps:android:testReleaseUnitTest` | 353 | **399** | 10:25:50..10:25:55 |
+| `:apps:api:test` | 171 | 171 | 10:26:00..10:26:17 |
+| `:packages:domain:jvmTest` | 437 | 437 | 10:26:45..10:26:47 |
+| `:packages:domain:jsNodeTest` | 428 | 428 | 10:26:41..10:26:43 |
+| `:packages:domain:testAndroidHostTest` | 428 | 428 | 10:26:25..10:26:29 |
+| `buildSrc:test` | 1 | 1 | 10:22:54 |
+
+Os +46 testes de unidade do android são os desta mudança; **domínio, api e buildSrc não mudaram de contagem**, como a
+mudança não os toca.
+
+Instrumentado, **por aparelho** (relatórios desta sessão, `timestamp` dentro da janela do comando):
+
+| Aparelho | Casos | Falhas | Pulados | `timestamp` |
+|---|---|---|---|---|
+| emulador `platos-atd34` (Android 14) | **170** (eram 133) | 0 | 2 (as sondas `AcumuloDeInstanciasProbe`) | 10:31:51 |
+| Xiaomi `2511FPC34G` (Android 16) | **170** | 0 | 2 (as mesmas sondas) | 10:31:43 |
+
+**A rodada do Xiaomi é manual e pontual, e não roda em CI (P2):** com `permissaoManual=true` e **um** toque do Leon em
+"Permitir" (aviso `>>> TOQUE EM 'PERMITIR' …` no log do aparelho), os casos que leem a tela rodaram em vez de pular: os
+dois da 2.4/3.2 (`a_regiao_reconhecida_vira_capturada…`, `trocar_de_aluno_antes_de_fechar…`) e os quatro de
+`RespostaTelaInstrumentedTest` (5.1). Isso fecha as caixas 2.4, 3.2 e 5.1, que estavam abertas só por causa dele. Sem o
+toque, o mesmo comando pula esses casos com o motivo.
+
+`npx vitest run` **não foi executado**: a mudança não toca `apps/web` (`git diff --stat origin/main...` não lista nada ali).
+
+**Escopo.** `git diff --stat origin/main...` filtrado por `packages/domain|apps/api|apps/web|supabase|outbox|openspec/specs|
+fixtures|golden`: **uma** linha, `apps/android/src/androidTest/.../outbox/ApagamentoLocalInstrumentedTest.kt` — arquivo de
+**teste** que só tem `outbox` no caminho e foi estendido com a resposta guardada (4.2). Nenhum arquivo de produção, de
+domínio, de api, de web, de banco, de `result-sync` (`openspec/specs`), fixture ou golden. **`sha256` das fixtures:
+idêntico ao da 0.2** nos oito arquivos (`Get-FileHash`, feito depois de tudo).
+
+## 6.5 O que esta mudança NÃO verificou (P8)
+
+Cada item está **conhecido**, e nenhum está mitigado.
+
+- **Papel.** Nenhuma foto de folha impressa foi recortada. O recorte, o PNG e a tela foram exercitados sobre o documento
+  renderizado e deformado por homografia conhecida (16 de 16 aceitos, 0 recusados, nos dois aparelhos). **A taxa de
+  recusa em foto real é desconhecida**; se não for zero, a região fica com problema e o caderno não completa, e o
+  argumento passa a ser a fatia "finalizar caderno incompleto" (§8).
+- **Letra de aluno.** Todo "desvio" e toda "tinta" daqui é sintético (retângulos). O limiar do desvio (5% e 4 mm²) e o
+  teto do resíduo (1,0 mm) continuam fixados sem letra (§16, `6`), e **nenhum foi mudado** (P11). O **tamanho do PNG** com
+  manuscrito real é desconhecido: o medido foi 3 079 bytes em branco e 459 686 bytes com ruído sintético.
+- **Foto de celular.** Sem sombra, sem moiré, sem foco, sem a câmera ao vivo: o quadro é injetado em `analisar()` e em
+  `entregarQuadro()`; o `ImageProxy`/CameraX **não** foi atravessado por nenhum teste desta mudança.
+- **A tela em aparelho, por olho.** A `RespostaTela` foi lida pela árvore de acessibilidade. Que a imagem caiba, que o
+  aviso se leia, que o contraste seja bom, e que "Refazer" não seja tocado por engano **não foram vistos**. A tela do
+  estado novo continua sem conferência visual (§16).
+- **O teto de 1,0 mm** do resíduo: herdado da 5c-0, não medido de novo.
+- **A lacuna do prazo.** O teto de 30 dias só roda quando o aplicativo abre (linha nova do §16, token `5c`): aparelho que
+  guarda resposta e nunca mais abre não expurga. O número de eliminações que falharam **fica só no log**
+  (`RespostasVarredura`); ninguém o vê. O desvio de política (sair e revogação preservam a imagem) é decisão do
+  mantenedor de 2026-10-01, não resolvida com o jurídico.
+- **O relógio do aparelho.** Quem adianta ou atrasa a data muda o prazo; não há relógio monotônico que atravesse reinício.
+  `agora < capturadaEm` mantém (testado) e não há proteção contra relógio adiantado.
+- **A queda real do processo.** As duas ordens de queda (4.3) foram **simuladas pelo estado que deixam**, com as
+  instâncias reiniciadas; nenhum processo foi morto no meio de uma gravação.
+- **Backup e transferência pelo transporte.** A regra declarada e empacotada cobre `respostas/` (6.3, nos dois aparelhos),
+  mas a conferência pelo `bmgr`/`D2dTransport` **não foi feita** (habilitar `bmgr` no Xiaomi é mudar o aparelho).
+- **Cifra em repouso.** A resposta está em PNG em claro sob `filesDir`. Decisão própria, não tomada.
+- **A eliminação fora do fio principal** é por construção (`Dispatchers.IO`); nenhum teste a observa.
+- **`ApagamentoLocal` e `respostas/`.** `DeviceSession` não tem handle para o diretório: "sair apagaria `respostas/`" não é
+  mutável nesse nível; a proteção é estrutural (6.1).
+- **Que nenhum código de envio lê `respostas/`** é o `grep` de hoje; nada impede que alguém o escreva amanhã.
+- **A nota não existe.** Não há entrada de nota, fato de correção, `grading_result`, envio de imagem nem corpus — é a 5c-2
+  e a fatia 8, e nada disto foi tocado.
+- **O Xiaomi e a instalação.** Em uma rodada filtrada o Xiaomi recusou o APK (`INSTALL_FAILED_USER_RESTRICTED`, confirmação
+  na tela do aparelho); na rodada final instalou normalmente. Quem roda precisa estar com o aparelho na mão.
+
+**Erros de rumo desta mudança, em um só lugar (P7):** o texto de `design.md`/`proposal.md` sobre o valor-padrão de
+`respostas` (testes antigos precisaram passar as respostas); duas previsões de "ver falhar" que não se confirmaram como
+escritas (2.2 e 2.3, e a borda `>=` da 4.1, que derrubou 2 testes e não 1); a primeira mutação de ordem da 4.2, que não
+derrubou nada por não ser o invariante; a mutação do `device-transfer` da 6.3, que atingiu `cloud-backup`; os testes de
+1970 e a resposta de B anteriores à abertura, que a varredura corretamente eliminou; o vermelho em cascata por Activity
+não encerrada; a expectativa de `RESUMED` sem permissão. Nenhum foi corrigido apagando o registro.
