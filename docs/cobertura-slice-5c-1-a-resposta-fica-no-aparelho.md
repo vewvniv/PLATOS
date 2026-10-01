@@ -385,3 +385,34 @@ aparelho** (§16).
   apps/android/src/main`: só `scan/` e `vision/PngDaResposta.kt`. Pergunta que cada um responde: o teste, "este corpo
   leva a imagem?"; o `grep`, "algum código de envio lê `respostas/`?". **Lacuna:** o `grep` prova o código de hoje, e
   nenhum teste proíbe que alguém o escreva amanhã (P8).
+
+## 6.2 A taxa de recusa em perspectiva e o tempo (medido sobre o documento renderizado)
+
+`MedidaDoRecorteAoVivoInstrumentedTest` (2026-10-01; `logcat -s Medida5c1`; as únicas asserções são guardas de
+vacuidade). **Os ângulos foram fixados antes de qualquer resultado e não mudaram depois (P11):** `frontal`; a
+`moderada-da-5c0` (a de `FolhaEmAngulo`); a `espelhada`; e a `forte` (a única fora da faixa de 1 a 4% que a 5c-0 chamou
+de moderada), cada uma levando os quatro cantos da página para dentro por frações da largura e da altura (ver o
+código). 2 folhas (`tok-a`, `tok-b`) × 2 páginas (uma discursiva em cada) × 4 ângulos = **16 regiões**.
+
+| Aparelho | Guardadas | Recusadas pelo resíduo (ou por outro motivo) | Não lidas |
+|---|---|---|---|
+| emulador `platos-atd34` | **16** | **0** | 0 |
+| Xiaomi `2511FPC34G` | **16** | **0** | 0 |
+
+Tempo (`System.nanoTime`, 15 quadros por aparelho, **sem** o primeiro, que aquece o JIT e as bibliotecas nativas):
+
+| Aparelho | `analisar()` (análise + recorte + PNG + arquivo) | só `SheetReader.analyze` |
+|---|---|---|
+| emulador (x86, software) | mín 301 / **mediana 314** / máx 447 ms | mín 50 / mediana 57 / máx 194 ms |
+| Xiaomi | mín 197 / **mediana 229** / máx 238 ms | mín 38 / mediana 45 / máx 86 ms |
+
+Logo o recorte, a codificação e a gravação custam algo como **180 a 260 ms por região reconhecida**, uma vez por
+toque (a análise para sozinha depois — tarefa 2.3). **Tamanho do arquivo:** ver a 2.1 (3 079 bytes em branco,
+459 686 bytes com ruído sintético, em 870×1000 px).
+
+**O que isto NÃO diz (P6, P8):** não é papel, não é letra, não é sombra, não é foto de celular: é o documento
+renderizado e deformado por homografia conhecida, em que o resíduo é pequeno por construção. **A taxa de recusa em
+foto real é desconhecida**, e "0 de 16" não a estima. A pergunta de risco da proposta — recorte recusado impede o
+professor de completar o caderno — fica **sem resposta empírica**: se na foto real a taxa não for zero, a região
+aparece com problema e o caderno não completa, e o argumento passa a ser a fatia "finalizar caderno incompleto"
+(§8), hoje fora de escopo. Os tempos são de aparelho parado sobre quadro sintético, sem a câmera.
