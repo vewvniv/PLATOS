@@ -105,6 +105,9 @@ class ScanActivity : ComponentActivity() {
     private lateinit var analysisExecutor: ExecutorService
 
     private var state by mutableStateOf<ScanState>(ScanState.NoPermission)
+
+    /** A regiao discursiva cuja resposta esta aberta em tela cheia (`RespostaTela`), ou nula. */
+    private var respostaAberta by mutableStateOf<Int?>(null)
     private var previewView: PreviewView? = null
     private var cameraLigada = false
 
@@ -197,7 +200,16 @@ class ScanActivity : ComponentActivity() {
                 onRetomar = {
                     session.resume()
                     state = session.state
+                    respostaAberta = null
                 },
+                respostaAberta = respostaAberta,
+                respostas = respostas,
+                onVerResposta = { respostaAberta = it },
+                onRefazerResposta = {
+                    respostaAberta = null
+                    refazerResposta(it)
+                },
+                onFecharResposta = { respostaAberta = null },
                 onPreviewCriado = { view ->
                     previewView = view
                     if (temPermissao()) ligaCamera()

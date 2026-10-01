@@ -118,7 +118,8 @@ class ProvaComDiscursivaNaSessaoTest {
         assertTresDeQuatro(apurada(estado))
         assertEquals(
             "A nota nao e definitiva: a correcao das discursivas ainda nao esta disponivel neste " +
-                "aparelho. Nada foi guardado.",
+                "aparelho. Nenhum resultado e gravado enquanto o caderno nao completa; as respostas " +
+                "capturadas ficam neste aparelho, e o caderno completo e entregue para envio.",
             ScanState.ProvaComDiscursiva.AVISO,
         )
     }

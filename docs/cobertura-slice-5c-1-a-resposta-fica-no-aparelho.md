@@ -325,3 +325,63 @@ contador cai. Com a eliminação imediata **desligada de propósito** (a sessão
 é guardado, as instâncias reiniciam), a abertura seguinte o elimina. **Visto falhar:** sem o `eliminar` → **só** o teste
 da eliminação na hora; varredura ignorando órfão → o da rede (e os outros 2 com órfão). **Não verificado:** que a
 eliminação não roda no fio principal é por construção (`Dispatchers.IO`); nenhum teste a observa.
+
+## 5.1 A tela da resposta (em aberto: falta o Xiaomi com o toque)
+
+`RespostaTela` (tela cheia, por cima da câmera) abre pelo toque no indicador de região **discursiva capturada com
+resposta** (`abreResposta`); a imagem é decodificada em `Dispatchers.IO` (`carregarResposta`); o número da questão
+é o `rotulo` do caderno; o aviso de desvio é `ScanState.ProvaComDiscursiva.AVISO_DE_DESVIO` (texto único, ao lado do
+`AVISO`), **abaixo** da imagem e só com `desvioSinalizado`; **Refazer** e **Voltar** (e o botão de voltar do sistema).
+
+**Verificação pela árvore de acessibilidade, sem dependência nova** (`RespostaTelaInstrumentedTest`): `compose-ui-test`
+não está no catálogo, e adicioná-lo seria mudança de dependência (P22) com justificativa no `design.md` (regra 4); o
+que ele compraria — tocar e ler nós — a árvore de acessibilidade entrega (`AccessibilityNodeInfo`,
+`performAction(ACTION_CLICK)`, `getBoundsInScreen`). O disco é preparado como a produção o deixa (PNG **real** de
+123×77 px, com tons diferentes por pixel, em `respostas/`, e o caderno no Room). 4 casos, no emulador, nenhum pulado:
+(1) resposta sinalizada → o nó da imagem tem a descrição `Resposta da questao 1: imagem de 123 por 77 pixels`, igual
+à montada com as dimensões do arquivo lidas por `BitmapFactory` com `inJustDecodeBounds`; o aviso aparece e seus
+`boundsInScreen` **não interceptam** os da imagem; (2) não sinalizada → sem aviso; (3) Refazer → o contador cai de
+"2 de 3" para "1 de 3", o indicador vira "1 · falta", a tela fecha e o arquivo some; (4) região não vista e gabarito
+não são clicáveis e nenhuma tela abre.
+
+**Visto falhar** (emulador; reversão por `diff` + nova rodada verde):
+
+| Mutação | Caiu |
+|---|---|
+| aviso sempre ligado (`if (true)`) | **só** `a_resposta_nao_sinalizada_nao_traz_aviso` |
+| aviso sempre desligado (`if (false)`) | **só** `a_resposta_sinalizada_mostra_a_imagem…` |
+| todo indicador clicável | **só** `regiao_nao_vista_e_gabarito_nao_abrem_a_tela` |
+| a descrição troca largura e altura | **só** `a_resposta_sinalizada_mostra_a_imagem…` |
+
+**O que isto não diz (P6, P8).** A descrição de acessibilidade é o que se lê; que o bitmap **desenhado** ocupe a
+caixa `Fit` certa, que a cor e o contraste sejam legíveis e que o aviso seja claro para um professor **não foram
+vistos por olho humano nem em aparelho**. A tela do estado novo continua sem conferência visual (§16). A prova de
+que o aviso "não cobre" é de caixas de acessibilidade, que podem divergir do desenho.
+
+**Xiaomi:** os 4 casos leem a tela e exigem a permissão de câmera; **sem ela são pulados com o motivo**, e rodam
+com `permissaoManual=true` e o toque do Leon (6.6). A caixa da 5.1 só se marca depois.
+
+## 5.2 O texto do aviso
+
+`ScanState.ProvaComDiscursiva.AVISO` deixou de dizer "Nada foi guardado." e passou a dizer que nenhum resultado é
+gravado enquanto o caderno não completa, que as respostas capturadas ficam neste aparelho, e que o caderno completo
+é entregue para envio. O teste que o prende (`ProvaComDiscursivaNaSessaoTest`, "a folha e reconhecida…") foi
+**atualizado de propósito**. `grep -rni "nada foi guardado" apps --include=*.kt`: a única ocorrência restante é a nota
+em KDoc que registra a frase antiga (P7); a spec principal em `openspec/specs/scan-session/spec.md` ainda a traz até
+o archive aplicar o delta. **Visto falhar:** repor o texto antigo derrubou **só** esse teste. **Não conferido em
+aparelho** (§16).
+
+## 6.1 A resposta não sai do aparelho
+
+- `ARespostaNaoSaiDoAparelhoTest`: um caderno completa com duas respostas guardadas (nomes UUID `…d1.png`, `…d2.png`
+  conferidos **no caderno** antes), vira `ApuracaoParaEnvio.Parcial` e o `corpoDoEnvio()` literal **não contém** o
+  nome de nenhum arquivo, `.png`, `respostas`, `iVBOR` (cabeçalho de PNG em base64) nem `data:image`. Canário: o corpo
+  traz `"partial":true`. **Visto falhar:** acrescentar `respostas/…d1.png` ao `capturedAt` derrubou esse teste **e** o
+  `ResultadoDtoTest` (que fixa o formato do instante): 2, e não 1.
+- `grep -rn "respostas" apps/android/src/main/kotlin/com/platos/android/{outbox,api} apps/api/src/main
+  packages/domain/src/commonMain` (2026-10-01): **nenhuma ocorrência em código**; as que aparecem são a palavra em
+  comentário (`ObjectiveScoring.kt:273`, "julgar as respostas contra o gabarito"; `Routes.kt:156/290`, "as duas
+  respostas" do HTTP). E `grep -rln "RespostasEmArquivo\|RespostasGuardadas\|PngDaResposta\|\"respostas\""
+  apps/android/src/main`: só `scan/` e `vision/PngDaResposta.kt`. Pergunta que cada um responde: o teste, "este corpo
+  leva a imagem?"; o `grep`, "algum código de envio lê `respostas/`?". **Lacuna:** o `grep` prova o código de hoje, e
+  nenhum teste proíbe que alguém o escreva amanhã (P8).

@@ -7,6 +7,7 @@ import java.time.ZoneId
 import android.view.ViewGroup
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +51,12 @@ fun ScanScreen(
     onRetomar: () -> Unit,
     onPreviewCriado: (PreviewView) -> Unit,
     modifier: Modifier = Modifier,
+    /** A regiao discursiva cuja resposta esta aberta em tela cheia, ou nula (`RespostaTela`). */
+    respostaAberta: Int? = null,
+    respostas: RespostasGuardadas? = null,
+    onVerResposta: (Int) -> Unit = {},
+    onRefazerResposta: (Int) -> Unit = {},
+    onFecharResposta: () -> Unit = {},
 ) {
     Box(modifier.fillMaxSize().background(Color.Black)) {
         if (state !is ScanState.NoPermission) {
@@ -85,7 +92,7 @@ fun ScanScreen(
                         Text("Parcial nao apurada: ${parcial.reason}", fontSize = 16.sp)
                     null -> Unit
                 }
-                CadernoDaFolha(state.caderno)
+                CadernoDaFolha(state.caderno, onVerResposta)
                 Text(ScanState.ProvaComDiscursiva.AVISO, fontSize = 16.sp)
             }
             is ScanState.Scored -> Resultado(onRetomar) {
@@ -93,8 +100,27 @@ fun ScanScreen(
                 Nota(state.score)
             }
         }
+
+        // A resposta em tela cheia, por cima de tudo. So abre para regiao discursiva **capturada** com
+        // resposta guardada; qualquer outra coisa (regiao que mudou de estado, gabarito) nao desenha nada.
+        val aberta = (state as? ScanState.ProvaComDiscursiva)?.caderno?.regioes
+            ?.firstOrNull { it.regionIndex == respostaAberta && abreResposta(it) }
+        if (aberta != null && respostas != null) {
+            RespostaTela(
+                rotulo = aberta.rotulo,
+                arquivo = requireNotNull(aberta.resposta).arquivo,
+                desvioSinalizado = requireNotNull(aberta.resposta).desvioSinalizado,
+                respostas = respostas,
+                onRefazer = { onRefazerResposta(aberta.regionIndex) },
+                onVoltar = onFecharResposta,
+            )
+        }
     }
 }
+
+/** Se o indicador da regiao abre a resposta: discursiva capturada, com resposta guardada. O gabarito nao. */
+internal fun abreResposta(regiao: RegiaoDoCaderno): Boolean =
+    !regiao.gabarito && regiao.estado == EstadoDaRegiao.Capturada && regiao.resposta != null
 
 /** A faixa de estado: uma linha, embaixo, sem cobrir o preview. */
 @Composable
@@ -209,7 +235,7 @@ private fun Parcial(parcial: PartialScore) {
  * indicador tambem diz o estado em texto, e cada regiao com problema tem uma linha com o motivo.
  */
 @Composable
-private fun CadernoDaFolha(caderno: Caderno) {
+private fun CadernoDaFolha(caderno: Caderno, onVerResposta: (Int) -> Unit) {
     if (caderno.esperadas == 0) return
 
     Text("${caderno.capturadas} de ${caderno.esperadas} regioes capturadas", fontSize = 16.sp)
@@ -229,6 +255,7 @@ private fun CadernoDaFolha(caderno: Caderno) {
                 fontSize = 14.sp,
                 modifier = Modifier
                     .background(fundo, RoundedCornerShape(12.dp))
+                    .let { if (abreResposta(regiao)) it.clickable { onVerResposta(regiao.regionIndex) } else it }
                     .padding(horizontal = 10.dp, vertical = 4.dp),
             )
         }
