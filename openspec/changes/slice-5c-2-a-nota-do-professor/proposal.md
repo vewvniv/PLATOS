@@ -42,10 +42,10 @@ O que muda, em comportamento:
 
 ## Impact
 
-- **Domínio KMP** (`domain`): a composição parcial + notas → resultado completo, e o contrato de transporte do resultado (`ResultSubmissionDto`, `ADR-0015`). Fica no KMP porque o servidor valida com o **mesmo** código que o aparelho usará (regra 7).
+- **Domínio KMP** (`domain`): a composição parcial + notas → resultado completo, e o contrato de transporte novo do resultado do professor (`GradedResultSubmissionDto`, com `completes_capture_id` identificando a captura da parcial que ela completa; `ADR-0015`, `ADR-0021`), mais a pontuação exata `Pontos`. Fica no KMP porque o servidor valida com o **mesmo** código que o aparelho usará (regra 7).
 - **API** (`apps/api`): a rota de resultados e a conferência de proveniência. **Banco** (`supabase/migrations`): a migration que o ADR decidir; as invariantes da `grading_result` (append-only por gatilho, RLS por `organization_id`) não relaxam.
 - **Pontuação fracionária:** hoje `points` e `earned` são inteiros no domínio, no contrato de transporte e na `grading_result`/`answer_observation` (que também tem `check` sobre eles). Esta mudança os alarga **só para o resultado do professor**. A representação exata no fio (por exemplo decimal em texto, e não número JSON lido como `Double`) e o tipo da coluna são decisão do ADR; o requisito é que **nenhuma precisão se perca** entre aparelho, fio e banco, e que o resultado objetivo e a parcial continuem exatamente como estão.
-- **Nenhum** código Android, nenhuma tecnologia nova.
+- **Aparelho:** nenhum código de produto; um teste de literal em `apps/android/src/test` (o `tools/parity/fio.mjs` exige literal do contrato novo nos dois lados). Nenhuma tecnologia nova.
 - **Privacidade:** a nota do professor é classe B, como o resultado objetivo; sem nome, turma ou matrícula (I5).
 - **Dívida (§16, P27).** `node tools/divida/divida.mjs` (2026-10-01): fatia corrente `5c`; o nome `slice-5c-2-…` não a move. Linhas que esta mudança alcança, e o que o **archive** diz de cada uma:
   - **`O teto de 30 dias das respostas só roda quando o aplicativo abre` (`5c`)**: **não é paga aqui** (é do aparelho). O archive diz que o veículo passa a ser a **5c-3** (ainda não proposta), que o token segue `5c` e que a 5c-3 a paga ou reagenda. Silêncio não é reconciliação.
