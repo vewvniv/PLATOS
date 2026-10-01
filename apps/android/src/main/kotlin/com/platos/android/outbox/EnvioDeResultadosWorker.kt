@@ -13,6 +13,8 @@ import com.platos.android.BuildConfig
 import com.platos.android.api.ApiPlatos
 import com.platos.android.net.Retorno
 import com.platos.android.net.clienteHttp
+import com.platos.android.scan.CadernosEmRoom
+import com.platos.android.scan.RespostasEmArquivo
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
 import com.platos.android.session.SessaoGuardadaAndroid
@@ -52,6 +54,9 @@ class EnvioDeResultadosWorker(
             transitorios = passada.resumo.transitorios,
             recusados = passada.resumo.recusados,
             ultimoStatus = passada.ultimoStatus,
+            eliminadas = passada.eliminadas,
+            naoEliminadas = passada.naoEliminadas,
+            falhasAoConfirmar = passada.resumo.falhasAoConfirmar,
         )
         return if (valeTentarDeNovo(passada.resumo)) Result.retry() else Result.success(saida)
     }
@@ -89,6 +94,9 @@ private fun diagnostico(
     transitorios: Int = 0,
     recusados: Int = 0,
     ultimoStatus: Int = 0,
+    eliminadas: Int = 0,
+    naoEliminadas: Int = 0,
+    falhasAoConfirmar: Int = 0,
 ): Data = Data.Builder()
     .putString("desfecho", desfecho)
     .putInt("confirmados", confirmados)
@@ -96,6 +104,9 @@ private fun diagnostico(
     .putInt("transitorios", transitorios)
     .putInt("recusados", recusados)
     .putInt("ultimo_status", ultimoStatus)
+    .putInt("eliminadas", eliminadas)
+    .putInt("nao_eliminadas", naoEliminadas)
+    .putInt("falhas_ao_confirmar", falhasAoConfirmar)
     .build()
 
 /**
@@ -125,7 +136,12 @@ internal fun valeTentarDeNovo(resumo: ResumoDoEnvio): Boolean =
  * [ultimoStatus] viaja junto porque ele e a unica coisa que [ResumoDoEnvio] nao carrega e que
  * distingue, de fora, um 401 de um 404 e de um 500.
  */
-internal data class PassadaDeEnvio(val resumo: ResumoDoEnvio, val ultimoStatus: Int)
+internal data class PassadaDeEnvio(
+    val resumo: ResumoDoEnvio,
+    val ultimoStatus: Int,
+    val eliminadas: Int = 0,
+    val naoEliminadas: Int = 0,
+)
 
 /**
  * A fiacao da passada: credencial guardada, cliente HTTP, `ApiPlatos` e a fila do Room.
@@ -171,14 +187,27 @@ internal suspend fun passadaDeEnvio(
     // credencial ausente de 401, de 404 e de 502 — e foi exatamente essa indistinguibilidade que
     // travou a conferencia em aparelho.
     var ultimoStatus = 0
-    val envio = EnvioDeResultados(pendentes) { envelope ->
-        val retorno = when (envelope.rota) {
-            RotaDoEnvio.RESULTADO -> api.enviarResultado(envelope.organizacao, envelope.prova, envelope.corpo)
-            RotaDoEnvio.NOTA -> api.enviarNota(envelope.organizacao, envelope.prova, envelope.corpo)
-        }
-        if (retorno is Retorno.Recusou) ultimoStatus = retorno.status
-        retorno
-    }
+    // A nota confirmada elimina as imagens do caderno que ela completa (`slice-5c-3-a-nota-no-aparelho`).
+    val cadernos = CadernosEmRoom(CadernosEmRoom.abrir(context).cadernos())
+    val respostas = RespostasEmArquivo(RespostasEmArquivo.diretorioDe(context.filesDir))
+    var eliminadas = 0
+    var naoEliminadas = 0
+    val envio = EnvioDeResultados(
+        pendentes,
+        enviar = { envelope ->
+            val retorno = when (envelope.rota) {
+                RotaDoEnvio.RESULTADO -> api.enviarResultado(envelope.organizacao, envelope.prova, envelope.corpo)
+                RotaDoEnvio.NOTA -> api.enviarNota(envelope.organizacao, envelope.prova, envelope.corpo)
+            }
+            if (retorno is Retorno.Recusou) ultimoStatus = retorno.status
+            retorno
+        },
+        aoConfirmar = { envelope ->
+            val feito = eliminarAoConfirmar(envelope, cadernos, respostas)
+            eliminadas += feito.eliminados
+            naoEliminadas += feito.naoEliminados
+        },
+    )
 
     val resumo = try {
         envio.enviarPendentesDa(organizacao)
@@ -186,5 +215,10 @@ internal suspend fun passadaDeEnvio(
         http.close()
     }
 
-    return PassadaDeEnvio(resumo = resumo, ultimoStatus = ultimoStatus)
+    return PassadaDeEnvio(
+        resumo = resumo,
+        ultimoStatus = ultimoStatus,
+        eliminadas = eliminadas,
+        naoEliminadas = naoEliminadas,
+    )
 }

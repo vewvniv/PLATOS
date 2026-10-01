@@ -20,6 +20,8 @@ data class ResumoDoEnvio(
     val semRede: Int,
     val transitorios: Int,
     val recusados: Int,
+    /** Quantas vezes o gancho de confirmacao falhou: a confirmacao ja aconteceu e nao se desfaz. */
+    val falhasAoConfirmar: Int = 0,
 ) {
     val pendentesRestantes: Int get() = semRede + transitorios + recusados
 }
@@ -55,6 +57,11 @@ private fun Retorno.Recusou.eTransitoria(): Boolean = status >= 500
  */
 class EnvioDeResultados(
     private val pendentes: ResultadosPendentes,
+    /**
+     * Roda **depois** da confirmacao do servidor e de o pendente sair da fila (`slice-5c-3-a-nota-no-aparelho`,
+     * design D3): e onde a nota confirmada elimina as imagens. Falhar aqui nao desfaz a confirmacao.
+     */
+    private val aoConfirmar: suspend (EnvelopeDeEnvio) -> Unit = {},
     private val enviar: suspend (EnvelopeDeEnvio) -> Retorno<Unit>,
 ) {
 
@@ -63,6 +70,7 @@ class EnvioDeResultados(
         var semRede = 0
         var transitorios = 0
         var recusados = 0
+        var falhasAoConfirmar = 0
 
         for (envelope in pendentes.pendentesDa(organizacao)) {
             when (val retorno = enviar(envelope)) {
@@ -71,6 +79,15 @@ class EnvioDeResultados(
                     // confirmacao do servidor.
                     pendentes.apagarConfirmado(envelope.captureId)
                     confirmados++
+                    // O gancho roda depois da confirmacao e nunca a desfaz: falhar aqui so deixa trabalho para a
+                    // varredura (que acha as imagens sem referencia).
+                    try {
+                        aoConfirmar(envelope)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        falhasAoConfirmar++
+                    }
                 }
 
                 // Sem rede nao e informacao sobre o resultado: e informacao sobre o caminho. A
@@ -92,6 +109,7 @@ class EnvioDeResultados(
             semRede = semRede,
             transitorios = transitorios,
             recusados = recusados,
+            falhasAoConfirmar = falhasAoConfirmar,
         )
     }
 }
