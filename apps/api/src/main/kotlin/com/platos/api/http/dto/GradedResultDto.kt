@@ -3,6 +3,7 @@ package com.platos.api.http.dto
 import com.platos.domain.scoring.PontuacaoDada
 import com.platos.domain.scoring.Pontos
 import com.platos.domain.scoring.QuestionOutcome
+import com.platos.domain.scoring.lerPontos
 import com.platos.domain.transport.GradedResultSubmissionDto
 import java.time.OffsetDateTime
 import java.time.format.DateTimeParseException
@@ -67,11 +68,3 @@ fun GradedResultSubmissionDto.paraNotaSubmetida(): NotaDoProfessorSubmetida {
         pontuacoes = essayGrades.map { PontuacaoDada(it.itemId, lerPontos(it.earned, "a discursiva '${it.itemId}'")) },
     )
 }
-
-/** Le a pontuacao e, se falhar, diz **de qual campo** — a mensagem de 400 nomeia a questao. */
-private fun lerPontos(texto: String, de: String): Pontos =
-    try {
-        Pontos.parse(texto)
-    } catch (erro: IllegalArgumentException) {
-        throw IllegalArgumentException("$de: ${erro.message}")
-    }

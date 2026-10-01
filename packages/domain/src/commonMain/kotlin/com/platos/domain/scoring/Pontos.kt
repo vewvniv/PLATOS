@@ -74,3 +74,15 @@ value class Pontos private constructor(val centesimos: Long) : Comparable<Pontos
         }
     }
 }
+
+/**
+ * Le a pontuacao e, se falhar, diz **de qual campo** veio o texto: a mensagem de recusa nomeia a questao
+ * (spec `result-sync`), no servidor, e a tela de nota nomeia a questao no aparelho. Mora no dominio para
+ * que os dois leiam com o mesmo codigo (regra 7 do `CLAUDE.md`).
+ */
+fun lerPontos(texto: String, de: String): Pontos =
+    try {
+        Pontos.parse(texto)
+    } catch (erro: IllegalArgumentException) {
+        throw IllegalArgumentException("$de: ${erro.message}")
+    }
