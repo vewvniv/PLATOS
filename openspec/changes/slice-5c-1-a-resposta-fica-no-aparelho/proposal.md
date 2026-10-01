@@ -24,7 +24,7 @@ A `slice-5c-0` entregou o recorte da resposta discursiva **sem chamador de produ
 - **Nota, entrada de nota, fato de correção, outbox, servidor, migration, `result-sync`, `apps/api`, `apps/web`** — é a `5c-2`, e a forma do fato (revisão nova de `grading_result` ou tabela própria) é ADR dela.
 - **Nenhum envio de imagem**, e nenhum corpus de medição (§9): mudança própria, que resolve antes a política §12 (dado real de aluno em desenvolvimento).
 - `SheetReader.analyze`, `RecorteDaResposta`, `DesvioDaResposta`, os três limiares da 5c-0, o `LayoutMap`, qualquer golden ou fixture.
-- `DeviceSession.sair` (segue sem apagar caderno nem resposta: é trabalho não concluído, como o pendente — ver §16, linha da política §10.8).
+- `DeviceSession.sair` (segue sem apagar caderno nem resposta: é trabalho não concluído, como o pendente — **decisão do mantenedor de 2026-10-01: as imagens ficam ao sair, como o caderno** — ver §16, linha da política §10.8).
 - Recorte em cor (`answer_capture_mode: color`), cifragem em repouso, varredura periódica em segundo plano, finalizar caderno incompleto.
 
 ## Capabilities
