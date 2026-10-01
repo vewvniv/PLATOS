@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 /**
  * Os valores de `answer_kind` concordam entre o dominio e o `check` da migration (ADR-0015).
@@ -24,7 +24,7 @@ import { readFileSync } from 'node:fs';
  */
 
 const FONTE_DOMINIO = 'packages/domain/src/commonMain/kotlin/com/platos/domain/transport/AnswerKind.kt';
-const FONTE_MIGRATION = 'supabase/migrations/20260917134500_result_tables.sql';
+const DIR_MIGRATIONS = 'supabase/migrations';
 
 const argv = process.argv.slice(2);
 const flag = argv.indexOf('--esperado');
@@ -65,14 +65,26 @@ dizer(`dominio:   ${doDominio.join(', ')}`);
 
 // ---------------------------------------------------------------- o `check` da migration
 
-const sql = ler(FONTE_MIGRATION);
-const check = sql.match(/check \(answer_kind in \(([^)]*)\)\)/);
+// O `check` e redeclarado por migration nova (drop + add): vale o da ULTIMA migration que o declara,
+// que e o que o banco tem depois de aplicar todas em ordem. Ler so a primeira daria a lista antiga.
+const migrations = readdirSync(new URL(`${DIR_MIGRATIONS}/`, new URL('../../', import.meta.url)))
+  .filter((arquivo) => arquivo.endsWith('.sql'))
+  .sort();
+let check = null;
+let fonteDoCheck = null;
+for (const arquivo of migrations) {
+  const achado = ler(`${DIR_MIGRATIONS}/${arquivo}`).match(/check \(answer_kind in \(([^)]*)\)\)/);
+  if (achado) {
+    check = achado;
+    fonteDoCheck = arquivo;
+  }
+}
 if (!check) {
-  console.error(`nao achei o \`check (answer_kind in (...))\` em ${FONTE_MIGRATION} — a forma mudou`);
+  console.error(`nao achei o \`check (answer_kind in (...))\` em nenhuma migration de ${DIR_MIGRATIONS} — a forma mudou`);
   process.exit(2);
 }
 const doCheck = check[1].split(',').map((s) => s.trim().replace(/^'|'$/g, ''));
-dizer(`migration: ${doCheck.join(', ')}`);
+dizer(`migration: ${doCheck.join(', ')}  (${fonteDoCheck})`);
 
 // ---------------------------------------------------------------- a comparacao
 

@@ -30,9 +30,11 @@ class AnswerKindTest {
     }
 
     @Test
-    fun `os quatro valores estao declarados, e sao quatro`() {
+    fun `os cinco valores estao declarados, e sao cinco`() {
+        // Os quatro primeiros sao os de `QuestionAnswer`; o quinto e a evidencia da discursiva corrigida pelo
+        // professor (`slice-5c-2-a-nota-do-professor`, ADR-0021) e nao e uma resposta lida da folha.
         assertEquals(
-            listOf("marcada", "em_branco", "multipla_marcacao", "indecisa"),
+            listOf("marcada", "em_branco", "multipla_marcacao", "indecisa", "discursiva_corrigida"),
             AnswerKind.TODOS,
             "a ordem e a do check da migration, que e a ordem que o conferidor compara",
         )
