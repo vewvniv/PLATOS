@@ -65,12 +65,17 @@ Estão no ledger da execução e nos desvios do topo do plano. As que mudaram c�
   varredura da próxima abertura (a de segundo plano os poupa de propósito enquanto o escaneamento está aberto).
 - Corrigir uma nota **já gravada** não existe: depois da confirmação a imagem some.
 
+## Rodada instrumentada, nos dois aparelhos (2026-10-01, depois da revisão final)
+
+`./gradlew :apps:android:connectedDebugAndroidTest` **sem filtro**, 173 testes por aparelho, `BUILD SUCCESSFUL` nos dois: o
+emulador `platos-atd34` (Android 14) e o **Xiaomi `2511FPC34G` (Android 16)**, este com `permissaoManual=true` e o toque do
+Leon em "Instalar" e "Permitir". Nenhuma falha; 2 pulados no Xiaomi, ambos de `AcumuloDeInstanciasProbe` (sonda
+preexistente). Os três testes novos passaram nos dois: `MigracaoDoOutboxInstrumentedTest` (a linha antiga sobrevive e vira
+`resultado`: **a aspa do `defaultValue = "'resultado'"` estava certa e o Room validou o schema migrado**),
+`NotaPendenteInstrumentedTest` e o cenário novo de `ApagamentoLocalInstrumentedTest`.
+
 ## O que NÃO foi verificado
 
-- **Os testes instrumentados** (`MigracaoDoOutboxInstrumentedTest`, `NotaPendenteInstrumentedTest` e o cenário novo de
-  `ApagamentoLocalInstrumentedTest`) estão **escritos e compilados, não executados**: o emulador é do Leon. O primeiro
-  risco é o `defaultValue = "'resultado'"` da entidade: se o Room acusar `Migration didn't properly handle` ao abrir o
-  banco migrado, a aspa simples é a primeira suspeita.
 - **A tela de nota (Compose)** não tem teste de renderização; a lógica de leitura está em `EntradaDaNota` (JVM). Teclado
   decimal, rolagem e a confirmação em duas etapas só se veem no aparelho.
 - **A câmera ao vivo e a nota de ponta a ponta contra o servidor** (escanear, dar a nota, ver subir, ver as imagens
