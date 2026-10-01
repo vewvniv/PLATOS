@@ -31,11 +31,11 @@ suspend fun varrerRespostasDoAparelho(context: Context): Varredura =
     withContext(Dispatchers.IO) { varrerAgora(context) }
 
 /**
- * O nucleo nao suspenso da varredura, que a `VarreduraPeriodicaWorker` chama **dentro** da trava de
- * [EscaneamentoAberto] (`slice-5c-3-a-nota-no-aparelho`). A abertura do aplicativo e a do escaneamento chamam com o
- * padrao (`false`): elas rodam **antes** de a camera abrir, quando nenhum arquivo esta sendo gravado.
+ * O nucleo nao suspenso da varredura, que a `VarreduraPeriodicaWorker` chama com a marca de [EscaneamentoAberto]
+ * (`slice-5c-3-a-nota-no-aparelho`). A abertura do aplicativo e a do escaneamento chamam com o
+ * padrao (marca sempre fechada): elas rodam **antes** de a camera abrir, quando nenhum arquivo esta sendo gravado.
  */
-fun varrerAgora(context: Context, escaneamentoAberto: Boolean = false): Varredura {
+fun varrerAgora(context: Context, escaneamentoAberto: () -> Boolean = { false }): Varredura {
     val varredura = try {
         varrerRespostas(
             respostas = RespostasEmArquivo(RespostasEmArquivo.diretorioDe(context.filesDir)),

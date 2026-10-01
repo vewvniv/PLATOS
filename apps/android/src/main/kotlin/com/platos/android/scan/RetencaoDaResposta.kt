@@ -71,7 +71,8 @@ fun varrerRespostas(
     respostas: RespostasGuardadas,
     cadernos: CadernosGuardados,
     agora: Long,
-    escaneamentoAberto: Boolean = false,
+    /** Lida **a cada orfao**, na hora de eliminar: o escaneamento pode abrir no meio da varredura. */
+    escaneamentoAberto: () -> Boolean = { false },
 ): Varredura {
     val referenciadas = try {
         RetencaoDaResposta.referenciadasPor(cadernos.todos())
@@ -80,7 +81,9 @@ fun varrerRespostas(
     }
     var eliminados = 0
     var naoEliminados = 0
-    for (arquivo in RetencaoDaResposta.arquivosAEliminar(respostas.listar(), referenciadas, agora, escaneamentoAberto)) {
+    for (arquivo in RetencaoDaResposta.arquivosAEliminar(respostas.listar(), referenciadas, agora)) {
+        // Orfao so se elimina com o escaneamento fechado, e a marca e lida agora, e nao no inicio da varredura.
+        if (arquivo !in referenciadas && escaneamentoAberto()) continue
         try {
             respostas.eliminar(arquivo)
             eliminados++

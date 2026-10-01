@@ -13,13 +13,13 @@ import kotlinx.coroutines.withContext
 /**
  * O teto de 30 dias das respostas em segundo plano (`slice-5c-3-a-nota-no-aparelho`; paga a linha `5c` do §16):
  * aparelho que guarda a resposta e nunca mais abre o aplicativo tambem expurga. Roda ao menos uma vez por dia, e
- * so lida com o que a varredura ja lida; a trava e [EscaneamentoAberto].
+ * so lida com o que a varredura ja lida; a marca que poupa os orfaos e [EscaneamentoAberto].
  */
 class VarreduraPeriodicaWorker(context: Context, parametros: WorkerParameters) : CoroutineWorker(context, parametros) {
 
     override suspend fun doWork(): Result {
         withContext(Dispatchers.IO) {
-            EscaneamentoAberto.varrer { aberto -> varrerAgora(applicationContext, escaneamentoAberto = aberto) }
+            varrerAgora(applicationContext, escaneamentoAberto = EscaneamentoAberto::estaAberto)
         }
         return Result.success()
     }

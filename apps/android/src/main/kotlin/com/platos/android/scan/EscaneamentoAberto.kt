@@ -7,17 +7,24 @@ package com.platos.android.scan
  * de valer e o requisito "a eliminacao em segundo plano nao elimina o que o escaneamento esta gravando" deve ser
  * reaberto.
  *
- * [varrer] executa o bloco **dentro da trava**, com o valor da marca naquele instante; [abrir] espera a varredura em
- * curso terminar. Sem a trava, o escaneamento poderia abrir entre a leitura da marca e a eliminacao, e a varredura
- * apagaria a resposta que o analisador acabou de gravar.
+ * **Sem trava, e de proposito** (revisao final): a primeira versao segurava um monitor durante a varredura inteira, e
+ * `onStart` o esperava na thread principal. Agora a marca e `@Volatile`, [abrir] nao espera ninguem, e a varredura a
+ * le **a cada arquivo, na hora de eliminar**. Isso basta: um arquivo orfao so pode ter sido gravado depois de
+ * [abrir] (os da sessao anterior estao no caderno que o `onStop` guardou antes de [fechar]), e a listagem da varredura
+ * e anterior a ele — um arquivo gravado depois de [abrir] nao esta na listagem, e o que esta e ou ja era orfao ou e
+ * poupado pela leitura que vem logo antes da eliminacao.
  */
 object EscaneamentoAberto {
-    private val trava = Any()
+    @Volatile
     private var aberto = false
 
-    fun abrir() = synchronized(trava) { aberto = true }
+    fun abrir() {
+        aberto = true
+    }
 
-    fun fechar() = synchronized(trava) { aberto = false }
+    fun fechar() {
+        aberto = false
+    }
 
-    fun <T> varrer(bloco: (aberto: Boolean) -> T): T = synchronized(trava) { bloco(aberto) }
+    fun estaAberto(): Boolean = aberto
 }

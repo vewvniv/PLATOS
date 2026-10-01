@@ -213,4 +213,22 @@ class RetencaoDaRespostaTest {
             RetencaoDaResposta.arquivosAEliminar(listOf("orfao.png"), emptyMap(), agora),
         )
     }
+
+    /**
+     * A marca e lida **a cada arquivo**, na hora de eliminar (revisao final da `slice-5c-3`): o escaneamento pode abrir
+     * no meio da varredura, e a trava que bloqueava a thread principal foi trocada por esta leitura. O orfao
+     * que vem depois de a marca ligar e poupado; o vencido continua saindo.
+     */
+    @Test
+    fun `o escaneamento que abre no meio da varredura poupa os orfaos seguintes e nao o vencido`() {
+        val disco = Disco(listOf("velho.png", "orfao-1.png", "orfao-2.png"))
+        val cadernos = Cadernos(listOf(caderno("a", resposta("velho.png", 31))))
+        var consultas = 0
+
+        val v = varrerRespostas(disco, cadernos, agora, escaneamentoAberto = { ++consultas > 1 })
+
+        assertEquals(listOf("orfao-2.png"), disco.presentes)
+        assertEquals(2, v.eliminados)
+        assertEquals(2, consultas, "so os orfaos consultam a marca: o vencido sai de qualquer jeito")
+    }
 }
