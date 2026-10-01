@@ -1,8 +1,11 @@
 package com.platos.android.api
 
+import com.platos.android.outbox.NotaPendente
 import com.platos.android.outbox.ResultadoPendente
 import com.platos.domain.scoring.ApuracaoParaEnvio
 import com.platos.domain.transport.AnswerObservationDto
+import com.platos.domain.transport.EssayGradeDto
+import com.platos.domain.transport.GradedResultSubmissionDto
 import com.platos.domain.transport.ResultSubmissionDto
 import com.platos.domain.transport.answerKind
 import com.platos.domain.transport.answerOptions
@@ -64,6 +67,39 @@ fun ResultadoPendente.corpoDoEnvio(): String = JSON.encodeToString(
             )
         },
         partial = nota is ApuracaoParaEnvio.Parcial,
+    ),
+)
+
+/**
+ * O corpo da nota do professor, congelado na gravacao como o do resultado (`slice-5c-3-a-nota-no-aparelho`).
+ * Mesmo `JSON` (`explicitNulls`, `encodeDefaults`). A parte objetiva sai como `observations`; as discursivas, como
+ * `essay_grades` com a pontuacao em texto decimal exato (ADR-0021). Origem `teacher` e caminho `image` sao os
+ * unicos que o servidor aceita.
+ */
+fun NotaPendente.corpoDoEnvio(): String = JSON.encodeToString(
+    GradedResultSubmissionDto.serializer(),
+    GradedResultSubmissionDto(
+        captureId = captureId,
+        completesCaptureId = completaCaptura,
+        studentToken = studentToken,
+        packageHash = nota.packageHash,
+        variantId = nota.variantId,
+        origin = "teacher",
+        path = "image",
+        points = nota.total.toString(),
+        maxScore = nota.maxScore,
+        closed = nota.closed,
+        capturedAt = Instant.ofEpochMilli(apuradoEm).toString(),
+        observations = nota.outcomes.map {
+            AnswerObservationDto(
+                itemId = it.questionId,
+                answerKind = it.answer.answerKind(),
+                answerOptions = it.answer.answerOptions(),
+                worth = it.worth,
+                earned = it.earned,
+            )
+        },
+        essayGrades = nota.essays.map { EssayGradeDto(it.questionId, it.earned.toString()) },
     ),
 )
 
