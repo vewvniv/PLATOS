@@ -2020,7 +2020,7 @@ class GradedResultRouteTest {
             contentType(ContentType.Application.Json)
             setBody(corpoNota("cap-1"))
         }
-        val deOutraOrg = client.enviarNota(alheia, corpoNota("cap-2"))
+        val deOutraOrg = client.enviarNota(alheia, corpoNota("cap-2"), shortId = SHORT_ID_ALHEIA)
         val inexistente = client.enviarNota(org, corpoNota("cap-3"), shortId = "nao-existe")
 
         assertEquals(HttpStatusCode.Unauthorized, semToken.status)
@@ -2124,7 +2124,7 @@ class GradedResultRouteTest {
         val outro = PostgresSupport.createUser("sub-outro", "outro@escola.br")
         val alheia = PostgresSupport.createOrganization(kind = "school", name = "Escola Alheia")
         PostgresSupport.addMembership(outro, alheia, "teacher")
-        val exame = PostgresSupport.createExam(alheia, SHORT_ID, "Prova Alheia", outro)
+        val exame = PostgresSupport.createExam(alheia, SHORT_ID_ALHEIA, "Prova Alheia", outro)
         PostgresSupport.publishPackage(alheia, exame, CONTEUDO_COM_DISCURSIVA)
         return alheia
     }
@@ -2160,6 +2160,7 @@ class GradedResultRouteTest {
         const val NOME = "Professor da Nota"
         const val SHORT_ID = "prova-discursiva-n"
         const val SHORT_ID_OBJETIVA = "prova-objetiva-n"
+        const val SHORT_ID_ALHEIA = "prova-alheia-n"
 
         /** Escrito a mao, como em `ResultRouteTest`: serializar com o tipo do servidor poria o mesmo codigo dos dois lados. */
         const val CONTEUDO_COM_DISCURSIVA =
@@ -2447,7 +2448,7 @@ Dentro de `examRoutes`, logo depois do `post("/organizations/{organizationId}/ex
 - [ ] **Step 7: Rodar e ver passar**
 
 Run: `./gradlew :apps:api:test`
-Expected: `BUILD SUCCESSFUL`. Confira o `timestamp` do XML de `GradedResultRouteTest` (13 testes) e que `ResultRouteTest` continua verde. **Se uma recusa do laço falhar, leia o `nome` na mensagem** (o laço o inclui) e a camada que segurou: não afrouxe o trecho esperado (P12). Se o teste de imagem (`um corpo que traga imagem…`) cair com status diferente de 200/400, leia a mensagem do `ContentNegotiation` antes de agir.
+Expected: `BUILD SUCCESSFUL`. Confira o `timestamp` do XML de `GradedResultRouteTest` (11 testes) e que `ResultRouteTest` continua verde. **Se uma recusa do laço falhar, leia o `nome` na mensagem** (o laço o inclui) e a camada que segurou: não afrouxe o trecho esperado (P12). Se o teste de imagem (`um corpo que traga imagem…`) cair com status diferente de 200/400, leia a mensagem do `ContentNegotiation` antes de agir.
 
 - [ ] **Step 8: Commit**
 
