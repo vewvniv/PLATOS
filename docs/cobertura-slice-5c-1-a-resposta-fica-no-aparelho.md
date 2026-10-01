@@ -440,3 +440,26 @@ allowed` por causa do `allowBackup="false"` e nada diz da regra de transferênci
 Xiaomi, onde `bmgr` está desabilitado, e habilitá-lo é mudar o aparelho do mantenedor (P22). **Lacuna conhecida,
 não mitigada (P8):** que a transferência de fato não leve `respostas/` está provado pela regra declarada e empacotada,
 não pelo transporte.
+
+## 6.4 O §16 (`ARQUITETURA-FINAL-v3.md`)
+
+Feito (2026-10-01), sem apagar o texto anterior de nenhuma linha (P7; cada acréscimo abre com a data):
+(a) **"A política §10.8 diverge do comportamento"** ampliada para a resposta guardada, com a decisão do mantenedor de
+2026-10-01 e o que ela deixa devendo; (b) **"A região discursiva ainda não passou pelo aparelho nem pelo papel"**
+atualizada com o que passou pela câmera ao vivo (16 de 16 sobre o documento renderizado) e o que o papel ainda precisa
+medir, acrescido da taxa de recusa em foto real; (c) **"O limiar do desvio…"** atualizada com a tela que herda o sinal;
+(d) **"LGPD com dados de menores"** (a da tabela "Ponto de não-retorno", que a guarda lê) com a imagem de manuscrito no
+aparelho e o que a elimina e o que não; (e) **linha nova** "O teto de 30 dias das respostas só roda quando o aplicativo
+abre", token `` `5c` ``, a 5c-2 como veículo (escrita sem crases na célula, para a guarda não ler dois tokens), custo e
+dono. **(f) é do archive** — dizer em uma frase que "A guarda de dívida não lê a tabela 'Aberto'" (`5`) segue `5`, que a
+mudança própria que a paga ainda não existe, e que precisa ser proposta antes do archive da última mudança da fatia 5 —
+**e não foi feito aqui**.
+
+**Verificação** (`node tools/divida/divida.mjs`):
+- o original: `exit 0`, 24 linhas lidas, nenhuma vencida; a linha nova aparece como `em dia`, `` `5c` ``, e entre as que
+  "vencem nesta fatia (5c)" junto da `5` (a da guarda, **não tomada**), que é o esperado para um limite igual à fatia
+  corrente;
+- **visto aceitar:** a linha nova é lida e listada;
+- **visto reprovar**, por cópia criada nesta sessão (`diff` contra o original mostra **uma** linha diferente, 584): (1) a
+  cópia com o token sem crases → `exit 2`, "nao comeca com token entre crases na coluna `Fatia-limite`"; (2) a cópia com
+  `` `5c-2` `` → `exit 2`, "tem o token `5c-2`, fora da gramatica". Os dois pelo motivo certo.
