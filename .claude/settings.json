@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "deny": [
+      "Skill(opsx:apply)",
+      "Skill(openspec-apply-change)"
+    ]
+  }
+}

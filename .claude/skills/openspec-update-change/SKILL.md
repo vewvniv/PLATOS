@@ -72,7 +72,7 @@ Revise a change's existing planning artifacts and keep them coherent. Never edit
 
 6. **Point to the next step (guidance only - NEVER act on it)**
    - Artifacts still missing -> suggest `/opsx:continue` to create them.
-   - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; suggest `/opsx:apply` to carry the delta into code.
+   - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; tell the user to carry the delta into code through the Superpowers workflow (never `/opsx:apply`).
    - Everything done and implemented -> suggest `/opsx:archive`.
 
 **Output**
@@ -83,7 +83,7 @@ After each invocation, show:
 - Where the change stands and the recommended next command
 
 **Guardrails**
-- Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, stop and point to `/opsx:apply`.
+- Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, stop and point to the Superpowers workflow (never `/opsx:apply`).
 - Use the artifact ids and paths reported by `openspec status`; never branch on hardcoded artifact names.
 - Edit only the concrete files in `existingOutputPaths`; never write to a glob `resolvedOutputPath`.
 - Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is `/opsx:continue`'s job.

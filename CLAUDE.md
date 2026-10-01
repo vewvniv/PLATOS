@@ -23,7 +23,7 @@
 1. **Contrato antes de implementação.** Mude contratos/tipos/schema antes dos consumidores.
 2. **Fatias verticais.** Uma mudança deve atravessar o menor caminho completo possível; evite tarefas horizontais de infraestrutura sem necessidade.
 3. **Uma mudança OpenSpec = um escopo pequeno de implementação.** Se tocar mais de duas capabilities/specs, reavalie e divida.
-4. **Não introduza tecnologia nova** sem justificar no `design.md` e verificar se a arquitetura já cobre o problema.
+4. **Não introduza tecnologia nova** sem justificar no plano/brainstorming (e em ADR se for permanente) e verificar se a arquitetura já cobre o problema.
 5. **Não substitua uma decisão registrada por preferência pessoal.**
 6. **Não faça refatoração oportunista** fora do escopo da mudança.
 7. **Não duplique regra de negócio** entre apps; código compartilhado pertence ao domínio KMP quando aplicável.
@@ -67,18 +67,38 @@ fechar qualquer tarefa que produza número, geometria, paridade ou artefato hash
 - Toda saída LLM deve passar por schema validation.
 - Prompts são versionados no Git; mudanças de prompt exigem nova versão.
 
-## Workflow OpenSpec
+## Workflow: OpenSpec define o QUÊ, Superpowers conduz o COMO
 
-1. Se houver incerteza: `/opsx:explore`.
-2. Caso contrário: `/opsx:propose <nome>`.
-3. Leia e revise `proposal.md`, `specs/`, `design.md`, `tasks.md`.
-4. Só então: `/opsx:apply`.
-5. Verifique testes e implementação.
-   - No **propose**: a proposta nomeia as linhas do §16 cujo gatilho esta mudança vai alcançar.
+- **OpenSpec** é a fonte de verdade de requisitos e comportamento (WHAT/WHY): `proposal.md` e
+  `specs/`, mais sync e archive. O schema do projeto é `platos-spec` (`openspec/schemas/`), com
+  fluxo `proposal → specs`. **Não há `design.md` nem `tasks.md` em mudanças novas.**
+- **Superpowers** é a fonte de verdade do processo de implementação (HOW): brainstorming técnico,
+  plano, TDD, implementação, debugging, subagents, code review e verificação final.
+- **Nunca use `/opsx:apply`** (nem a skill `openspec-apply-change`) neste projeto; está negado em
+  `.claude/settings.json`. Os arquivos antigos `design.md`/`tasks.md` em `openspec/changes/archive/`
+  são histórico e ficam como estão.
+
+Fluxo:
+
+1. Se houver incerteza sobre o requisito: `/opsx:explore`.
+2. `/opsx:propose <nome>` → gera `proposal.md` + `specs/`.
+3. Revise e aprove `proposal.md` e `specs/`.
+   - A proposta nomeia as linhas do §16 cujo gatilho esta mudança vai alcançar.
      `node tools/divida/divida.mjs` lista as que vencem na fatia corrente.
-   - No **archive**: o archive reconcilia cada uma — paga, ou reagendada com fatia-limite nova e
-     motivo (`rigorous.md` P27).
-6. `/opsx:archive`.
+4. **Só depois de aprovado**, a implementação começa pelo Superpowers: brainstorming → write-plan →
+   TDD + implementação → review/verificação. O Superpowers trata `proposal.md` e `specs/` como
+   **requisitos de entrada**.
+5. Não altere requisitos do OpenSpec em silêncio. Se uma decisão de implementação revelar que o
+   requisito precisa mudar, **pare e atualize o OpenSpec (`/opsx:update`) antes de continuar**.
+6. Depois da implementação verificada: `/opsx:sync` e `/opsx:archive`.
+   - No **archive**: o archive reconcilia cada linha do §16 nomeada — paga, ou reagendada com
+     fatia-limite nova e motivo (`rigorous.md` P27).
+
+Para o plano e o brainstorming do Superpowers valem as mesmas regras de execução acima e, para o
+que antes ia em `design.md`: declarar arquivos/módulos afetados, separar contrato, domínio,
+infraestrutura e UI, apontar impacto em KMP e consumidores, compatibilidade/migração/
+reversibilidade, justificar tecnologia nova (CLAUDE.md regra 4), e para IA descrever cache,
+schema validation, versionamento e observabilidade. Decisão que deva durar vai para ADR.
 
 Use `openspec/` como memória durável. Não reexplique a arquitetura no chat quando um arquivo existente puder ser citado.
 
