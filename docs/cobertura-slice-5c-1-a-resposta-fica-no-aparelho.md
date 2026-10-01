@@ -416,3 +416,27 @@ foto real é desconhecida**, e "0 de 16" não a estima. A pergunta de risco da p
 professor de completar o caderno — fica **sem resposta empírica**: se na foto real a taxa não for zero, a região
 aparece com problema e o caderno não completa, e o argumento passa a ser a fatia "finalizar caderno incompleto"
 (§8), hoje fora de escopo. Os tempos são de aparelho parado sobre quadro sintético, sem a câmera.
+
+## 6.3 O diretório novo está sob a regra de extração
+
+O dono do nome é `RespostasEmArquivo.diretorioDe(filesDir)` (P28): a `ScanActivity`, a varredura da porta de entrada
+e o teste passam por ela. `RegrasDeExtracaoInstrumentedTest.o_diretorio_das_respostas_esta_sob_um_dominio_negado_por_inteiro`
+lê as regras **do APK instalado** (o mesmo oráculo dos outros casos da classe), decide o domínio do diretório (`file`
+se está sob `filesDir`, `root` se está sob o diretório de dados, nenhum se foge) e exige que as **duas** seções
+(`cloud-backup` e `device-transfer`) neguem esse domínio com `path="."`. Verde nos **dois** aparelhos.
+
+**Visto falhar:** (1) o diretório movido dois níveis acima de `filesDir` (`/data/data/respostas`) → o teste caiu nos dois
+aparelhos, com a mensagem "nao esta sob o diretorio de dados do aplicativo"; (2) o `<exclude domain="file">` removido
+do XML → caíram esse teste e `o_backup_em_nuvem_nega_os_mesmos_quatro`. **Erro de rumo (P7):** a mutação (2) pretendia
+atingir `device-transfer` e atingiu `cloud-backup` — o `indexOf("<device-transfer>")` achou a ocorrência dentro do
+comentário do XML, antes da seção. O teste novo checa as duas seções, por isso caiu do mesmo jeito, mas a mutação
+específica de `device-transfer` **não foi isolada**; `a_transferencia_entre_aparelhos_nega_os_quatro_dominios` já
+cobre essa seção e não foi vista falhar nesta mudança (herdada da `transferencia-entre-aparelhos`). Reversões
+conferidas por `diff` e nova rodada verde.
+
+**A conferência em transporte (`bmgr`/`dumpsys backup`, como a `transferencia-entre-aparelhos` fez) NÃO foi feita.**
+O emulador só tem o `LocalTransport` (e o par `com.google.android.gms/.backup…`, ausente), que diz `Backup is not
+allowed` por causa do `allowBackup="false"` e nada diz da regra de transferência; o `D2dTransport` só existe no
+Xiaomi, onde `bmgr` está desabilitado, e habilitá-lo é mudar o aparelho do mantenedor (P22). **Lacuna conhecida,
+não mitigada (P8):** que a transferência de fato não leve `respostas/` está provado pela regra declarada e empacotada,
+não pelo transporte.

@@ -56,6 +56,14 @@ class RespostasEmArquivo(
     }
 
     companion object {
+        /**
+         * O diretorio das respostas, **sob `filesDir`**, e dono unico do nome (P28): quem o abre (a
+         * `ScanActivity`, a varredura da porta de entrada) e o teste que o confere contra a regra de extracao de
+         * dados passam por aqui. Sob `filesDir` ele cai no dominio `file` da regra, sem ser listado
+         * (`regras_de_extracao_de_dados.xml`, `path="."`).
+         */
+        fun diretorioDe(filesDir: File): File = File(filesDir, "respostas")
+
         const val EXTENSAO = ".png"
         const val SUFIXO_TEMPORARIO = ".tmp"
     }

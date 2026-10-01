@@ -158,7 +158,7 @@ class ScanActivity : ComponentActivity() {
         roster = RostersEmArquivo(File(filesDir, "rosters")).ler(organizacao, shortId)
         map = examPackage.layout.values.single()
         cadernos = CadernosEmRoom(CadernosEmRoom.abrir(applicationContext).cadernos())
-        respostas = RespostasEmArquivo(File(filesDir, "respostas"))
+        respostas = RespostasEmArquivo(RespostasEmArquivo.diretorioDe(filesDir))
         // A fila do outbox. Aberta aqui e nao no `Application` porque e aqui que ela e usada, e a
         // organizacao e a prova ja estao resolvidas neste ponto.
         pendentes = ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes())

@@ -3,6 +3,7 @@ package com.platos.android.session
 import android.content.res.XmlResourceParser
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.platos.android.scan.RespostasEmArquivo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -101,6 +102,36 @@ class RegrasDeExtracaoInstrumentedTest {
                 "dominio deve ser negado por inteiro. Caminhos declarados: $caminhos",
             caminhos.isNotEmpty() && caminhos.all { it == "." },
         )
+    }
+
+    /**
+     * O diretorio das respostas (`slice-5c-1-a-resposta-fica-no-aparelho`, tarefa 6.3) esta sob um dominio que
+     * as duas secoes negam por inteiro (`path="."`). O caminho vem da funcao que a producao usa
+     * ([RespostasEmArquivo.diretorioDe]), e nao de um literal combinado: um diretorio que fugisse de
+     * `filesDir` — para o armazenamento externo, por exemplo — cairia fora de qualquer dominio negado.
+     */
+    @Test
+    fun o_diretorio_das_respostas_esta_sob_um_dominio_negado_por_inteiro() {
+        val diretorio = RespostasEmArquivo.diretorioDe(context.filesDir).canonicalFile
+        val dominio = when {
+            diretorio.startsWith(context.filesDir.canonicalFile) -> "file"
+            diretorio.startsWith(context.dataDir.canonicalFile) -> "root"
+            else -> null
+        }
+
+        assertTrue(
+            "o diretorio das respostas ($diretorio) nao esta sob o diretorio de dados do aplicativo, e nenhum " +
+                "dominio da regra de extracao o cobre",
+            dominio != null,
+        )
+        for (secao in listOf("cloud-backup", "device-transfer")) {
+            val excluoes = excluoesEm(secao)
+            assertTrue(
+                "$secao nao nega o dominio '$dominio' por inteiro (path=\".\"), e o diretorio das respostas " +
+                    "($diretorio) cai nele. Exclusoes: $excluoes",
+                excluoes.any { (d, caminho) -> d == dominio && caminho == "." },
+            )
+        }
     }
 
     /** Os `domain` dos `<exclude>` que vivem dentro de [secao]. */

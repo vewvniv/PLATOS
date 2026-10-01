@@ -30,7 +30,7 @@ internal fun registrarVarredura(varredura: Varredura) {
 suspend fun varrerRespostasDoAparelho(context: Context): Varredura = withContext(Dispatchers.IO) {
     val varredura = try {
         varrerRespostas(
-            respostas = RespostasEmArquivo(File(context.filesDir, "respostas")),
+            respostas = RespostasEmArquivo(RespostasEmArquivo.diretorioDe(context.filesDir)),
             cadernos = CadernosEmRoom(CadernosEmRoom.abrir(context).cadernos()),
             agora = System.currentTimeMillis(),
         )
