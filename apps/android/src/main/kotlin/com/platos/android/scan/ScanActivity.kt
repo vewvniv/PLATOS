@@ -26,6 +26,8 @@ import com.platos.domain.exam.ExamPackage
 import com.platos.domain.scoring.ApuracaoParaEnvio
 import com.platos.domain.layout.LayoutMap
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import com.platos.android.outbox.EnvioDeResultadosWorker
 import com.platos.android.outbox.gravarEAgendar
@@ -167,7 +169,12 @@ class ScanActivity : ComponentActivity() {
         // escaneamento ao abrir, com caderno guardado ou nao. Ate a leitura terminar a janela fica em
         // branco; `Activity` destruida antes disso cancela o escopo e [montar] nao roda.
         lifecycleScope.launch {
-            montar(retomarCadernoEmAndamento(cadernos, respostas, organizacao, examPackage.meta.examId).await())
+            montar(
+                retomarCadernoEmAndamento(
+                    cadernos, respostas, organizacao, examPackage.meta.examId,
+                    aoVarrer = ::registrarVarredura,
+                ).await(),
+            )
         }
     }
 
@@ -305,6 +312,29 @@ class ScanActivity : ComponentActivity() {
             state = session.state
             cadernoVisivel = session.cadernoAtual
             if (apuracao != null) gravar(apuracao)
+        }
+    }
+
+    /**
+     * Refaz a resposta de uma regiao (`slice-5c-1-a-resposta-fica-no-aparelho`, tarefa 4.4): a sessao a
+     * descarta e a regiao volta a nao vista, e o arquivo e eliminado **na hora**, fora do fio principal.
+     *
+     * Eliminar antes de o caderno ser guardado e seguro por construcao: o caderno em disco que ainda
+     * aponte para o arquivo e lido com a regiao nao vista (normalizacao), que e o que refazer queria.
+     * A eliminacao por prazo e a rede, e nao o caminho: se esta falhar, o arquivo nao tem mais referencia
+     * e a varredura seguinte o elimina. `NonCancellable`, porque a Activity pode ser destruida logo em
+     * seguida e o arquivo nao tem por que ficar.
+     */
+    internal fun refazerResposta(regionIndex: Int) {
+        val refeita = session.refazer(regionIndex) as? ResultadoDoRefazer.Refeita ?: return
+        state = session.state
+        cadernoVisivel = session.cadernoAtual
+        lifecycleScope.launch(Dispatchers.IO + NonCancellable) {
+            try {
+                respostas.eliminar(refeita.arquivo)
+            } catch (e: Exception) {
+                // Fica para a proxima varredura: nenhum caderno o referencia mais.
+            }
         }
     }
 

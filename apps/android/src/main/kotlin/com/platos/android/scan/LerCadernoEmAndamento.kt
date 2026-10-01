@@ -33,16 +33,25 @@ fun CoroutineScope.lerCadernoEmAndamento(
 }
 
 /**
- * Retoma o caderno em andamento: le e **normaliza** (`slice-5c-1-a-resposta-fica-no-aparelho`, design,
- * decisao 5). E a unica via de leitura que a `ScanActivity` usa, e **compoe** [lerCadernoEmAndamento]: a
- * leitura do Room continua fora do fio principal, no mesmo `Dispatchers.IO`, e a normalizacao entra depois
- * dela — uma regiao cuja resposta nao existe mais volta como nao vista, e nunca como capturada.
+ * Retoma o caderno em andamento: **varre, le e normaliza, nessa ordem**
+ * (`slice-5c-1-a-resposta-fica-no-aparelho`, design, decisao 5). E a unica via de leitura que a
+ * `ScanActivity` usa, e **compoe** [lerCadernoEmAndamento]: a consulta do Room continua fora do fio
+ * principal, no mesmo `Dispatchers.IO`.
+ *
+ * **A ordem e o requisito.** Varrer antes de ler elimina a resposta vencida e o orfao antes de o caderno ser
+ * lido, e a normalizacao depois da leitura devolve a regiao cuja resposta nao existe mais como nao vista.
+ * Lido antes da varredura, o caderno ainda veria o arquivo vencido, e a regiao voltaria capturada com o
+ * arquivo eliminado logo em seguida. Varrer, ler e normalizar no mesmo bloco garante a ordem sem o `onCreate`
+ * tocar em Room. A varredura nunca lanca ([varrerRespostas]), entao nao impede o escaneamento de abrir.
  */
 fun CoroutineScope.retomarCadernoEmAndamento(
     cadernos: CadernosGuardados,
     respostas: RespostasGuardadas,
     organizacao: String,
     examId: String,
+    relogio: () -> Long = System::currentTimeMillis,
+    aoVarrer: (Varredura) -> Unit = {},
 ): Deferred<Caderno?> = async(Dispatchers.IO) {
+    aoVarrer(varrerRespostas(respostas, cadernos, relogio()))
     lerCadernoEmAndamento(cadernos, organizacao, examId).await()?.normalizado(respostas::existe)
 }

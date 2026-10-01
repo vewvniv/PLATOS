@@ -92,15 +92,23 @@ class CadernoRetomadoTest {
 
     // --- retomarCadernoEmAndamento: a unica via de leitura ---
 
-    private class RespostasFalsas(private val existentes: Set<String>) : RespostasGuardadas {
+    /** Um disco que **elimina de verdade**: a ordem varrer-ler-normalizar so aparece se eliminar tiver efeito. */
+    private class RespostasFalsas(existentes: Set<String>) : RespostasGuardadas {
+        val presentes = existentes.toMutableSet()
+
         override fun gravar(png: ByteArray, capturadaEm: Long, desvioSinalizado: Boolean, foraPpm: Int) =
             error("este teste nao grava")
 
         override fun ler(arquivo: String): ByteArray? = null
-        override fun existe(arquivo: String) = arquivo in existentes
-        override fun listar(): List<String> = existentes.toList()
-        override fun eliminar(arquivo: String) = Unit
+        override fun existe(arquivo: String) = arquivo in presentes
+        override fun listar(): List<String> = presentes.toList()
+        override fun eliminar(arquivo: String) {
+            presentes -= arquivo
+        }
     }
+
+    /** O relogio dos testes que nao falam de prazo: as respostas deles (10 e 20 ms) estao longe de vencer. */
+    private val relogioSemPrazo = { 30L }
 
     private class CadernoUnico(private val guardado: Caderno?) : CadernosGuardados {
         override fun guardar(organizacao: String, examId: String, caderno: Caderno) = Unit
@@ -111,7 +119,7 @@ class CadernoRetomadoTest {
     @Test
     fun `retomar le o caderno guardado e o devolve normalizado`() = runBlocking {
         val retomado = retomarCadernoEmAndamento(
-            CadernoUnico(caderno()), RespostasFalsas(setOf("um.png")), "org", "prova",
+            CadernoUnico(caderno()), RespostasFalsas(setOf("um.png")), "org", "prova", relogioSemPrazo,
         ).await()
 
         assertEquals(
@@ -123,7 +131,7 @@ class CadernoRetomadoTest {
     @Test
     fun `retomar devolve a discursiva capturada sem resposta, de antes da mudanca, como nao vista`() = runBlocking {
         val retomado = retomarCadernoEmAndamento(
-            CadernoUnico(caderno(r1 = null)), RespostasFalsas(setOf("um.png", "dois.png")), "org", "prova",
+            CadernoUnico(caderno(r1 = null)), RespostasFalsas(setOf("um.png", "dois.png")), "org", "prova", relogioSemPrazo,
         ).await()
 
         assertEquals(
@@ -132,9 +140,36 @@ class CadernoRetomadoTest {
         )
     }
 
+    /**
+     * Cenario "Resposta com 31 dias": varrer vem **antes** de ler. O caderno referencia uma resposta de 31
+     * dias; a varredura a elimina, e a leitura normalizada devolve a regiao como nao vista. Lido antes da
+     * varredura, o caderno ainda veria o arquivo, e a regiao voltaria capturada com o arquivo eliminado.
+     */
+    @Test
+    fun `a varredura roda antes da leitura, a resposta de 31 dias some e a regiao volta nao vista`() = runBlocking {
+        val dia = 86_400_000L
+        val vencida = RespostaGuardada("um.png", capturadaEm = 0L, desvioSinalizado = false, foraPpm = 0)
+        val disco = RespostasFalsas(setOf("um.png", "dois.png"))
+        val varreduras = mutableListOf<Varredura>()
+
+        val retomado = retomarCadernoEmAndamento(
+            CadernoUnico(caderno(r1 = vencida, r2 = resposta2.copy(capturadaEm = 31 * dia - 5))),
+            disco, "org", "prova", relogio = { 31 * dia }, aoVarrer = { varreduras += it },
+        ).await()
+
+        assertEquals(setOf("dois.png"), disco.presentes, "a vencida foi eliminada, a de 5 ms a menos de 31 dias ficou")
+        assertEquals(
+            listOf(EstadoDaRegiao.Capturada, EstadoDaRegiao.NaoVista, EstadoDaRegiao.Capturada),
+            estados(requireNotNull(retomado)),
+        )
+        assertEquals(listOf(Varredura(eliminados = 1, naoEliminados = 0)), varreduras)
+    }
+
     @Test
     fun `retomar sem caderno guardado devolve nulo`() = runBlocking {
-        val retomado = retomarCadernoEmAndamento(CadernoUnico(null), RespostasFalsas(emptySet()), "org", "prova").await()
+        val retomado = retomarCadernoEmAndamento(
+            CadernoUnico(null), RespostasFalsas(emptySet()), "org", "prova", relogioSemPrazo,
+        ).await()
 
         assertNull(retomado)
     }

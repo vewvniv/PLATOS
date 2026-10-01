@@ -58,7 +58,7 @@ class RetomarCadernoNoFioPrincipalInstrumentedTest {
 
     private fun umaResposta(): RespostaGuardada {
         val regiao = RectifiedRegion(40, 30, ByteArray(40 * 30) { 0xFF.toByte() })
-        return (respostas.gravar(PngDaResposta.codificar(regiao), 1L, false, 0) as RespostaDoQuadro.Guardada).resposta
+        return (respostas.gravar(PngDaResposta.codificar(regiao), System.currentTimeMillis() - 86_400_000L, false, 0) as RespostaDoQuadro.Guardada).resposta
     }
 
     private fun caderno(resposta: RespostaGuardada) = Caderno(

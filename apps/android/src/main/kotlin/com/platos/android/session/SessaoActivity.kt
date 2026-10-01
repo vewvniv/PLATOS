@@ -26,6 +26,7 @@ import com.platos.android.net.clienteHttp
 import com.platos.android.pacote.PacotesEmArquivo
 import com.platos.android.pacote.obterPacote
 import com.platos.android.scan.ScanActivity
+import com.platos.android.scan.varrerRespostasDoAparelho
 import io.ktor.client.HttpClient
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
@@ -126,6 +127,11 @@ class SessaoActivity : ComponentActivity() {
         // dispatcher, e `DeviceSession` e Kotlin puro de proposito.
         pendentes = ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes())
         http = clienteHttp()
+
+        // O prazo das respostas guardadas (`slice-5c-1-a-resposta-fica-no-aparelho`): na porta de entrada do
+        // aplicativo, fora do fio principal. Nao espera nem impede nada: a falha de uma eliminacao e
+        // contada e o aplicativo abre do mesmo jeito.
+        lifecycleScope.launch { varrerRespostasDoAparelho(applicationContext) }
 
         autenticacao = AutenticacaoSupabase(
             http = http,

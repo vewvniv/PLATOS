@@ -253,3 +253,75 @@ spec afirma: a Activity abre e sobrevive); o que prova a retomada continua sendo
 emulador, com permissão, o estado era `RESUMED`.
 
 **Xiaomi, 2026-10-01:** reabrir (2 casos) verdes; (a) da 2.4 e "trocar de aluno" **pulados** sem a permissão.
+
+## 4. O prazo de 30 dias (4.1 a 4.4)
+
+**O que foi rodado.** Unidade: `./gradlew :apps:android:testDebugUnitTest` (398 testes, 0 falhas, tudo
+revertido). Instrumentado, **no emulador**, por classe (`ANDROID_SERIAL=emulator-5554`, filtro de classe: itera,
+**não fecha nada**, P5): `RespostaNaAtividadeInstrumentedTest`, `VarreduraNaAberturaInstrumentedTest`,
+`ApagamentoLocalInstrumentedTest`. O Xiaomi não entrou nestas rodadas (a 6.6 roda tudo nos dois).
+
+### 4.1 A regra e a execução por arquivo (JVM)
+`RetencaoDaResposta.arquivosAEliminar` (`PRAZO_DIAS = 30`, `>=`) e `varrerRespostas` (captura a exceção **por
+arquivo**, conta, nunca lança; se `todos()` falha, não elimina nada e diz `semLeituraDosCadernos`). Fronteiras
+pinadas: 29 dias mantém; **30 exatos elimina**; 30 dias menos 1 ms mantém; 31 elimina; órfão e `.tmp` eliminam com
+zero dia; referência sem arquivo, lista vazia, relógio anterior à captura (e a conta não estoura); duas
+organizações misturadas; uma eliminação que falha não impede as outras e é contada.
+
+**Visto falhar** (reversão por `diff` + nova rodada verde):
+
+| Mutação | Caiu |
+|---|---|
+| `>=` vira `>` | `exatamente 30 dias elimina` **e** `duas organizacoes misturadas…` (esta também fixa a borda: `b-no-limite.png` tem 30 dias) — 2, e não 1 como a tarefa previa |
+| "não referenciado" passa a manter | os 3 que têm órfão: `arquivo sem referencia…`, `duas organizacoes…`, `um arquivo que nao se consegue eliminar…` |
+| a exceção por arquivo propaga | **só** `um arquivo que nao se consegue eliminar nao impede os outros, e e contado` |
+
+### 4.2 Os dois pontos de entrada, e o que não se elimina
+- **Escaneamento:** `retomarCadernoEmAndamento` agora **varre, lê e normaliza**, nessa ordem, no mesmo
+  `Dispatchers.IO`. Com vencida (31 d, referenciada), órfã, temporário e válida (5 d) no disco, abrir a Activity
+  real elimina as três primeiras, mantém a válida, e a região da vencida volta **não vista** no caderno retomado —
+  sem nenhum quadro analisado.
+- **Porta de entrada:** `SessaoActivity.onCreate` lança `varrerRespostasDoAparelho` (IO). Teste com a
+  `SessaoActivity` real: um caderno de **outra organização e outra prova** referencia uma vencida e uma válida; só
+  a válida sobra. O Room não usa `allowMainThreadQueries`, então uma consulta no fio principal derrubaria o teste.
+- **Falha de eliminação não impede abrir:** um `.tmp` que é diretório não vazio (`DirectoryNotEmptyException`)
+  fica; a Activity abre, o caderno é retomado e os outros vencidos somem.
+- **Sair e revogação preservam a resposta:** `ApagamentoLocalInstrumentedTest` ganhou a resposta (arquivo de
+  verdade, referenciada pelo caderno) conferida **lado a lado** com o resto, nos dois caminhos.
+- **Enviar a parcial não elimina:** `EnvioDaParcialNaoEliminaARespostaTest`, com `EnvioDeResultados` real e um
+  `RespostasEmArquivo` real; canário: o servidor confirmou e a fila esvaziou.
+
+**Visto falhar** (emulador): normalizar **antes** de varrer → **só** `abrir_o_escaneamento_elimina_vencida_…`
+(`expected:<NaoVista> but was:<Capturada>`); também no JVM (`a varredura roda antes da leitura…`).
+A falha de eliminação propagando → **só** `uma_eliminacao_que_falha_nao_impede_o_escaneamento_de_abrir` (o
+processo caiu, como previsto: o `await()` lançou dentro do `lifecycleScope`). Sem a chamada na `SessaoActivity` →
+**só** `abrir_o_aplicativo_elimina…`. `ApagamentoLocal`: injetar no `apagarDaOrganizacao` do roster um apagamento do
+diretório de respostas derrubou `sair_…` **e** `revogacao_…`, e só eles.
+
+**Erro de rumo, escrito (P7).** (1) A primeira mutação de ordem ("ler antes de varrer, normalizar depois") **não
+derrubou nada**: ler antes é inofensivo enquanto a normalização vier depois da varredura. O invariante é
+"normalizar depois de varrer"; a mutação foi refeita nesse sentido. (2) Ao ligar a varredura, três testes
+anteriores (2.4 b, 3.2) ficaram vermelhos: gravavam a resposta com `capturadaEm` de 1970, e a varredura, certa, a
+eliminou. O dado do teste foi corrigido (um dia atrás), não a varredura. (3) O teste de "trocar de aluno" gravava a
+resposta de B **antes** de abrir a Activity: era um órfão, e a varredura da abertura o eliminava. Agora é gravada
+depois da abertura, como o analisador faz.
+
+**Lacuna (P8):** `ApagamentoLocal` testa `DeviceSession` com os armazenamentos injetados, e `respostas/` não é um
+deles: "sair apagaria `respostas/`" não é mutável nesse nível. A injeção acima prova que a asserção reage; a
+proteção é estrutural (nenhum código fora de `scan/` toca `respostas/`), conferida por `grep` na 6.1.
+
+### 4.3 As duas ordens de queda
+(a) o processo termina depois de gravar e antes de `onStop` guardar o caderno → na abertura o arquivo é órfão e some,
+o caderno é o anterior; (b) `refazer` elimina o arquivo e o processo termina antes de o caderno ser guardado → o caderno
+ainda o referencia e é lido com a região não vista. As quedas são **simuladas pelo estado que deixam** (arquivo e
+caderno no disco, instâncias reiniciadas); nenhum processo foi morto de verdade (P6).
+**Visto falhar, conjuntos disjuntos:** a varredura ignorando órfão derrubou (a) (e os 2 outros testes com órfão), **não**
+(b); `retomar` sem normalizar derrubou (b) (e os 2 outros que dependem de normalização), **não** (a).
+
+### 4.4 Refazer elimina na hora, e a varredura é a rede
+`ScanActivity.refazerResposta` (sessão, instantâneo e eliminação em `Dispatchers.IO + NonCancellable`; a exceção é
+engolida porque a varredura é a rede). Pela Activity real: o arquivo some na hora, a região volta a não vista e o
+contador cai. Com a eliminação imediata **desligada de propósito** (a sessão refaz, o arquivo não é eliminado, o caderno
+é guardado, as instâncias reiniciam), a abertura seguinte o elimina. **Visto falhar:** sem o `eliminar` → **só** o teste
+da eliminação na hora; varredura ignorando órfão → o da rede (e os outros 2 com órfão). **Não verificado:** que a
+eliminação não roda no fio principal é por construção (`Dispatchers.IO`); nenhum teste a observa.

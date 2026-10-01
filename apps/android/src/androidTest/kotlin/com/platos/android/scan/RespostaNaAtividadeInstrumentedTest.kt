@@ -139,7 +139,7 @@ class RespostaNaAtividadeInstrumentedTest {
     /** Um PNG qualquer em `respostas/`, pelo mesmo gravador da producao. */
     private fun umaRespostaEmDisco(): RespostaGuardada {
         val regiao = RectifiedRegion(40, 30, ByteArray(40 * 30) { 0xFF.toByte() })
-        val gravada = RespostasEmArquivo(pasta).gravar(PngDaResposta.codificar(regiao), 5_000L, false, 0)
+        val gravada = RespostasEmArquivo(pasta).gravar(PngDaResposta.codificar(regiao), System.currentTimeMillis() - 86_400_000L, false, 0)
         return (gravada as RespostaDoQuadro.Guardada).resposta
     }
 
@@ -276,12 +276,15 @@ class RespostaNaAtividadeInstrumentedTest {
         val primeiro = cadernoComRespostaNaRegiao1(umaRespostaEmDisco())
         CadernosEmRoom(CadernosEmRoom.abrir(contexto).cadernos()).guardar(organizacao, pacote.meta.examId, primeiro)
         CadernosEmRoom.reiniciarParaTeste()
-        val respostaDeB = umaRespostaEmDisco()
+        lateinit var respostaDeB: RespostaGuardada
 
         val atividade = abrir()
         try {
             aguardarPermissaoManual()
             assertTrue("o caderno nao foi retomado", esperar { atividade.instantaneoDoCaderno?.aluno == "tok-a" })
+            // Gravada **depois** da abertura, como o analisador a grava: antes dela seria um orfao, e a
+            // varredura da abertura (corretamente) a eliminaria.
+            respostaDeB = umaRespostaEmDisco()
             val d2DeB = RegiaoDiscursivaNoQuadro.Reconhecida(2, "d2", CapturePayload(pacote.meta.examId, "tok-b", "v1", 2))
             atividade.entregarQuadro(
                 QuadroAnalisado(FrameOutcome.SoDiscursivas(listOf(d2DeB)), mapOf(2 to RespostaDoQuadro.Guardada(respostaDeB))),
@@ -297,6 +300,181 @@ class RespostaNaAtividadeInstrumentedTest {
             assertEquals("tok-b", retomado.aluno)
             assertNull("a resposta do primeiro aluno nao volta", retomado.regioes.single { it.regionIndex == 1 }.resposta)
             assertEquals(respostaDeB, retomado.regioes.single { it.regionIndex == 2 }.resposta)
+        }
+    }
+
+    // --- 4.2: a varredura roda antes da leitura do caderno, e antes do primeiro quadro ---
+
+    private val dia = 86_400_000L
+
+    /** Uma resposta de verdade em `respostas/`, capturada ha [diasAtras] dias. */
+    private fun respostaDeHa(diasAtras: Long): RespostaGuardada {
+        val gravada = RespostasEmArquivo(pasta).gravar(byteArrayOf(1, 2, 3), System.currentTimeMillis() - diasAtras * dia, false, 0)
+        return (gravada as RespostaDoQuadro.Guardada).resposta
+    }
+
+    private fun cadernoCom(r1: RespostaGuardada, r2: RespostaGuardada) = Caderno(
+        aluno = FolhaDiscursivaRenderizada.TOKEN,
+        regioes = listOf(
+            RegiaoDoCaderno(0, gabarito = true, rotulo = Caderno.ROTULO_GABARITO, estado = EstadoDaRegiao.Capturada),
+            RegiaoDoCaderno(1, gabarito = false, rotulo = "1", estado = EstadoDaRegiao.Capturada, resposta = r1),
+            RegiaoDoCaderno(2, gabarito = false, rotulo = "2", estado = EstadoDaRegiao.Capturada, resposta = r2),
+        ),
+        parcial = null,
+    )
+
+    private fun guardarCaderno(caderno: Caderno) {
+        CadernosEmRoom(CadernosEmRoom.abrir(contexto).cadernos()).guardar(organizacao, pacote.meta.examId, caderno)
+        CadernosEmRoom.reiniciarParaTeste()
+    }
+
+    /**
+     * Cenarios "A eliminacao roda antes da camera", "Resposta com 31 dias", "Arquivo que nenhum caderno
+     * referencia" e "...temporario": com vencida, orfa, temporario e valida no disco, abrir o escaneamento
+     * elimina as tres primeiras e mantem a valida, e **a regiao da vencida volta nao vista no caderno
+     * retomado** — antes de qualquer quadro, que este teste nem chega a mandar.
+     */
+    @Test
+    fun abrir_o_escaneamento_elimina_vencida_orfa_e_temporario_e_mantem_a_valida() {
+        val vencida = respostaDeHa(31)
+        val valida = respostaDeHa(5)
+        File(pasta, "orfao.png").writeBytes(byteArrayOf(9))
+        File(pasta, "interrompida.png.tmp").writeBytes(byteArrayOf(9))
+        guardarCaderno(cadernoCom(vencida, valida))
+        assertEquals("guarda de vacuidade: as quatro estao no disco", 4, pasta.list()!!.size)
+
+        comAtividade { atividade ->
+            assertTrue("o caderno nao foi retomado", esperar { atividade.instantaneoDoCaderno != null })
+
+            assertEquals(listOf(valida.arquivo), pasta.list()!!.sorted())
+            val retomado = atividade.instantaneoDoCaderno!!
+            assertEquals(EstadoDaRegiao.NaoVista, retomado.regioes.single { it.regionIndex == 1 }.estado)
+            assertEquals(null, retomado.regioes.single { it.regionIndex == 1 }.resposta)
+            assertEquals(EstadoDaRegiao.Capturada, retomado.regioes.single { it.regionIndex == 2 }.estado)
+            assertEquals(valida, retomado.regioes.single { it.regionIndex == 2 }.resposta)
+        }
+    }
+
+    /**
+     * Cenario "Eliminacao que falha nao impede o escaneamento": um `.tmp` que e um **diretorio nao vazio**
+     * nao se elimina (`DirectoryNotEmptyException`). A Activity abre, o caderno e retomado, os outros
+     * vencidos somem, e o teimoso continua no aparelho.
+     */
+    @Test
+    fun uma_eliminacao_que_falha_nao_impede_o_escaneamento_de_abrir() {
+        val vencida = respostaDeHa(40)
+        val valida = respostaDeHa(1)
+        val teimoso = File(pasta, "teimoso.png.tmp").apply { mkdirs(); File(this, "dentro").writeBytes(byteArrayOf(1)) }
+        File(pasta, "orfao.png").writeBytes(byteArrayOf(9))
+        guardarCaderno(cadernoCom(vencida, valida))
+
+        comAtividade { atividade ->
+            assertTrue("o caderno nao foi retomado", esperar { atividade.instantaneoDoCaderno != null })
+
+            assertTrue("a Activity nao abriu", !atividade.isFinishing && !atividade.isDestroyed)
+            assertEquals(listOf(teimoso.name, valida.arquivo).sorted(), pasta.list()!!.sorted())
+            assertEquals(valida, atividade.instantaneoDoCaderno!!.regioes.single { it.regionIndex == 2 }.resposta)
+        }
+    }
+
+    // --- 4.3: as duas ordens de queda ---
+
+    /**
+     * Queda (a): o processo termina **depois de gravar o arquivo e antes de `onStop` guardar o caderno**. Em
+     * disco, o caderno e o anterior e consistente (a regiao 1 nao vista), e o arquivo gravado nao e
+     * referenciado por ninguem. Na abertura seguinte o arquivo e orfao e some, e o caderno retomado e o
+     * anterior. A queda e simulada pelo estado que ela deixa: o arquivo no disco e o caderno antigo no Room.
+     */
+    @Test
+    fun queda_depois_de_gravar_e_antes_de_guardar_o_caderno_o_arquivo_some_e_o_caderno_e_o_anterior() {
+        val anterior = Caderno(
+            aluno = FolhaDiscursivaRenderizada.TOKEN,
+            regioes = listOf(
+                RegiaoDoCaderno(0, gabarito = true, rotulo = Caderno.ROTULO_GABARITO, estado = EstadoDaRegiao.Capturada),
+                RegiaoDoCaderno(1, gabarito = false, rotulo = "1", estado = EstadoDaRegiao.NaoVista),
+            ),
+            parcial = null,
+        )
+        CadernosEmRoom(CadernosEmRoom.abrir(contexto).cadernos()).guardar(organizacao, pacote.meta.examId, anterior)
+        CadernosEmRoom.reiniciarParaTeste()
+        val gravadaSemReferencia = umaRespostaEmDisco()
+        assertTrue("guarda de vacuidade: o arquivo esta no disco", File(pasta, gravadaSemReferencia.arquivo).isFile)
+
+        comAtividade { atividade ->
+            assertTrue("o caderno nao foi retomado", esperar { atividade.instantaneoDoCaderno != null })
+
+            assertEquals(anterior, atividade.instantaneoDoCaderno)
+            assertEquals(emptyList<String>(), pasta.list()!!.toList())
+        }
+    }
+
+    /**
+     * Queda (b): o professor refaz, o arquivo e eliminado na hora, e o processo termina **antes de o caderno
+     * ser guardado**. Em disco, o caderno ainda referencia o arquivo que nao existe mais; ele e lido com a
+     * regiao nao vista. (Mesmo estado que [reabrir_com_a_resposta_apagada_retoma_a_regiao_como_nao_vista_e_a_activity_abre];
+     * o nome aqui diz de qual queda se trata.)
+     */
+    @Test
+    fun queda_depois_de_refazer_e_antes_de_guardar_o_caderno_le_a_regiao_como_nao_vista() {
+        val resposta = umaRespostaEmDisco()
+        CadernosEmRoom(CadernosEmRoom.abrir(contexto).cadernos())
+            .guardar(organizacao, pacote.meta.examId, cadernoComRespostaNaRegiao1(resposta))
+        CadernosEmRoom.reiniciarParaTeste()
+        RespostasEmArquivo(pasta).eliminar(resposta.arquivo)
+
+        comAtividade { atividade ->
+            assertTrue("o caderno nao foi retomado", esperar { atividade.instantaneoDoCaderno != null })
+
+            val d1 = atividade.instantaneoDoCaderno!!.regioes.single { it.regionIndex == 1 }
+            assertEquals(EstadoDaRegiao.NaoVista, d1.estado)
+            assertNull(d1.resposta)
+        }
+    }
+
+    // --- 4.4: refazer elimina na hora, e a varredura e a rede ---
+
+    /** Cenario "Refazer a resposta", pela Activity real: o arquivo some na hora e a regiao volta a nao vista. */
+    @Test
+    fun refazer_pela_activity_elimina_o_arquivo_e_devolve_a_regiao_a_nao_vista() {
+        val resposta = umaRespostaEmDisco()
+        CadernosEmRoom(CadernosEmRoom.abrir(contexto).cadernos())
+            .guardar(organizacao, pacote.meta.examId, cadernoComRespostaNaRegiao1(resposta))
+        CadernosEmRoom.reiniciarParaTeste()
+
+        comAtividade { atividade ->
+            assertTrue("o caderno nao foi retomado", esperar { atividade.instantaneoDoCaderno != null })
+            assertTrue("guarda de vacuidade: o arquivo esta no disco", File(pasta, resposta.arquivo).isFile)
+
+            instrumentation.runOnMainSync { atividade.refazerResposta(1) }
+
+            assertTrue("o arquivo nao foi eliminado na hora", esperar { !File(pasta, resposta.arquivo).exists() })
+            val d1 = atividade.instantaneoDoCaderno!!.regioes.single { it.regionIndex == 1 }
+            assertEquals(EstadoDaRegiao.NaoVista, d1.estado)
+            assertNull(d1.resposta)
+            assertEquals(1, atividade.instantaneoDoCaderno!!.capturadas)
+        }
+    }
+
+    /**
+     * Cenario "Refazer elimina o arquivo na hora, e a eliminacao e a rede", com a eliminacao imediata
+     * **desligada de proposito**: a sessao refaz, o arquivo NAO e eliminado, o caderno e guardado, o processo
+     * reinicia. Ninguem mais o referencia, e a abertura seguinte o elimina.
+     */
+    @Test
+    fun com_a_eliminacao_imediata_desligada_a_varredura_da_abertura_elimina_o_arquivo() {
+        val resposta = umaRespostaEmDisco()
+        val sessao = ScanSession(pacote, cadernoInicial = cadernoComRespostaNaRegiao1(resposta))
+        sessao.refazer(1)
+        CadernosEmRoom(CadernosEmRoom.abrir(contexto).cadernos())
+            .guardar(organizacao, pacote.meta.examId, requireNotNull(sessao.cadernoAtual))
+        CadernosEmRoom.reiniciarParaTeste()
+        assertTrue("guarda de vacuidade: o arquivo continua no disco", File(pasta, resposta.arquivo).isFile)
+
+        comAtividade { atividade ->
+            assertTrue("o caderno nao foi retomado", esperar { atividade.instantaneoDoCaderno != null })
+
+            assertEquals(emptyList<String>(), pasta.list()!!.toList())
+            assertEquals(EstadoDaRegiao.NaoVista, atividade.instantaneoDoCaderno!!.regioes.single { it.regionIndex == 1 }.estado)
         }
     }
 }
