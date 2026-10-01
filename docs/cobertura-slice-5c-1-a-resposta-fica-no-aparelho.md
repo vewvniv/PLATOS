@@ -554,3 +554,78 @@ escritas (2.2 e 2.3, e a borda `>=` da 4.1, que derrubou 2 testes e não 1); a p
 derrubou nada por não ser o invariante; a mutação do `device-transfer` da 6.3, que atingiu `cloud-backup`; os testes de
 1970 e a resposta de B anteriores à abertura, que a varredura corretamente eliminou; o vermelho em cascata por Activity
 não encerrada; a expectativa de `RESUMED` sem permissão. Nenhum foi corrigido apagando o registro.
+
+## Registro cronológico e fatos de ambiente (2026-10-01)
+
+Horas locais (+02:00) e, entre parênteses, UTC quando a fonte é o log do Gradle (`date -u`). O que segue **consolida**
+o que está dito nas seções acima e acrescenta o que ainda não estava escrito (P7: nada acima foi apagado).
+
+### Linha do tempo
+
+| Hora local | O que aconteceu | Fonte |
+|---|---|---|
+| 00:12 | proposta commitada (`40afa06`) | `git log` |
+| 10:20 | decisão do mantenedor de manter as imagens ao sair, registrada (`687e06a`) | `git log` |
+| ~10:55–11:00 (08:55–09:00Z) | linha de base da JVM: `buildSrc` 6/6, `build --rerun-tasks` 183/183 | `base-buildsrc.log`, `base-build.log` |
+| 11:09–11:12 (09:09–09:12Z) | linha de base instrumentada, nos dois aparelhos, com o toque do Leon (aviso às 11:11:02) | `base-connected.log` |
+| 11:13 | linha de base commitada (`4528f20`) | `git log` |
+| 11:21 | 1.1 a 1.4: contrato e sessão | `b4f08f8` |
+| 11:24 | 2.1: PNG e arquivo atômico (o Xiaomi recusou o APK numa rodada: `INSTALL_FAILED_USER_RESTRICTED`) | `13d2927` |
+| 11:26 | `deveAnalisar` extraído (commit próprio) | `837189c` |
+| 11:33 | 2.2 e 2.3: analisador e propriedade "a análise para sozinha" | `44dda64` |
+| 11:40 | 2.4 parcial: fiação na Activity | `6436e30` |
+| 11:47 | 3.1 e 3.2: retomada normalizada | `3ad9c7b` |
+| 12:07 | 4.1 a 4.4: prazo de 30 dias, varredura nos dois pontos, refazer | `e0ddb22` |
+| 12:15 | 5.1, 5.2 e 6.1: tela da resposta, texto do aviso, corpo do envio | `470e020` |
+| 12:17 | 6.2: 16 de 16 guardadas, tempos | `02e5744` |
+| 12:20 | 6.3: regra de extração | `b2abf14` |
+| 12:22 | 6.4: §16 e a guarda de dívida (`exit 0`, e `exit 2` nas duas cópias) | `d43be15` |
+| 12:24–12:31 (10:22Z–10:31Z) | verificação final: `buildSrc` 10:22:31–10:23:03Z, `build` 10:23:03–10:26:51Z, instrumentado 10:27:44–10:31:57Z; toque do Leon às 12:29:42 | `final-*.log` |
+| 12:33 | verificação final registrada (`3ebaa12`) | `git log` |
+| 12:39 | `/opsx:update`: `proposal.md`, `design.md` e `tasks.md` corrigidos e anotados | esta seção |
+
+### Fatos de ambiente que o apply coletou e que o próximo apply precisa saber
+
+- **Emulador:** `C:\Users\Leon\scoop\apps\android-clt\current\emulator\emulator.exe -avd platos-atd34 -no-window -no-audio
+  -no-boot-anim -no-snapshot-save -gpu swiftshader_indirect`. O `emulator` **não está no `PATH`**. Subiu e foi
+  encerrado (`adb emu kill`) com aviso e autorização do Leon; ficou desligado no fim. Com os dois aparelhos
+  conectados, `ANDROID_SERIAL=emulator-5554` ou `ANDROID_SERIAL=TOXSR4MR9989MBQW` escolhe onde o `connectedDebugAndroidTest`
+  roda, para iterar em um só. O Xiaomi **continuou visível ao `adb`** depois do `adb emu kill` (a nota anterior dizia
+  que sumia).
+- **Memória:** 5,2 GB livres com o Docker de pé e nada mais, 6,5 GB com os daemons parados e o emulador desligado.
+  A ordem que coube: agregado e `buildSrc` sem emulador; depois `./gradlew --stop`, emulador, instrumentado.
+- **`--tests` reprova na guarda.** `./gradlew :apps:android:testDebugUnitTest --tests '…'` falha na guarda
+  `TodoTesteDeclaradoRoda` (todo `@Test` declarado precisa ter resultado). Para iterar, rode a task inteira
+  (`:apps:android:testDebugUnitTest`, ~10 s) e leia o XML.
+- **Nomes de teste no android** não aceitam `:` (`Name contains illegal characters`).
+- **`ScanActivity.kt` e `design.md` têm fim de linha CRLF** (e `ScanActivity.kt` mistura). Edição por script que
+  casa texto com `\n` falha em silêncio ou com "não achei"; a ferramenta `Edit` funciona.
+- **Texto de interface sem acento** (como todo o aplicativo), embora a documentação use acento.
+- **Xiaomi (`2511FPC34G`):** pede confirmação **na tela** a cada instalação (`INSTALL_FAILED_USER_RESTRICTED` se ninguém
+  confirma); sem a permissão de câmera o diálogo do sistema fica na frente e a Activity fica `STARTED`, não `RESUMED`;
+  `permissaoManual=true` com **um** toque cobre a rodada inteira.
+- **Teste que depende de relógio** precisa de `capturadaEm` recente: 1970 é "vencido há mais de 30 dias" e a varredura
+  da abertura o elimina, corretamente.
+
+### O que cada medição mostrou (resumo, com a seção onde está o detalhe)
+
+| Medição | Resultado | Seção |
+|---|---|---|
+| linha de base JVM | 183/183; 353 · 171 · 437/428/428 · 1 | 0 |
+| linha de base instrumentada | 133 casos, 0 falhas, 2 pulados em cada aparelho | 0 |
+| `Imgcodecs.imencode` em PNG | existe e codifica, nos dois aparelhos; ida e volta bit a bit | 2.1 |
+| tamanho do PNG (870×1000) | 3 079 B em branco; 459 686 B com ruído sintético | 2.1 |
+| recorte em perspectiva | 16 guardadas, 0 recusadas, 0 não lidas, nos dois aparelhos | 6.2 |
+| tempo de `analisar()` | mediana 314 ms (emulador), 229 ms (Xiaomi); só a análise 57 e 45 ms | 6.2 |
+| verificação final JVM | 183/183; android 399; domínio, api e buildSrc inalterados | 6.6 |
+| verificação final instrumentada | 170 casos, 0 falhas, 2 pulados, nos dois aparelhos | 6.6 |
+| `sha256` das fixtures | idênticos aos da 0.2, nos oito arquivos | 6.6 |
+| guarda de dívida | `exit 0`; `exit 2` nas cópias sem crases e com `5c-2` | 6.4 |
+
+### O que o `/opsx:update` corrigiu (12:39)
+
+`proposal.md` (a frase "nenhum teste atual muda de chamada", riscada e explicada), `design.md` (a decisão 3, o "suposto"
+da decisão 2, a ordem da decisão 5, a pergunta em aberto do tamanho do PNG, e a seção nova "Registro do apply") e
+`tasks.md` (notas de 1.3, 2.1, 2.2, 2.3, 4.1, 4.2 e 5.2). As `specs/` **não mudaram**: já diziam o que o código faz
+(a spec do aviso fala de "nenhum resultado gravado enquanto incompleto" e "as respostas ficam neste aparelho", que é o
+texto novo). `openspec validate --strict`: válida. Nenhum código foi tocado.
