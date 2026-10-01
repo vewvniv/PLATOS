@@ -452,7 +452,7 @@ class NotaDoProfessorTest {
         (CorrecaoDoProfessor.completar(parcial, dar(*notas)) as NotaDoProfessorOutcome.Rejected).reason
 
     @Test
-    fun `completar a parcial soma a objetiva e as discursivas: 3 + 1_5 + 3_75 = 8_25 de 11`() {
+    fun `completar a parcial soma a objetiva e as discursivas, 3 + 1_5 + 3_75 = 8_25 de 11`() {
         val nota = nota(parcial(), "d1" to "1.5", "d2" to "3.75")
 
         assertEquals(Pontos.parse("8.25"), nota.total)
@@ -497,7 +497,7 @@ class NotaDoProfessorTest {
     }
 
     @Test
-    fun `a soma e exata: 0_1 e 0_2 dao 0_3 mais a objetiva`() {
+    fun `a soma e exata, 0_1 e 0_2 dao 0_3 mais a objetiva`() {
         assertEquals(Pontos.parse("3.3"), nota(parcial(), "d1" to "0.1", "d2" to "0.2").total)
     }
 
@@ -1025,7 +1025,7 @@ class GradingResultCurrentViewTest {
     }
 
     @Test
-    fun `folha avulsa: a parcial que chega depois da nota nao a substitui`() {
+    fun `folha avulsa, a parcial que chega depois da nota nao a substitui`() {
         gravar("nota-a", 1, token = null, origem = "teacher", completa = "avulsa-a")
         gravar("avulsa-a", 2, token = null)
 
@@ -1033,7 +1033,7 @@ class GradingResultCurrentViewTest {
     }
 
     @Test
-    fun `a view respeita a organizacao: o forasteiro nao le a folha de outra escola`() {
+    fun `a view respeita a organizacao, o forasteiro nao le a folha de outra escola`() {
         gravar("parcial-1", 1)
         val forasteiro = PostgresSupport.createUser("sub-forasteiro")
         val outraOrg = PostgresSupport.createOrganization(kind = "school", name = "Outra Escola")
@@ -1941,7 +1941,7 @@ class GradedResultRouteTest {
     }
 
     @Test
-    fun `as bordas da faixa sao validas: zero e o valor exato do pacote`() = comApp { client ->
+    fun `as bordas da faixa sao validas, zero e o valor exato do pacote`() = comApp { client ->
         val org = prepararProva(client)
 
         assertEquals(HttpStatusCode.OK, client.enviarNota(org, corpoNota("cap-zero", d1 = "0", pontos = "1")).status)
@@ -2482,7 +2482,7 @@ Expected: FAIL em `PontosTest.valores que o ponto flutuante binario erra continu
 
 Em `20261001120000_nota_do_professor.sql`, substitua o bloco `where r.origin = 'teacher' or not exists (...)` por nenhum `where`.
 Run: `./gradlew :apps:api:test`
-Expected: FAIL **exatamente em três**: `GradingResultCurrentViewTest.a parcial que chega depois da nota do professor nao e a corrente…`, `GradingResultCurrentViewTest.folha avulsa: a parcial que chega depois da nota nao a substitui` e `GradedResultRouteTest.a parcial que chega depois da nota nao e a corrente…`. **Os demais passam**, e isso é o esperado e honesto: sem a exclusão, a maior `revision` ainda dá a resposta certa quando a nota chega depois da parcial; só a **chegada tardia da parcial** depende da exclusão. Se mais de três caírem, a fixture não isola a camada. Anote o conjunto exato. Reverta e rode de novo.
+Expected: FAIL **exatamente em três**: `GradingResultCurrentViewTest.a parcial que chega depois da nota do professor nao e a corrente…`, `GradingResultCurrentViewTest.folha avulsa, a parcial que chega depois da nota nao a substitui` e `GradedResultRouteTest.a parcial que chega depois da nota nao e a corrente…`. **Os demais passam**, e isso é o esperado e honesto: sem a exclusão, a maior `revision` ainda dá a resposta certa quando a nota chega depois da parcial; só a **chegada tardia da parcial** depende da exclusão. Se mais de três caírem, a fixture não isola a camada. Anote o conjunto exato. Reverta e rode de novo.
 
 - [ ] **Step 4: M4 — a conferência do total sai do servidor**
 
