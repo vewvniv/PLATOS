@@ -74,8 +74,34 @@ fun conferirProveniencia(pacote: PackageContent, apuracao: ApuracaoSubmetida): P
         is ApuracaoSubmetida.Parcial -> apuracao.parte.variantId
     }
 
+    val base = conferirPacoteEVariante(pacote, packageHash, variantId)
+    if (base is ConferenciaDoPacote.Falha) return Proveniencia.NaoConfere(base.motivo)
+    base as ConferenciaDoPacote.Ok
+
+    return when (apuracao) {
+        is ApuracaoSubmetida.Completa -> Proveniencia.Confere(ApuracaoParaEnvio.Completa(apuracao.nota))
+        is ApuracaoSubmetida.Parcial -> conferirParcial(base.publicado, base.variante, apuracao.parte)
+    }
+}
+
+/** O pacote publicado decodificado e a variante declarada, ou o motivo de o corpo nao fechar com eles. */
+private sealed interface ConferenciaDoPacote {
+    data class Ok(val publicado: ExamPackage, val variante: PackageVariant) : ConferenciaDoPacote
+    data class Falha(val motivo: String) : ConferenciaDoPacote
+}
+
+/**
+ * As duas travas de proveniencia, na ordem que o KDoc de [conferirProveniencia] justifica: o hash vem
+ * primeiro porque e ele que decide se [pacote] e o artefato certo; so depois faz sentido perguntar o que
+ * ele declara. **As mensagens sao as de antes, byte a byte**: os testes de rota as leem.
+ */
+private fun conferirPacoteEVariante(
+    pacote: PackageContent,
+    packageHash: String,
+    variantId: String,
+): ConferenciaDoPacote {
     if (packageHash != pacote.contentHash) {
-        return Proveniencia.NaoConfere(
+        return ConferenciaDoPacote.Falha(
             "o resultado diz ter sido apurado contra o pacote `$packageHash`, " +
                 "e o pacote publicado desta prova e `${pacote.contentHash}`",
         )
@@ -86,17 +112,43 @@ fun conferirProveniencia(pacote: PackageContent, apuracao: ApuracaoSubmetida): P
     val publicado = ExamPackage.JSON.decodeFromString(ExamPackage.serializer(), pacote.content)
     val declaradas = publicado.variants.map { it.variantId }
     val variante = publicado.variants.firstOrNull { it.variantId == variantId }
-    if (variante == null) {
-        return Proveniencia.NaoConfere(
+        ?: return ConferenciaDoPacote.Falha(
             "o resultado diz a variante `$variantId`, e o pacote publicado desta prova " +
                 "declara ${declaradas.joinToString(", ") { "`$it`" }.ifEmpty { "nenhuma" }}",
         )
-    }
 
-    return when (apuracao) {
-        is ApuracaoSubmetida.Completa -> Proveniencia.Confere(ApuracaoParaEnvio.Completa(apuracao.nota))
-        is ApuracaoSubmetida.Parcial -> conferirParcial(publicado, variante, apuracao.parte)
+    return ConferenciaDoPacote.Ok(publicado, variante)
+}
+
+private sealed interface Derivacao {
+    data class Ok(val discursivas: List<AwaitingEssay>) : Derivacao
+    data class Falha(val motivo: String) : Derivacao
+}
+
+/** As discursivas da variante, cada uma com o que vale (a soma da rubrica), lidas do pacote publicado. */
+private fun derivarDiscursivas(publicado: ExamPackage, variante: PackageVariant): Derivacao {
+    val itens = publicado.items.associateBy { it.id }
+    val discursivas = mutableListOf<AwaitingEssay>()
+    for (itemId in variante.positions.values) {
+        val item = itens[itemId] ?: return Derivacao.Falha(
+            "item `$itemId` da variante `${variante.variantId}` nao existe no pacote publicado",
+        )
+        if (item.kind == QuestionKind.ESSAY) {
+            val rubrica = item.rubric ?: return Derivacao.Falha(
+                "discursiva `${item.id}` nao tem rubrica no pacote publicado",
+            )
+            discursivas += AwaitingEssay(item.id, rubrica.criteria.sumOf { it.points })
+        }
     }
+    return Derivacao.Ok(discursivas)
+}
+
+/** O maximo da parte objetiva: o gabarito dos itens que o pacote declara objetivos. */
+private fun maximoObjetivo(publicado: ExamPackage): Int {
+    val itens = publicado.items.associateBy { it.id }
+    return publicado.answerKey
+        .filter { entrada -> itens.getValue(entrada.itemId).kind == QuestionKind.OBJECTIVE }
+        .sumOf { it.points }
 }
 
 /** A Fase 2 de uma parcial: deriva `awaiting` e o maximo objetivo do pacote, e constroi a [PartialScore]. */
@@ -105,18 +157,9 @@ private fun conferirParcial(
     variante: PackageVariant,
     parte: ParteObjetivaSubmetida,
 ): Proveniencia {
-    val itens = publicado.items.associateBy { it.id }
-    val discursivas = mutableListOf<AwaitingEssay>()
-    for (itemId in variante.positions.values) {
-        val item = itens[itemId] ?: return Proveniencia.NaoConfere(
-            "item `$itemId` da variante `${variante.variantId}` nao existe no pacote publicado",
-        )
-        if (item.kind == QuestionKind.ESSAY) {
-            val rubrica = item.rubric ?: return Proveniencia.NaoConfere(
-                "discursiva `${item.id}` nao tem rubrica no pacote publicado",
-            )
-            discursivas += AwaitingEssay(item.id, rubrica.criteria.sumOf { it.points })
-        }
+    val discursivas = when (val derivacao = derivarDiscursivas(publicado, variante)) {
+        is Derivacao.Falha -> return Proveniencia.NaoConfere(derivacao.motivo)
+        is Derivacao.Ok -> derivacao.discursivas
     }
 
     if (discursivas.isEmpty()) {
@@ -126,16 +169,12 @@ private fun conferirParcial(
         )
     }
 
-    val objectiveMaxScore = publicado.answerKey
-        .filter { entrada -> itens.getValue(entrada.itemId).kind == QuestionKind.OBJECTIVE }
-        .sumOf { it.points }
-
     return try {
         val partial = PartialScore(
             packageHash = parte.packageHash,
             variantId = parte.variantId,
             objectivePoints = parte.objectivePoints,
-            objectiveMaxScore = objectiveMaxScore,
+            objectiveMaxScore = maximoObjetivo(publicado),
             maxScore = parte.maxScoreDeclarado,
             awaiting = discursivas,
             pending = parte.pending,

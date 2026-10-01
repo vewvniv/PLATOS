@@ -112,11 +112,45 @@ class ResultQueries {
         nota: ApuracaoParaEnvio,
     ): Int {
         val campos = nota.paraGravacao()
+        return gravar(
+            ctx,
+            organizationId,
+            examId,
+            Gravacao(
+                captureId = submission.captureId,
+                studentToken = submission.studentToken,
+                capturedAt = submission.capturedAt,
+                origin = "omr",
+                path = null,
+                completesCaptureId = null,
+                packageHash = campos.packageHash,
+                variantId = campos.variantId,
+                points = campos.points.toBigDecimal(),
+                maxScore = campos.maxScore,
+                closed = campos.closed,
+                evidencias = campos.outcomes.map { outcome ->
+                    Evidencia(
+                        itemId = outcome.questionId,
+                        answerKind = outcome.answer.answerKind(),
+                        answerOptions = outcome.answer.alternativas(),
+                        worth = outcome.worth,
+                        earned = outcome.earned.toBigDecimal(),
+                    )
+                },
+            ),
+        )
+    }
 
+    /**
+     * O miolo da gravacao, **um so** para toda origem: idempotencia por `(exam_id, capture_id)`, revisao
+     * por `(exam_id, student_token)` e as linhas de evidencia, na transacao que `asUser` ja abriu.
+     * Foi extraido de `record` sem mudar uma linha do que ele fazia (`slice-5c-2-a-nota-do-professor`).
+     */
+    private fun gravar(ctx: DSLContext, organizationId: UUID, examId: UUID, g: Gravacao): Int {
         val jaGravada = ctx.select(GRADING_RESULT.REVISION)
             .from(GRADING_RESULT)
             .where(GRADING_RESULT.EXAM_ID.eq(examId))
-            .and(GRADING_RESULT.CAPTURE_ID.eq(submission.captureId))
+            .and(GRADING_RESULT.CAPTURE_ID.eq(g.captureId))
             .fetchOne { it.value1() }
         if (jaGravada != null) return jaGravada
 
@@ -130,7 +164,7 @@ class ResultQueries {
                 DSL.condition(
                     "{0} is not distinct from {1}",
                     GRADING_RESULT.STUDENT_TOKEN,
-                    DSL.value(submission.studentToken),
+                    DSL.value(g.studentToken),
                 ),
             )
             .fetchOne { it.value1() } ?: 1
@@ -138,30 +172,31 @@ class ResultQueries {
         val resultadoId = ctx.insertInto(GRADING_RESULT)
             .set(GRADING_RESULT.ORGANIZATION_ID, organizationId)
             .set(GRADING_RESULT.EXAM_ID, examId)
-            .set(GRADING_RESULT.STUDENT_TOKEN, submission.studentToken)
+            .set(GRADING_RESULT.STUDENT_TOKEN, g.studentToken)
             .set(GRADING_RESULT.REVISION, proxima)
-            .set(GRADING_RESULT.CAPTURE_ID, submission.captureId)
-            // Leitura optica. `ai` e `teacher` sao das fatias 5 e 8, e o valor e explicito aqui para
-            // que o dia em que existir outra origem nao dependa do default da coluna.
-            .set(GRADING_RESULT.ORIGIN, "omr")
-            .set(GRADING_RESULT.PACKAGE_HASH, campos.packageHash)
-            .set(GRADING_RESULT.VARIANT_ID, campos.variantId)
-            .set(GRADING_RESULT.POINTS, campos.points.toBigDecimal())
-            .set(GRADING_RESULT.MAX_SCORE, campos.maxScore)
-            .set(GRADING_RESULT.CLOSED, campos.closed)
-            .set(GRADING_RESULT.CAPTURED_AT, OffsetDateTime.parse(submission.capturedAt))
+            .set(GRADING_RESULT.CAPTURE_ID, g.captureId)
+            // A origem e explicita: o dia em que existir outra nao depende do default da coluna.
+            .set(GRADING_RESULT.ORIGIN, g.origin)
+            .set(GRADING_RESULT.PATH, g.path)
+            .set(GRADING_RESULT.COMPLETES_CAPTURE_ID, g.completesCaptureId)
+            .set(GRADING_RESULT.PACKAGE_HASH, g.packageHash)
+            .set(GRADING_RESULT.VARIANT_ID, g.variantId)
+            .set(GRADING_RESULT.POINTS, g.points)
+            .set(GRADING_RESULT.MAX_SCORE, g.maxScore)
+            .set(GRADING_RESULT.CLOSED, g.closed)
+            .set(GRADING_RESULT.CAPTURED_AT, OffsetDateTime.parse(g.capturedAt))
             .returningResult(GRADING_RESULT.ID)
             .fetchOne { it.value1() }!!
 
-        for (outcome in campos.outcomes) {
+        for (evidencia in g.evidencias) {
             ctx.insertInto(ANSWER_OBSERVATION)
                 .set(ANSWER_OBSERVATION.ORGANIZATION_ID, organizationId)
                 .set(ANSWER_OBSERVATION.GRADING_RESULT_ID, resultadoId)
-                .set(ANSWER_OBSERVATION.ITEM_ID, outcome.questionId)
-                .set(ANSWER_OBSERVATION.ANSWER_KIND, outcome.answer.answerKind())
-                .set(ANSWER_OBSERVATION.ANSWER_OPTIONS, outcome.answer.alternativas())
-                .set(ANSWER_OBSERVATION.WORTH, outcome.worth)
-                .set(ANSWER_OBSERVATION.EARNED, outcome.earned.toBigDecimal())
+                .set(ANSWER_OBSERVATION.ITEM_ID, evidencia.itemId)
+                .set(ANSWER_OBSERVATION.ANSWER_KIND, evidencia.answerKind)
+                .set(ANSWER_OBSERVATION.ANSWER_OPTIONS, evidencia.answerOptions)
+                .set(ANSWER_OBSERVATION.WORTH, evidencia.worth)
+                .set(ANSWER_OBSERVATION.EARNED, evidencia.earned)
                 .execute()
         }
 
@@ -214,3 +249,28 @@ private fun ApuracaoParaEnvio.paraGravacao(): CamposGravaveis = when (this) {
         outcomes = score.outcomes,
     )
 }
+
+/** Uma linha de evidencia pronta para o banco: o que `answer_observation` guarda. */
+internal class Evidencia(
+    val itemId: String,
+    val answerKind: String,
+    val answerOptions: Array<String?>,
+    val worth: Int,
+    val earned: java.math.BigDecimal,
+)
+
+/** Tudo o que `grading_result` e `answer_observation` guardam de **uma** gravacao, qualquer que seja a origem. */
+internal class Gravacao(
+    val captureId: String,
+    val studentToken: String?,
+    val capturedAt: String,
+    val origin: String,
+    val path: String?,
+    val completesCaptureId: String?,
+    val packageHash: String,
+    val variantId: String,
+    val points: java.math.BigDecimal,
+    val maxScore: Int,
+    val closed: Boolean,
+    val evidencias: List<Evidencia>,
+)

@@ -137,7 +137,7 @@ private fun ResultSubmissionDto.paraParteObjetiva(): ParteObjetivaSubmetida {
     )
 }
 
-private fun QuestionOutcome.paraPendencia(): PendingQuestion = PendingQuestion(
+internal fun QuestionOutcome.paraPendencia(): PendingQuestion = PendingQuestion(
     questionId = questionId,
     reason = when (answer) {
         is QuestionAnswer.MultiplaMarcacao -> PendingReason.MULTIPLA_MARCACAO
@@ -153,7 +153,7 @@ private fun QuestionOutcome.paraPendencia(): PendingQuestion = PendingQuestion(
  * `when` era o terceiro registro Kotlin dos mesmos quatro valores; ramificar sobre a constante e o
  * que faz a unificacao alcancar tambem quem **le** o campo, e nao so quem o escreve (ADR-0015).
  */
-private fun AnswerObservationDto.paraOutcome(): QuestionOutcome = QuestionOutcome(
+internal fun AnswerObservationDto.paraOutcome(): QuestionOutcome = QuestionOutcome(
     questionId = itemId,
     answer = when (answerKind) {
         AnswerKind.MARCADA -> QuestionAnswer.Marcada(
