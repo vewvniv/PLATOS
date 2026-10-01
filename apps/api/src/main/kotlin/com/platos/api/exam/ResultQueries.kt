@@ -146,7 +146,7 @@ class ResultQueries {
             .set(GRADING_RESULT.ORIGIN, "omr")
             .set(GRADING_RESULT.PACKAGE_HASH, campos.packageHash)
             .set(GRADING_RESULT.VARIANT_ID, campos.variantId)
-            .set(GRADING_RESULT.POINTS, campos.points)
+            .set(GRADING_RESULT.POINTS, campos.points.toBigDecimal())
             .set(GRADING_RESULT.MAX_SCORE, campos.maxScore)
             .set(GRADING_RESULT.CLOSED, campos.closed)
             .set(GRADING_RESULT.CAPTURED_AT, OffsetDateTime.parse(submission.capturedAt))
@@ -161,7 +161,7 @@ class ResultQueries {
                 .set(ANSWER_OBSERVATION.ANSWER_KIND, outcome.answer.answerKind())
                 .set(ANSWER_OBSERVATION.ANSWER_OPTIONS, outcome.answer.alternativas())
                 .set(ANSWER_OBSERVATION.WORTH, outcome.worth)
-                .set(ANSWER_OBSERVATION.EARNED, outcome.earned)
+                .set(ANSWER_OBSERVATION.EARNED, outcome.earned.toBigDecimal())
                 .execute()
         }
 
