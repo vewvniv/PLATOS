@@ -10,6 +10,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.platos.android.outbox.ResultadosEmRoom
 import com.platos.android.pacote.PacotesEmArquivo
 import com.platos.android.vision.FolhaDiscursivaRenderizada
+import com.platos.android.vision.FrameOutcome
+import com.platos.android.vision.RegiaoDiscursivaNoQuadro
+import com.platos.domain.capture.CapturePayload
 import com.platos.android.vision.PngDaResposta
 import com.platos.android.omr.RectifiedRegion
 import com.platos.domain.exam.ExamPackage
@@ -19,6 +22,7 @@ import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume
 import org.junit.Before
@@ -208,6 +212,91 @@ class RespostaNaAtividadeInstrumentedTest {
             assertTrue("o quadro recortou de novo: ${quadro.respostas}", quadro.respostas.isEmpty())
             assertEquals(antes, pasta.list()!!.sorted())
             assertNotNull(atividade.instantaneoDoCaderno)
+        }
+    }
+
+    // --- 3.2: a Activity retoma o caderno pela via normalizada, e a retomada atravessa o fechamento ---
+
+    /** Fecha o processo no que importa ao caderno: a Activity se encerra (guarda no `onStop`) e as instancias reiniciam. */
+    private fun fecharOProcesso(atividade: ScanActivity) {
+        encerrar(atividade)
+        CadernosEmRoom.reiniciarParaTeste()
+    }
+
+    /** Cenarios "O caderno guardado sobrevive ao fechamento" e "A resposta..." de ponta a ponta, pela Activity real. */
+    @Test
+    fun reabrir_a_activity_retoma_as_mesmas_regioes_respostas_e_contador() {
+        val original = cadernoComRespostaNaRegiao1(umaRespostaEmDisco())
+        CadernosEmRoom(CadernosEmRoom.abrir(contexto).cadernos()).guardar(organizacao, pacote.meta.examId, original)
+        CadernosEmRoom.reiniciarParaTeste()
+
+        comAtividade { atividade ->
+            assertTrue("o caderno nao foi retomado", esperar { atividade.instantaneoDoCaderno != null })
+            assertEquals(original, atividade.instantaneoDoCaderno)
+            assertEquals(2, atividade.instantaneoDoCaderno!!.capturadas)
+        }
+    }
+
+    /** Cenario "A resposta referenciada nao existe mais": a Activity abre, e a regiao volta a nao vista. */
+    @Test
+    fun reabrir_com_a_resposta_apagada_retoma_a_regiao_como_nao_vista_e_a_activity_abre() {
+        val resposta = umaRespostaEmDisco()
+        CadernosEmRoom(CadernosEmRoom.abrir(contexto).cadernos())
+            .guardar(organizacao, pacote.meta.examId, cadernoComRespostaNaRegiao1(resposta))
+        CadernosEmRoom.reiniciarParaTeste()
+        File(pasta, resposta.arquivo).delete()
+
+        comAtividade { atividade ->
+            assertTrue("o caderno nao foi retomado", esperar { atividade.instantaneoDoCaderno != null })
+            val d1 = atividade.instantaneoDoCaderno!!.regioes.single { it.regionIndex == 1 }
+            assertEquals(EstadoDaRegiao.NaoVista, d1.estado)
+            assertEquals(null, d1.resposta)
+            assertEquals(1, atividade.instantaneoDoCaderno!!.capturadas)
+            // STARTED, e nao RESUMED: sem a permissao de camera o dialogo do sistema fica na frente e a
+            // Activity fica pausada (medido no 2511FPC34G: "STARTED"). Sobreviver e o que se afirma.
+            assertTrue(
+                "a Activity nao sobreviveu: ${atividade.lifecycle.currentState}",
+                atividade.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) &&
+                    !atividade.isFinishing && !atividade.isDestroyed,
+            )
+        }
+    }
+
+    /**
+     * Cenario "Trocar de aluno antes de fechar continua substituindo o caderno": o segundo aluno, so ele,
+     * volta. Le a sessao real (a folha so entra com a camera permitida), portanto e pulado sem a permissao.
+     */
+    @Test
+    fun trocar_de_aluno_antes_de_fechar_e_reabrir_retoma_so_o_segundo() {
+        Assume.assumeTrue(
+            "permissao de camera nao concedida ao teste; para tocar em Permitir a mao: " +
+                "-Pandroid.testInstrumentationRunnerArguments.permissaoManual=true",
+            permissaoConcedida || permissaoManual,
+        )
+        val primeiro = cadernoComRespostaNaRegiao1(umaRespostaEmDisco())
+        CadernosEmRoom(CadernosEmRoom.abrir(contexto).cadernos()).guardar(organizacao, pacote.meta.examId, primeiro)
+        CadernosEmRoom.reiniciarParaTeste()
+        val respostaDeB = umaRespostaEmDisco()
+
+        val atividade = abrir()
+        try {
+            aguardarPermissaoManual()
+            assertTrue("o caderno nao foi retomado", esperar { atividade.instantaneoDoCaderno?.aluno == "tok-a" })
+            val d2DeB = RegiaoDiscursivaNoQuadro.Reconhecida(2, "d2", CapturePayload(pacote.meta.examId, "tok-b", "v1", 2))
+            atividade.entregarQuadro(
+                QuadroAnalisado(FrameOutcome.SoDiscursivas(listOf(d2DeB)), mapOf(2 to RespostaDoQuadro.Guardada(respostaDeB))),
+            )
+            assertTrue("a folha de tok-b nao trocou o caderno", esperar { atividade.instantaneoDoCaderno?.aluno == "tok-b" })
+        } finally {
+            fecharOProcesso(atividade)
+        }
+
+        comAtividade { reaberta ->
+            assertTrue("o caderno nao foi retomado", esperar { reaberta.instantaneoDoCaderno != null })
+            val retomado = reaberta.instantaneoDoCaderno!!
+            assertEquals("tok-b", retomado.aluno)
+            assertNull("a resposta do primeiro aluno nao volta", retomado.regioes.single { it.regionIndex == 1 }.resposta)
+            assertEquals(respostaDeB, retomado.regioes.single { it.regionIndex == 2 }.resposta)
         }
     }
 }

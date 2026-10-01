@@ -45,6 +45,10 @@ interface CadernoDao {
 
     @Query("select * from caderno_em_andamento where organizacao = :organizacao and exam_id = :examId")
     fun ler(organizacao: String, examId: String): CadernoEntity?
+
+    /** Todos os cadernos do aparelho, **sem filtro de organizacao** (ver [CadernosGuardados.todos]). */
+    @Query("select * from caderno_em_andamento")
+    fun todos(): List<CadernoEntity>
 }
 
 @Database(entities = [CadernoEntity::class], version = 1, exportSchema = false)
@@ -61,6 +65,14 @@ abstract class BaseDoCaderno : RoomDatabase() {
 interface CadernosGuardados {
     fun guardar(organizacao: String, examId: String, caderno: Caderno)
     fun ler(organizacao: String, examId: String): Caderno?
+
+    /**
+     * Todos os cadernos guardados no aparelho, de qualquer organizacao e prova
+     * (`slice-5c-1-a-resposta-fica-no-aparelho`, design, decisao 5). Existe para o prazo das respostas: o
+     * aparelho e compartilhado entre escolas, e o prazo de 30 dias nao pertence a sessao corrente.
+     * Nenhum chamador deve usa-lo para mostrar caderno de outra organizacao.
+     */
+    fun todos(): List<Caderno>
 }
 
 /**
@@ -82,6 +94,9 @@ class CadernosEmRoom(private val dao: CadernoDao) : CadernosGuardados {
 
     override fun ler(organizacao: String, examId: String): Caderno? =
         dao.ler(organizacao, examId)?.let { Json.decodeFromString(Caderno.serializer(), it.corpo) }
+
+    override fun todos(): List<Caderno> =
+        dao.todos().map { Json.decodeFromString(Caderno.serializer(), it.corpo) }
 
     companion object {
 

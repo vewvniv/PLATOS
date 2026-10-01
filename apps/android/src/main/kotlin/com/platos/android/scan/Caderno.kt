@@ -163,3 +163,29 @@ data class Caderno(
 internal fun Caderno?.jaTemResposta(aluno: String, regionIndex: Int): Boolean =
     this != null && this.aluno == aluno &&
         regioes.firstOrNull { it.regionIndex == regionIndex }?.resposta != null
+
+/**
+ * Este caderno lido do disco, com toda regiao discursiva cuja resposta nao se sustenta devolvida a nao
+ * vista (`slice-5c-1-a-resposta-fica-no-aparelho`, design, decisao 5). **Funcao pura**: [existe] diz se o
+ * arquivo da resposta existe, e nada aqui toca disco.
+ *
+ * Duas coisas sao "nao se sustenta": a resposta referencia um arquivo que **nao existe mais** (eliminado
+ * por prazo, ou refazer interrompido), e a discursiva esta **capturada sem resposta** (caderno guardado
+ * antes desta mudanca, quando capturada nao implicava resposta). E isto que garante que nenhum caderno
+ * lido referencia imagem que nao existe, e e a unica via de leitura que a \`ScanActivity\` usa.
+ *
+ * O resto fica intacto — o gabarito, as regioes com problema, a parcial e [Caderno.entregue], que nao e
+ * limpo: caderno ja entregue nao entrega de novo por ter perdido uma resposta.
+ */
+internal fun Caderno.normalizado(existe: (String) -> Boolean): Caderno =
+    copy(
+        regioes = regioes.map { regiao ->
+            val resposta = regiao.resposta
+            val semSustentacao = when {
+                regiao.gabarito -> false
+                resposta != null -> !existe(resposta.arquivo)
+                else -> regiao.estado == EstadoDaRegiao.Capturada
+            }
+            if (semSustentacao) regiao.copy(estado = EstadoDaRegiao.NaoVista, resposta = null) else regiao
+        },
+    )

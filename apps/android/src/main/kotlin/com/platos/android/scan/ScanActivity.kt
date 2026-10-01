@@ -167,7 +167,7 @@ class ScanActivity : ComponentActivity() {
         // escaneamento ao abrir, com caderno guardado ou nao. Ate a leitura terminar a janela fica em
         // branco; `Activity` destruida antes disso cancela o escopo e [montar] nao roda.
         lifecycleScope.launch {
-            montar(lerCadernoEmAndamento(cadernos, organizacao, examPackage.meta.examId).await())
+            montar(retomarCadernoEmAndamento(cadernos, respostas, organizacao, examPackage.meta.examId).await())
         }
     }
 

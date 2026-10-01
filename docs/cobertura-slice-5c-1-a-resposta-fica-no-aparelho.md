@@ -217,3 +217,39 @@ refeitos: aí caiu um só de cada vez.
 A rodada com `permissaoManual=true` e o toque do Leon fica para a 6.6; **a caixa da 2.4 só se marca depois dela**.
 
 Também mudou: o predicado `deveAnalisar` e o `Caderno?.jaTemResposta` ficaram testáveis (ver 2.2/2.3).
+
+## 3.1 A leitura normaliza (fechada)
+
+`CadernosGuardados.todos()` (consulta Room sem filtro de organização), `Caderno.normalizado(existe)` (função
+pura) e `retomarCadernoEmAndamento(...)`, que **compõe** `lerCadernoEmAndamento` (a leitura do Room continua em
+`Dispatchers.IO`) e normaliza depois. **A varredura (o "varrer" da ordem varrer, ler, normalizar) entra na 4.2**:
+até lá a função faz ler e normalizar.
+
+- JVM (`CadernoRetomadoTest`, com `RespostasGuardadas` falso): cenários "A resposta referenciada não existe mais" e
+  "Caderno de antes desta mudança" pela função pura **e** por `retomarCadernoEmAndamento`; gabarito, região com
+  problema e região não vista não são tocados; `entregue` não é limpo.
+- Instrumentado (`RetomarCadernoNoFioPrincipalInstrumentedTest`, Room real aberto por `CadernosEmRoom.abrir`,
+  chamado de `runOnMainSync`, sem `allowMainThreadQueries`): guardar, apagar o arquivo, retomar → região não vista e
+  **não estoura**; com o arquivo em disco, o caderno volta idêntico.
+- **Visto falhar:** `retomar` sem `?.normalizado(...)` → **só** os 2 testes que chamam `retomar` com resposta
+  ausente/legado (`CadernoRetomadoTest`) caíram, os da função pura ficaram verdes; revertido por `diff` e nova
+  rodada (383 testes, 0 falhas). A mutação não foi rodada contra o teste instrumentado de Room.
+
+## 3.2 A `ScanActivity` lê só por `retomarCadernoEmAndamento` (em aberto: falta o Xiaomi com o toque)
+
+`RespostaNaAtividadeInstrumentedTest` ganhou 3 casos pela Activity **real**: reabrir retoma as mesmas regiões,
+respostas e contador; reabrir com a resposta apagada retoma a região como não vista e a Activity abre; trocar de
+aluno antes de fechar (a Activity encerra e as instâncias reiniciam) e reabrir retoma só o segundo.
+
+**Visto falhar:** a Activity voltando a ler por `lerCadernoEmAndamento` cru → **só**
+`reabrir_com_a_resposta_apagada_…` caiu (`expected:<NaoVista> but was:<Capturada>`); revertido por `diff` e nova
+rodada (verde no emulador).
+
+**Erro de rumo na verificação (P12).** No Xiaomi o caso "resposta apagada" falhou numa asserção sem mensagem. Antes
+de mexer, a mensagem foi posta (`a Activity nao sobreviveu: STARTED`) e o diagnóstico foi **expectativa minha
+errada**, não defeito: sem a permissão de câmera o diálogo do sistema fica na frente e a Activity fica `STARTED`,
+não `RESUMED` (medido no 2511FPC34G). A asserção passou a exigir `STARTED`, `!isFinishing` e `!isDestroyed` (o que a
+spec afirma: a Activity abre e sobrevive); o que prova a retomada continua sendo o instantâneo do caderno. No
+emulador, com permissão, o estado era `RESUMED`.
+
+**Xiaomi, 2026-10-01:** reabrir (2 casos) verdes; (a) da 2.4 e "trocar de aluno" **pulados** sem a permissão.

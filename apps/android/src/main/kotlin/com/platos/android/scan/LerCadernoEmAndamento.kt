@@ -31,3 +31,18 @@ fun CoroutineScope.lerCadernoEmAndamento(
 ): Deferred<Caderno?> = async(Dispatchers.IO) {
     cadernos.ler(organizacao, examId)
 }
+
+/**
+ * Retoma o caderno em andamento: le e **normaliza** (`slice-5c-1-a-resposta-fica-no-aparelho`, design,
+ * decisao 5). E a unica via de leitura que a `ScanActivity` usa, e **compoe** [lerCadernoEmAndamento]: a
+ * leitura do Room continua fora do fio principal, no mesmo `Dispatchers.IO`, e a normalizacao entra depois
+ * dela — uma regiao cuja resposta nao existe mais volta como nao vista, e nunca como capturada.
+ */
+fun CoroutineScope.retomarCadernoEmAndamento(
+    cadernos: CadernosGuardados,
+    respostas: RespostasGuardadas,
+    organizacao: String,
+    examId: String,
+): Deferred<Caderno?> = async(Dispatchers.IO) {
+    lerCadernoEmAndamento(cadernos, organizacao, examId).await()?.normalizado(respostas::existe)
+}

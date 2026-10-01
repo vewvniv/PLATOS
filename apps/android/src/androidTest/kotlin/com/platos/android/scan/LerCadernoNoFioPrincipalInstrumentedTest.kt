@@ -117,6 +117,7 @@ class LerCadernoNoFioPrincipalInstrumentedTest {
         val solta = CountDownLatch(1)
         val presa = object : CadernosGuardados {
             override fun guardar(organizacao: String, examId: String, caderno: Caderno) = Unit
+            override fun todos(): List<Caderno> = emptyList()
             override fun ler(organizacao: String, examId: String): Caderno? {
                 entrou.countDown()
                 solta.await(10, TimeUnit.SECONDS)
