@@ -1,4 +1,4 @@
-schema: spec-driven
+schema: platos-spec
 
 context: |
   Projeto: Plataforma de Avaliação Educacional com IA.
@@ -27,15 +27,3 @@ rules:
     - Use cenários Given/When/Then.
     - Não replique o texto integral da arquitetura; descreva apenas a capacidade alterada.
     - Inclua casos de erro, offline e idempotência quando forem relevantes.
-  design:
-    - Declare arquivos/módulos afetados.
-    - Separe contrato, domínio, infraestrutura e UI.
-    - Identifique impacto em KMP e consumidores quando aplicável.
-    - Explique compatibilidade, migração e reversibilidade.
-    - Não introduza nova tecnologia sem justificar custo operacional.
-    - Para IA, descreva cache, schema validation, versionamento e observabilidade.
-  tasks:
-    - Ordene por dependências reais.
-    - Cada tarefa deve ser pequena, verificável e marcar claramente seu resultado esperado.
-    - Coloque testes junto ou imediatamente após a mudança que eles verificam.
-    - Inclua uma tarefa final de verificação.
