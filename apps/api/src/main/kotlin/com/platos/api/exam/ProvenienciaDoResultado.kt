@@ -1,12 +1,17 @@
 package com.platos.api.exam
 
 import com.platos.api.http.dto.ApuracaoSubmetida
+import com.platos.api.http.dto.NotaDoProfessorSubmetida
 import com.platos.api.http.dto.ParteObjetivaSubmetida
+import com.platos.api.http.dto.paraPendencia
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.exam.PackageVariant
 import com.platos.domain.exam.QuestionKind
 import com.platos.domain.scoring.ApuracaoParaEnvio
 import com.platos.domain.scoring.AwaitingEssay
+import com.platos.domain.scoring.CorrecaoDoProfessor
+import com.platos.domain.scoring.NotaDoProfessor
+import com.platos.domain.scoring.NotaDoProfessorOutcome
 import com.platos.domain.scoring.PartialScore
 
 /**
@@ -184,4 +189,75 @@ private fun conferirParcial(
     } catch (incoerente: IllegalArgumentException) {
         Proveniencia.NaoConfere(incoerente.message ?: "parcial incoerente com o pacote publicado")
     }
+}
+
+/** O desfecho da conferencia da nota do professor: a mesma distincao de [Proveniencia]. */
+sealed interface ProvenienciaDaNota {
+    data class Confere(val nota: NotaDoProfessor) : ProvenienciaDaNota
+    data class NaoConfere(val motivo: String) : ProvenienciaDaNota
+}
+
+/**
+ * A Fase 2 da nota do professor, contra o **pacote publicado da propria prova** — o unico oraculo
+ * (`slice-5c-2-a-nota-do-professor`, spec `result-sync`).
+ *
+ * Confere o pacote e a variante (as mesmas travas de [conferirProveniencia]), deriva as discursivas do
+ * pacote, reconstroi a parte objetiva como [PartialScore] (as guardas dela rodam: evidencia que nao
+ * soma, item repetido, maximo que nao fecha com a prova), e **roda o mesmo codigo que o aparelho usara**
+ * para completar com as pontuacoes. So entao compara o total e o `closed` **declarados** com os
+ * recalculados: e o que produz "a pontuacao nao soma o total".
+ *
+ * **Nao recalcula a parte objetiva a partir do gabarito**: confere-se proveniencia e coerencia, nao
+ * aritmetica objetiva (D4, §10).
+ */
+fun conferirNotaDoProfessor(pacote: PackageContent, submetida: NotaDoProfessorSubmetida): ProvenienciaDaNota {
+    val base = conferirPacoteEVariante(pacote, submetida.packageHash, submetida.variantId)
+    if (base is ConferenciaDoPacote.Falha) return ProvenienciaDaNota.NaoConfere(base.motivo)
+    base as ConferenciaDoPacote.Ok
+
+    val discursivas = when (val derivacao = derivarDiscursivas(base.publicado, base.variante)) {
+        is Derivacao.Falha -> return ProvenienciaDaNota.NaoConfere(derivacao.motivo)
+        is Derivacao.Ok -> derivacao.discursivas
+    }
+    if (discursivas.isEmpty()) {
+        return ProvenienciaDaNota.NaoConfere(
+            "a variante `${base.variante.variantId}` do pacote publicado nao declara nenhuma questao " +
+                "discursiva, e a prova tem nota completa",
+        )
+    }
+
+    val parcial = try {
+        PartialScore(
+            packageHash = submetida.packageHash,
+            variantId = submetida.variantId,
+            objectivePoints = submetida.outcomes.sumOf { it.earned },
+            objectiveMaxScore = maximoObjetivo(base.publicado),
+            maxScore = submetida.maxScoreDeclarado,
+            awaiting = discursivas,
+            pending = submetida.outcomes.filter { it.pendente }.map { it.paraPendencia() },
+            outcomes = submetida.outcomes,
+        )
+    } catch (incoerente: IllegalArgumentException) {
+        return ProvenienciaDaNota.NaoConfere(
+            incoerente.message ?: "parte objetiva incoerente com o pacote publicado",
+        )
+    }
+
+    val nota = when (val composta = CorrecaoDoProfessor.completar(parcial, submetida.pontuacoes)) {
+        is NotaDoProfessorOutcome.Rejected -> return ProvenienciaDaNota.NaoConfere(composta.reason)
+        is NotaDoProfessorOutcome.Scored -> composta.nota
+    }
+
+    if (nota.total != submetida.totalDeclarado) {
+        return ProvenienciaDaNota.NaoConfere(
+            "o resultado declara total ${submetida.totalDeclarado} e a apuracao contra o pacote " +
+                "publicado soma ${nota.total}",
+        )
+    }
+    if (nota.closed != submetida.closedDeclarado) {
+        return ProvenienciaDaNota.NaoConfere(
+            "o corpo diz closed=${submetida.closedDeclarado} e a nota apurada tem closed=${nota.closed}",
+        )
+    }
+    return ProvenienciaDaNota.Confere(nota)
 }

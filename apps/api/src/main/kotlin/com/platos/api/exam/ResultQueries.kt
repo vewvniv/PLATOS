@@ -5,14 +5,19 @@ import com.platos.api.db.generated.tables.references.EXAM
 import com.platos.api.db.generated.tables.references.GRADING_RESULT
 import com.platos.domain.capture.QuestionAnswer
 import com.platos.domain.scoring.ApuracaoParaEnvio
+import com.platos.domain.scoring.NotaDoProfessor
+import com.platos.domain.scoring.Pontos
 import com.platos.domain.scoring.QuestionOutcome
+import com.platos.domain.transport.AnswerKind
+import com.platos.domain.transport.GradedResultSubmissionDto
 import com.platos.domain.transport.ResultSubmissionDto
 import com.platos.domain.transport.answerKind
 import com.platos.domain.transport.answerOptions
-import org.jooq.DSLContext
-import org.jooq.impl.DSL
+import java.math.BigDecimal
 import java.time.OffsetDateTime
 import java.util.UUID
+import org.jooq.DSLContext
+import org.jooq.impl.DSL
 
 /**
  * A gravacao do resultado apurado no aparelho (§10, push append-only).
@@ -202,6 +207,56 @@ class ResultQueries {
 
         return proxima
     }
+
+    /**
+     * Grava a nota do professor como **revisao nova** da mesma folha (`slice-5c-2-a-nota-do-professor`).
+     *
+     * Mesma idempotencia e mesma numeracao de [record], porque e o mesmo [gravar]: reenvio devolve a
+     * revisao que ja existe, e nova correcao da mesma captura tem `capture_id` proprio. A evidencia leva
+     * as objetivas, como na parcial, **e** uma linha `discursiva_corrigida` por discursiva. Quem decide
+     * qual revisao e a corrente e a view `grading_result_current`, e nao este metodo.
+     */
+    fun recordGraded(
+        ctx: DSLContext,
+        organizationId: UUID,
+        examId: UUID,
+        submission: GradedResultSubmissionDto,
+        nota: NotaDoProfessor,
+    ): Int = gravar(
+        ctx,
+        organizationId,
+        examId,
+        Gravacao(
+            captureId = submission.captureId,
+            studentToken = submission.studentToken,
+            capturedAt = submission.capturedAt,
+            origin = "teacher",
+            path = "image",
+            completesCaptureId = submission.completesCaptureId,
+            packageHash = nota.packageHash,
+            variantId = nota.variantId,
+            points = nota.total.paraBigDecimal(),
+            maxScore = nota.maxScore,
+            closed = nota.closed,
+            evidencias = nota.outcomes.map { outcome ->
+                Evidencia(
+                    itemId = outcome.questionId,
+                    answerKind = outcome.answer.answerKind(),
+                    answerOptions = outcome.answer.alternativas(),
+                    worth = outcome.worth,
+                    earned = outcome.earned.toBigDecimal(),
+                )
+            } + nota.essays.map { essay ->
+                Evidencia(
+                    itemId = essay.questionId,
+                    answerKind = AnswerKind.DISCURSIVA_CORRIGIDA,
+                    answerOptions = emptyArray(),
+                    worth = essay.worth,
+                    earned = essay.earned.paraBigDecimal(),
+                )
+            },
+        ),
+    )
 }
 
 /**
@@ -274,3 +329,6 @@ internal class Gravacao(
     val closed: Boolean,
     val evidencias: List<Evidencia>,
 )
+
+/** Centesimos exatos para o `numeric(8,2)`: sem passar por `Double`. */
+private fun Pontos.paraBigDecimal(): BigDecimal = BigDecimal.valueOf(centesimos, 2)

@@ -4,21 +4,25 @@ import com.platos.api.ApiDependencies
 import com.platos.api.auth.SUPABASE_AUTH
 import com.platos.api.auth.toAuthenticatedSubject
 import com.platos.api.exam.Proveniencia
+import com.platos.api.exam.ProvenienciaDaNota
+import com.platos.api.exam.conferirNotaDoProfessor
 import com.platos.api.exam.conferirProveniencia
 import com.platos.api.http.dto.ResultAcceptedDto
 import com.platos.api.http.dto.paraApuracaoSubmetida
+import com.platos.api.http.dto.paraNotaSubmetida
+import com.platos.domain.transport.GradedResultSubmissionDto
 import com.platos.domain.transport.ResultSubmissionDto
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.principal
+import io.ktor.server.request.receive
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
-import io.ktor.server.request.receive
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import java.util.UUID
@@ -244,6 +248,61 @@ fun Route.examRoutes(deps: ApiDependencies) {
                                 publicada.examId,
                                 submission,
                                 proveniencia.apuracao,
+                            ),
+                        )
+                    }
+                }
+            } ?: return@post call.naoEncontrado()
+
+            when (desfecho) {
+                is Desfecho.Recusado -> call.respondText(
+                    desfecho.motivo,
+                    status = HttpStatusCode.BadRequest,
+                )
+                is Desfecho.Gravado -> call.respond(ResultAcceptedDto(revision = desfecho.revision))
+            }
+        }
+
+        /**
+         * `POST .../results/graded` — a nota do professor sobre as discursivas
+         * (`slice-5c-2-a-nota-do-professor`, ADR-0021). Grava **revisao nova** da mesma folha, com origem
+         * `teacher`; a corrente e derivada pela view `grading_result_current`.
+         *
+         * Mesma autenticacao, mesma ausencia (404) e mesma recusa definitiva (400, com a mensagem do que
+         * nao fecha) da rota de resultados. **A conferencia contra o pacote publicado acontece dentro da
+         * transacao e antes de qualquer `insert`**: o fato e append-only, e o que se grava errado nao tem
+         * conserto.
+         */
+        post("/organizations/{organizationId}/exams/{shortId}/results/graded") {
+            val organizationId = call.parameters["organizationId"]?.let(::uuidOrNull)
+                ?: return@post call.naoEncontrado()
+            val shortId = call.parameters["shortId"] ?: return@post call.naoEncontrado()
+
+            val submission = call.receive<GradedResultSubmissionDto>()
+            val submetida = try {
+                submission.paraNotaSubmetida()
+            } catch (erro: IllegalArgumentException) {
+                return@post call.respondText(
+                    erro.message ?: "nota do professor incoerente",
+                    status = HttpStatusCode.BadRequest,
+                )
+            }
+
+            val userId = call.resolverUsuario(deps)
+            val desfecho = deps.tenancy.asUser(userId) { ctx ->
+                val publicada = deps.resultQueries.findPublishedExamId(ctx, organizationId, shortId)
+                if (publicada == null) {
+                    null
+                } else {
+                    when (val conferencia = conferirNotaDoProfessor(publicada.pacote, submetida)) {
+                        is ProvenienciaDaNota.NaoConfere -> Desfecho.Recusado(conferencia.motivo)
+                        is ProvenienciaDaNota.Confere -> Desfecho.Gravado(
+                            deps.resultQueries.recordGraded(
+                                ctx,
+                                organizationId,
+                                publicada.examId,
+                                submission,
+                                conferencia.nota,
                             ),
                         )
                     }
