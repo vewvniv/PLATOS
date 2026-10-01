@@ -253,12 +253,28 @@ class ScanActivity : ComponentActivity() {
      * **`isInitialized` pela mesma razao de `onDestroy`**: a recusa por falta de pacote retorna
      * antes de `session` e `cadernos` existirem.
      */
+    /** O escaneamento ficou visivel: a varredura em segundo plano para de eliminar o que ninguem referencia. */
+    override fun onStart() {
+        super.onStart()
+        EscaneamentoAberto.abrir()
+    }
+
     override fun onStop() {
         super.onStop()
-        if (::session.isInitialized) {
+        val guardando = if (::session.isInitialized) {
             session.cadernoAtual?.let { caderno ->
                 lifecycleScope.guardarCadernoEmAndamento(cadernos, organizacao, examPackage.meta.examId, caderno)
             }
+        } else {
+            null
+        }
+        // A marca so cai depois de o caderno estar no Room: `guardarCadernoEmAndamento` e assincrono, e fechar antes
+        // deixaria uma varredura ver o Room desatualizado e eliminar, como orfa, a resposta que o caderno em
+        // memoria referencia (`EscaneamentoAberto`).
+        if (guardando == null) {
+            EscaneamentoAberto.fechar()
+        } else {
+            guardando.invokeOnCompletion { EscaneamentoAberto.fechar() }
         }
     }
 

@@ -26,10 +26,21 @@ object RetencaoDaResposta {
      * referencia sem arquivo nao gera nada (a normalizacao da leitura cuida dela). Relogio anterior a captura
      * (`agora < capturadaEm`) mantem: a diferenca negativa nunca alcanca o prazo.
      */
-    fun arquivosAEliminar(noDisco: List<String>, referenciadas: Map<String, Long>, agora: Long): List<String> =
+    fun arquivosAEliminar(
+        noDisco: List<String>,
+        referenciadas: Map<String, Long>,
+        agora: Long,
+        escaneamentoAberto: Boolean = false,
+    ): List<String> =
         noDisco.filter { arquivo ->
             val capturadaEm = referenciadas[arquivo]
-            capturadaEm == null || agora - capturadaEm >= PRAZO_DIAS * MILISSEGUNDOS_POR_DIA
+            // Sem referencia: so se elimina com o escaneamento fechado. Aberto, o caderno em memoria ainda nao foi ao
+            // Room (so no `onStop`), e a resposta recem-gravada parece orfa (`slice-5c-3`, design D4).
+            if (capturadaEm == null) {
+                !escaneamentoAberto
+            } else {
+                agora - capturadaEm >= PRAZO_DIAS * MILISSEGUNDOS_POR_DIA
+            }
         }
 
     /** Arquivo e instante da captura de cada resposta referenciada por [cadernos]. */
@@ -56,7 +67,12 @@ data class Varredura(val eliminados: Int, val naoEliminados: Int, val semLeitura
  *
  * **Bloqueia** (Room e disco): chame de `Dispatchers.IO`.
  */
-fun varrerRespostas(respostas: RespostasGuardadas, cadernos: CadernosGuardados, agora: Long): Varredura {
+fun varrerRespostas(
+    respostas: RespostasGuardadas,
+    cadernos: CadernosGuardados,
+    agora: Long,
+    escaneamentoAberto: Boolean = false,
+): Varredura {
     val referenciadas = try {
         RetencaoDaResposta.referenciadasPor(cadernos.todos())
     } catch (e: Exception) {
@@ -64,7 +80,7 @@ fun varrerRespostas(respostas: RespostasGuardadas, cadernos: CadernosGuardados, 
     }
     var eliminados = 0
     var naoEliminados = 0
-    for (arquivo in RetencaoDaResposta.arquivosAEliminar(respostas.listar(), referenciadas, agora)) {
+    for (arquivo in RetencaoDaResposta.arquivosAEliminar(respostas.listar(), referenciadas, agora, escaneamentoAberto)) {
         try {
             respostas.eliminar(arquivo)
             eliminados++
