@@ -273,31 +273,39 @@ class ScanActivity : ComponentActivity() {
                 )
                 .build()
 
-            analise.setAnalyzer(
-                analysisExecutor,
-                CameraFrameAnalyzer.daSessao(
-                    map = map,
-                    // A analise para assim que ha resposta na tela; retomar e acao de quem segura o
-                    // aparelho. Ver `design.md`, decisao 4.
-                    deveAnalisar = { deveAnalisar(state) },
-                    jaTemResposta = { aluno, regiao -> cadernoVisivel.jaTemResposta(aluno, regiao) },
-                    respostas = respostas,
-                    entrega = { quadro ->
-                        // A sessao vive na thread principal, e so nela: ela nao e thread-safe, e
-                        // nao precisa ser.
-                        ContextCompat.getMainExecutor(this).execute {
-                            val apuracao = session.onFrame(quadro.resultado, quadro.respostas)
-                            state = session.state
-                            cadernoVisivel = session.cadernoAtual
-                            if (apuracao != null) gravar(apuracao)
-                        }
-                    },
-                ),
-            )
+            analise.setAnalyzer(analysisExecutor, analisadorDaCamera())
 
             provider.unbindAll()
             provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, analise)
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    /**
+     * O analisador **como a camera o usa**, e so por aqui. `internal` para o teste do aparelho chamar
+     * [CameraFrameAnalyzer.analisar] sobre a folha renderizada e levar o resultado a [entregarQuadro], os
+     * dois passos que o laco da camera percorre: o emulador nao alimenta a camera real com um documento.
+     */
+    internal fun analisadorDaCamera(): CameraFrameAnalyzer = CameraFrameAnalyzer.daSessao(
+        map = map,
+        // A analise para assim que ha resposta na tela; retomar e acao de quem segura o
+        // aparelho. Ver `design.md`, decisao 4.
+        deveAnalisar = { deveAnalisar(state) },
+        jaTemResposta = { aluno, regiao -> cadernoVisivel.jaTemResposta(aluno, regiao) },
+        respostas = respostas,
+        entrega = ::entregarQuadro,
+    )
+
+    /**
+     * Leva o quadro analisado a sessao. Chamado na thread de analise; a sessao vive na thread principal,
+     * e so nela: ela nao e thread-safe, e nao precisa ser.
+     */
+    internal fun entregarQuadro(quadro: QuadroAnalisado) {
+        ContextCompat.getMainExecutor(this).execute {
+            val apuracao = session.onFrame(quadro.resultado, quadro.respostas)
+            state = session.state
+            cadernoVisivel = session.cadernoAtual
+            if (apuracao != null) gravar(apuracao)
+        }
     }
 
     /**

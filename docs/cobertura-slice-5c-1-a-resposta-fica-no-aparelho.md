@@ -189,3 +189,31 @@ mesmo predicado, sem mudança de comportamento (P19, P25).
 
 **Lacuna (P8):** o quadro é o documento, não uma foto. A taxa de recusa do recorte ao vivo continua desconhecida;
 a 6.2 mede a perspectiva moderada.
+
+## 2.4 A fiação na `ScanActivity` (em aberto: falta o Xiaomi com o toque)
+
+`RespostaNaAtividadeInstrumentedTest` (2 casos), com a **Activity real**, o pacote em `filesDir/packages` e o
+caderno em `caderno.db`. O quadro vem de `FolhaDiscursivaRenderizada`, e **não** da câmera: duas costuras
+`internal` na Activity (`analisadorDaCamera()` e `entregarQuadro(...)`) são os dois passos do laço da câmera
+(o `analyze(ImageProxy)` faz `entrega(analisar(gray))`); o que fica **sem atravessar** é o `ImageProxy`/CameraX.
+
+- (a) escanear a folha renderizada → a região vira capturada **com o arquivo existindo em `respostas/`**, e
+  `quantosPendentes` da fila do outbox continua 0. Lê a sessão real, portanto exige a permissão de câmera.
+- (b) Activity aberta com um caderno guardado que **já tem** resposta na região 1 (PNG real em `respostas/`):
+  antes do primeiro quadro o instantâneo já traz a resposta, e um quadro da mesma região **não** grava arquivo
+  novo (a pasta continua com o mesmo único arquivo). Não lê a tela e não exige a câmera.
+
+**Visto falhar** (emulador; reversão por `diff` + nova rodada verde): F1, o instantâneo não nasce em `montar` →
+**só** (b) caiu (`o instantaneo nao nasceu em montar`); F2, `entregarQuadro` não atualiza o instantâneo → **só** (a)
+caiu (`o caderno visivel nao ganhou a resposta`).
+
+**Erro de rumo na verificação (P7).** A primeira rodada de F2 derrubou também (b), com `Database is closed`:
+o (a) falhava sem encerrar a Activity, e o `onStop` dela guardou o caderno depois de o `@After` fechar o banco do
+teste seguinte — o vermelho de um virou o vermelho do outro (P12: vermelho novo se diagnostica pela mensagem, não
+pela contagem). Os dois testes passaram a encerrar a Activity em `finally` (`comAtividade`), e F1/F2 foram
+refeitos: aí caiu um só de cada vez.
+
+**Xiaomi (2511FPC34G), 2026-10-01:** (b) **verde**, (a) **pulado** (permissão de câmera não concedida ao teste).
+A rodada com `permissaoManual=true` e o toque do Leon fica para a 6.6; **a caixa da 2.4 só se marca depois dela**.
+
+Também mudou: o predicado `deveAnalisar` e o `Caderno?.jaTemResposta` ficaram testáveis (ver 2.2/2.3).
