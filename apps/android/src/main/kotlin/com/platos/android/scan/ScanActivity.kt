@@ -1,5 +1,8 @@
 package com.platos.android.scan
 
+import com.platos.android.corpus.amostrasDaNota
+import com.platos.android.corpus.coletaDoCorpus
+import com.platos.android.corpus.gravarNotaComColeta
 import com.platos.android.roster.RosterDaProva
 import com.platos.android.roster.RostersEmArquivo
 
@@ -7,6 +10,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Size
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,6 +28,7 @@ import androidx.core.content.ContextCompat
 import com.platos.android.pacote.PacotesEmArquivo
 import com.platos.domain.exam.ExamPackage
 import com.platos.domain.scoring.ApuracaoParaEnvio
+import com.platos.domain.scoring.PartialScoringOutcome
 import com.platos.domain.scoring.PontuacaoDada
 import com.platos.domain.layout.LayoutMap
 import androidx.lifecycle.lifecycleScope
@@ -84,6 +89,9 @@ class ScanActivity : ComponentActivity() {
     private lateinit var pendentes: ResultadosPendentes
     private lateinit var cadernos: CadernosGuardados
     private lateinit var respostas: RespostasGuardadas
+
+    /** A coleta do corpus (`slice-5d-corpus-de-medicao`): a real no debug, `SemColeta` no release. */
+    private val coleta by lazy { coletaDoCorpus(filesDir) }
 
     /**
      * O caderno como o analisador o enxerga (`slice-5c-1-a-resposta-fica-no-aparelho`, design,
@@ -406,12 +414,35 @@ class ScanActivity : ComponentActivity() {
                     nota = r.nota,
                 )
                 lifecycleScope.launch {
-                    val gravou = withContext(Dispatchers.IO + NonCancellable) {
-                        gravarNota(pendentes, cadernos, pendente, r.cadernoCorrigido, examPackage.meta.examId) {
-                            EnvioDeResultadosWorker.agendar(applicationContext, organizacao)
+                    val gravacao = withContext(Dispatchers.IO + NonCancellable) {
+                        // A copia para o corpus vem ANTES da nota (a imagem some quando o servidor a confirma) e nao a
+                        // decide: a falha dela vira aviso. Com a coleta desligada, e no release, nada acontece.
+                        gravarNotaComColeta(
+                            coleta,
+                            respostas,
+                            amostras = {
+                                val parcial = (r.cadernoCorrigido.parcial as? PartialScoringOutcome.Scored)?.partial
+                                    ?: error("a nota foi dada sobre uma parcial apurada")
+                                amostrasDaNota(
+                                    linhasDaNota(r.cadernoCorrigido, parcial),
+                                    pontuacoes,
+                                    examPackage.contentHash(),
+                                )
+                            },
+                        ) {
+                            gravarNota(pendentes, cadernos, pendente, r.cadernoCorrigido, examPackage.meta.examId) {
+                                EnvioDeResultadosWorker.agendar(applicationContext, organizacao)
+                            }
                         }
                     }
-                    if (gravou) {
+                    if (gravacao.falhas.isNotEmpty()) {
+                        Toast.makeText(
+                            applicationContext,
+                            "Coleta: nao copiou a questao ${gravacao.falhas.joinToString(", ")}",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                    if (gravacao.gravou) {
                         session.confirmarCorrigido()
                         state = session.state
                         cadernoVisivel = session.cadernoAtual

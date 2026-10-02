@@ -1,5 +1,7 @@
 package com.platos.android.session
 
+import com.platos.android.corpus.ColetaDoCorpus
+import com.platos.android.corpus.SemColeta
 import com.platos.android.roster.RostersGuardados
 
 import com.platos.android.pacote.PacotesGuardados
@@ -51,6 +53,7 @@ class DeviceSession(
     private val pacotes: PacotesGuardados,
     private val visoes: VisoesGuardadas,
     private val rosters: RostersGuardados,
+    private val corpus: ColetaDoCorpus = SemColeta,
 ) {
 
     var state: DeviceState = DeviceState.Entrada()
@@ -256,6 +259,8 @@ class DeviceSession(
             rosters.apagarDaOrganizacao(organizacao)
         }
 
+        eliminarCorpus()
+
         state = DeviceState.Entrada(MotivoDeEntrada.SAIU, pendentes = naoEnviados)
     }
 
@@ -347,5 +352,19 @@ class DeviceSession(
         visoes.apagarDaOrganizacao(organizacao)
         pacotes.apagarDaOrganizacao(organizacao)
         rosters.apagarDaOrganizacao(organizacao)
+        eliminarCorpus()
+    }
+
+    /**
+     * As amostras do corpus (`slice-5d-corpus-de-medicao`) sao **copia**, e nao o unico exemplar de um trabalho: ao
+     * contrario do resultado pendente, saem com a sessao. A coleta nunca lanca; o `try` e a rede para que uma
+     * implementacao que lance nao impeca sair nem a revogacao, que ja apagaram a credencial e o cache.
+     */
+    private fun eliminarCorpus() {
+        try {
+            corpus.eliminarTodas()
+        } catch (e: Exception) {
+            // Fica para o prazo de 30 dias.
+        }
     }
 }

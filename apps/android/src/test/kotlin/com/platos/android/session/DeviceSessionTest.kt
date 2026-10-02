@@ -108,6 +108,25 @@ class DeviceSessionTest {
         }
     }
 
+    /** O corpus de mentira: registra quantas vezes foi mandado eliminar tudo, e pode lancar. */
+    private class CorpusFalso(private val lanca: Boolean = false) : com.platos.android.corpus.ColetaDoCorpus {
+        var eliminadasTodas = 0
+            private set
+
+        override fun ligada() = false
+        override fun copiar(
+            amostras: List<com.platos.android.corpus.AmostraACopiar>,
+            respostas: com.platos.android.scan.RespostasGuardadas,
+        ) = com.platos.android.corpus.ResultadoDaCopia.NADA
+
+        override fun eliminar(ids: List<String>) = Unit
+        override fun eliminarVencidas(agora: Long) = Unit
+        override fun eliminarTodas() {
+            eliminadasTodas++
+            if (lanca) throw IllegalStateException("falha ao eliminar")
+        }
+    }
+
     private val escola = Organizacao("org-1", "Escola Municipal Vila Nova")
     private val pessoal = Organizacao("org-2", "Leon")
     private val prova = ProvaPublicada("mat-7a-2026-1", "Prova de Matematica", "a".repeat(64))
@@ -942,5 +961,43 @@ class DeviceSessionTest {
 
         assertEquals(listOf(escola.id), rosters.apagadas)
         assertNull(rosters.ler(escola.id, prova.shortId))
+    }
+
+    // --- slice-5d: o corpus e copia, e some com a sessao ---
+
+    @Test
+    fun sair_elimina_as_amostras_do_corpus() {
+        val corpus = CorpusFalso()
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(), RostersFalsos(), corpus)
+        sessao.abrir(temSessaoGuardada = true)
+
+        sessao.sair()
+
+        assertEquals(1, corpus.eliminadasTodas, "sair nao eliminou o corpus")
+    }
+
+    @Test
+    fun revogacao_observada_elimina_as_amostras_do_corpus() {
+        val corpus = CorpusFalso()
+        val visao = VisaoDaOrganizacao(escola, listOf(prova), vistaEm = 1_757_000_000_000)
+        val sessao = DeviceSession(Guardada(escola.id), PacotesFalsos(), VisoesFalsas(visao), RostersFalsos(), corpus)
+        sessao.abrir(temSessaoGuardada = true)
+
+        sessao.aoConsultarOrganizacoes(ResultadoDasOrganizacoes.Chegaram(listOf(pessoal)))
+
+        assertEquals(1, corpus.eliminadasTodas, "a revogacao nao eliminou o corpus")
+    }
+
+    @Test
+    fun sair_nao_para_se_a_eliminacao_do_corpus_falha() {
+        val guardada = Guardada(escola.id)
+        val corpus = CorpusFalso(lanca = true)
+        val sessao = DeviceSession(guardada, PacotesFalsos(), VisoesFalsas(), RostersFalsos(), corpus)
+        sessao.abrir(temSessaoGuardada = true)
+
+        sessao.sair()
+
+        assertTrue(guardada.credencialApagada, "a falha do corpus impediu apagar a credencial")
+        assertTrue(sessao.state is DeviceState.Entrada)
     }
 }

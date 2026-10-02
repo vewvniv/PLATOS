@@ -1,5 +1,6 @@
 package com.platos.android.session
 
+import com.platos.android.corpus.coletaDoCorpus
 import com.platos.android.outbox.EnvioDeResultadosWorker
 import com.platos.android.outbox.ResultadosEmRoom
 import com.platos.android.roster.RostersEmArquivo
@@ -123,7 +124,7 @@ class SessaoActivity : ComponentActivity() {
         // Mesma razao das duas de cima. Um diretorio por organizacao dentro deste, porque o
         // apagamento que sair e a revogacao fazem e por organizacao inteira.
         rosters = RostersEmArquivo(java.io.File(filesDir, "rosters"))
-        sessao = DeviceSession(guardada, pacotes, visoes, rosters)
+        sessao = DeviceSession(guardada, pacotes, visoes, rosters, coletaDoCorpus(filesDir))
         // A fila vive na `Activity`, e nao dentro de `DeviceSession`: quem a le precisa de
         // dispatcher, e `DeviceSession` e Kotlin puro de proposito.
         pendentes = ResultadosEmRoom(ResultadosEmRoom.abrir(applicationContext).pendentes())

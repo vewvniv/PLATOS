@@ -2,6 +2,7 @@ package com.platos.android.scan
 
 import android.content.Context
 import android.util.Log
+import com.platos.android.corpus.coletaDoCorpus
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -45,6 +46,13 @@ fun varrerAgora(context: Context, escaneamentoAberto: () -> Boolean = { false })
         )
     } catch (e: Exception) {
         Varredura(eliminados = 0, naoEliminados = 0, semLeituraDosCadernos = true)
+    }
+    // As amostras do corpus (`slice-5d-corpus-de-medicao`) tem o mesmo teto de 30 dias, na abertura e em segundo plano.
+    // Nunca lanca, e nao depende de o interruptor estar ligado.
+    try {
+        coletaDoCorpus(context.filesDir).eliminarVencidas(System.currentTimeMillis())
+    } catch (e: Exception) {
+        // Proxima varredura.
     }
     registrarVarredura(varredura)
     return varredura
