@@ -2,6 +2,7 @@
 // sombreia o pacote, entao `java.util.Properties` nao compila.
 import com.android.build.api.variant.BuildConfigField
 import com.android.build.api.variant.HostTestBuilder
+import java.io.File
 import java.util.Properties
 import java.util.zip.ZipFile
 
@@ -399,3 +400,75 @@ val verificarApkSemPacote = tasks.register<VerificarApkSemPacoteTask>("verificar
 }
 
 tasks.named("check") { dependsOn(verificarApkSemPacote) }
+
+/**
+ * O APK de release **nao contem** a coleta do corpus (`slice-5d-corpus-de-medicao`, spec `measurement-corpus`: "A coleta
+ * existe so no aplicativo de depuracao"). Como `VerificarApkSemPacoteTask`, confere o **artefato**: a garantia e de
+ * compilacao, e um `grep` no codigo nao diz que o `src/release` nao a trouxe de volta.
+ *
+ * **Duas assinaturas, e a segunda e a que importa.** O descritor da classe (`.../ColetaDoCorpusEmArquivo`) some se um
+ * dia houver R8; o literal do marcador (`coleta-ligada`) nao: o R8 nao renomeia string, e so o debug a contem. Procuradas
+ * nos `.dex`, como texto.
+ *
+ * **Guarda de vacuidade por variante (P13):** o APK de **debug** precisa conter o literal, senao a busca nao distingue
+ * nada e o release "passaria" por nao achar o que nunca acharia. O release sem `.dex` tambem reprova.
+ */
+abstract class VerificarApkSemColetaTask : DefaultTask() {
+    @get:InputFiles
+    abstract val apksDeDebug: ConfigurableFileCollection
+
+    @get:InputFiles
+    abstract val apksDeRelease: ConfigurableFileCollection
+
+    private val assinaturas = listOf("com/platos/android/corpus/ColetaDoCorpusEmArquivo", "coleta-ligada")
+
+    @TaskAction
+    fun run() {
+        for ((variante, colecao) in listOf("debug" to apksDeDebug, "release" to apksDeRelease)) {
+            val apks = colecao.files.filter { it.isFile && it.extension == "apk" }
+            require(apks.isNotEmpty()) {
+                "nenhum APK de $variante para conferir; a tarefa depende de `assemble${variante.replaceFirstChar { it.uppercase() }}`"
+            }
+            for (apk in apks) {
+                val achadas = assinaturasNosDex(apk)
+                if (variante == "debug") {
+                    require("coleta-ligada" in achadas) {
+                        "${apk.name} (debug) nao traz o literal da coleta: a verificacao nao distingue o release do debug"
+                    }
+                } else {
+                    require(achadas.isEmpty()) {
+                        "${apk.name} (release) contem a coleta do corpus: $achadas. " +
+                            "A coleta so pode existir em src/debug (slice-5d-corpus-de-medicao)."
+                    }
+                }
+                logger.lifecycle("$variante: ${apk.name}, assinaturas da coleta: ${achadas.ifEmpty { "nenhuma" }}.")
+            }
+        }
+        logger.lifecycle("A coleta do corpus esta so no APK de debug.")
+    }
+
+    private fun assinaturasNosDex(apk: File): Set<String> {
+        val achadas = mutableSetOf<String>()
+        var dex = 0
+        ZipFile(apk).use { zip ->
+            for (entrada in zip.entries()) {
+                if (!entrada.name.endsWith(".dex")) continue
+                dex++
+                val texto = String(zip.getInputStream(entrada).use { it.readBytes() }, Charsets.ISO_8859_1)
+                for (assinatura in assinaturas) if (assinatura in texto) achadas += assinatura
+            }
+        }
+        require(dex > 0) { "${apk.name}: nenhum .dex no APK; a busca passaria por vacuidade" }
+        return achadas
+    }
+}
+
+val verificarApkSemColeta = tasks.register<VerificarApkSemColetaTask>("verificarApkSemColeta") {
+    group = "verification"
+    description = "Confere que o codigo da coleta do corpus esta so no APK de debug"
+    dependsOn("assembleDebug", "assembleRelease")
+    apksDeDebug.from(layout.buildDirectory.dir("outputs/apk/debug").map { it.asFileTree })
+    apksDeRelease.from(layout.buildDirectory.dir("outputs/apk/release").map { it.asFileTree })
+}
+
+tasks.named("check") { dependsOn(verificarApkSemColeta) }
