@@ -25,7 +25,7 @@ fixa limiar, não integra OCR. O §9.2 avisa que a confiança do próprio motor 
 |---|---|---|
 | D1 | **Quem coleta: só o mantenedor, nas turmas dele.** | A primeira rodada não é recurso de produto. Elimina a tela de declaração, o compartilhar e a confirmação de entrega. |
 | D2 | **O código da coleta existe só no APK debug** (conjunto de fontes `debug`; o `release` recebe uma implementação vazia da mesma interface). | A garantia é de compilação, não de configuração: o APK que um professor instalar não contém o que copia foto de menor. |
-| D3 | **Interruptor de coleta, desligado por padrão.** Ligado, toda nota confirmada copia todas as discursivas da folha. | Para 60–150 respostas, uma ação por turma. Escolha por resposta é atrito sem ganho para uso só do mantenedor. |
+| D3 | **Interruptor de coleta, desligado por padrão, e ele é um arquivo marcador** (`filesDir/coleta-ligada`), ligado por `adb`, **sem tela**. Ligado, toda nota confirmada copia todas as discursivas da folha. | Para 60–150 respostas, uma ação por turma; escolha por resposta é atrito sem ganho para uso só do mantenedor. Para quem já usa `adb`, uma tela é Compose e teste para nada, e a spec diz "interruptor" sem fixar a forma. (Atualizado em 2026-10-02, na execução do plano; o desenho aprovado dizia "a tela do interruptor".) |
 | D4 | **A foto sai por cabo** (`adb` + `run-as`), sem tela de exportação, sem rota, sem tabela. | Nenhuma superfície nova: `run-as` só funciona em app depurável. |
 | D5 | **A transcrição de referência é digitada no computador**, com a foto aberta, em campo do JSON da amostra. | É a régua para dizer se o OCR leu bem; digitar 150 textos no celular não é razoável. |
 | D6 | **A 5d coleta e escreve o critério; a bancada e o OCR no app são mudanças seguintes.** | Escolher e integrar motor sem letra real é a suposição que o §9 manda evitar. Comparar motores no computador é horas; integrá-los no Android, semanas. |
@@ -61,8 +61,9 @@ plano.
 
 - **`src/main`:** a interface `ColetaDoCorpus` (`copiar(respostas, pontuacoes, ...)`), o ponto de chamada, e a leitura do
   interruptor. É o que o `release` compila.
-- **`src/debug`:** `ColetaDoCorpusEmArquivo` (a implementação real) e a tela do interruptor. **`src/release`:**
-  `ColetaDoCorpusNula`, que não faz nada e não referencia o diretório. `src/debug` e `src/release` **não existem hoje**:
+- **`src/debug`:** `ColetaDoCorpusEmArquivo` (a implementação real), `AmostraDoCorpus` (o formato) e a fábrica
+  `coletaDoCorpus(filesDir)`. **`src/release`:** a mesma fábrica, que devolve `SemColeta` (de `src/main`), e nenhuma
+  classe da coleta. `src/debug` e `src/release` **não existiam**:
   nascem com esta mudança.
 - **Testes:** os que exercitam a implementação real vão em `src/testDebug`; o que roda nos dois (a interface, a nula) fica
   em `src/test`. A suíte de unidade roda também sobre o release (ETAPA 7.2); teste que dependa da classe de debug no
