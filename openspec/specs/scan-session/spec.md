@@ -455,7 +455,7 @@ A tela SHALL oferecer **refazer** a resposta: descartar a resposta guardada, eli
 
 ### Requirement: A resposta guardada tem prazo no aparelho
 
-A resposta guardada é dado de classe H (`docs/legal/politica-de-privacidade.md` §10.8; ADR-0012, decisão 4): **manuscrito de menor no dispositivo do professor**. O aplicativo SHALL eliminar do aparelho:
+A resposta guardada é dado de classe H (o conjunto de regras do cache no aparelho que o ADR-0012, decisão 4, define desde a atualização de 2026-10-03; a política v2.0 não o descreve): **manuscrito de menor no dispositivo do professor**. O aplicativo SHALL eliminar do aparelho:
 - toda resposta guardada há **30 dias ou mais**, contados da captura, em qualquer hipótese (a classe H diz "em até 30 dias", e o dia 30 já é o limite);
 - toda resposta que **nenhum caderno guardado no aparelho referencia** — a do caderno substituído por outro aluno, a descartada ao refazer, a de um quadro cuja gravação não chegou a ser referenciada, **e o arquivo temporário de uma gravação interrompida**;
 - toda resposta de um caderno **corrigido** cuja nota o **servidor confirmou** (o gatilho "após a sincronização" da classe H, que nasce com a nota).
