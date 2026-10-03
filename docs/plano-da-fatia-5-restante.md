@@ -10,9 +10,11 @@ registro de dívida (P27): este plano a **lê**, e não a substitui.
 
 O §15 define a fatia 5 como "Regiões discursivas · completude · deviants · correção manual · **corpus de medição**".
 Entregue e arquivado: `slice-5a-regiao-discursiva`, `slice-5b-0` a `5b-4` (reconhecer, parcial objetiva, caderno,
-envio da parcial) e `slice-5c-0` (o recorte) e `5c-1` (a resposta fica no aparelho, o professor a vê, o prazo de
-30 dias). **Falta a nota do professor, o corpus, o fechamento de caderno incompleto e a guarda de dívida**, mais o que
-precede o papel. A fatia corrente derivada pela guarda é `5c`.
+envio da parcial), `slice-5c-0` (o recorte), `5c-1` (a resposta fica no aparelho, o professor a vê, o prazo de
+30 dias), `5c-2` (a nota do professor: contrato e servidor), `5c-3` (a nota no aparelho) e `slice-5d` (o corpus: o
+instrumento de coleta e o critério, sem nenhuma amostra de aluno ainda). **Falta o fechamento de caderno incompleto e a
+guarda de dívida**, mais o que precede o papel. A bancada de motores de OCR e o OCR no aplicativo são mudanças novas, ainda
+não propostas. A fatia corrente derivada pela guarda é `5d`.
 
 ## A ordem
 
