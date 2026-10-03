@@ -116,6 +116,24 @@ class RetentionDeclarationTest {
     }
 
     @Test
+    fun `as classes G e H da politica v1 deixaram de existir na v2, e as seis da v2 e nenhum passam`() {
+        // A politica v2.0 (2026-10-02) tem seis classes, A a F. A antiga G (conteudo autoral) e a antiga H (cache no
+        // dispositivo) sairam; o cache no aparelho passou a ser definido pelo ADR-0012 (atualizacao de 2026-10-03), e
+        // nao e classe de tabela.
+        for (classe in listOf("G", "H")) {
+            val problemas = violacoes(mapOf("tabela_nova" to "Alguma finalidade declarada aqui. [retencao:$classe]"))
+
+            assertEquals(1, problemas.size, "a classe $classe devia ser recusada")
+            assertTrue(problemas.single().contains("`$classe`"), problemas.single())
+        }
+        for (classe in listOf("A", "B", "C", "D", "E", "F", "nenhum")) {
+            val problemas = violacoes(mapOf("t" to "Alguma finalidade declarada aqui. [retencao:$classe]"))
+
+            assertEquals(emptyList(), problemas, "a classe $classe devia passar")
+        }
+    }
+
+    @Test
     fun `classe declarada sem finalidade e acusada`() {
         // Metade da declaracao nao e declaracao: "[retencao:C]" sozinho diz por quanto tempo, e nao
         // para que — e e o "para que" que decide se o prazo faz sentido.
@@ -158,8 +176,12 @@ class RetentionDeclarationTest {
     private companion object {
         val MARCADOR = Regex("""\[retencao:([A-Za-z]+)]""")
 
-        /** As classes do item 10 da politica de privacidade, mais `nenhum`. */
-        val CLASSES = setOf("A", "B", "C", "D", "E", "F", "G", "H", "nenhum")
+        /**
+         * As classes do item 10 da politica de privacidade **v2.0** (2026-10-02), mais `nenhum`. A antiga G (conteudo
+         * autoral) e a antiga H (cache no dispositivo) sairam da politica; o cache no aparelho e definido pelo
+         * ADR-0012 (atualizacao de 2026-10-03) e nao e classe de tabela.
+         */
+        val CLASSES = setOf("A", "B", "C", "D", "E", "F", "nenhum")
 
         /** Uma frase curta ainda e finalidade; uma palavra solta nao e. */
         const val FINALIDADE_MINIMA = 20
