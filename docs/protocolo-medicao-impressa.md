@@ -876,3 +876,9 @@ primeira tentativa, e o que a conferência revelou que nenhum teste de JVM tinha
 também o tempo do pull de ~100 KB contra o serviço real, incluindo cold start, ao lado do
 `TEMPO_LIMITE_DE_PEDIDO_MS` de 90 s que a 4a-zero fixou — é a primeira chamada desta base grande o
 bastante para dizer algo sobre ele.
+
+## 12. A coleta de letra de aluno não entra nesta sessão (slice-5d)
+
+O corpus de **letra** de aluno (`docs/protocolo-corpus-de-medicao.md`, ADR-0022) não depende da impressora e **não** faz
+parte da sessão única de papel: é só referência. Medir o limiar do OMR (seção 11) e coletar letra para escolher o motor
+de OCR são medidas diferentes, com critérios diferentes e escritos antes de cada resultado.

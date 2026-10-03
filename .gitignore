@@ -35,3 +35,7 @@ Thumbs.db
 # Saidas de build do web e do comparador
 apps/web/dist/
 build/parity/
+
+# Letra de aluno puxada do aparelho (slice-5d-corpus-de-medicao). A primeira rede e guarda-la FORA do repositorio
+# (tools/corpus/puxar.mjs recusa destino dentro dele); esta e a segunda.
+/corpus-de-medicao/

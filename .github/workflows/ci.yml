@@ -278,6 +278,12 @@ jobs:
           fi
           echo "a verificacao do fio acusou o contrato sem literal nos dois lados, e o piso, como deve"
 
+      # O corpus de medicao (slice-5d-corpus-de-medicao): a conferencia do formato das amostras, a contagem das
+      # validas e a recusa de destino dentro do repositorio. As chaves saem de fixtures/corpus/amostra-exemplo.json,
+      # que o teste Kotlin da coleta tambem prende: mudar o formato de um lado so reprova o outro.
+      - name: A conferencia do corpus de medicao
+        run: node --test "tools/corpus/*.test.mjs"
+
       # A versao do renderizador (D24) aparece em tres registros que nao se conhecem: a versao mais
       # alta que a publicacao pode escrever num mapa (LINE_RENDERER_VERSION desde a slice-5b-0, em que
       # a versao minima passou a ser calculada por mapa), e a versao de cada renderizador, Android e
