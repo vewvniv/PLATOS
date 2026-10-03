@@ -26,6 +26,24 @@ export function destinoForaDoRepositorio(destino, raiz = RAIZ) {
   return rel.startsWith('..') || isAbsolute(rel);
 }
 
+/**
+ * Os nomes que o `ls` do aparelho listou. `adb exec-out` **perde o status de saida**: se a pasta nao existe ou o app
+ * nao e depuravel, a mensagem de erro chega em stdout como se fosse a listagem — e foi lida como nome de arquivo
+ * (achado ao simular, no emulador, a pasta vazia). Nome valido nao tem espaco nem dois-pontos; qualquer linha que os
+ * tenha e a resposta do aparelho dizendo que nao listou, e o script a mostra em vez de escreve-la como arquivo.
+ */
+export function nomesDaListagem(saida) {
+  const linhas = saida
+    .split(/\r?\n/)
+    .map((n) => n.trim())
+    .filter(Boolean);
+  if (linhas.length === 0) throw new Error('a pasta files/corpus do aparelho esta vazia ou nao existe');
+  if (linhas.some((n) => !/^[A-Za-z0-9._-]+$/.test(n))) {
+    throw new Error(`o aparelho nao listou a pasta: ${linhas.join(' | ')}`);
+  }
+  return linhas;
+}
+
 function adb(args) {
   const r = spawnSync('adb', args, { maxBuffer: 256 * 1024 * 1024 });
   if (r.error) throw new Error(`nao consegui rodar o adb: ${r.error.message}`);
@@ -45,17 +63,9 @@ function main() {
   }
   let nomes;
   try {
-    nomes = adb(['exec-out', 'run-as', PACOTE, 'ls', 'files/corpus'])
-      .toString()
-      .split(/\r?\n/)
-      .map((n) => n.trim())
-      .filter(Boolean);
+    nomes = nomesDaListagem(adb(['exec-out', 'run-as', PACOTE, 'ls', 'files/corpus']).toString());
   } catch (e) {
     console.error(`::error::${e.message}`);
-    return 2;
-  }
-  if (nomes.length === 0) {
-    console.error('::error::a pasta files/corpus do aparelho esta vazia ou nao existe');
     return 2;
   }
   mkdirSync(destino, { recursive: true });

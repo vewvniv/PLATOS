@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { EXEMPLO, chavesDoFormato, conferirPasta, contarValidas } from './formato.mjs';
-import { destinoForaDoRepositorio } from './puxar.mjs';
+import { destinoForaDoRepositorio, nomesDaListagem } from './puxar.mjs';
 
 const RAIZ = fileURLToPath(new URL('../../', import.meta.url));
 const ID_A = '3f2c9a52-1111-4000-8000-0000000000d1';
@@ -111,4 +111,12 @@ test('um destino dentro do repositorio e recusado, o de fora e aceito', () => {
   assert.equal(destinoForaDoRepositorio(join(RAIZ, 'corpus-de-medicao')), false);
   assert.equal(destinoForaDoRepositorio(RAIZ), false);
   assert.equal(destinoForaDoRepositorio(join(RAIZ, '..', 'corpus-de-medicao-fora')), true);
+});
+
+test('a listagem do aparelho que e mensagem de erro nao vira nome de arquivo', () => {
+  // `adb exec-out` perde o status de saida: a mensagem de erro do `ls` chega como se fosse a listagem.
+  assert.throws(() => nomesDaListagem('ls: files/corpus: No such file or directory\n'), /nao listou a pasta.*No such file/);
+  assert.throws(() => nomesDaListagem('run-as: package not debuggable: com.platos.android\n'), /nao listou a pasta/);
+  assert.throws(() => nomesDaListagem(''), /vazia ou nao existe/);
+  assert.deepEqual(nomesDaListagem(`${ID_A}.json\r\n${ID_A}.png\r\n`), [`${ID_A}.json`, `${ID_A}.png`]);
 });
