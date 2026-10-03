@@ -50,7 +50,7 @@ fun varrerAgora(context: Context, escaneamentoAberto: () -> Boolean = { false })
     // As amostras do corpus (`slice-5d-corpus-de-medicao`) tem o mesmo teto de 30 dias, na abertura e em segundo plano.
     // Nunca lanca, e nao depende de o interruptor estar ligado.
     try {
-        coletaDoCorpus(context.filesDir).eliminarVencidas(System.currentTimeMillis())
+        coletaDoCorpus(context.filesDir).eliminarVencidas(System.currentTimeMillis(), escaneamentoAberto)
     } catch (e: Exception) {
         // Proxima varredura.
     }

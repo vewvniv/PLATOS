@@ -76,7 +76,7 @@ class ColetaDoCorpusEmArquivo(
         }
     }
 
-    override fun eliminarVencidas(agora: Long) {
+    override fun eliminarVencidas(agora: Long, escaneamentoAberto: () -> Boolean) {
         val arquivos = diretorio.listFiles()?.filter { it.isFile && NOME_DA_AMOSTRA.matches(it.name) } ?: return
         val prazo = RetencaoDaResposta.PRAZO_DIAS * MILISSEGUNDOS_POR_DIA
         for ((id, grupo) in arquivos.groupBy { it.name.substringBefore('.') }) {
@@ -85,7 +85,10 @@ class ColetaDoCorpusEmArquivo(
             val temporario = nomes.any { it.endsWith(TEMPORARIO) }
             val dados = grupo.firstOrNull { it.name == "$id$DADOS" }
             val vencida = dados != null && agora - dados.lastModified() >= prazo
-            if (temporario || !completo || vencida) grupo.forEach(::tentarEliminar)
+            // Foto sem dados e temporario sao o ESTADO INTERMEDIARIO de uma copia em curso (a foto ja no nome final, os
+            // dados ainda `.tmp`): com o escaneamento aberto nao sao residuo. So a vencida, completa, sai sempre.
+            val residuo = (temporario || !completo) && !escaneamentoAberto()
+            if (residuo || vencida) grupo.forEach(::tentarEliminar)
         }
     }
 

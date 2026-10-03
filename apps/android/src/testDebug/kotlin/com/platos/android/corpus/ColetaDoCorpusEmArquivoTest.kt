@@ -236,6 +236,27 @@ class ColetaDoCorpusEmArquivoTest {
         assertFalse(File(corpus, "$id.png").exists())
     }
 
+    @Test
+    fun `com o escaneamento aberto o residuo fica, porque pode ser a copia em curso, e a vencida sai`() {
+        // Os dois estados de uma copia EM CURSO: a foto ja no nome final e os dados ainda temporarios (ou ausentes).
+        val vencida = copiarUma().also { envelhecer(it, aosDias(31)) }
+        val emCurso = UUID.randomUUID().toString().also {
+            File(corpus, "$it.png").writeBytes(png)
+            File(corpus, "$it.json.tmp").writeText("{}")
+        }
+        val soAFoto = UUID.randomUUID().toString().also { File(corpus, "$it.png").writeBytes(png) }
+
+        coleta().eliminarVencidas(agora + dia, escaneamentoAberto = { true })
+
+        assertTrue(File(corpus, "$emCurso.png").isFile && File(corpus, "$emCurso.json.tmp").isFile, "a varredura comeu a copia em curso")
+        assertTrue(File(corpus, "$soAFoto.png").isFile, "a varredura comeu a foto que espera os dados")
+        assertFalse(File(corpus, "$vencida.png").exists() || File(corpus, "$vencida.json").exists(), "a vencida nao e copia em curso")
+
+        coleta().eliminarVencidas(agora + dia, escaneamentoAberto = { false })
+
+        assertEquals(emptyList<String>(), nomes(), "fechado o escaneamento, o residuo sai")
+    }
+
     // --- sair e revogar ---
 
     @Test

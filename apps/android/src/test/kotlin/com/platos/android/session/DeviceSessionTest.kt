@@ -120,7 +120,7 @@ class DeviceSessionTest {
         ) = com.platos.android.corpus.ResultadoDaCopia.NADA
 
         override fun eliminar(ids: List<String>) = Unit
-        override fun eliminarVencidas(agora: Long) = Unit
+        override fun eliminarVencidas(agora: Long, escaneamentoAberto: () -> Boolean) = Unit
         override fun eliminarTodas() {
             eliminadasTodas++
             if (lanca) throw IllegalStateException("falha ao eliminar")

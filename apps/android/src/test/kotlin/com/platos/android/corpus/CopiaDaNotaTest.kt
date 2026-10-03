@@ -35,7 +35,7 @@ class CopiaDaNotaTest {
             eliminadas += ids
         }
 
-        override fun eliminarVencidas(agora: Long) = Unit
+        override fun eliminarVencidas(agora: Long, escaneamentoAberto: () -> Boolean) = Unit
         override fun eliminarTodas() = Unit
     }
 

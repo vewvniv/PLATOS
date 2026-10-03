@@ -49,6 +49,27 @@ class VarreduraEliminaOCorpusInstrumentedTest {
         return id
     }
 
+    /**
+     * A varredura em segundo plano roda com a marca do escaneamento aberto, e a copia de `darNota` esta no meio quando
+     * ela passa: a foto ja no nome final e os dados ainda `.tmp`. Eliminar isso perderia uma amostra boa em silencio
+     * (achado da revisao final). Fechado o escaneamento, o mesmo estado e residuo e sai.
+     */
+    @Test
+    fun com_o_escaneamento_aberto_a_varredura_poupa_a_copia_em_curso() {
+        pasta.mkdirs()
+        val id = UUID.randomUUID().toString()
+        val foto = File(pasta, "$id.png").also { it.writeBytes(byteArrayOf(1, 2, 3)) }
+        val dados = File(pasta, "$id.json.tmp").also { it.writeText("{}") }
+
+        varrerAgora(contexto, escaneamentoAberto = { true })
+
+        assertTrue("a varredura comeu a copia em curso", foto.isFile && dados.isFile)
+
+        varrerAgora(contexto, escaneamentoAberto = { false })
+
+        assertFalse("fechado o escaneamento, o residuo devia sair", foto.exists() || dados.exists())
+    }
+
     @Test
     fun a_varredura_elimina_a_amostra_vencida_e_mantem_a_recente() {
         val vencida = amostra(dadosHaDias = 31)

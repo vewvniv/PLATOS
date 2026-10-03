@@ -41,8 +41,14 @@ interface ColetaDoCorpus {
     /** Elimina as amostras de [ids] (a nota que nao foi gravada nao deixa amostra). */
     fun eliminar(ids: List<String>)
 
-    /** Elimina o que tem 30 dias ou mais, e o residuo de copia interrompida. Roda com o interruptor ligado ou nao. */
-    fun eliminarVencidas(agora: Long)
+    /**
+     * Elimina o que tem 30 dias ou mais, e o residuo de copia interrompida. Roda com o interruptor ligado ou nao.
+     *
+     * [escaneamentoAberto] e a mesma marca que poupa os orfaos das respostas (`EscaneamentoAberto`): com o escaneamento
+     * aberto, a foto sem dados ou o temporario podem ser a **copia em curso** de `darNota`, e a varredura em segundo
+     * plano **nao** os elimina (a amostra vencida, completa, sai do mesmo jeito). Lida a cada grupo, na hora de eliminar.
+     */
+    fun eliminarVencidas(agora: Long, escaneamentoAberto: () -> Boolean = { false })
 
     /** Elimina a pasta inteira: sair da sessao e a revogacao (a amostra e copia, e nao o unico exemplar). */
     fun eliminarTodas()
@@ -53,6 +59,6 @@ object SemColeta : ColetaDoCorpus {
     override fun ligada() = false
     override fun copiar(amostras: List<AmostraACopiar>, respostas: RespostasGuardadas) = ResultadoDaCopia.NADA
     override fun eliminar(ids: List<String>) = Unit
-    override fun eliminarVencidas(agora: Long) = Unit
+    override fun eliminarVencidas(agora: Long, escaneamentoAberto: () -> Boolean) = Unit
     override fun eliminarTodas() = Unit
 }
