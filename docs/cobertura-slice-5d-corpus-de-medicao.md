@@ -69,6 +69,19 @@ Cada mutação foi aplicada sozinha, lida pela mensagem (P12), revertida e a rev
 
 Reversão das duas últimas rodada no emulador: `Starting 3 tests`, `exit 0`.
 
+### Achado da revisão final: a varredura em segundo plano comia a cópia em curso
+
+A revisão (revisor com contexto novo, sobre a branch inteira) achou, em `VarreduraDoAparelho.kt`, que o bloco do corpus **ignorava** `escaneamentoAberto`, que a varredura das respostas, no mesmo método, já recebia. Com o escaneamento aberto, a cópia de `darNota` passa por estados que a regra de resíduo lê como lixo (a foto já no nome final com os dados ainda `.tmp`, ou só a foto): se o worker de 24 h rodasse nessa janela, apagava uma amostra boa, e a cópia terminava como "falha". Falha segura (sem vazamento, sem nota perdida), mas perda silenciosa de dado da coleta, e **não estava registrada em lugar nenhum**. Corrigido com TDD (o requisito foi refinado em `measurement-corpus`: "Cópia em curso não é resíduo"):
+
+| Garantia | Mutação | Caiu |
+|---|---|---|
+| Com o escaneamento aberto o resíduo fica e a vencida sai | marca ignorada | `com o escaneamento aberto o residuo fica…` |
+| …o sentido da marca | marca invertida | o mesmo + `foto sem dados, dados sem foto e temporario sao residuo e saem` |
+| …a vencida sai mesmo com a marca aberta | regra de vencida removida | o mesmo + `29 dias mantem, exatamente 30 elimina, 31 elimina` + `arquivo estranho na pasta nao e tocado pelo prazo` |
+| `varrerAgora` passa a marca ao corpus (emulador) | argumento removido | `com_o_escaneamento_aberto_a_varredura_poupa_a_copia_em_curso` |
+
+Reversão rodada: `Starting 2 tests`, `exit 0`. **Reexecução depois da correção** (só `apps/android` mudou; `git diff --stat 4c502ef` não toca `apps/api` nem `packages/`): `./gradlew :apps:android:testDebugUnitTest :apps:android:testReleaseUnitTest :apps:android:verificarApkSemColeta :apps:android:connectedDebugAndroidTest --rerun-tasks`, `163 de 163 executadas`, `05:26:43Z`–`05:31:06Z`: debug **488**, release **470**, instrumentados **177 casos, 0 falhas, 2 pulados** (as mesmas sondas), `timestamp 05:31:01Z`; `ColetaNaNotaInstrumentedTest` 2/2 e `VarreduraEliminaOCorpusInstrumentedTest` 2/2. **O agregado cheio com `api` e `domain` não foi repetido depois da correção** (Docker encerrado); o resultado de 184/184 da seção 1 é de antes dela.
+
 ### O release não contém a coleta (`verificarApkSemColeta`)
 
 | Mutação | Resultado |
