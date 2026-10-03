@@ -75,7 +75,7 @@ Nenhuma amostra SHALL ficar no repositório do projeto.
 
 As amostras SHALL ficar numa pasta própria do aparelho, **separada** das respostas guardadas por `scan-session`, fora do backup do sistema e da transferência entre aparelhos, como a resposta guardada. A eliminação da resposta guardada (confirmação da nota, prazo, falta de referência) SHALL NOT eliminar a amostra, e eliminar a amostra SHALL NOT eliminar a resposta guardada.
 
-O aplicativo SHALL eliminar toda amostra criada há **30 dias ou mais**, em qualquer hipótese, na abertura do aplicativo e por agendamento periódico em segundo plano que não dependa de o aplicativo abrir. **Sair da sessão do aparelho e a revogação do vínculo** SHALL eliminar todas as amostras ainda no aparelho: a amostra é uma **cópia**, e não o único exemplar de um trabalho já feito, ao contrário do resultado pendente. A eliminação SHALL NOT depender de o aluno, a prova ou a organização estarem na sessão corrente. Eliminar um arquivo que falha SHALL NOT impedir as outras eliminações nem a abertura do aplicativo. Foto sem arquivo de dados, ou o inverso, SHALL ser tratada como resíduo e eliminada.
+O aplicativo SHALL eliminar toda amostra criada há **30 dias ou mais**, em qualquer hipótese, na abertura do aplicativo e por agendamento periódico em segundo plano que não dependa de o aplicativo abrir. **Sair da sessão do aparelho e a revogação do vínculo** SHALL eliminar todas as amostras ainda no aparelho: a amostra é uma **cópia**, e não o único exemplar de um trabalho já feito, ao contrário do resultado pendente. A eliminação SHALL NOT depender de o aluno, a prova ou a organização estarem na sessão corrente. Eliminar um arquivo que falha SHALL NOT impedir as outras eliminações nem a abertura do aplicativo. Foto sem arquivo de dados, ou o inverso, SHALL ser tratada como resíduo e eliminada, **exceto com o escaneamento aberto**: nesse estado a foto sem dados, ou o arquivo temporário, pode ser a **cópia em curso** de uma nota (`scan-session`: "Com a coleta ligada, a nota confirmada deixa a cópia das discursivas"), e a eliminação em segundo plano SHALL NOT eliminá-los. A amostra vencida e completa SHALL ser eliminada do mesmo jeito, com o escaneamento aberto ou não.
 
 #### Scenario: Amostra vence em 30 dias
 
@@ -99,8 +99,13 @@ O aplicativo SHALL eliminar toda amostra criada há **30 dias ou mais**, em qual
 
 #### Scenario: Resíduo de cópia interrompida
 
-- **WHEN** existe uma foto sem arquivo de dados na pasta das amostras
+- **WHEN** o escaneamento está fechado e existe uma foto sem arquivo de dados na pasta das amostras
 - **THEN** ela é eliminada na próxima eliminação
+
+#### Scenario: Cópia em curso não é resíduo
+
+- **WHEN** o escaneamento está aberto, a cópia de uma nota está no meio (a foto já no nome final e os dados ainda temporários) e a eliminação em segundo plano roda
+- **THEN** nem a foto nem o temporário são eliminados, e a cópia termina com a amostra inteira
 
 #### Scenario: Falha de uma eliminação
 
