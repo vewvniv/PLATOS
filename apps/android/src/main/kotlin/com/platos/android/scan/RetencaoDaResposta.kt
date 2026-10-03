@@ -5,8 +5,8 @@ package com.platos.android.scan
  *
  * **Funcao pura sobre listas**, sem disco e sem relogio proprio: [agora] entra por parametro, e o prazo de
  * 30 dias e testavel sem esperar 30 dias. A resposta e dado de classe H (manuscrito de menor no aparelho
- * do professor); a classe H diz "ate 30 dias" (`docs/legal/politica-de-privacidade.md` §10.8; ADR-0012,
- * decisao 4).
+ * do professor); a classe H diz "ate 30 dias" (o conjunto de regras do cache no aparelho que o ADR-0012, decisao 4,
+ * define desde a atualizacao de 2026-10-03; a politica v2.0 nao o descreve, e o teto da classe A dela e maior).
  */
 object RetencaoDaResposta {
 

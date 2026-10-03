@@ -31,7 +31,7 @@ data class EssayGradeDto(
  * [points] e o total **declarado**, em string; o servidor o recalcula e compara. [closed] idem.
  *
  * **Nao ha imagem, nome de arquivo, nome, turma nem matricula, e a ausencia e o requisito** (I5; spec
- * `result-sync`). A resposta fica no aparelho (politica §6.4).
+ * `result-sync`). A resposta fica no aparelho (`result-sync`; ADR-0012, decisao 6).
  */
 @Serializable
 data class GradedResultSubmissionDto(
